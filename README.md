@@ -25,6 +25,8 @@ Instead of a generic chatbot, you command a squad of 16 specialized agents ("Leg
 *   **Research (EXPLORATOR):** Maps codebases and **surfs the web** (Stealth Mode).
 *   **Quality (REVIEWER/TESTER):** Finds bugs before you do.
 *   **Forging (ARTIFEX):** Creates new skills on the fly.
+*   **Infrastructure (PONTIFEX):** DevOps & Docker.
+*   **Analytics (HARUSPEX):** Log & Data analysis.
 *   **Hard Mode (VIRTUS):** Anti-lazy protocol for critical tasks.
 
 ---
@@ -34,24 +36,36 @@ Instead of a generic chatbot, you command a squad of 16 specialized agents ("Leg
 | Legionary | Role | Command |
 | :--- | :--- | :--- |
 | **OPTIO** | **Commander.** Orchestrates complex workflows. | `/orchestrator` |
-| **LIBRARIUS** | **Planner.** Decomposes tasks. | `/planner` |
+| **LIBRARIUS** | **Planner.** Decomposes tasks + **Knowledge Keeper**. | `/planner` |
 | **EXPLORATOR** | **Scout.** Codebase research + **Web Surfing**. | `/researcher` |
 | **CODER** | **Builder.** Writes clean, modern code. | `/coder` |
 | **REVIEWER** | **QA.** Code review & security checks. | `/reviewer` |
 | **TESTER** | **Tester.** Unit & E2E testing. | `/tester` |
 | **ARCHITECTUS**| **Architect.** System design. | `/architect` |
-| **GUARDIAN** | **Security.** Audits & vulnerability scans. | `/security` |
+| **GUARDIAN** | **Security.** Audits & **Dependency Guard**. | `/security` |
 | **SIGNIFER** | **Git Ops.** Commits, PRs, branching. | `/git-master` |
 | **FABER** | **Refactorer.** Cleanup & optimization. | `/refactorer` |
 | **DEBUGGER** | **Medic.** Error handling & fix strategies. | `/error-handler` |
 | **SCRIBA** | **Scribe.** Documentation & READMEs. | `/documenter` |
 | **ARTIFEX** | **Forger.** Creates new Skills (`skill-forge`). | `/skill-maker` |
+| **PONTIFEX** | **Engineer.** DevOps, Docker, CI/CD. | `/devops` |
+| **HARUSPEX** | **Oracle.** Data Analysis & Logs. | `/analyst` |
 | **EVOCATUS** | **Mercenary.** Delegates to external models. | `/evocate` |
 
 ---
 
-## 🧠 VIRTUS PROTOCOL (Super Mode)
+## 🧠 SPECIAL PROTOCOLS
 
+### ⚔️ WAR ROOM (`/war-room`)
+Simulates a debate between OPTIO, ARCHITECTUS, and GUARDIAN to solve critical architectural problems.
+
+### 📚 MEMORIA (Knowledge Keeper)
+LIBRARIUS automatically maintains `KNOWLEDGE.md` to store long-term project context.
+
+### 🛡️ DEPENDENCY GUARD
+GUARDIAN automatically checks `npm audit` before critical operations.
+
+### 🦅 VIRTUS (Super Mode)
 For critical tasks, the Legion activates **VIRTUS** protocol:
 1.  **Nulla Remissio:** Zero laziness. No stubs. No `// ...rest`.
 2.  **Ratio Maxima:** Deep reasoning (Chain of Thought).
