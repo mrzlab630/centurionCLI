@@ -5,7 +5,7 @@
 <img src="logo/logo_vexillum.jpg" alt="CENTURION Vexillum" width="300">
 
 ![Name](https://img.shields.io/badge/⚔️-CENTURION-gold)
-![Version](https://img.shields.io/badge/version-COHORS%20PRIMA-gold)
+![Version](https://img.shields.io/badge/version-COHORS%20SECUNDA-gold)
 ![Status](https://img.shields.io/badge/status-BATTLE%20READY-green)
 
 **The Ultimate AI Orchestration Framework for OpenClaw / Claude Code**
@@ -17,61 +17,50 @@
 ## 🏛️ What is CENTURION?
 
 CENTURION transforms your AI coding assistant into a disciplined **Roman Legion**.
-Instead of a generic chatbot, you command a squad of 16 specialized agents ("Legionaries"), each trained for a specific phase of software development.
+Instead of a generic chatbot, you command an elite squad of specialized agents ("Legionaries").
 
 ### ⚡ Core Capabilities
-*   **Orchestration (OPTIO):** Breaks complex tasks into plans.
-*   **Implementation (CODER):** Writes modern, stub-free code.
+*   **Orchestration (OPTIO):** Translates chaos into plans.
+*   **Implementation (CODER):** Writes modern, stub-free code (includes Refactoring & Docs).
 *   **Research (EXPLORATOR):** Maps codebases and **surfs the web** (Stealth Mode).
-*   **Quality (REVIEWER/TESTER):** Finds bugs before you do.
-*   **Forging (ARTIFEX):** Creates new skills on the fly.
-*   **Infrastructure (PONTIFEX):** DevOps & Docker.
-*   **Analytics (HARUSPEX):** Log & Data analysis.
+*   **Defense (GUARDIAN):** Security audits & Dependency checks.
+*   **Ops (PONTIFEX):** Docker, CI/CD, PostgreSQL maintenance.
 *   **Hard Mode (VIRTUS):** Anti-lazy protocol for critical tasks.
 
 ---
 
-## 🦅 The Legion (Roles)
+## 🦅 The Legion (Elite 8)
 
 | Legionary | Role | Command |
 | :--- | :--- | :--- |
-| **OPTIO** | **Commander.** Orchestrates complex workflows. | `/orchestrator` |
-| **LIBRARIUS** | **Planner.** Decomposes tasks + **Knowledge Keeper**. | `/planner` |
+| **OPTIO** | **Commander.** Orchestrates, plans, clarifies requests. | `/orchestrator` |
+| **CODER** | **Builder.** Writes code, refactors, documents. | `/coder` |
+| **DEBUGGER** | **Medic.** Fixes bugs, analyzes logs/data. | `/error-handler` |
 | **EXPLORATOR** | **Scout.** Codebase research + **Web Surfing**. | `/researcher` |
-| **CODER** | **Builder.** Writes clean, modern code. | `/coder` |
-| **REVIEWER** | **QA.** Code review & security checks. | `/reviewer` |
+| **PONTIFEX** | **Engineer.** DevOps, Docker, PostgreSQL. | `/devops` |
 | **TESTER** | **Tester.** Unit & E2E testing. | `/tester` |
-| **ARCHITECTUS**| **Architect.** System design. | `/architect` |
-| **GUARDIAN** | **Security.** Audits & **Dependency Guard**. | `/security` |
-| **SIGNIFER** | **Git Ops.** Commits, PRs, branching. | `/git-master` |
-| **FABER** | **Refactorer.** Cleanup & optimization. | `/refactorer` |
-| **DEBUGGER** | **Medic.** Error handling & fix strategies. | `/error-handler` |
-| **SCRIBA** | **Scribe.** Documentation & READMEs. | `/documenter` |
-| **ARTIFEX** | **Forger.** Creates new Skills (`skill-forge`). | `/skill-maker` |
-| **PONTIFEX** | **Engineer.** DevOps, Docker, CI/CD. | `/devops` |
-| **HARUSPEX** | **Oracle.** Data Analysis & Logs. | `/analyst` |
-| **EVOCATUS** | **Mercenary.** Delegates to external models. | `/evocate` |
+| **GUARDIAN** | **Shield.** Security & Dependency Guard. | `/security` |
+| **LIBRARIUS** | **Scribe.** Planning & Project Memory. | `/planner` |
+
+*Specialists:* `ARTIFEX` (Forge), `EVOCATUS` (Delegate), `SIGNIFER` (Git).
 
 ---
 
-## 🧠 SPECIAL PROTOCOLS
+## 🧠 BATTLE PROTOCOLS
 
-### ⚔️ WAR ROOM (`/war-room`)
-Simulates a debate between OPTIO, ARCHITECTUS, and GUARDIAN to solve critical architectural problems.
-
-### 📚 MEMORIA (Knowledge Keeper)
-LIBRARIUS automatically maintains `KNOWLEDGE.md` to store long-term project context.
-
-### 🛡️ DEPENDENCY GUARD
-GUARDIAN automatically checks `npm audit` before critical operations.
+### 🚀 CODE MODE
+**Trigger:** Repetitive tasks, large data processing.
+**Action:** The Legionary writes a temporary script (Node.js/Python) to execute the task locally instead of consuming tokens in chat loops.
 
 ### 🦅 VIRTUS (Super Mode)
-For critical tasks, the Legion activates **VIRTUS** protocol:
-1.  **Nulla Remissio:** Zero laziness. No stubs. No `// ...rest`.
+**Trigger:** `Virtus!` or Complex Tasks.
+**Action:**
+1.  **Nulla Remissio:** Zero laziness. No stubs.
 2.  **Ratio Maxima:** Deep reasoning (Chain of Thought).
-3.  **Veritas Absoluta:** Fact-checking via Context7/NPM.
+3.  **Veritas Absoluta:** Fact-checking via Context7.
 
-**Trigger:** `Virtus!` or automatic for complex tasks.
+### 📚 MEMORIA (Knowledge)
+LIBRARIUS automatically maintains `KNOWLEDGE.md` to store architectural decisions.
 
 ---
 
@@ -82,28 +71,12 @@ For critical tasks, the Legion activates **VIRTUS** protocol:
 git clone https://github.com/mrzlab630/centurionCLI.git ~/.claude
 ```
 
-### 2. Configure MCP (Optional but Recommended)
-For maximum power (Web Surfing, Docs), install dependencies:
+### 2. Configure MCP (Recommended)
+For Web Surfing & Deps:
 ```bash
 cd ~/.claude/skills/researcher
 npm install
 ```
-
-### 3. Usage
-Just start Claude Code. CENTURION will greet you.
-
-```text
-User: "I need a full authentication system."
-Centurion: "Task is complex. Summoning OPTIO."
-Optio: "Analyzing... I will deploy EXPLORATOR then LIBRARIUS."
-```
-
----
-
-## 📂 Structure
-*   `CLAUDE.md` — The Constitution (System Prompt).
-*   `skills/` — The Legionaries (Agent Definitions).
-*   `scripts/` — Support scripts (Web Surfing, Init).
 
 ---
 
