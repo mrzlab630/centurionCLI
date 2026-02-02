@@ -2,6 +2,8 @@
 
 <div align="center">
 
+<img src="logo/logo_vexillum.jpg" alt="CENTURION Vexillum" width="300">
+
 ![Name](https://img.shields.io/badge/⚔️-CENTURION-gold)
 ![Version](https://img.shields.io/badge/version-COHORS%20PRIMA-gold)
 ![Status](https://img.shields.io/badge/status-BATTLE%20READY-green)
