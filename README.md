@@ -22,7 +22,7 @@ Instead of a generic chatbot, you command an elite squad of specialized agents (
 ### ⚡ Core Capabilities
 *   **Orchestration (OPTIO):** Translates chaos into plans.
 *   **Implementation (CODER):** Writes modern, stub-free code (includes Refactoring & Docs).
-*   **Research (EXPLORATOR):** Maps codebases and **surfs the web** (Stealth Mode).
+*   **Research (EXPLORATOR):** Maps codebases, **Deep Search** (Perplexity AI), and **Web Surfing** (Stealth).
 *   **Defense (GUARDIAN):** Security audits & Dependency checks.
 *   **Ops (PONTIFEX):** Docker, CI/CD, PostgreSQL maintenance.
 *   **Hard Mode (VIRTUS):** Anti-lazy protocol for critical tasks.
@@ -36,7 +36,7 @@ Instead of a generic chatbot, you command an elite squad of specialized agents (
 | **OPTIO** | **Commander.** Orchestrates, plans, clarifies requests. | `/orchestrator` |
 | **CODER** | **Builder.** Writes code, refactors, documents. | `/coder` |
 | **DEBUGGER** | **Medic.** Fixes bugs, analyzes logs/data. | `/error-handler` |
-| **EXPLORATOR** | **Scout.** Codebase research + **Web Surfing**. | `/researcher` |
+| **EXPLORATOR** | **Scout.** Codebase research + **Deep Search (Perplexity)** + Web Surfing. | `/researcher` |
 | **PONTIFEX** | **Engineer.** DevOps, Docker, PostgreSQL. | `/devops` |
 | **TESTER** | **Tester.** Unit & E2E testing. | `/tester` |
 | **GUARDIAN** | **Shield.** Security & Dependency Guard. | `/security` |
@@ -71,12 +71,45 @@ LIBRARIUS automatically maintains `KNOWLEDGE.md` to store architectural decision
 git clone https://github.com/mrzlab630/centurionCLI.git ~/.claude
 ```
 
-### 2. Configure MCP (Recommended)
-For Web Surfing & Deps:
+### 2. Configure Deep Search (Perplexity)
+```bash
+export PERPLEXITY_API_KEY="pplx-your-key-here"
+
+# Test
+node ~/.claude/skills/researcher/scripts/deep-search.js "test query"
+```
+Get an API key at [perplexity.ai](https://docs.perplexity.ai).
+
+### 3. Configure Web Surfing (Optional)
+For Stealth Browser:
 ```bash
 cd ~/.claude/skills/researcher
 npm install
 ```
+
+---
+
+## 🔍 EXPLORATOR Deep Search
+
+EXPLORATOR now has **Perplexity AI** integration for real-time research with citations.
+
+```bash
+# Quick search
+node scripts/deep-search.js "What is Solana Geyser?"
+
+# Deep research
+node scripts/deep-search.js "Solana MEV protection strategies 2026" sonar-pro
+
+# Latest news only
+node scripts/deep-search.js "crypto market today" sonar day
+```
+
+| Model | Speed | Best For |
+|-------|-------|----------|
+| `sonar` | ~1s | Quick facts |
+| `sonar-pro` | ~3s | Deep research |
+| `sonar-reasoning` | ~10s | Complex analysis |
+| `sonar-deep-research` | ~30s | Full investigation |
 
 ---
 
