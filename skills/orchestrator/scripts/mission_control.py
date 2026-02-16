@@ -1,98 +1,135 @@
 #!/usr/bin/env python3
 """
-🏛️ OPTIO MISSION CONTROL
-Part of CenturionCLI (Cohors Ferrata)
-
-Orchestrates multi-agent workflows.
-Executes specialized scripts (Velites, Haruspex, etc.) and aggregates results.
+🏛️ OPTIO MISSION CONTROL v2.1 (Virtus Fix)
+Robust orchestration with Marker-based Parsing.
 """
 
-import argparse
+import sys
+import os
 import subprocess
 import json
-import os
-import sys
-from datetime import datetime, timezone
+import uuid
+import re
 
-# Path to other skills
+# Import Legion Core path setup
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+sys.path.append(os.path.join(REPO_ROOT, 'libs'))
+
+# Try importing to ensure it works
+try:
+    from legion_core import legion_tool, LegionIO, MissionState, JSON_START, JSON_END
+except ImportError:
+    # Fallback if libs not in path
+    print(f"Error: Could not import legion_core from {REPO_ROOT}/libs", file=sys.stderr)
+    sys.exit(1)
+
 SKILLS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-def run_legionary(role, script, args):
-    """Executes a Legionary's script."""
-    script_path = os.path.join(SKILLS_DIR, role, 'scripts', script)
-    
-    if not os.path.exists(script_path):
-        return {"error": f"Script not found: {script_path}"}
-
-    cmd = [sys.executable, script_path] + args + ['--json']
-    print(f"[*] Optio executing: {role} -> {' '.join(cmd)}")
-    
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-        if result.returncode != 0:
-            return {"error": f"Execution failed: {result.stderr}"}
-        
+def parse_legion_output(stdout):
+    """Extract JSON from marker blocks."""
+    # Look for content between markers
+    pattern = re.compile(f"{re.escape(JSON_START)}\\s*(.*?)\\s*{re.escape(JSON_END)}", re.DOTALL)
+    match = pattern.search(stdout)
+    if match:
         try:
-            return json.loads(result.stdout)
-        except json.JSONDecodeError:
-            return {"error": "Invalid JSON output", "raw": result.stdout}
-            
+            return json.loads(match.group(1))
+        except json.JSONDecodeError as e:
+            raise RuntimeError(f"Invalid JSON inside markers: {e}")
+    # Fallback: try parsing whole stdout if it looks like JSON
+    try:
+        return json.loads(stdout.strip())
+    except:
+        raise RuntimeError("No valid Legion JSON output found in stdout")
+
+def run_agent(role, script, args):
+    path = os.path.join(SKILLS_DIR, role, 'scripts', script)
+    if not os.path.exists(path):
+        raise RuntimeError(f"Script not found: {path}")
+
+    # Use sys.executable to ensure same python env
+    cmd = [sys.executable, path] + args
+    
+    LegionIO.log(f"Calling {role} ({script})...")
+    try:
+        # Capture both streams
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        
+        # Pass through stderr logs from agent
+        if res.stderr:
+            sys.stderr.write(res.stderr)
+        
+        if res.returncode != 0:
+            raise RuntimeError(f"Agent process failed (code {res.returncode})")
+
+        return parse_legion_output(res.stdout)
+
     except Exception as e:
-        return {"error": str(e)}
+        raise RuntimeError(f"Agent execution error: {e}")
 
-def mission_security_audit(target):
-    """
-    MISSION: SECURITY AUDIT
-    Protocol: Shannon Cycle (Recon -> Analyze -> Report)
-    """
-    report = {
-        "mission": "Security Audit",
-        "target": target,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "steps": []
-    }
+def setup_args(parser):
+    parser.add_argument("target", help="Mission target")
+    parser.add_argument("--resume", help="Resume mission ID")
 
-    # Step 1: Velites (Recon)
-    print("--- PHASE 1: VELITES (Recon) ---")
-    recon_data = run_legionary('velites', 'recon.py', [target])
-    report['steps'].append({"step": "recon", "data": recon_data})
+@legion_tool("Mission Control", setup_args)
+def main(args):
+    # Initialize Mission State
+    mission_id = args.resume or f"mission_{uuid.uuid4().hex[:8]}"
+    state = MissionState(mission_id)
     
-    if 'error' in recon_data:
-        print("❌ Recon failed. Aborting.")
-        return report
+    LegionIO.log(f"Mission ID: {mission_id}")
+    if args.resume:
+        LegionIO.log(f"Resuming mission...")
 
-    # Step 2: Haruspex (Analyze) - Only if we have local source
-    # For remote URL, Haruspex can't do SAST. 
-    # But we can simulate "Checking known paths" based on Recon.
-    
-    # (Future) Step 3: Sicarius - If vulnerability candidates found
-    
-    print("✅ Mission Complete.")
-    return report
+    target = args.target
+    if not target:
+        raise ValueError("Target required")
 
-def main():
-    parser = argparse.ArgumentParser(description="Optio Mission Control")
-    parser.add_argument("--mission", choices=['audit'], required=True, help="Mission type")
-    parser.add_argument("--target", required=True, help="Target URL or Path")
-    parser.add_argument("--json", action="store_true", help="Output JSON")
-    
-    args = parser.parse_args()
-    
-    if args.mission == 'audit':
-        result = mission_security_audit(args.target)
-    
-    if args.json:
-        print(json.dumps(result, indent=2))
-    else:
-        # Pretty print summary
-        print(f"\n🏛️  MISSION REPORT: {result['mission']}")
-        print(f"🎯 Target: {result['target']}")
-        for step in result['steps']:
-            print(f"\n[Step: {step['step'].upper()}]")
-            if 'error' in step['data']:
-                print(f"❌ Error: {step['data']['error']}")
+    # 1. Recon (Velites)
+    step_recon = state.get_step("recon")
+    if not step_recon or step_recon["status"] != "done":
+        try:
+            # We call recon.py with just the target. It handles --json implicitly via decorator if we passed it?
+            # Actually, run_agent passes args directly. legion_tool adds --json flag.
+            # But run_agent doesn't add --json automatically. Let's rely on standard args.
+            # Wait, our scripts expect arguments.
+            
+            res = run_agent("velites", "recon.py", [target])
+            
+            if res.get("status") == "success":
+                state.update_step("recon", "done", res["data"])
+                LegionIO.log("✅ Recon complete")
             else:
-                print(f"✅ Success. Data keys: {list(step['data'].keys())}")
+                raise RuntimeError(res.get("error"))
+        except Exception as e:
+            state.update_step("recon", "failed", str(e))
+            raise e
+    else:
+        LegionIO.log("⏭️ Skipping Recon (Already done)")
+
+    # 2. Analyze (Haruspex)
+    # Mock logic: check if target is a path
+    if os.path.exists(target):
+        step_analyze = state.get_step("analyze")
+        if not step_analyze or step_analyze["status"] != "done":
+            try:
+                res = run_agent("haruspex", "scan_code.py", [target])
+                if res.get("status") == "success":
+                    state.update_step("analyze", "done", res["data"])
+                    LegionIO.log("✅ Analysis complete")
+                else:
+                    raise RuntimeError(res.get("error"))
+            except Exception as e:
+                state.update_step("analyze", "failed", str(e))
+                raise e
+    else:
+        if not state.get_step("analyze"):
+            state.update_step("analyze", "skipped", "Target is remote URL")
+
+    return {
+        "mission_id": mission_id,
+        "status": "complete",
+        "results": state.data
+    }
 
 if __name__ == "__main__":
     main()

@@ -1,116 +1,64 @@
 #!/usr/bin/env python3
 """
-🔮 HARUSPEX SOURCE ANALYZER
-Part of CenturionCLI (Cohors Ferrata)
-
-Performs static analysis (SAST) to find vulnerability candidates.
-Uses regex patterns to identify dangerous sinks.
+🔮 HARUSPEX ANALYZER v2.0 (Powered by Legion Core)
 """
 
-import argparse
+import sys
 import os
 import re
-import json
-import sys
-from datetime import datetime, timezone
 
-# Dangerous patterns database
+# Import Legion Core
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
+from libs.legion_core import legion_tool, LegionIO
+
 PATTERNS = {
-    'SQL Injection': [
-        r'SELECT.*FROM.*\$',           # PHP variables in SQL
-        r'Execute\s*\(\s*["\'].*\+',   # String concat in SQL exec
-        r'cursor\.execute\s*\(\s*f["\']', # Python f-string in SQL
-    ],
-    'XSS': [
-        r'innerHTML\s*=',
-        r'dangerouslySetInnerHTML',
-        r'document\.write\(',
-        r'echo\s+\$_GET',
-        r'<%=.*%>'
-    ],
-    'RCE': [
-        r'eval\s*\(',
-        r'exec\s*\(',
-        r'system\s*\(',
-        r'subprocess\.call',
-        r'os\.system'
-    ],
-    'Hardcoded Secrets': [
-        r'api_key\s*=\s*["\'][A-Za-z0-9]{20,}["\']',
-        r'password\s*=\s*["\'].+["\']',
-        r'secret\s*=\s*["\'].+["\']'
-    ]
+    'SQL Injection': [r'SELECT.*FROM.*\$', r'execute\s*\(.*\%'],
+    'XSS': [r'innerHTML', r'document\.write', r'dangerouslySetInnerHTML'],
+    'RCE': [r'eval\(', r'exec\(', r'system\(']
 }
 
 def scan_file(filepath):
     findings = []
     try:
         with open(filepath, 'r', errors='ignore') as f:
-            lines = f.readlines()
-            
-        for i, line in enumerate(lines):
-            for vuln_type, regex_list in PATTERNS.items():
-                for regex in regex_list:
-                    if re.search(regex, line, re.IGNORECASE):
-                        findings.append({
-                            "type": vuln_type,
-                            "file": filepath,
-                            "line": i + 1,
-                            "code": line.strip(),
-                            "pattern": regex
-                        })
-    except Exception as e:
-        pass # Ignore binary files etc
-        
+            for i, line in enumerate(f):
+                for vtype, regexes in PATTERNS.items():
+                    for r in regexes:
+                        if re.search(r, line, re.IGNORECASE):
+                            findings.append({
+                                "type": vtype,
+                                "file": filepath,
+                                "line": i+1,
+                                "code": line.strip()[:100]
+                            })
+    except:
+        pass
     return findings
 
-def scan_directory(root_dir, extensions=None):
-    if not extensions:
-        extensions = ['.py', '.js', '.ts', '.php', '.go', '.java', '.rb', '.c', '.cpp', '.h', '.html']
-        
+def setup_args(parser):
+    parser.add_argument("target", help="Path to code")
+
+@legion_tool("Haruspex Static Code Analysis", setup_args)
+def main(args):
+    path = args.target
+    if not os.path.exists(path):
+        raise ValueError(f"Path not found: {path}")
+
+    LegionIO.log(f"Scanning codebase: {path}")
+    
     all_findings = []
-    
-    for root, dirs, files in os.walk(root_dir):
-        # Skip hidden dirs
-        dirs[:] = [d for d in dirs if not d.startswith('.')]
-        
+    for root, _, files in os.walk(path):
         for file in files:
-            if any(file.endswith(ext) for ext in extensions):
-                path = os.path.join(root, file)
-                all_findings.extend(scan_file(path))
-                
-    return all_findings
+            if file.endswith(('.py', '.js', '.php', '.go')):
+                full_path = os.path.join(root, file)
+                all_findings.extend(scan_file(full_path))
 
-def main():
-    parser = argparse.ArgumentParser(description="Haruspex Source Analyzer")
-    parser.add_argument("path", help="Path to repository/directory to scan")
-    parser.add_argument("--json", action="store_true", help="Output JSON only")
-    args = parser.parse_args()
-
-    if not args.json:
-        print(f"""
-    🔮 HARUSPEX ANALYZER v1.0
-    Centurion Legion | Cohors Ferrata
-    Scanning: {args.path}
-        """)
-
-    results = scan_directory(args.path)
-    
-    report = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "target": args.path,
-        "count": len(results),
-        "findings": results
+    LegionIO.log(f"Scan complete. Found {len(all_findings)} issues.")
+    return {
+        "scan_path": path,
+        "total_findings": len(all_findings),
+        "details": all_findings
     }
-
-    if args.json:
-        print(json.dumps(report, indent=2))
-    else:
-        print(f"🔎 Found {len(results)} potential issues:\n")
-        for f in results:
-            print(f"[{f['type']}] {f['file']}:{f['line']}")
-            print(f"   Code: {f['code']}")
-            print("")
 
 if __name__ == "__main__":
     main()

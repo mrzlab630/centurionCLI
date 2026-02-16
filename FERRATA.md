@@ -21,7 +21,7 @@ Every finding goes through the **Probatio** cycle:
 **Tool:** `skills/velites/scripts/recon.py`
 **Usage:**
 ```bash
-python3 skills/velites/scripts/recon.py https://target.com
+python3 skills/velites/scripts/recon.py example.com
 ```
 **Output:** JSON map of ports, tech stack, and hidden files.
 
@@ -46,16 +46,21 @@ python3 skills/sicarius/scripts/exploit_verify.py https://target.com/login \
 
 ---
 
-## 🔄 The Shannon Cycle (Workflow)
+## 🧬 Architectural Standards (Legion Core)
 
-To perform a full security audit:
+All tools are built on `libs/legion_core.py`, ensuring:
+1.  **Strict JSON I/O:** Output is wrapped in `<<<LEGION_JSON_START>>>` markers for reliable parsing.
+2.  **State Management:** `MissionState` tracks progress in `.missions/`, allowing resume after failure.
+3.  **Error Handling:** Automatic traceback capture and structured error reporting.
 
-1.  **Velites** scans the URL → finds `login.php`.
-2.  **Haruspex** scans `login.php` source → finds `SELECT * FROM users WHERE user = $user`.
-3.  **Haruspex** generates a hypothesis: "SQL Injection possible via `$user`".
-4.  **Sicarius** launches Playwright with payload `' OR 1=1 --`.
-5.  **Sicarius** confirms login bypass and saves `proof.png`.
-6.  **Optio** reports: "Critical SQL Injection confirmed in `login.php`. Proof attached."
+### Workflow Orchestration (Optio)
+```bash
+# Start a mission
+python3 skills/orchestrator/scripts/mission_control.py --mission audit --target https://example.com
+
+# Resume a mission
+python3 skills/orchestrator/scripts/mission_control.py --resume mission_12345
+```
 
 ---
 
