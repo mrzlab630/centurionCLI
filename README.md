@@ -5,62 +5,66 @@
 <img src="logo/logo_vexillum.jpg" alt="CENTURION Vexillum" width="300">
 
 ![Name](https://img.shields.io/badge/⚔️-CENTURION-gold)
-![Version](https://img.shields.io/badge/version-COHORS%20SECUNDA-gold)
-![Status](https://img.shields.io/badge/status-BATTLE%20READY-green)
+![Version](https://img.shields.io/badge/version-COHORS%20FERRATA-red)
+![Status](https://img.shields.io/badge/status-BATTLE%20TESTED-green)
 
-**The Ultimate AI Orchestration Framework for OpenClaw / Claude Code**
+**The Autonomous AI Orchestration Framework**
+*Inspired by Shannon. Built for OpenClaw.*
 
-*DISCIPLINA ET FIDES* (Discipline and Loyalty)
+*ACTA, NON VERBA* (Deeds, not words)
 
 </div>
 
 ## 🏛️ What is CENTURION?
 
 CENTURION transforms your AI coding assistant into a disciplined **Roman Legion**.
-Instead of a generic chatbot, you command an elite squad of specialized agents ("Legionaries").
+Instead of a generic chatbot, you command an elite squad of specialized agents that **verify their own work**.
 
-### ⚡ Core Capabilities
-*   **Orchestration (OPTIO):** Translates chaos into plans.
-*   **Implementation (CODER):** Writes modern, stub-free code (includes Refactoring & Docs).
-*   **Research (EXPLORATOR):** Maps codebases and **surfs the web** (Stealth Mode).
-*   **Defense (GUARDIAN):** Security audits & Dependency checks.
-*   **Ops (PONTIFEX):** Docker, CI/CD, PostgreSQL maintenance.
-*   **Hard Mode (VIRTUS):** Anti-lazy protocol for critical tasks.
+### 🛡️ The Doctrine: PROBATIO (Proof)
+We moved beyond "Chat". We moved to **Action**.
+Every Legionary follows the **Shannon Cycle**:
+1.  **Recon:** Understand the environment.
+2.  **Action:** Write code / Execute attack.
+3.  **Probatio:** **VERIFY** the result (Run tests, Curl localhost, Check exploit).
+4.  **Report:** Only report success if proof exists.
 
 ---
 
-## 🦅 The Legion (Elite 8)
+## 🦅 The Legion (Elite 11)
 
-| Legionary | Role | Command |
+### 🏗️ The Builders (Cohors Prima)
+| Legionary | Role | Probatio (Verification) |
 | :--- | :--- | :--- |
-| **OPTIO** | **Commander.** Orchestrates, plans, clarifies requests. | `/orchestrator` |
-| **CODER** | **Builder.** Writes code, refactors, documents. | `/coder` |
-| **DEBUGGER** | **Medic.** Fixes bugs, analyzes logs/data. | `/error-handler` |
-| **EXPLORATOR** | **Scout.** Codebase research + **Web Surfing**. | `/researcher` |
-| **PONTIFEX** | **Engineer.** DevOps, Docker, PostgreSQL. | `/devops` |
-| **TESTER** | **Tester.** Unit & E2E testing. | `/tester` |
-| **GUARDIAN** | **Shield.** Security & Dependency Guard. | `/security` |
-| **LIBRARIUS** | **Scribe.** Planning & Project Memory. | `/planner` |
+| **OPTIO** | **Commander.** Orchestrates & Plans. | Verifies all sub-agent reports. |
+| **CODER** | **Builder.** Code & Refactoring. | **Must run Unit Tests.** |
+| **PONTIFEX** | **Engineer.** DevOps & Docker. | **Must Curl/Healthcheck services.** |
+| **EXPLORATOR**| **Scout.** Research & Web. | **Must verify links & sources.** |
 
-*Specialists:* `ARTIFEX` (Forge), `EVOCATUS` (Delegate), `SIGNIFER` (Git).
+### ⚔️ The Iron Cohort (Security Suite)
+*New in Cohors Ferrata*
+
+| Legionary | Role | Function |
+| :--- | :--- | :--- |
+| **VELITES** | **Recon.** | Active Port Scanning & Tech Stack mapping. |
+| **HARUSPEX** | **Analyst.** | Source Code Analysis (SAST) for vulnerabilities. |
+| **SICARIUS** | **Assassin.** | Browser-based Exploit Verification (DAST). |
 
 ---
 
 ## 🧠 BATTLE PROTOCOLS
 
-### 🚀 CODE MODE
-**Trigger:** Repetitive tasks, large data processing.
-**Action:** The Legionary writes a temporary script (Node.js/Python) to execute the task locally instead of consuming tokens in chat loops.
+### 📜 PROBATIO PROTOCOL
+**Trigger:** Always active.
+**Action:** No task is complete without proof.
+*   *Coder:* "I wrote the function AND ran `test.py`. It passed."
+*   *Pontifex:* "I deployed Docker AND curled port 3000. It returns 200 OK."
 
 ### 🦅 VIRTUS (Super Mode)
-**Trigger:** `Virtus!` or Complex Tasks.
+**Trigger:** `Virtus!` command.
 **Action:**
-1.  **Nulla Remissio:** Zero laziness. No stubs.
-2.  **Ratio Maxima:** Deep reasoning (Chain of Thought).
+1.  **Nulla Remissio:** Zero laziness.
+2.  **Ratio Maxima:** Deep Chain of Thought.
 3.  **Veritas Absoluta:** Fact-checking via Context7.
-
-### 📚 MEMORIA (Knowledge)
-LIBRARIUS automatically maintains `KNOWLEDGE.md` to store architectural decisions.
 
 ---
 
@@ -71,11 +75,17 @@ LIBRARIUS automatically maintains `KNOWLEDGE.md` to store architectural decision
 git clone https://github.com/mrzlab630/centurionCLI.git ~/.claude
 ```
 
-### 2. Configure MCP (Recommended)
-For Web Surfing & Deps:
+### 2. Install Requirements (For Probatio)
 ```bash
-cd ~/.claude/skills/researcher
-npm install
+# Python dependencies for Security Suite
+pip3 install requests playwright
+playwright install chromium
+```
+
+### 3. Usage
+```bash
+# Security Audit (The Shannon Cycle)
+centurion security https://target.com
 ```
 
 ---
