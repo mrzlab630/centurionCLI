@@ -32,16 +32,20 @@ Every Legionary follows the **Shannon Cycle**:
 
 ## 🦅 The Legion (Elite 11)
 
-### 🏗️ The Builders (Cohors Prima)
+### 🏗️ Cohors Prima (Builders & Support)
 | Legionary | Role | Probatio (Verification) |
 | :--- | :--- | :--- |
 | **OPTIO** | **Commander.** Orchestrates & Plans. | Verifies all sub-agent reports. |
 | **CODER** | **Builder.** Code & Refactoring. | **Must run Unit Tests.** |
 | **PONTIFEX** | **Engineer.** DevOps & Docker. | **Must Curl/Healthcheck services.** |
 | **EXPLORATOR**| **Scout.** Research & Web. | **Must verify links & sources.** |
+| **DEBUGGER** | **Medic.** Bug fixer & Log analyst. | **Must reproduce bug -> fix -> verify fix.** |
+| **TESTER** | **Tester.** QA & E2E tests. | **Must produce a passed test report.** |
+| **GUARDIAN** | **Shield.** Security & Dependency. | **Must audit `npm audit` / dependencies.** |
+| **LIBRARIUS** | **Scribe.** Docs & Memory. | **Must verify doc links and consistency.** |
 
-### ⚔️ The Iron Cohort (Security Suite)
-*New in Cohors Ferrata*
+### ⚔️ Cohors Ferrata (Security Elite)
+*Advanced Security Suite*
 
 | Legionary | Role | Function |
 | :--- | :--- | :--- |
