@@ -5,7 +5,7 @@
 <img src="logo/logo_vexillum.jpg" alt="CENTURION Vexillum" width="300">
 
 ![Name](https://img.shields.io/badge/⚔️-CENTURION-gold)
-![Version](https://img.shields.io/badge/version-COHORS%20FERRATA-red)
+![Version](https://img.shields.io/badge/version-COHORS%20SECUNDA-red)
 ![Status](https://img.shields.io/badge/status-BATTLE%20TESTED-green)
 
 **The Autonomous AI Orchestration Framework**
@@ -76,20 +76,13 @@ Every Legionary follows the **Shannon Cycle**:
 
 ### 1. Clone & Install
 ```bash
-git clone https://github.com/mrzlab630/centurionCLI.git ~/.claude
+git clone https://github.com/mrzlab630/centurionCLI.git
+cd centurionCLI && bash install.sh
 ```
 
-### 2. Install Requirements (For Probatio)
+### 2. Usage
 ```bash
-# Python dependencies for Security Suite
-pip3 install requests playwright
-playwright install chromium
-```
-
-### 3. Usage
-```bash
-# Security Audit (The Shannon Cycle)
-centurion security https://target.com
+claude
 ```
 
 ---
