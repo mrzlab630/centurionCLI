@@ -1,44 +1,42 @@
-const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 function checkDeps() {
-    console.log('🔍 EXPLORATOR: Checking Web Surfer dependencies...');
-    
-    const requiredModules = ['puppeteer-extra', 'puppeteer-extra-plugin-stealth', 'puppeteer'];
-    const missing = [];
+    console.log('EXPLORATOR: Checking Web Surfer dependencies...');
+    let ok = true;
 
-    // Check Node Modules
-    for (const mod of requiredModules) {
-        try {
-            require.resolve(mod);
-        } catch (e) {
-            missing.push(mod);
-        }
-    }
-
-    if (missing.length > 0) {
-        console.error('❌ Missing Node dependencies:');
-        console.error(`   Run this in your repo root or skills folder:\n   npm install ${missing.join(' ')}`);
-        return false;
-    }
-
-    // Check System Deps (Try launching chrome in dry run)
+    // 1. Check playwright-core module
     try {
-        const puppeteer = require('puppeteer-extra');
-        const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-        puppeteer.use(StealthPlugin());
-        
-        // Use a lightweight check without full launch if possible, 
-        // but launch is the only real test.
-        // We'll skip deep system check here to avoid slow startup, 
-        // relying on the script failure to prompt user later.
-        console.log('✅ Node dependencies OK.');
-        return true;
-    } catch (e) {
-        console.error('⚠️  System check warning:', e.message);
-        return false;
+        require.resolve('playwright-core');
+        console.log('  [OK] playwright-core');
+    } catch {
+        console.error('  [FAIL] playwright-core not found');
+        console.error('    Fix: cd ~/.claude/skills/researcher/scripts && npm install playwright-core');
+        ok = false;
     }
+
+    // 2. Check Chromium binary
+    const cacheDir = process.env.PLAYWRIGHT_BROWSERS_PATH
+        || path.join(os.homedir(), '.cache', 'ms-playwright');
+
+    if (fs.existsSync(cacheDir)) {
+        const chromiumDirs = fs.readdirSync(cacheDir).filter(d => d.startsWith('chromium-'));
+        if (chromiumDirs.length > 0) {
+            console.log(`  [OK] Chromium found: ${chromiumDirs[chromiumDirs.length - 1]}`);
+        } else {
+            console.error('  [FAIL] Chromium not installed in Playwright cache');
+            console.error('    Fix: python3 -m playwright install chromium');
+            ok = false;
+        }
+    } else {
+        console.error(`  [FAIL] Playwright cache not found: ${cacheDir}`);
+        console.error('    Fix: python3 -m playwright install chromium');
+        ok = false;
+    }
+
+    console.log(ok ? '\nAll dependencies OK.' : '\nSome dependencies missing. See above.');
+    return ok;
 }
 
 if (require.main === module) {
