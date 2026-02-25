@@ -1,12 +1,5 @@
 {
-  "mcpServers": {
-    "solanaMcp": {
-      "command": "npx",
-      "args": [
-        "mcp-remote",
-        "https://mcp.solana.com/mcp"
-      ]
-    },
+  "mcpServers": {    
     "brave-search": {
       "command": "npx",
       "args": [
