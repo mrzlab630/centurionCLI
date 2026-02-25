@@ -12,7 +12,7 @@
       "command": "npx",
       "args": [
         "-y",
-        "@modelcontextprotocol/server-brave-search"
+        "@brave/brave-search-mcp-server"
       ],
       "env": {
         "BRAVE_API_KEY": "YOUR_BRAVE_API_KEY_HERE"
@@ -23,7 +23,10 @@
       "args": [
         "-y",
         "@upstash/context7-mcp"
-      ]
+      ],
+   "env": {
+        "CONTEXT7_API_KEY": "YOUR_CONTEXT7_API_KEY_HERE"
+      }
     },
     "playwright": {
       "command": "npx",
