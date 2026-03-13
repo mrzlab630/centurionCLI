@@ -2,6 +2,17 @@
 settings.json
 *.env
 .env*
+!.env.example
+.credentials.json
+
+# MCP server build artifacts
+mcp-servers/*/node_modules/
+mcp-servers/*/dist/
+mcp-servers/*/data/
+
+# Skill runtime data (project-specific)
+skills/*/memory/
+skills/*/reports/
 
 # Cache and temporary files
 cache/
@@ -10,6 +21,16 @@ history/
 projects/
 todos/
 evocate/
+debug/
+file-history/
+session-env/
+shell-snapshots/
+paste-cache/
+plans/
+tasks/
+downloads/
+backups/
+plugins/
 
 # Editor files
 *.swp
@@ -25,11 +46,20 @@ Thumbs.db
 # Logs
 *.log
 
-# Node modules (if any)
+# Node modules (root)
 node_modules/
 
-# API keys and secrets (never commit these)
+# Python cache
+__pycache__/
+*.pyc
+
+# API keys and secrets
 *.pem
 *.key
 credentials.json
 .missions/
+
+# Stats and session data
+stats-cache.json
+mcp-needs-auth-cache.json
+history.jsonl

@@ -1,0 +1,20 @@
+{
+  "name": "@legion/memoria",
+  "version": "1.2.0",
+  "description": "Semantic memory MCP server for Claude Code — vector search over Legion memory files",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.0",
+    "@huggingface/transformers": "^3.4.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/node": "^22.0.0"
+  }
+}
