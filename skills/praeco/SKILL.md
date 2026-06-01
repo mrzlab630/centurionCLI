@@ -1,12 +1,6 @@
 ---
 name: praeco
-description: |
-  Telegram Platform Specialist. Expert in Telegram Bot API, Mini Apps SDK, grammY framework,
-  and Telegram-specific UI/UX patterns. Uses Context7 MCP for live documentation retrieval.
-  Use when building Telegram bots, Mini Apps, designing bot interfaces, working with
-  grammY plugins (Conversations, Menu, Sessions), Telegram payments, inline mode,
-  or when user asks about "telegram", "bot api", "mini app", "grammy", "callback_data",
-  "inline keyboard", "telegram buttons", "bot commands", or "tma.js".
+description: Telegram specialist for Bot API, Mini Apps, grammY, inline keyboards, callback_data, payments, sessions, commands, and Telegram UX.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
 ---
 

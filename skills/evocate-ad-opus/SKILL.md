@@ -1,9 +1,6 @@
 ---
 name: evocate-ad-opus
-description: |
-  Delegate tasks to external AI models via separate tmux sessions. Use when you need to
-  run specific tasks with a different (cheaper or specialized) model. Launches claude
-  with specified model in tmux, waits for completion, and reports results.
+description: Delegates tasks to external AI models in tmux, waits for completion, and reports results for cheaper or specialized execution.
 allowed-tools: Bash, Read, Write
 triggers:
   explicit:
@@ -29,7 +26,7 @@ When this skill is activated:
 4. **MUST** call the evocate.sh script via Bash to launch tmux session
 5. **MUST** report the session ID back to user
 
-This skill is for DELEGATION, not execution. The task will be performed by another Claude instance in a separate tmux session.
+This skill is for DELEGATION, not execution. The task will be performed by another agent instance in a separate tmux session.
 
 ---
 
@@ -46,7 +43,7 @@ Preparing to delegate task to external model...
 ### Step 1: Parse the Command
 
 Extract from user input:
-- `model`: The model name (e.g., "claude-opus-4-5-latest-paid", "kimi-k2")
+- `model`: The model name (e.g., "gpt-5.5", "kimi-k2")
 - `task`: The task description
 
 ### Step 2: Create Task File
@@ -100,7 +97,7 @@ evocate_delegation:
 
 ## Example Execution Flow
 
-**User says:** "summon Evocatus! claude-haiku task: research example.com"
+**User says:** "summon Evocatus! kimi-k2 task: research example.com"
 
 **You MUST do:**
 
@@ -112,7 +109,7 @@ evocate_delegation:
 
 3. Launch via script:
 ```bash
-~/.claude/scripts/evocate.sh launch claude-haiku ~/.claude/evocate/task-{timestamp}.md
+~/.claude/scripts/evocate.sh launch kimi-k2 ~/.claude/evocate/task-{timestamp}.md
 ```
 
 4. Report session info to user
@@ -137,7 +134,7 @@ call Evocatus <model-name> task: <task-description>
 
 ```
 Evocate, ad opus! kimi-k2 research the authentication module
-summon Evocatus claude-haiku task: write unit tests
+summon Evocatus kimi-k2 task: write unit tests
 call Evocatus deepseek-coder for refactoring utils.ts
 ```
 
@@ -179,16 +176,16 @@ cost_tier_free:
   - kimi-k2
 
 cost_tier_low:
-  - claude-haiku
+  - gpt-5-mini
   - gemini-flash
 
 cost_tier_medium:
-  - claude-sonnet
+  - gpt-5
   - antigravity-gemini-3-pro-high
   - kimi-k2-thinking
 
 cost_tier_high:
-  - claude-opus-4-5-latest-paid
+  - gpt-5.5
   - o1-preview
 ```
 
@@ -214,7 +211,7 @@ After successful delegation:
 
 Session Details:
   ID: evocate-1234567890-12345
-  Model: claude-haiku
+  Model: kimi-k2
   Task File: ~/.claude/evocate/task-1234567890.md
 
 Commands:

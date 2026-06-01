@@ -1,14 +1,6 @@
 ---
 name: mercator
-description: |
-  Universal Internet Marketing Strategist. Analyzes markets, competitors, audiences.
-  Plans growth strategies, engagement campaigns, content calendars. Writes messaging
-  and positioning. Advises on user acquisition, retention, re-engagement.
-  DOES NOT execute — delegates to PRAECO (Telegram), PICTOR (web/visual), CODER (code).
-  Use when user asks about "marketing", "growth", "engagement", "retention", "churn",
-  "campaign", "competitor analysis", "content strategy", "positioning", "copywriting",
-  "funnel", "user acquisition", "onboarding", "re-engagement", "A/B test",
-  "conversion", "audience", "segmentation", "brand voice", or "go-to-market".
+description: Internet marketing strategist for growth, positioning, competitors, funnels, campaigns, content strategy, retention, and go-to-market planning.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch, mcp__github__search_repositories, mcp__github__search_code, mcp__github__get_file_contents
 ---
 
@@ -291,7 +283,7 @@ Every MERCATOR recommendation MUST pass:
 
 ### Memory Files
 ```
-~/.claude/skills/mercator/memory/
+$CENTURION_SKILLS_ROOT/mercator/memory/
   campaign-history.md    — Past campaigns: what worked, what didn't, metrics
   audience-insights.md   — Accumulated user behavior knowledge
   competitive-intel.md   — Competitor data, positioning maps, feature comparisons

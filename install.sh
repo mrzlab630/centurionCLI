@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # CENTURION Installation Script
-# Version: COHORS SECUNDA (v2.0)
-# Installs: 27 Legionaries + MEMORIA MCP + 7 MCP Servers + Pipeline Templates
+# Version: COHORS SECUNDA (v2.1)
+# Installs: 34 Legionaries + MEMORIA MCP + 7 MCP Servers + Pipeline Templates
 
 set -e
 
@@ -13,13 +13,16 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-CLAUDE_DIR="$HOME/.claude"
+CLAUDE_DIR="${CLAUDE_HOME:-$HOME/.claude}"
+AGENTS_DIR="${AGENTS_HOME:-$HOME/.agents}"
+CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MEMORIA_DIR="$CLAUDE_DIR/mcp-servers/memoria"
+SKILLS_DIR="$AGENTS_DIR/skills"
 
 echo ""
 echo -e "${BOLD}⚔️  CENTURION — COHORS SECUNDA${NC}"
-echo -e "${CYAN}   27 Legionaries | 7 MCP Servers | MEMORIA v1.2.0${NC}"
+echo -e "${CYAN}   34 Legionaries | canonical ~/.agents/skills | 7 MCP Servers | MEMORIA v1.2.0${NC}"
 echo "=================================================="
 echo ""
 
@@ -69,7 +72,7 @@ echo -e "${BOLD}[2/7] Backup...${NC}"
 
 if [ -d "$CLAUDE_DIR" ]; then
     BACKUP_DIR="${CLAUDE_DIR}.backup.$(date +%Y%m%d_%H%M%S)"
-    echo -e "${YELLOW}  → Backing up ~/.claude → $BACKUP_DIR${NC}"
+    echo -e "${YELLOW}  → Backing up $CLAUDE_DIR → $BACKUP_DIR${NC}"
     cp -r "$CLAUDE_DIR" "$BACKUP_DIR"
     echo -e "${GREEN}  ✓${NC} Backup created"
 else
@@ -83,7 +86,7 @@ echo ""
 echo -e "${BOLD}[3/7] Installing core configuration...${NC}"
 
 mkdir -p "$CLAUDE_DIR"
-mkdir -p "$CLAUDE_DIR/skills"
+mkdir -p "$SKILLS_DIR"
 mkdir -p "$CLAUDE_DIR/scripts"
 mkdir -p "$CLAUDE_DIR/pipeline"
 
@@ -123,33 +126,38 @@ fi
 
 echo ""
 
-# ─── PHASE 4: Skills (27 Legionaries) ───
+# ─── PHASE 4: Skills (34 Legionaries) ───
 
-echo -e "${BOLD}[4/7] Deploying 27 Legionaries...${NC}"
+echo -e "${BOLD}[4/7] Deploying 34 Legionaries to canonical skill root...${NC}"
 
 SKILL_COUNT=0
 for skill_dir in "$SCRIPT_DIR/skills/"*/; do
     skill_name=$(basename "$skill_dir")
     # Copy everything except memory/ directories (project-specific)
-    mkdir -p "$CLAUDE_DIR/skills/$skill_name"
+    mkdir -p "$SKILLS_DIR/$skill_name"
 
     # Copy SKILL.md
-    [ -f "$skill_dir/SKILL.md" ] && cp "$skill_dir/SKILL.md" "$CLAUDE_DIR/skills/$skill_name/"
-    [ -f "$skill_dir/REFERENCE.md" ] && cp "$skill_dir/REFERENCE.md" "$CLAUDE_DIR/skills/$skill_name/"
+    [ -f "$skill_dir/SKILL.md" ] && cp "$skill_dir/SKILL.md" "$SKILLS_DIR/$skill_name/"
+    [ -f "$skill_dir/REFERENCE.md" ] && cp "$skill_dir/REFERENCE.md" "$SKILLS_DIR/$skill_name/"
+    [ -f "$skill_dir/package.json" ] && cp "$skill_dir/package.json" "$SKILLS_DIR/$skill_name/"
+    [ -f "$skill_dir/package-lock.json" ] && cp "$skill_dir/package-lock.json" "$SKILLS_DIR/$skill_name/"
 
     # Copy references/ (institutional knowledge)
     if [ -d "$skill_dir/references" ]; then
-        cp -r "$skill_dir/references" "$CLAUDE_DIR/skills/$skill_name/"
+        rm -rf "$SKILLS_DIR/$skill_name/references"
+        cp -r "$skill_dir/references" "$SKILLS_DIR/$skill_name/"
     fi
 
     # Copy scripts/ (tools)
     if [ -d "$skill_dir/scripts" ]; then
-        cp -r "$skill_dir/scripts" "$CLAUDE_DIR/skills/$skill_name/"
+        rm -rf "$SKILLS_DIR/$skill_name/scripts"
+        cp -r "$skill_dir/scripts" "$SKILLS_DIR/$skill_name/"
     fi
 
     # Copy knowledge/ (e.g. augur)
     if [ -d "$skill_dir/knowledge" ]; then
-        cp -r "$skill_dir/knowledge" "$CLAUDE_DIR/skills/$skill_name/"
+        rm -rf "$SKILLS_DIR/$skill_name/knowledge"
+        cp -r "$skill_dir/knowledge" "$SKILLS_DIR/$skill_name/"
     fi
 
     SKILL_COUNT=$((SKILL_COUNT + 1))
@@ -157,12 +165,19 @@ done
 
 echo -e "${GREEN}  ✓${NC} $SKILL_COUNT legionaries deployed"
 echo -e "${CYAN}    Core 8:    OPTIO CODER DEBUGGER EXPLORATOR PONTIFEX TESTER GUARDIAN LIBRARIUS${NC}"
-echo -e "${CYAN}    Build 3:   ARTIFEX PICTOR PRAECO${NC}"
+echo -e "${CYAN}    Command:   CAPABILITIES SKILL-QUARTERMASTER PRAEMONITOR${NC}"
+echo -e "${CYAN}    Build 6:   ARTIFEX ARCHITECT DOCUMENTER PICTOR PRAECO REFACTORER${NC}"
 echo -e "${CYAN}    Quality 3: CENSOR REVIEWER AEDILIS${NC}"
-echo -e "${CYAN}    Intel 4:   AUGUR QUAESTOR TABULARIUS CURATOR${NC}"
+echo -e "${CYAN}    Intel 3:   AUGUR QUAESTOR TABULARIUS${NC}"
 echo -e "${CYAN}    Growth 4:  MERCATOR ORATOR INDAGATOR ALEATOR${NC}"
 echo -e "${CYAN}    Ops 2:     EVOCATUS SIGNIFER${NC}"
 echo -e "${CYAN}    Ferrata 3: VELITES HARUSPEX SICARIUS${NC}"
+echo -e "${CYAN}    Prompt 1:  INTERPRES${NC}"
+
+if [ -d "$CODEX_DIR/skills" ]; then
+    echo -e "${CYAN}    Codex system skills remain in: $CODEX_DIR/skills/.system${NC}"
+    echo -e "${CYAN}    Legion duplicates are not installed into $CODEX_DIR/skills${NC}"
+fi
 
 echo ""
 
@@ -265,8 +280,14 @@ echo ""
 echo -e "${BOLD}[7/7] Verification...${NC}"
 
 # Count installed skills
-INSTALLED=$(ls -d "$CLAUDE_DIR/skills/"*/ 2>/dev/null | wc -l)
+INSTALLED=$(ls -d "$SKILLS_DIR/"*/ 2>/dev/null | wc -l)
 echo -e "${GREEN}  ✓${NC} Skills installed: $INSTALLED"
+
+if [ -f "$SKILLS_DIR/tester/scripts/legion-skill-eval.mjs" ]; then
+    CENTURION_SKILLS_ROOT="$SKILLS_DIR" node "$SKILLS_DIR/tester/scripts/legion-skill-eval.mjs" >/dev/null && \
+        echo -e "${GREEN}  ✓${NC} Legion skill eval: pass" || \
+        echo -e "${YELLOW}  ! Legion skill eval failed; inspect $SKILLS_DIR/tester/scripts/legion-skill-eval.mjs${NC}"
+fi
 
 # Check MEMORIA build
 if [ -f "$MEMORIA_DIR/dist/index.js" ]; then
@@ -299,6 +320,7 @@ echo "  2. Re-run this script after setting keys to register"
 echo "     brave-search and github MCP servers"
 echo "  3. Start Claude Code: claude"
 echo "  4. MEMORIA will auto-index memory files on first run"
+echo "  5. Legion skills are canonical in: $SKILLS_DIR"
 echo ""
 echo -e "  See ${CYAN}.env.example${NC} for all required environment variables"
 echo ""

@@ -1,14 +1,6 @@
 ---
 name: tabularius
-description: |
-  Report publisher and formatter. Transforms raw analysis data, charts, and findings
-  into beautifully formatted HTML reports and publishes them to TinyNotepad.
-  Returns a short summary with link + password to the full report.
-  TRIGGER when: output exceeds ~3000 chars, report contains images/charts/tables,
-  user asks to "publish report", "format report", "save to notepad",
-  or when another legionary (especially AUGUR) produces a large analysis.
-  AUTO-TRIGGER: When AUGUR completes Protocol A/B/C/D analysis with charts.
-  DO NOT TRIGGER for: short answers, simple queries, code changes, debugging.
+description: Report publisher for large analyses, charts, tables, HTML formatting, TinyNotepad publishing, and AUGUR report handoffs.
 allowed-tools: Read, Bash, Glob, Grep, WebFetch
 ---
 
@@ -44,16 +36,16 @@ Mode: REPORT FORMATTING & PUBLISHING
 ## TinyNotepad API
 
 ### Configuration
-```
-Base URL: https://tinynotepad.com
-API Key: Gd4YHiPoQJkpjsg6_7yQHVxXrvQcI_Kk-jh6byVuIZ7JXWXI
+```bash
+export TINYNOTEPAD_BASE_URL="https://tinynotepad.com"
+export TINYNOTEPAD_API_KEY="<configured-in-Codex-env>"
 ```
 
 ### Create Secure Note
 ```bash
-curl -X POST "https://tinynotepad.com/api/note/create-secure" \
+curl -X POST "$TINYNOTEPAD_BASE_URL/api/note/create-secure" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer Gd4YHiPoQJkpjsg6_7yQHVxXrvQcI_Kk-jh6byVuIZ7JXWXI" \
+  -H "Authorization: Bearer $TINYNOTEPAD_API_KEY" \
   -d '{
     "content": "<h1>Report Title</h1><p>Content here...</p>",
     "password": "generated_password",
@@ -191,9 +183,9 @@ img.save('/tmp/chart_small.png', optimize=True, quality=85)
 PASSWORD="legion-$(date +%s | tail -c 5)-$(openssl rand -hex 2)"
 
 # Publish
-curl -s -X POST "https://tinynotepad.com/api/note/create-secure" \
+curl -s -X POST "$TINYNOTEPAD_BASE_URL/api/note/create-secure" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer Gd4YHiPoQJkpjsg6_7yQHVxXrvQcI_Kk-jh6byVuIZ7JXWXI" \
+  -H "Authorization: Bearer $TINYNOTEPAD_API_KEY" \
   -d "{
     \"content\": \"$(cat /tmp/report.html | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read())[1:-1])')\",
     \"password\": \"$PASSWORD\",

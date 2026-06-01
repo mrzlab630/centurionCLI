@@ -1,16 +1,16 @@
-# ⚔️ CENTURION — Commander of the AI Legion
+# CENTURION — Commander of the AI Legion
 
 <div align="center">
 
 <img src="logo/logo_vexillum.jpg" alt="CENTURION Vexillum" width="300">
 
 ![Name](https://img.shields.io/badge/⚔️-CENTURION-gold)
-![Version](https://img.shields.io/badge/version-COHORS%20SECUNDA-blue)
-![Legionaries](https://img.shields.io/badge/legionaries-27-red)
+![Version](https://img.shields.io/badge/version-COHORS%20SECUNDA%20v2.1-blue)
+![Legionaries](https://img.shields.io/badge/legionaries-34-red)
 ![MCP](https://img.shields.io/badge/MCP%20servers-7-green)
 ![Status](https://img.shields.io/badge/status-BATTLE%20TESTED-green)
 
-**The Autonomous AI Orchestration Framework for Claude Code**
+**A Roman-legion orchestration framework for AI coding agents**
 
 *DISCIPLINA ET FIDES*
 
@@ -18,109 +18,110 @@
 
 ---
 
-## What is CENTURION?
+## What Is CENTURION?
 
-CENTURION transforms Claude Code into a disciplined **Roman Legion** of 27 specialized AI agents.
-Each legionary has a defined role, tools, references, and institutional memory.
-The framework includes protocols for quality assurance, adversarial verification, and multi-agent coordination.
+CENTURION turns a coding agent into a disciplined Roman Legion of specialized
+skills. Each Legionary has a role, activation rules, tools, and proof standards.
+Cohors Secunda v2.1 keeps one canonical active Legion skill surface in
+`~/.agents/skills` and leaves Codex system skills in `~/.codex/skills/.system` to
+avoid duplicate skill names and context bloat.
 
 ### Key Features
 
-- **27 Legionaries** across 7 categories (Core, Build, Quality, Intel, Growth, Ops, Ferrata)
-- **MEMORIA v1.2.0** — Semantic memory MCP server with local embeddings (nomic-embed-text-v1.5)
-- **7 MCP Servers** — memoria, context7, brave-search, playwright, sequential-thinking, solanaMcp, github
-- **Battle Protocols** — VIRTUS (deep analysis), WAR ROOM (3-position debate), CENSOR (adversarial verification), AGMEN (multi-agent coordination)
-- **PROBATIO Doctrine** — Every task requires proof: Recon → Action → Verify → Report
+- **34 Legionaries** across command, build, quality, intel, growth, ops, and Ferrata security cohorts.
+- **Canonical skill surface** — Legion skills live in `~/.agents/skills`; duplicate copies are not installed into `~/.codex/skills`.
+- **Mission preparation tooling** — OPTIO routes primary and adjacent Legionaries with `mission-prep.mjs`.
+- **Context governance** — CURATOR audits active skills for duplicate names, drift, long descriptions, and heavy skill bodies.
+- **Eval gate** — TESTER runs a deterministic Legion smoke eval that checks routing, GUARDIAN risk gating, and duplicate-free skill names.
+- **MEMORIA v1.2.0** — semantic memory MCP server with local embeddings.
+- **PROBATIO doctrine** — every material task requires proof: facts, tests, logs, diffs, scans, or live checks.
 
 ---
 
-## The Legion (27 Legionaries)
+## The Legion
 
-### Core 8 (Elite)
+### Core 8
+
 | Legionary | Skill | Role |
-|:---|:---|:---|
+| :--- | :--- | :--- |
 | **OPTIO** | `/orchestrator` | Commander. Plan, interpret, route tasks. |
-| **CODER** | `/coder` | Builder. Code, refactor, docs, API design. |
-| **DEBUGGER** | `/error-handler` | Medic. Fix bugs, analyze logs, incident response. |
-| **EXPLORATOR** | `/researcher` | Scout. Perplexity Deep Search + GitHub MCP + Playwright. |
-| **PONTIFEX** | `/pontifex` | Engineer. Docker, CI/CD, PostgreSQL, infrastructure. |
-| **TESTER** | `/tester` | QA. Unit, integration, E2E tests, coverage. |
-| **GUARDIAN** | `/security` | Shield. OWASP, deps audit, secrets scan. |
-| **LIBRARIUS** | `/planner` | Scribe. Plan, decompose tasks, manage knowledge. |
+| **CODER** | `/coder` | Builder. Code, refactor, docs, proof. |
+| **DEBUGGER** | `/error-handler` | Medic. Errors, logs, incidents, data. |
+| **EXPLORATOR** | `/researcher` | Scout. Codebase, documentation, web research. |
+| **PONTIFEX** | `/pontifex` | Engineer. Docker, CI/CD, PostgreSQL, infra. |
+| **TESTER** | `/tester` | QA. Tests, coverage, evals, regression gates. |
+| **GUARDIAN** | `/security` | Shield. OWASP, secrets, dependencies, supply chain. |
+| **LIBRARIUS** | `/planner` | Scribe. Plans, TODOs, project knowledge. |
 
-### Build 3
-| Legionary | Skill | Role |
-|:---|:---|:---|
-| **ARTIFEX** | `/artifex` | Forge. Create skills, MCP servers, CLI tools. |
-| **PICTOR** | `/pictor` | Frontend. React/Vue/Svelte/Next.js/Tailwind/CSS. |
-| **PRAECO** | `/praeco` | Telegram. grammY, Bot API, Mini Apps. |
+### Specialist Cohorts
 
-### Quality 3
-| Legionary | Skill | Role |
-|:---|:---|:---|
-| **CENSOR** | `/censor` | Tribunal. Adversarial verification, Red/Blue debate. |
-| **REVIEWER** | `/reviewer` | Auditor. Code review, zero-trust, phased analysis. |
-| **AEDILIS** | `/aedilis` | Architect. UI/UX design, accessibility, design systems. |
-
-### Intel 4
-| Legionary | Skill | Role |
-|:---|:---|:---|
-| **AUGUR** | `/augur` | Oracle. Combat intelligence, data analysis, WAR ROOM. |
-| **QUAESTOR** | `/quaestor` | Analyst. Crypto markets, TA, on-chain, scam detection. |
-| **TABULARIUS** | `/tabularius` | Publisher. Format reports, publish to TinyNotepad. |
-| **CURATOR** | `/context-optimizer` | Optimizer. Context window management, token reduction. |
-
-### Growth 4
-| Legionary | Skill | Role |
-|:---|:---|:---|
-| **MERCATOR** | `/mercator` | Strategist. Marketing, campaigns, positioning. |
-| **ORATOR** | `/orator` | Speaker. Social media content, platform optimization. |
-| **INDAGATOR** | `/indagator` | Tracker. SEO, GEO/AEO, schema markup, keywords. |
-| **ALEATOR** | `/aleator` | Gambler. Gamification, behavioral psychology, rewards. |
-
-### Ops 2
-| Legionary | Skill | Role |
-|:---|:---|:---|
-| **EVOCATUS** | `/evocate` | Veteran. Delegate to external AI models via tmux. |
-| **SIGNIFER** | `/git-master` | Standard Bearer. Git commits, branches, PRs, conflicts. |
-
-### Cohors Ferrata 3 (Offensive Security)
-| Legionary | Skill | Role |
-|:---|:---|:---|
-| **VELITES** | `/velites` | Eyes. Port scanning, HTTP headers, attack surface. |
-| **HARUSPEX** | `/haruspex` | Brain. Static analysis (SAST), vulnerability patterns. |
-| **SICARIUS** | `/sicarius` | Hands. Exploit verification via Playwright (DAST). |
+| Cohort | Legionaries |
+| :--- | :--- |
+| Command | CAPABILITIES, CURATOR, PRAEMONITOR, SKILL-QUARTERMASTER |
+| Build | ARCHITECTUS, ARTIFEX, DOCUMENTER, PICTOR, PRAECO, REFACTORER |
+| Quality | AEDILIS, CENSOR, REVIEWER |
+| Intel | AUGUR, QUAESTOR, TABULARIUS |
+| Growth | ALEATOR, INDAGATOR, MERCATOR, ORATOR |
+| Ops | EVOCATUS, SIGNIFER |
+| Ferrata | VELITES, HARUSPEX, SICARIUS |
+| Prompt | INTERPRES (`prompt-engineer`) |
 
 ---
 
-## Battle Protocols
+## Field Doctrine
+
+### Legion Field Cycle
+
+1. **Praeparatio** — identify needed capability and local skills.
+2. **Dispositio** — route by hierarchy: OPTIO, EXPLORATOR, CODER, TESTER, REVIEWER, GUARDIAN, CURATOR.
+3. **Actio** — execute in small handoffs with objective, files, proof, and adjacent calls.
+4. **Probatio** — verify with tests, logs, scans, source citations, or live checks.
+5. **Disciplina** — retain compact lessons without bloating global memory.
+
+### Battle Protocols
 
 | Protocol | Trigger | Purpose |
-|:---|:---|:---|
-| **VIRTUS** | `Virtus!` | Deep analysis mode. Zero laziness, full reasoning, fact-checking. |
-| **WAR ROOM** | `/war-room "Topic"` | 3-position debate (Prosecutor/Advocate/Judge) → Verdict. |
-| **CENSOR** | `/censor` | 5-phase adversarial verification tribunal. |
-| **AGMEN** | `Agmen!` | Multi-legionary coordination with structured handoffs. |
-| **PROBATIO** | Always active | Every task must be verified with proof. |
-| **TABULARIUS** | Auto / manual | Large outputs formatted as HTML reports, published to TinyNotepad. |
-| **INCIDENT** | System failure | P0-P3 severity assessment, DEBUGGER runbooks. |
+| :--- | :--- | :--- |
+| **VIRTUS** | `Virtus!` or high-risk work | Deep verification mode. |
+| **WAR ROOM** | `/war-room "Topic"` | Prosecutor/Advocate/Judge debate. |
+| **CENSOR** | `/censor` or review work | Adversarial verification. |
+| **PROBATIO** | Always active | Evidence before completion. |
+| **CODE MODE** | Repetitive/bulk work | Use deterministic local scripts. |
 
 ---
 
-## MEMORIA — Semantic Memory
+## Skill Surface Tools
 
-Built-in MCP server for persistent, semantic memory across conversations.
+Run from a checkout or an installed skill root:
 
-- **Model:** nomic-embed-text-v1.5 (local ONNX, 384 dimensions)
-- **Storage:** INT8 quantized embeddings, JSON persistence
-- **Features:** Recency boost, stale penalty, context expansion, batch inference, auto-reindex
-- **Tools:** `memory_search`, `memory_store`, `memory_forget`, `memory_list`, `memory_reindex`, `memory_status`
+```bash
+CENTURION_SKILLS_ROOT="${CENTURION_SKILLS_ROOT:-$PWD/skills}"
+node "$CENTURION_SKILLS_ROOT/context-optimizer/scripts/skill-surface-audit.mjs"
+node "$CENTURION_SKILLS_ROOT/context-optimizer/scripts/skill-drift-report.mjs"
+node "$CENTURION_SKILLS_ROOT/tester/scripts/legion-skill-eval.mjs"
+```
+
+Expected active-surface invariants:
+
+```text
+duplicateNameCount: 0
+driftedDuplicateCount: 0
+longDescriptions: [] for non-system skills
+```
+
+---
+
+## MEMORIA
+
+Built-in MCP server for persistent semantic memory across conversations.
+
+- **Model:** nomic-embed-text-v1.5 compatible local embeddings.
+- **Storage:** JSON persistence with indexed chunks.
+- **Tools:** `memory_search`, `memory_store`, `memory_forget`, `memory_list`, `memory_reindex`, `memory_status`.
 
 ---
 
 ## Installation
-
-### Quick Install
 
 ```bash
 git clone https://github.com/mrzlab630/centurionCLI.git
@@ -132,65 +133,46 @@ chmod +x install.sh
 
 ### Prerequisites
 
-- **Node.js** >= 20
-- **Claude Code CLI** ([install](https://github.com/anthropics/claude-code))
-- **Python 3** (optional, for Cohors Ferrata security scripts)
+- Node.js >= 20
+- Claude Code CLI for legacy MCP registration through `claude mcp add`
+- Python 3 for Ferrata helper scripts
 
 ### API Keys
 
-Set these in your shell profile (`~/.bashrc` or `~/.zshrc`):
+Set optional keys in your shell profile before running `install.sh`:
 
 ```bash
-export BRAVE_API_KEY="your_key"              # Brave Search (EXPLORATOR)
-export GITHUB_PERSONAL_ACCESS_TOKEN="ghp_x"  # GitHub MCP
-export PERPLEXITY_API_KEY="pplx-x"           # Perplexity (EXPLORATOR)
+export BRAVE_API_KEY="your_key"
+export GITHUB_PERSONAL_ACCESS_TOKEN="ghp_x"
+export PERPLEXITY_API_KEY="pplx-x"
 ```
 
-Re-run `./install.sh` after setting keys to register MCP servers that require them.
+### What `install.sh` Does
 
-See `.env.example` for the complete list.
-
-### What install.sh does
-
-1. Checks prerequisites (node >= 20, claude CLI)
-2. Backs up existing `~/.claude/` configuration
-3. Copies `CLAUDE.md` (global instructions) and doctrine files
-4. Deploys all 27 legionary skills with references and tools
-5. Builds MEMORIA MCP server (`npm install && npm run build`)
-6. Registers 7 MCP servers via `claude mcp add`
-7. Verifies installation
+1. Checks prerequisites.
+2. Backs up existing Claude configuration.
+3. Installs `CLAUDE.md`, doctrine docs, scripts, pipeline templates, and shared libs.
+4. Deploys all 34 Legion skills to `~/.agents/skills`.
+5. Keeps Codex system skills in `~/.codex/skills/.system` and avoids Legion duplicates in `~/.codex/skills`.
+6. Builds MEMORIA and registers MCP servers when possible.
+7. Runs the Legion skill eval when installed.
 
 ---
 
 ## Directory Structure
 
-```
+```text
 centurionCLI/
-├── CLAUDE.md              # Global instructions (27 legionaries, protocols)
+├── CLAUDE.md              # Global Centurion instructions
 ├── FERRATA.md             # Offensive security doctrine
 ├── PROBATIO.md            # Proof protocol standards
 ├── README.md              # This file
-├── install.sh             # One-command installer
-├── .env.example           # API key template
-├── settings.json.example  # Claude Code settings template
-├── claude.json.example    # MCP server config template
+├── install.sh             # Installer
 ├── libs/                  # Shared libraries
-│   └── legion_core.py     # Python foundation for Ferrata tools
 ├── scripts/               # Utility scripts
-│   └── evocate.sh         # Multi-model delegation
-├── pipeline/              # Agmen protocol templates
-│   ├── TEMPLATE-active.md
-│   └── TEMPLATE-handoff.md
-├── mcp-servers/
-│   └── memoria/           # Semantic memory MCP server (v1.2.0)
-│       ├── package.json
-│       ├── tsconfig.json
-│       └── src/           # TypeScript source
-├── skills/                # 27 legionary modules
-│   ├── orchestrator/      # OPTIO
-│   ├── coder/             # CODER
-│   ├── ...                # (25 more)
-│   └── sicarius/          # SICARIUS
+├── pipeline/              # Handoff templates
+├── mcp-servers/memoria/   # Semantic memory MCP server
+├── skills/                # 34 canonical Legionary modules
 └── logo/                  # Branding assets
 ```
 
@@ -199,16 +181,15 @@ centurionCLI/
 ## Version History
 
 | Version | Codename | Legionaries | Highlights |
-|:---|:---|:---|:---|
+| :--- | :--- | :--- | :--- |
 | 1.0 | Cohors Prima | 8 | Core legion, PROBATIO doctrine |
-| 1.5 | Cohors Ferrata | 11 | Security elite (Velites, Haruspex, Sicarius) |
-| **2.0** | **Cohors Secunda** | **27** | **Full roster, MEMORIA, 7 MCP servers, WAR ROOM, AGMEN** |
+| 1.5 | Cohors Ferrata | 11 | Velites, Haruspex, Sicarius |
+| 2.0 | Cohors Secunda | 27 | Full roster, MEMORIA, WAR ROOM, AGMEN |
+| **2.1** | **Cohors Secunda** | **34** | **Canonical `.agents` skill surface, mission-prep, skill audit/eval, duplicate-name guard** |
 
 ---
 
 <div align="center">
-
-*Built with the precision of a Roman Legion.*
 
 **⚔️ DISCIPLINA ET FIDES**
 

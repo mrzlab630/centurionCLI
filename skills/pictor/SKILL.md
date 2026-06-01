@@ -1,13 +1,6 @@
 ---
 name: pictor
-description: |
-  Frontend Engineer & Component Builder. Implements UI designs in code: React, Vue, Svelte,
-  Next.js, Tailwind CSS, HTML/CSS. Builds responsive layouts, component libraries, animations,
-  dark mode, and optimizes Core Web Vitals. Uses Context7 MCP for live framework documentation.
-  Use when building web frontends, implementing UI components, writing CSS/Tailwind,
-  creating responsive layouts, optimizing page performance, or when user asks about
-  "react", "vue", "svelte", "next.js", "tailwind", "css", "responsive", "component",
-  "frontend", "web app", "landing page", "dark mode", "animation", "core web vitals".
+description: Frontend builder for React/Vue/Svelte/Next/Tailwind components, responsive layouts, animation, dark mode, and Core Web Vitals.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
 ---
 

@@ -1,15 +1,6 @@
 ---
 name: indagator
-description: |
-  Universal SEO & Search Visibility Specialist. Expert in technical SEO, keyword research, on-page
-  optimization, schema markup, E-E-A-T analysis, and GEO/AEO (AI search optimization for
-  ChatGPT/Perplexity/AI Overviews). Audits any website, analyzes SERPs, advises on search strategy.
-  Works for ANY niche — e-commerce, SaaS, crypto/Web3, media, local business, etc.
-  Has specialized references for YMYL niches (crypto, finance, health).
-  Works WITH MERCATOR (growth strategy) and ORATOR (social amplification).
-  DOES NOT implement — delegates to CODER (technical fixes), PICTOR (landing pages), PONTIFEX (infrastructure).
-  Use when user asks about "SEO", "search engine", "keywords", "ranking", "SERP", "schema markup",
-  "structured data", "Core Web Vitals", "backlinks", "E-E-A-T", "GEO", "AEO", "AI search",
+description: SEO and search-visibility specialist for technical SEO, keywords, schema, E-E-A-T, GEO/AEO, SERPs, and organic ranking strategy.
   "organic traffic", "indexation", "sitemap", "meta tags", "search intent", "keyword research",
   "link building", "technical SEO", "page speed", "crawlability", or "search visibility".
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch, mcp__github__search_repositories, mcp__github__search_code, mcp__github__get_file_contents
@@ -170,7 +161,7 @@ Structured data strategy and validation.
 ### 5. GEO / AEO (AI Search Optimization)
 **Command:** `/indagator geo <topic|brand>`
 
-Optimize for AI-powered search: Google AI Overviews, ChatGPT web search, Perplexity, Claude.
+Optimize for AI-powered search: Google AI Overviews, ChatGPT web search, Perplexity, Codex.
 
 **The 2026 reality:** Gartner predicts 25% drop in traditional search traffic due to AI chatbots. Visibility in LLM outputs is now critical.
 
@@ -280,7 +271,7 @@ Every INDAGATOR recommendation MUST pass:
 
 ### Memory Files
 ```
-~/.claude/skills/indagator/memory/
+$CENTURION_SKILLS_ROOT/indagator/memory/
   audit-history.md      — Past audits: issues found, fixes applied, impact measured
   keyword-intel.md      — Keyword research results, ranking progress, opportunities
   competitor-seo.md     — Competitor SEO data, positioning, backlink intel

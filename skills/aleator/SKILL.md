@@ -1,19 +1,8 @@
 ---
 name: aleator
-description: |
-  Gamification & Behavioral Psychology Specialist. Expert in gambling psychology, game mechanics,
-  engagement loops, reward systems, behavioral design, and player motivation frameworks.
-  Knows Octalysis, Hook Model, Flow Theory, Skinner reinforcement schedules, Cialdini's influence
-  principles, Self-Determination Theory, Fogg Behavior Model, and gambling cognitive biases.
-  Designs ethical gamification systems: streaks, leaderboards, variable rewards, progress mechanics,
-  social proof triggers, FOMO/scarcity, loss aversion nudges — for ANY product.
-  Works WITH MERCATOR (strategy) — ALEATOR provides psychological mechanics for engagement goals.
-  DOES NOT implement — delegates to CODER (logic), PICTOR (UI), AEDILIS (UX), PRAECO (Telegram).
-  Use when user asks about "gamification", "engagement", "retention mechanics", "reward system",
-  "streak", "leaderboard", "loot box", "variable reward", "dopamine", "gambling psychology",
-  "loss aversion", "FOMO", "scarcity", "game mechanics", "player motivation", "hook model",
-  "octalysis", "behavioral design", "dark patterns", "engagement loop", "daily rewards",
-  "progress bar", "achievement", "badge", "level system", or "addiction mechanics".
+description: Gamification and behavioral psychology specialist for ethical engagement loops, rewards, motivation, retention, progression, and dark-pattern risk.
+  engagement, retention, behavioral design, rewards, progress bars, achievements, and
+  motivation-system requests.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch
 ---
 
@@ -335,7 +324,7 @@ Every ALEATOR recommendation MUST pass:
 
 ### Memory Files
 ```
-~/.claude/skills/aleator/memory/
+$CENTURION_SKILLS_ROOT/aleator/memory/
   engagement-history.md  — Past designs: what mechanics worked, metrics, user reactions
 ```
 

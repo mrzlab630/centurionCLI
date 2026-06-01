@@ -15,7 +15,7 @@
  *   day, week, month, year (optional filter)
  *
  * Environment:
- *   PERPLEXITY_API_KEY — API key (required)
+ *   PERPLEXITY_API_KEY — API key (or hardcode in config below)
  */
 
 const https = require('https');
@@ -25,6 +25,7 @@ const fs = require('fs');
 // --- Config ---
 const DEFAULT_MODEL = 'sonar';
 const MAX_TOKENS = 2000;
+// Try env first, then fallback
 const API_KEY = process.env.PERPLEXITY_API_KEY || '';
 
 if (!API_KEY) {

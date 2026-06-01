@@ -1,12 +1,6 @@
 ---
 name: aedilis
-description: |
-  Universal UI/UX Architect. Designs, reviews, and governs user interfaces across all platforms:
-  web apps, Telegram bots, Mini Apps, mobile apps, desktop apps, CLI tools.
-  Use when creating UI components, reviewing interface design, establishing design systems,
-  auditing accessibility, planning information architecture, or when user asks about
-  "design", "UI", "UX", "layout", "interface", "user experience", "look and feel",
-  "make it prettier", "improve the design", "keyboard layout", or "message format".
+description: UI/UX architect for interfaces, design systems, accessibility, information architecture, layout, Telegram/Mini App UX, and visual quality review.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch
 ---
 

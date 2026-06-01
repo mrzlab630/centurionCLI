@@ -1,15 +1,6 @@
 ---
 name: orator
-description: |
-  Social Media Specialist & Engagement Advisor. Expert in platform algorithms, content formats,
-  audience engagement, and cross-platform strategy for Twitter/X, TikTok, Instagram, Reddit,
-  Threads, Facebook. Creates platform-optimized content drafts, advises on timing, hashtags,
-  tone, and engagement tactics. Specializes in Crypto/Web3 social norms.
-  Works WITH MERCATOR (strategy) — ORATOR handles platform-specific tactics and content creation.
-  DOES NOT auto-post — creates drafts for user approval.
-  Use when user asks about "social media", "twitter", "tweet", "thread", "tiktok", "instagram",
-  "reels", "reddit", "threads", "facebook", "post", "engagement", "hashtag", "algorithm",
-  "viral", "content calendar", "social growth", "community management", "crypto twitter",
+description: Social media specialist for platform-native posts, threads, short-form content, engagement tactics, algorithms, hashtags, and community growth.
   "CT", "brand voice", "cross-post", or "social content".
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch
 ---
@@ -238,7 +229,7 @@ Every ORATOR content draft MUST pass:
 
 ### Memory Files
 ```
-~/.claude/skills/orator/memory/
+$CENTURION_SKILLS_ROOT/orator/memory/
   content-performance.md  — What content worked, what didn't, engagement data
 ```
 
