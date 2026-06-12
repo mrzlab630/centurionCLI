@@ -1,6 +1,6 @@
 ---
 name: researcher
-description: Research codebases, documentation, and websites. Deep Search via Perplexity API for multi-source analysis with citations. Web Surfing via headless browser for dynamic content.
+description: Research specialist. Use when investigating codebases, documentation, websites, dynamic pages, or multi-source web research with citations.
 allowed-tools: Read, Glob, Grep, Bash, Exec
 ---
 

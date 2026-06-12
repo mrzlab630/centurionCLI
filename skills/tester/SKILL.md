@@ -1,8 +1,6 @@
 ---
 name: tester
-description: |
-  Expert testing skill. Use when writing unit tests, integration tests, e2e tests.
-  Creates comprehensive test suites with edge cases, mocks, and high coverage.
+description: Testing specialist. Use when writing or reviewing unit, integration, e2e, regression, coverage, mocks, fixtures, or edge-case tests.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
@@ -71,8 +69,7 @@ Success Criteria:
 Legion skill-system smoke:
 
 ```bash
-CENTURION_SKILLS_ROOT="${CENTURION_SKILLS_ROOT:-$HOME/.agents/skills}"
-node "$CENTURION_SKILLS_ROOT/tester/scripts/legion-skill-eval.mjs"
+node /home/mrz/.agents/skills/tester/scripts/legion-skill-eval.mjs
 ```
 
 Run it after changing OPTIO, CURATOR, TESTER, or mission-prep tooling.

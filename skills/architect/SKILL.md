@@ -1,11 +1,7 @@
 ---
 name: architect
-description: |
-  Expert software architecture skill. Use when designing system architecture, making
-  technology decisions, planning module structure, or evaluating architectural patterns.
-  Creates scalable, maintainable designs with clear separation of concerns.
+description: Architecture specialist. Use when designing system structure, module boundaries, technology choices, architectural patterns, or ADRs.
 allowed-tools: Read, Glob, Grep, WebSearch, WebFetch
-model: opus
 ---
 
 # ARCHITECTUS — Expert Software Architecture

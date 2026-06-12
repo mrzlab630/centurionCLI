@@ -1,9 +1,6 @@
 ---
 name: refactorer
-description: |
-  Expert code refactoring skill. Use when improving code quality, eliminating
-  code smells, applying clean code principles, or reducing technical debt.
-  Follows SOLID, DRY, KISS patterns while preserving functionality.
+description: Refactoring specialist. Use when improving code structure, removing smells, reducing technical debt, or applying clean-code patterns without behavior changes.
 allowed-tools: Read, Edit, Glob, Grep, Bash
 ---
 

@@ -28,6 +28,54 @@ const riskPrep = runJson('node', [
   'проверь риск новой способности и вызови смежных легионеров',
 ]);
 
+function missionPrep(task) {
+  return runJson('node', [skillScript('orchestrator', 'mission-prep.mjs'), task]);
+}
+
+const routeCases = [
+  {
+    task: 'написать CTA и empty state для игры Telegram Mini App',
+    primary: 'nomenclator',
+    forbidden: ['quaestor'],
+  },
+  {
+    task: 'создать экраны и core loop для Telegram Mini App игры',
+    primary: 'ludifex',
+  },
+  {
+    task: 'создать посты для Twitter и Reddit',
+    primary: 'orator',
+  },
+  {
+    task: 'составить SEO keyword brief and schema audit',
+    primary: 'indagator',
+  },
+  {
+    task: 'проанализировать live Phantom1225 ScamNet pool dump timing',
+    primary: 'augur',
+  },
+  {
+    task: 'проанализировать DEX token risk model and technical analysis',
+    primary: 'quaestor',
+    guardianGate: false,
+  },
+];
+
+const routeResults = routeCases.map((item) => {
+  const result = missionPrep(item.task);
+  const selected = [result.primaryLegionary, ...result.adjacentLegionaries];
+  const forbidden = item.forbidden || [];
+  return {
+    ...item,
+    actualPrimary: result.primaryLegionary,
+    actualGuardianGate: result.guardianGate,
+    selected,
+    pass: result.primaryLegionary === item.primary
+      && (item.guardianGate === undefined || result.guardianGate === item.guardianGate)
+      && forbidden.every((name) => !selected.includes(name)),
+  };
+});
+
 const checks = [
   {
     name: 'skill surface has no long descriptions',
@@ -60,6 +108,11 @@ const checks = [
     pass: riskPrep.guardianGate === true
       && [riskPrep.primaryLegionary, ...riskPrep.adjacentLegionaries].includes('security'),
     detail: `${riskPrep.guardianGate} ${riskPrep.primaryLegionary} -> ${riskPrep.adjacentLegionaries.join(',')}`,
+  },
+  {
+    name: 'mission prep routes specialized Legionaries without overlap regressions',
+    pass: routeResults.every((item) => item.pass),
+    detail: routeResults.map((item) => `${item.primary}:${item.actualPrimary}:${item.actualGuardianGate}`).join(', '),
   },
 ];
 

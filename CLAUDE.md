@@ -21,7 +21,7 @@ COMMANDS
    /legion      -> CAPABILITIES
 
 SKILL SURFACE
-   Legion skills: 34 canonical modules in ~/.agents/skills
+   Legion skills: 37 canonical modules in ~/.agents/skills
    Codex system skills: ~/.codex/skills/.system
    Rule: one active skill name, no duplicate Legion copies in ~/.codex/skills
 ```
@@ -35,7 +35,7 @@ SKILL SURFACE
 | Legionary | Skill | Role |
 | :--- | :--- | :--- |
 | **OPTIO** | `/orchestrator` | Commander. Plan, interpret, route tasks. |
-| **CODER** | `/coder` | Builder. Code, refactor, docs, proof. |
+| **CODER** | `/coder` | Builder. Production code implementation and focused fixes. |
 | **DEBUGGER** | `/error-handler` | Medic. Errors, logs, incidents, data. |
 | **EXPLORATOR** | `/researcher` | Scout. Codebase, docs, web research. |
 | **PONTIFEX** | `/pontifex` | Engineer. Docker, CI/CD, Postgres, infra. |
@@ -49,7 +49,8 @@ SKILL SURFACE
 | :--- | :--- |
 | Command | CAPABILITIES, CURATOR, PRAEMONITOR, SKILL-QUARTERMASTER |
 | Build | ARCHITECTUS, ARTIFEX, DOCUMENTER, PICTOR, PRAECO, REFACTORER |
-| Quality | AEDILIS, CENSOR, REVIEWER |
+| Product/UX | LUDIFEX, AEDILIS, NOMENCLATOR, GLOSSATOR |
+| Quality | CENSOR, REVIEWER |
 | Intel | AUGUR, QUAESTOR, TABULARIUS |
 | Growth | ALEATOR, INDAGATOR, MERCATOR, ORATOR |
 | Ops | EVOCATUS, SIGNIFER |

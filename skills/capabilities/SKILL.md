@@ -1,10 +1,7 @@
 ---
 name: capabilities
-description: |
-  Display all CENTURION capabilities, available skills, MCP servers, and commands.
-  Use when user asks "what can you do", "show capabilities", "help", or "/capabilities".
+description: Capability reference. Use when the user asks what CENTURION can do, available skills, commands, MCP servers, help, or /capabilities.
 allowed-tools: Read
-model: haiku
 ---
 
 # CAPABILITIES — Full System Reference
@@ -15,7 +12,7 @@ On activation, output the following capabilities reference:
 
 ```
 ╔═══════════════════════════════════════════════════════════════════════════════╗
-║                  CENTURION COHORS SECUNDA v2.1 — CAPABILITIES                 ║
+║                    CENTURION COHORS PRIMA — FULL CAPABILITIES                 ║
 ╚═══════════════════════════════════════════════════════════════════════════════╝
 
 ┌─────────────────────────────────────────────────────────────────────────────────┐
@@ -29,31 +26,60 @@ On activation, output the following capabilities reference:
 └─────────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│  EXECUTION COHORT                                                               │
+│  BUILD & OPERATIONS COHORT                                                      │
 ├─────────────────────────────────────────────────────────────────────────────────┤
-│  /coder          CODER        Code implementation, feature development          │
-│  /reviewer       REVIEWER     Code review, bug detection, quality analysis      │
-│  /tester         TESTER       Test writing, coverage analysis, TDD              │
+│  /coder          CODER        Production code implementation and focused fixes  │
 │  /error-handler  DEBUGGER     Error handling strategies, debugging              │
+│  /tester         TESTER       Test writing, coverage analysis, TDD              │
+│  /reviewer       REVIEWER     Code review, bug detection, quality analysis      │
 │  /security       GUARDIAN     Security audit, vulnerability scanning, OWASP     │
+│  /pontifex       PONTIFEX    Docker, CI/CD, PostgreSQL, service health          │
 └─────────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│  SUPPORT COHORT                                                                 │
+│  PRODUCT & UX COHORT                                                            │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│  /ludifex       LUDIFEX     Telegram Mini App game product architecture         │
+│  /aedilis       AEDILIS     UI/UX architecture, component systems, review        │
+│  /nomenclator   NOMENCLATOR Product language, UX-writing, naming, microcopy     │
+│  /glossator     GLOSSATOR   Interface localization, i18n, glossary, locale QA   │
+│  /praeco        PRAECO      Telegram Bot/Mini App platform constraints          │
+│  /aleator       ALEATOR     Ethical game mechanics, rewards, retention          │
+│  /mercator      MERCATOR    Growth, positioning, funnels, campaigns             │
+│  /pictor        PICTOR      Frontend UI implementation                          │
+│  /orator        ORATOR      Social posts, platform-native content, community    │
+│  /indagator     INDAGATOR   SEO, search visibility, organic ranking             │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  ARCHITECTURE & CRAFT COHORT                                                    │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │  /architect      ARCHITECTUS  System design, architecture patterns              │
 │  /git-master     SIGNIFER     Git operations, commits, PRs, branches            │
 │  /documenter     SCRIBA       Documentation, README, JSDoc, API docs            │
-│  /refactorer     FABER        Code refactoring, cleanup, optimization           │
+│  /refactorer     FABER        Behavior-preserving refactoring and cleanup       │
 │  /prompt-engineer INTERPRES   Prompt transformation, EARS format                │
 │  /context-optimizer CURATOR   Token optimization, context management            │
-│  /capabilities   —            This help screen                                  │
+│  /artifex        ARTIFEX     Create, validate, package AgentSkills              │
 └─────────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│  AUXILIARY FORCES (External Model Delegation)                                   │
+│  SECURITY & INTELLIGENCE COHORT                                                 │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│  /censor        CENSOR      Adversarial verification and plan critique          │
+│  /velites       VELITES     Active reconnaissance and attack surface mapping    │
+│  /haruspex      HARUSPEX    Static analysis and vulnerability candidates        │
+│  /sicarius      SICARIUS    Exploit verification via browser automation         │
+│  /augur         AUGUR       Phantom1225 pool intelligence and ScamNet data      │
+│  /quaestor      QUAESTOR    Crypto/on-chain intelligence and risk review        │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  UTILITY COHORT                                                                 │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │  /evocate-ad-opus  EVOCATUS   Delegate tasks to external AI models via tmux     │
+│  /tabularius    TABULARIUS  Reports, charts, HTML formatting, publishing        │
+│  /capabilities  —           This help screen                                    │
 │                                                                                 │
 │  Usage: Evocate, ad opus! <model> for task(s) <numbers>                         │
 │                                                                                 │
@@ -64,9 +90,9 @@ On activation, output the following capabilities reference:
 │                                                                                 │
 │  Available Models (by cost tier):                                               │
 │    FREE:   deepseek-coder, qwen3-coder, kimi-k2                                 │
-│    LOW:    gpt-5-mini, gemini-flash                                            │
-│    MEDIUM: gpt-5, gemini-pro, kimi-k2-thinking                                 │
-│    HIGH:   gpt-5.5, o1-preview                                                 │
+│    LOW:    Codex-haiku, gemini-flash                                           │
+│    MEDIUM: Codex-sonnet, gemini-pro, kimi-k2-thinking                          │
+│    HIGH:   Codex-opus, o1-preview                                              │
 └─────────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────────┐
@@ -77,7 +103,6 @@ On activation, output the following capabilities reference:
 │  playwright         Browser automation, E2E testing, screenshots                │
 │  sequential-thinking Complex reasoning, multi-step problem solving              │
 │  solanaMcp          Solana blockchain development                               │
-│  memoria            Semantic memory MCP                                         │
 └─────────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────────┐
@@ -98,11 +123,20 @@ On activation, output the following capabilities reference:
 │  plan, break down, decompose        → /planner                                  │
 │  explore, find where, investigate   → /researcher                               │
 │  implement, write code, create      → /coder                                    │
+│  refactor, cleanup, tech debt       → /refactorer                               │
+│  docs, README, JSDoc, API docs      → /documenter                               │
 │  review, check code, find bugs      → /reviewer                                 │
 │  test, coverage, add tests          → /tester                                   │
 │  security, vulnerability, audit     → /security                                 │
 │  commit, PR, merge                  → /git-master                               │
 │  architecture, design system        → /architect                                │
+│  Telegram Mini App game flow        → /ludifex                                  │
+│  UI/UX, interface, components       → /aedilis                                  │
+│  UX-writing, naming, CTA, microcopy → /nomenclator                              │
+│  i18n, localization, translation    → /glossator                                │
+│  Telegram API, bot, Mini App SDK    → /praeco                                   │
+│  rewards, retention, gamification   → /aleator                                  │
+│  growth, funnel, positioning        → /mercator                                 │
 │  premortem, предразбор провала      → /praemonitor                              │
 │  find/install external skill        → /skill-quartermaster                      │
 │  summon Evocatus, call Evocatus     → /evocate-ad-opus                          │
@@ -111,9 +145,9 @@ On activation, output the following capabilities reference:
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │  STANDARD WORKFLOWS                                                             │
 ├─────────────────────────────────────────────────────────────────────────────────┤
-│  Feature:   orchestrator → researcher → coder → tester → reviewer               │
-│  Premortem: orchestrator → praemonitor → planner → coder → tester               │
-│  Bug fix:   orchestrator → researcher → reviewer → coder → tester               │
+│  Feature:   skill-quartermaster → researcher → planner → coder → tester → review│
+│  Premortem: skill-quartermaster → praemonitor → planner → coder → tester        │
+│  Bug fix:   skill-quartermaster → researcher → reviewer → coder → tester        │
 │  Review:    reviewer → security → tester                                        │
 │  Refactor:  researcher → refactorer → tester → reviewer                         │
 │  Security:  researcher → security → reviewer                                    │

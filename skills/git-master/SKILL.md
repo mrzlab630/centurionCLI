@@ -1,8 +1,7 @@
 ---
 name: git-master
-description: Expert Git operations skill for commits, branches, conflicts, PRs, release notes, and safe history management.
+description: Git operations specialist. Use when committing, branching, resolving conflicts, preparing PRs, release notes, or safe history changes.
 allowed-tools: Bash, Read, Glob, Grep
-model: haiku
 ---
 
 # SIGNIFER — Expert Git Operations

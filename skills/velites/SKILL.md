@@ -1,8 +1,6 @@
 ---
 name: velites
-description: Active reconnaissance specialist. Scans ports, analyzes HTTP headers, maps attack surface. The "Eyes" of the Legion.
-role: scout
-tools: [scripts/recon.py]
+description: Active reconnaissance specialist. Use when scanning ports, HTTP headers, exposed files, service fingerprints, or target attack surface.
 ---
 
 # 🛡️ VELITES (The Scout)

@@ -1,6 +1,6 @@
 ---
 name: planner
-description: Expert task planning. Decomposes tasks, manages TODOs, and maintains project knowledge (KNOWLEDGE.md).
+description: Task planning specialist. Use when decomposing work, managing TODOs, sequencing steps, or maintaining project knowledge.
 allowed-tools: Read, Glob, Grep, Write
 ---
 

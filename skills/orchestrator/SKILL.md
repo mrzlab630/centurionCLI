@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-description: Task Orchestrator and Prompt Engineer. Use when a complex task needs interpretation, planning, routing to Legionaries, skill-readiness checks, or Skill Quartermaster invocation for vetted external skills.
+description: Task orchestration specialist. Use when interpreting complex work, routing Legionaries, coordinating handoffs, checking skill readiness, or invoking Skill Quartermaster.
 allowed-tools: Read, Glob, Write
 ---
 
@@ -42,24 +42,23 @@ capability -> local skill -> adjacent Legionary -> external skill only if needed
 Optional local preflight:
 
 ```bash
-CENTURION_SKILLS_ROOT="${CENTURION_SKILLS_ROOT:-$HOME/.agents/skills}"
-node "$CENTURION_SKILLS_ROOT/orchestrator/scripts/mission-prep.mjs" "<task>"
+node /home/mrz/.agents/skills/orchestrator/scripts/mission-prep.mjs "<task>"
 ```
 
 External skill discovery never replaces GUARDIAN review.
 
-### 1. INTERPRETATION (Formerly Interpres)
+### 1. INTERPRETATION
 **Action:** Before planning, analyze the user's request.
 - **Ambiguous?** Ask clarifying questions.
-- **Unstructured?** Rewrite into **EARS format**:
-  - **E**vent (Trigger)
-  - **A**ction (What to do)
-  - **R**esponse (Expected output)
-  - **S**ide-effects (Logs, DB changes)
+- **Unstructured?** Produce a short routing brief. For formal prompt rewriting,
+  EARS requirements, or reusable prompt specs, route to **INTERPRES**
+  (`/prompt-engineer`).
 
 ### 2. ORCHESTRATION
 **Action:** Route task to the specialist.
-- **Code/Refactor/Docs** -> **CODER**
+- **Implementation / feature code** -> **CODER**
+- **Behavior-preserving cleanup** -> **FABER** (`/refactorer`)
+- **README/API/JSDoc/project docs** -> **SCRIBA** (`/documenter`)
 - **Research/Web** -> **EXPLORATOR**
 - **Debug/Logs/Data** -> **DEBUGGER**
 - **Infra/DB** -> **PONTIFEX**

@@ -1,9 +1,6 @@
 ---
 name: censor
-description: |
-  Adversarial plan/analysis verifier. Use when reviewing plans, strategies, analyses,
-  or WAR ROOM conclusions for blind spots, logical errors, unverified assumptions,
-  and mathematical mistakes. Runs Red/Blue debate protocol.
+description: Adversarial verifier. Use when auditing plans, strategies, analyses, WAR ROOM conclusions, assumptions, logic, math, or blind spots.
 allowed-tools: Read, Glob, Grep, Bash, WebSearch, WebFetch
 ---
 

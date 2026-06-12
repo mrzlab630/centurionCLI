@@ -1,7 +1,6 @@
 ---
 name: quaestor
-description: Crypto market and on-chain intelligence specialist for DEX/token/pool analysis, scam taxonomy, TA, risk models, and trading-strategy review.
-  CODER. Use for crypto/on-chain/TA/scam/token/pool/trading-strategy requests.
+description: Crypto/on-chain intelligence specialist. Use when analyzing DEX/token/pool data, scam taxonomy, TA, risk models, or trading strategies.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch, mcp__github__search_repositories, mcp__github__search_code, mcp__github__get_file_contents
 ---
 
@@ -301,7 +300,7 @@ Every QUAESTOR analysis MUST pass:
 
 ### Memory Files
 ```
-$CENTURION_SKILLS_ROOT/quaestor/memory/
+~/.Codex/skills/quaestor/memory/
   market-intel.md  — Accumulated market insights, validated patterns, model performance
 ```
 

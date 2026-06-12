@@ -1,11 +1,7 @@
 ---
 name: documenter
-description: |
-  Expert documentation skill. Use when writing README files, API documentation,
-  JSDoc/docstrings, code comments, or project documentation. Creates clear,
-  comprehensive documentation following best practices.
+description: Documentation specialist. Use when writing or updating README files, API docs, JSDoc/docstrings, code comments, or project documentation.
 allowed-tools: Read, Write, Edit, Glob, Grep
-model: haiku
 ---
 
 # SCRIBA — Expert Documentation

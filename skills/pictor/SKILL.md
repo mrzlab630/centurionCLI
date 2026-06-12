@@ -1,6 +1,6 @@
 ---
 name: pictor
-description: Frontend builder for React/Vue/Svelte/Next/Tailwind components, responsive layouts, animation, dark mode, and Core Web Vitals.
+description: Frontend implementation specialist. Use when building UI code, responsive layouts, animations, accessibility, component-library screens, or frontend performance fixes.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
 ---
 
@@ -58,6 +58,8 @@ mcp__context7__resolve-library-id("framer motion animation")
 | Tailwind utility classes | Context7 → get-library-docs |
 | Next.js routing/SSR/RSC patterns | Context7 → get-library-docs |
 | Design tokens/principles | Consult **AEDILIS** (NOT Context7) |
+| i18n implementation, locale loading, translated UI fit | Consult **GLOSSATOR** for localization contract, then implement |
+| Component library choice (shadcn/Radix/Cloudscape/MUI/Ant) | Consult **AEDILIS** and `references/component-interface-systems.md` |
 | Our project conventions | `references/conventions.md` |
 | Framework version features | Context7 → get-library-docs |
 
@@ -206,7 +208,8 @@ npx sv create my-app && cd my-app && npx svelte-add@latest tailwindcss
 
 | Legionary | Pattern |
 |---|---|
-| **AEDILIS** | AEDILIS designs (tokens, layout, hierarchy) → PICTOR implements in code. PICTOR reviews feasibility. |
+| **AEDILIS** | AEDILIS designs (tokens, layout, hierarchy, component-system choice) → PICTOR implements in code. PICTOR reviews feasibility. |
+| **GLOSSATOR** | GLOSSATOR defines i18n architecture, keys, locale QA, and text-expansion constraints → PICTOR implements locale-aware UI. |
 | **PRAECO** | PRAECO handles Telegram Mini Apps SDK → PICTOR builds the Mini App frontend (React/Vue). |
 | **CODER** | CODER writes backend/API → PICTOR consumes APIs in frontend. Clear contract at API boundary. |
 | **TESTER** | PICTOR writes component unit tests → TESTER adds e2e and cross-browser. |

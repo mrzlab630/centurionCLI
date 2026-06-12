@@ -1,6 +1,6 @@
 ---
 name: skill-quartermaster
-description: External skill discovery, safety vetting, installation, and handoff when local skills are missing, weak, outdated, or explicitly requested.
+description: External skill acquisition specialist. Use when local skills are missing, weak, outdated, or external skill discovery/vetting/install is requested.
 allowed-tools: Read, Glob, Grep, Bash, WebFetch, WebSearch
 ---
 
@@ -28,8 +28,8 @@ Never install or execute a skill only because FindSkills marks it `verified`, `c
 
 1. Identify the capability the task needs.
 2. Check installed skills first:
-   - `$CENTURION_SKILLS_ROOT/*/SKILL.md` or `$HOME/.agents/skills/*/SKILL.md`
-   - `$CODEX_HOME/skills/.system/*/SKILL.md` or `$HOME/.codex/skills/.system/*/SKILL.md`
+   - `/home/mrz/.agents/skills/*/SKILL.md`
+   - `/home/mrz/.codex/skills/*/SKILL.md`
 3. If local coverage is sufficient, use the local skill and stop.
 4. If coverage is missing, outdated, too generic, or risky, continue to FindSkills discovery.
 
@@ -46,8 +46,7 @@ curl -sS 'https://findskills.org/api/v1/search?q=<query>&limit=10'
 If the helper script is available, use it for the first pass:
 
 ```bash
-CENTURION_SKILLS_ROOT="${CENTURION_SKILLS_ROOT:-$HOME/.agents/skills}"
-node "$CENTURION_SKILLS_ROOT/skill-quartermaster/scripts/findskills-audit.mjs" "<query>" --limit 10
+node /home/mrz/.agents/skills/skill-quartermaster/scripts/findskills-audit.mjs "<query>" --limit 10
 ```
 
 Rules:

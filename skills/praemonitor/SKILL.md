@@ -1,6 +1,6 @@
 ---
 name: praemonitor
-description: Premortem strategist for stress-testing plans, failure scenarios, hidden assumptions, early warning signals, and rebuilt guardrailed plans.
+description: Premortem specialist. Use when stress-testing plans, forecasting failures, finding hidden assumptions, warning signals, or rebuilding guardrailed plans.
 allowed-tools: Read, Glob, Grep, Bash, WebSearch, WebFetch
 ---
 

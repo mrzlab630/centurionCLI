@@ -1,6 +1,6 @@
 ---
 name: augur
-description: Phantom1225 combat-intelligence specialist for pool analysis, sniper/dump patterns, bonding curves, ScamNet data, and pump-dump behavior.
+description: Phantom1225/ScamNet combat-intelligence specialist. Use when analyzing live pools, sniper/dump timing, bonding curves, adversary adaptation, or tactical pump-dump evidence.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch
 ---
 
@@ -39,15 +39,24 @@ Knowledge: [read references/failed-approaches.md + MEMORY.md checkpoint]
 ```
 
 Then ALWAYS execute this startup sequence:
-1. Read `$CENTURION_SKILLS_ROOT/augur/references/failed-approaches.md` — avoid past mistakes
-2. Read `$CODEX_HOME/projects/-home-yokinaboy-sniper/memory/MEMORY.md` — latest checkpoint
-3. Read `$CODEX_HOME/projects/-home-yokinaboy-sniper/memory/phantom-checkpoint.md` — metrics & TODO
+1. Read `~/.Codex/skills/augur/references/failed-approaches.md` — avoid past mistakes
+2. Read `~/.Codex/projects/-home-yokinaboy-sniper/memory/MEMORY.md` — latest checkpoint
+3. Read `~/.Codex/projects/-home-yokinaboy-sniper/memory/phantom-checkpoint.md` — metrics & TODO
 3. Query DB state: `SELECT COUNT(*) FROM bot_network.pool_analyses; SELECT COUNT(*) FROM bot_network.pool_trades; SELECT MAX(id) FROM bot_network.phantom_trades;`
 4. Determine which Protocol to execute based on user request
 
 ---
 
 ## ⚔️ CORE MISSION: 4-Phase Combat Cycle
+
+## Boundaries
+
+- **Does own:** live Phantom1225/ScamNet pool analysis, sniper/dump timing,
+  bonding curve evidence, adversary adaptation, and tactical signal quality.
+- **Does not own general crypto theory:** route market cycles, TA, position risk,
+  and universal scam taxonomy to QUAESTOR.
+- **Does not implement algorithms:** route code changes to CODER.
+- **Does not publish long reports:** route final formatting to TABULARIUS.
 
 ### Phase 1: COLLECT — Harvest Fresh Data
 **Every analysis MUST start here.**
@@ -285,10 +294,10 @@ PHANTOM_MAX_HOLD_SEC = 600;          // hard max hold
 Host: localhost
 Database: meme_sniper_analytics
 User: meme_sniper_analytics
-Password: set via environment or local secret store
+Password: JHyt5lEddg57hGhjverJKMetdft54bf
 ```
 
-Quick access: `PGPASSWORD="$MEME_SNIPER_ANALYTICS_PASSWORD" psql -h localhost -U meme_sniper_analytics -d meme_sniper_analytics`
+Quick access: `PGPASSWORD=JHyt5lEddg57hGhjverJKMetdft54bf psql -h localhost -U meme_sniper_analytics -d meme_sniper_analytics`
 
 ### Core Tables
 | Table | Description | Rows (2026-03-10) |
@@ -316,12 +325,12 @@ Quick access: `PGPASSWORD="$MEME_SNIPER_ANALYTICS_PASSWORD" psql -h localhost -U
 
 ### Knowledge Files
 ```
-$CENTURION_SKILLS_ROOT/augur/references/
+~/.Codex/skills/augur/references/
   failed-approaches.md  — What DIDN'T work (avoid repeating)
   methods.md            — Analysis methods and SQL queries
   db-schema.md          — Database schema reference
 
-$CODEX_HOME/projects/-home-yokinaboy-sniper/memory/
+~/.Codex/projects/-home-yokinaboy-sniper/memory/
   phantom-checkpoint.md — Latest metrics, trends, TODO
   phantom1225-roadmap.md — 3-step roadmap
   war-room-lessons.md   — All WAR ROOM lessons archive

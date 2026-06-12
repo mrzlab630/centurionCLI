@@ -1,9 +1,6 @@
 ---
 name: prompt-engineer
-description: |
-  Expert prompt optimization skill. Use when transforming vague requirements into
-  precise specifications, improving prompt quality, or applying EARS methodology.
-  Grounds prompts in domain theories and generates testable requirements.
+description: Prompt specification specialist. Use when transforming vague requirements into precise prompts, EARS specs, domain framing, or testable requirements.
 allowed-tools: Read, Glob, Grep, WebSearch
 ---
 

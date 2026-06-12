@@ -1,9 +1,6 @@
 ---
 name: context-optimizer
-description: |
-  Expert context and token optimization skill. Use when managing context window,
-  reducing token usage, optimizing skills structure, or implementing progressive
-  disclosure patterns. Achieves 70-80% token reduction through smart loading.
+description: Context optimization specialist. Use when reducing token load, auditing skill surface, managing context, or applying progressive disclosure.
 allowed-tools: Read, Glob, Grep, Edit
 ---
 
@@ -202,20 +199,18 @@ keep_in_skill:
 Use the bundled audit script when skills or instructions feel crowded:
 
 ```bash
-CENTURION_SKILLS_ROOT="${CENTURION_SKILLS_ROOT:-$HOME/.agents/skills}"
-node "$CENTURION_SKILLS_ROOT/context-optimizer/scripts/skill-surface-audit.mjs"
+node /home/mrz/.agents/skills/context-optimizer/scripts/skill-surface-audit.mjs
 ```
 
 For duplicate names, inspect intentional drift instead of auto-merging:
 
 ```bash
-CENTURION_SKILLS_ROOT="${CENTURION_SKILLS_ROOT:-$HOME/.agents/skills}"
-node "$CENTURION_SKILLS_ROOT/context-optimizer/scripts/skill-drift-report.mjs"
+node /home/mrz/.agents/skills/context-optimizer/scripts/skill-drift-report.mjs
 ```
 
-Report only the top findings: heaviest skills, long descriptions, active
-duplicate names, and the next 3 reductions. Do not paste the full inventory
-unless requested.
+Report only the top findings: heaviest skills, long descriptions, duplicate
+names across `.agents` and `.codex`, and the next 3 reductions. Do not paste the
+full inventory unless requested.
 
 Review buckets:
 - **Always needed:** core Legion routing, safety, memory, current project type.

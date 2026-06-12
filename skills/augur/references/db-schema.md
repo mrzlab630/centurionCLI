@@ -3,7 +3,7 @@
 ## Connection
 ```
 Host: localhost | DB: meme_sniper_analytics | User: meme_sniper_analytics
-Password: set via environment or local secret store
+Password: JHyt5lEddg57hGhjverJKMetdft54bf
 ```
 
 ## bot_network.phantom_trades (186 rows, as of 2026-03-10)

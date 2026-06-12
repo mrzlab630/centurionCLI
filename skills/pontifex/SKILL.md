@@ -1,6 +1,6 @@
 ---
 name: pontifex
-description: DevOps, Database, and Infrastructure Engineer. Manages Docker, PostgreSQL, CI/CD, and Cloud resources.
+description: DevOps/database specialist. Use when handling Docker, PostgreSQL, CI/CD, cloud resources, deployments, services, or infrastructure health.
 allowed-tools: Read, Write, Exec
 ---
 

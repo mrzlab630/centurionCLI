@@ -6,7 +6,7 @@
 
 ![Name](https://img.shields.io/badge/⚔️-CENTURION-gold)
 ![Version](https://img.shields.io/badge/version-COHORS%20SECUNDA%20v2.1-blue)
-![Legionaries](https://img.shields.io/badge/legionaries-34-red)
+![Legionaries](https://img.shields.io/badge/legionaries-37-red)
 ![MCP](https://img.shields.io/badge/MCP%20servers-7-green)
 ![Status](https://img.shields.io/badge/status-BATTLE%20TESTED-green)
 
@@ -28,7 +28,7 @@ avoid duplicate skill names and context bloat.
 
 ### Key Features
 
-- **34 Legionaries** across command, build, quality, intel, growth, ops, and Ferrata security cohorts.
+- **37 Legionaries** across command, build, product/UX, quality, intel, growth, ops, and Ferrata security cohorts.
 - **Canonical skill surface** — Legion skills live in `~/.agents/skills`; duplicate copies are not installed into `~/.codex/skills`.
 - **Mission preparation tooling** — OPTIO routes primary and adjacent Legionaries with `mission-prep.mjs`.
 - **Context governance** — CURATOR audits active skills for duplicate names, drift, long descriptions, and heavy skill bodies.
@@ -45,7 +45,7 @@ avoid duplicate skill names and context bloat.
 | Legionary | Skill | Role |
 | :--- | :--- | :--- |
 | **OPTIO** | `/orchestrator` | Commander. Plan, interpret, route tasks. |
-| **CODER** | `/coder` | Builder. Code, refactor, docs, proof. |
+| **CODER** | `/coder` | Builder. Production code implementation and focused fixes. |
 | **DEBUGGER** | `/error-handler` | Medic. Errors, logs, incidents, data. |
 | **EXPLORATOR** | `/researcher` | Scout. Codebase, documentation, web research. |
 | **PONTIFEX** | `/pontifex` | Engineer. Docker, CI/CD, PostgreSQL, infra. |
@@ -59,7 +59,8 @@ avoid duplicate skill names and context bloat.
 | :--- | :--- |
 | Command | CAPABILITIES, CURATOR, PRAEMONITOR, SKILL-QUARTERMASTER |
 | Build | ARCHITECTUS, ARTIFEX, DOCUMENTER, PICTOR, PRAECO, REFACTORER |
-| Quality | AEDILIS, CENSOR, REVIEWER |
+| Product/UX | LUDIFEX, AEDILIS, NOMENCLATOR, GLOSSATOR |
+| Quality | CENSOR, REVIEWER |
 | Intel | AUGUR, QUAESTOR, TABULARIUS |
 | Growth | ALEATOR, INDAGATOR, MERCATOR, ORATOR |
 | Ops | EVOCATUS, SIGNIFER |
@@ -152,7 +153,7 @@ export PERPLEXITY_API_KEY="pplx-x"
 1. Checks prerequisites.
 2. Backs up existing Claude configuration.
 3. Installs `CLAUDE.md`, doctrine docs, scripts, pipeline templates, and shared libs.
-4. Deploys all 34 Legion skills to `~/.agents/skills`.
+4. Deploys all 37 Legion skills to `~/.agents/skills`.
 5. Keeps Codex system skills in `~/.codex/skills/.system` and avoids Legion duplicates in `~/.codex/skills`.
 6. Builds MEMORIA and registers MCP servers when possible.
 7. Runs the Legion skill eval when installed.
@@ -172,7 +173,7 @@ centurionCLI/
 ├── scripts/               # Utility scripts
 ├── pipeline/              # Handoff templates
 ├── mcp-servers/memoria/   # Semantic memory MCP server
-├── skills/                # 34 canonical Legionary modules
+├── skills/                # 37 canonical Legionary modules
 └── logo/                  # Branding assets
 ```
 
@@ -185,7 +186,7 @@ centurionCLI/
 | 1.0 | Cohors Prima | 8 | Core legion, PROBATIO doctrine |
 | 1.5 | Cohors Ferrata | 11 | Velites, Haruspex, Sicarius |
 | 2.0 | Cohors Secunda | 27 | Full roster, MEMORIA, WAR ROOM, AGMEN |
-| **2.1** | **Cohors Secunda** | **34** | **Canonical `.agents` skill surface, mission-prep, skill audit/eval, duplicate-name guard** |
+| **2.1** | **Cohors Secunda** | **37** | **Canonical `.agents` skill surface, specialized Product/UX Legionaries, mission-prep, skill audit/eval, duplicate-name guard** |
 
 ---
 

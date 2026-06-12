@@ -1,0 +1,4 @@
+interface:
+  display_name: "GLOSSATOR"
+  short_description: "Interface localization architect"
+  default_prompt: "Use $glossator to design professional interface localization, i18n architecture, glossary, translations, and locale QA."

@@ -67,19 +67,30 @@ const keywords = [...new Set(task.toLowerCase()
 const skillAliases = {
   orchestrator: ['легион', 'легионер', 'маршрут', 'route', 'orchestr', 'мисси', 'координац'],
   planner: ['план', 'roadmap', 'todo', 'декомпоз', 'milestone'],
-  'context-optimizer': ['контекст', 'context', 'token', 'токен', 'memory', 'памят', 'навык', 'скил', 'skill'],
+  'context-optimizer': ['контекст', 'context window', 'token budget', 'token load', 'токен бюджет', 'memory', 'памят', 'навык', 'скил', 'skill'],
   tester: ['eval', 'test', 'тест', 'проверк', 'coverage', 'qa'],
   security: ['security', 'безопас', 'секрет', 'secret', 'mcp', 'supply', 'dependency', 'vulner'],
-  reviewer: ['review', 'ревью', 'audit', 'аудит', 'bug', 'ошиб', 'risk', 'риск'],
+  reviewer: ['review', 'ревью', 'code review', 'diff', 'pr', 'pre merge', 'bug risk'],
   researcher: ['research', 'изуч', 'github', 'repo', 'docs', 'web', 'докум'],
-  coder: ['code', 'код', 'implement', 'добав', 'исправ', 'refactor', 'рефактор'],
+  coder: ['code', 'код', 'implement', 'реализ', 'feature', 'api', 'endpoint', 'исправь код'],
+  refactorer: ['refactor', 'рефактор', 'cleanup', 'tech debt', 'техдолг', 'без изменения поведения'],
+  documenter: ['readme', 'docs', 'documentation', 'документац', 'jsdoc', 'api docs'],
+  'error-handler': ['debug', 'stack trace', 'logs', 'логи', 'crash', 'runtime', 'root cause', 'flaky'],
   'skill-quartermaster': ['findskills', 'external skill', 'установ', 'install skill', 'новый навык'],
   pontifex: ['docker', 'infra', 'инфра', 'deploy', 'ci', 'postgres', 'database', 'db'],
-  aedilis: ['ui', 'ux', 'дизайн', 'interface', 'layout'],
+  architect: ['architecture', 'архитект', 'module boundary', 'adr', 'system design'],
+  aedilis: ['ui', 'ux', 'дизайн', 'interface', 'layout', 'shadcn', 'radix', 'dashboard', 'форма', 'таблица'],
   pictor: ['frontend', 'react', 'vue', 'tailwind', 'css', 'web app'],
-  praeco: ['telegram', 'bot', 'mini app', 'grammy'],
-  mercator: ['marketing', 'growth', 'маркетинг', 'retention', 'campaign'],
-  indagator: ['seo', 'search engine', 'ranking', 'keywords'],
+  praeco: ['telegram api', 'bot api', 'mini apps sdk', 'grammy', 'callback_data', 'telegram payments'],
+  ludifex: ['telegram mini app game', 'игра', 'game', 'core loop', 'screen map', 'reward model'],
+  nomenclator: ['cta', 'microcopy', 'ux writing', 'ux-writing', 'empty state', 'error state', 'naming', 'назван', 'текст интерфейс'],
+  glossator: ['i18n', 'localization', 'localisation', 'translation', 'translate', 'перевод', 'plural', 'rtl', 'locale'],
+  aleator: ['gamification', 'геймификац', 'rewards', 'streak', 'achievement', 'motivation', 'retention mechanics'],
+  mercator: ['marketing', 'growth', 'маркетинг', 'campaign strategy', 'funnel', 'positioning', 'go-to-market'],
+  orator: ['social', 'twitter', 'reddit', 'x.com', 'post', 'posts', 'thread', 'caption', 'hashtags', 'посты'],
+  indagator: ['seo', 'search engine', 'ranking', 'keywords', 'schema', 'sitemap', 'serp', 'organic'],
+  augur: ['phantom1225', 'scamnet', 'dump timing', 'sniper', 'bonding curve'],
+  quaestor: ['dex', 'crypto token', 'on-chain', 'onchain', 'technical analysis', 'risk model', 'trading strategy'],
   praemonitor: ['premortem', 'премортем', 'stress test', 'what could kill', 'что может убить'],
 };
 
@@ -106,12 +117,27 @@ for (const skill of scored) {
 
 const routeRules = [
   ['orchestrator', ['plan', 'план', 'route', 'orchestr', 'war room', 'мисси', 'легион']],
-  ['researcher', ['research', 'изучи', 'изуч', 'analy', 'docs', 'github', 'repo', 'web']],
-  ['coder', ['code', 'implement', 'fix', 'refactor', 'созд', 'исправ', 'добав', 'действуй']],
+  ['ludifex', ['telegram mini app game', 'игра', 'game', 'core loop', 'screen map', 'экраны', 'reward model']],
+  ['nomenclator', ['cta', 'microcopy', 'ux writing', 'ux-writing', 'empty state', 'error state', 'naming', 'назван', 'текст интерфейс']],
+  ['glossator', ['i18n', 'localization', 'localisation', 'translation', 'translate', 'перевод', 'plural', 'rtl', 'locale']],
+  ['aedilis', ['ui', 'ux', 'interface', 'интерфейс', 'layout', 'shadcn', 'radix', 'dashboard', 'form', 'table']],
+  ['praeco', ['telegram api', 'bot api', 'mini apps sdk', 'grammy', 'callback_data', 'telegram payments']],
+  ['orator', ['twitter', 'reddit', 'social', 'посты', 'posts', 'thread', 'caption', 'hashtags']],
+  ['indagator', ['seo', 'keyword', 'schema', 'sitemap', 'serp', 'organic', 'search visibility']],
+  ['aleator', ['gamification', 'геймификац', 'streak', 'achievement', 'retention mechanics', 'motivation']],
+  ['mercator', ['marketing', 'growth', 'campaign', 'funnel', 'positioning', 'go-to-market']],
+  ['augur', ['phantom1225', 'scamnet', 'dump timing', 'sniper', 'bonding curve']],
+  ['quaestor', ['dex', 'crypto token', 'on-chain', 'onchain', 'technical analysis', 'risk model', 'trading strategy']],
+  ['refactorer', ['refactor', 'рефактор', 'cleanup', 'tech debt', 'без изменения поведения']],
+  ['documenter', ['readme', 'documentation', 'документац', 'jsdoc', 'api docs']],
+  ['error-handler', ['debug', 'stack trace', 'logs', 'логи', 'crash', 'runtime', 'root cause']],
+  ['architect', ['architecture', 'архитект', 'system design', 'adr', 'module boundary']],
+  ['researcher', ['research', 'изучи', 'изуч', 'docs', 'github', 'repo', 'web']],
+  ['coder', ['code', 'код', 'implement', 'реализ', 'fix code', 'исправь код', 'api', 'endpoint']],
   ['tester', ['test', 'coverage', 'eval', 'проверк', 'qa', 'тест']],
-  ['reviewer', ['review', 'audit', 'bug', 'risk', 'ошиб', 'ревью', 'проверь']],
+  ['reviewer', ['review', 'code review', 'diff', 'pr', 'bug risk', 'ревью кода']],
   ['security', ['security', 'secret', 'vulner', 'mcp', 'install', 'supply', 'безопас', 'защит']],
-  ['context-optimizer', ['context', 'token', 'skill', 'memory', 'контекст', 'навык', 'скил']],
+  ['context-optimizer', ['context', 'context window', 'token budget', 'token load', 'skill surface', 'memory', 'контекст', 'навык', 'скил']],
   ['skill-quartermaster', ['findskills', 'external skill', 'install skill', 'new skill']],
   ['planner', ['roadmap', 'todo', 'milestone', 'knowledge', 'план']],
 ];
@@ -120,8 +146,14 @@ const legionaries = routeRules
   .filter(([, terms]) => terms.some((term) => lower.includes(term)))
   .map(([name]) => name);
 
-const guardianNeeded = ['install', 'mcp', 'secret', 'token', 'wallet', 'prod', 'cloud', 'external', 'curl', 'npx', 'безопас', 'security', 'supply', 'risk', 'risky', 'риск', 'опас']
-  .some((term) => lower.includes(term));
+const guardianHardTerms = ['install', 'mcp', 'secret', 'wallet', 'prod', 'cloud', 'external', 'curl', 'npx', 'безопас', 'security', 'supply', 'vulner', 'опас'];
+const guardianRiskContext = /(risk|risky|риск)/.test(lower)
+  && /(skill|capability|ability|install|mcp|external|способн|навык|скил|установ)/.test(lower);
+const guardianTokenContext = /token/.test(lower)
+  && /(api|access|auth|secret|credential|env|ключ|секрет|доступ)/.test(lower);
+const guardianNeeded = guardianHardTerms.some((term) => lower.includes(term))
+  || guardianRiskContext
+  || guardianTokenContext;
 
 const routedLegionaries = guardianNeeded && !legionaries.includes('security')
   ? [...legionaries, 'security']

@@ -1,8 +1,6 @@
 ---
 name: sicarius
-description: Exploitation specialist. Verifies vulnerabilities using browser automation (Playwright). The "Hands" of the Legion.
-role: exploiter
-tools: [scripts/exploit_verify.py]
+description: Exploit verification specialist. Use when proving vulnerability candidates with browser automation, PoC attempts, and screenshot evidence.
 ---
 
 # 🗡️ SICARIUS (The Assassin)

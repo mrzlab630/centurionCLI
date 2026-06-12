@@ -1,6 +1,6 @@
 ---
 name: tabularius
-description: Report publisher for large analyses, charts, tables, HTML formatting, TinyNotepad publishing, and AUGUR report handoffs.
+description: Report publishing specialist. Use when formatting large analyses, charts, tables, HTML reports, TinyNotepad pages, or AUGUR handoffs.
 allowed-tools: Read, Bash, Glob, Grep, WebFetch
 ---
 

@@ -2,7 +2,7 @@
 
 # CENTURION Installation Script
 # Version: COHORS SECUNDA (v2.1)
-# Installs: 34 Legionaries + MEMORIA MCP + 7 MCP Servers + Pipeline Templates
+# Installs: 37 Legionaries + MEMORIA MCP + 7 MCP Servers + Pipeline Templates
 
 set -e
 
@@ -22,7 +22,7 @@ SKILLS_DIR="$AGENTS_DIR/skills"
 
 echo ""
 echo -e "${BOLD}⚔️  CENTURION — COHORS SECUNDA${NC}"
-echo -e "${CYAN}   34 Legionaries | canonical ~/.agents/skills | 7 MCP Servers | MEMORIA v1.2.0${NC}"
+echo -e "${CYAN}   37 Legionaries | canonical ~/.agents/skills | 7 MCP Servers | MEMORIA v1.2.0${NC}"
 echo "=================================================="
 echo ""
 
@@ -126,9 +126,9 @@ fi
 
 echo ""
 
-# ─── PHASE 4: Skills (34 Legionaries) ───
+# ─── PHASE 4: Skills (37 Legionaries) ───
 
-echo -e "${BOLD}[4/7] Deploying 34 Legionaries to canonical skill root...${NC}"
+echo -e "${BOLD}[4/7] Deploying 37 Legionaries to canonical skill root...${NC}"
 
 SKILL_COUNT=0
 for skill_dir in "$SCRIPT_DIR/skills/"*/; do
@@ -146,6 +146,12 @@ for skill_dir in "$SCRIPT_DIR/skills/"*/; do
     if [ -d "$skill_dir/references" ]; then
         rm -rf "$SKILLS_DIR/$skill_name/references"
         cp -r "$skill_dir/references" "$SKILLS_DIR/$skill_name/"
+    fi
+
+    # Copy agents/ (UI metadata)
+    if [ -d "$skill_dir/agents" ]; then
+        rm -rf "$SKILLS_DIR/$skill_name/agents"
+        cp -r "$skill_dir/agents" "$SKILLS_DIR/$skill_name/"
     fi
 
     # Copy scripts/ (tools)
@@ -167,7 +173,8 @@ echo -e "${GREEN}  ✓${NC} $SKILL_COUNT legionaries deployed"
 echo -e "${CYAN}    Core 8:    OPTIO CODER DEBUGGER EXPLORATOR PONTIFEX TESTER GUARDIAN LIBRARIUS${NC}"
 echo -e "${CYAN}    Command:   CAPABILITIES SKILL-QUARTERMASTER PRAEMONITOR${NC}"
 echo -e "${CYAN}    Build 6:   ARTIFEX ARCHITECT DOCUMENTER PICTOR PRAECO REFACTORER${NC}"
-echo -e "${CYAN}    Quality 3: CENSOR REVIEWER AEDILIS${NC}"
+echo -e "${CYAN}    Product 4: LUDIFEX AEDILIS NOMENCLATOR GLOSSATOR${NC}"
+echo -e "${CYAN}    Quality 2: CENSOR REVIEWER${NC}"
 echo -e "${CYAN}    Intel 3:   AUGUR QUAESTOR TABULARIUS${NC}"
 echo -e "${CYAN}    Growth 4:  MERCATOR ORATOR INDAGATOR ALEATOR${NC}"
 echo -e "${CYAN}    Ops 2:     EVOCATUS SIGNIFER${NC}"
