@@ -44,7 +44,7 @@ function smokeGuard() {
       orderVersion: 'CLAUDE_ORDER_V1',
       owner: 'PICTOR',
       status: 'done',
-      filesChanged: ['index.html'],
+      filesChanged: ['index.html', 'CLAUDE_RESULT.json'],
       proof: [{ command: 'synthetic', result: 'passed', summary: 'guard smoke' }],
       selfReviewFixed: 'yes',
       scopeViolations: [],
@@ -56,6 +56,35 @@ function smokeGuard() {
     fs.writeFileSync(path.join(tempRoot, 'package.json'), '{"type":"module","mutated":true}\n');
     const bad = run(process.execPath, [guard, 'verify', '--workspace', tempRoot, '--before', snapshot, '--allowed', 'index.html,CLAUDE_RESULT.json', '--result', 'CLAUDE_RESULT.json']);
     assert(bad.status !== 0, 'verify should fail on unallowed package.json change');
+
+    fs.writeFileSync(path.join(tempRoot, 'package.json'), '{"type":"module"}\n');
+    fs.writeFileSync(path.join(tempRoot, 'CLAUDE_RESULT.json'), JSON.stringify({
+      orderVersion: 'CLAUDE_ORDER_V1',
+      owner: 'PICTOR',
+      status: 'done',
+      filesChanged: ['index.html', 'CLAUDE_RESULT.json'],
+      proof: [{ command: 'synthetic', result: 'pending', summary: 'guard smoke' }],
+      selfReviewFixed: 'yes',
+      scopeViolations: [],
+      forbiddenPatternHits: [],
+      remainingRisks: []
+    }, null, 2));
+    const pending = run(process.execPath, [guard, 'verify', '--workspace', tempRoot, '--before', snapshot, '--allowed', 'index.html,CLAUDE_RESULT.json', '--result', 'CLAUDE_RESULT.json']);
+    assert(pending.status !== 0, 'verify should fail on done result with pending proof');
+
+    fs.writeFileSync(path.join(tempRoot, 'CLAUDE_RESULT.json'), JSON.stringify({
+      orderVersion: 'CLAUDE_ORDER_V1',
+      owner: 'PICTOR',
+      status: 'done',
+      filesChanged: ['index.html', 'CLAUDE_RESULT.json'],
+      proof: [],
+      selfReviewFixed: 'yes',
+      scopeViolations: [],
+      forbiddenPatternHits: [],
+      remainingRisks: []
+    }, null, 2));
+    const emptyProof = run(process.execPath, [guard, 'verify', '--workspace', tempRoot, '--before', snapshot, '--allowed', 'index.html,CLAUDE_RESULT.json', '--result', 'CLAUDE_RESULT.json']);
+    assert(emptyProof.status !== 0, 'verify should fail on done result with empty proof');
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
     fs.rmSync(snapshot, { force: true });

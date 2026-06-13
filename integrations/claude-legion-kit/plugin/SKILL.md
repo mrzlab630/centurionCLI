@@ -77,7 +77,7 @@ Required result shape:
   "orderVersion": "CLAUDE_ORDER_V1",
   "owner": "PICTOR",
   "status": "done",
-  "filesChanged": ["relative/path"],
+  "filesChanged": ["relative/path", "CLAUDE_RESULT.json"],
   "proof": [{ "command": "npm test", "result": "passed", "summary": "..." }],
   "selfReviewFixed": "yes",
   "scopeViolations": [],
@@ -85,6 +85,8 @@ Required result shape:
   "remainingRisks": []
 }
 ```
+
+Result typing is part of the contract: `filesChanged`, `proof`, `scopeViolations`, `forbiddenPatternHits`, and `remainingRisks` must be JSON arrays. Use an empty array (`[]`) for no findings; never use strings such as `"none"`. `filesChanged` must match the actual changed files, including `CLAUDE_RESULT.json`. For `status=done`, every `proof[].result` must be `"passed"`; use `status=blocked` if proof was not run or did not pass.
 
 Final stdout for print-mode orders should contain only:
 

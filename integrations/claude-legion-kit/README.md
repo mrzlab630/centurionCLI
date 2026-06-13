@@ -7,6 +7,7 @@ This kit installs a Claude Code plugin with one CENTURION entry skill, 37 Legion
 ## Observed Local Baseline
 
 - Claude CLI: `Claude Code 2.1.177` from `/home/mrz/.local/bin/claude`.
+- Local model access uses `cli-proxy-api` on `http://127.0.0.1:8317`; non-interactive shells may not inherit this from `~/.bashrc` because that file returns early when not interactive.
 - Native control surfaces confirmed by `claude --help`: `--agent`, `--agents`, `--allowedTools`, `--disallowedTools`, `--tools`, `--permission-mode`, `--mcp-config`, `--strict-mcp-config`, `--plugin-dir`, `--settings`, `--system-prompt`, `--json-schema`, `--safe-mode`, and `--bare`.
 - Claude Code supports plugin scaffolding and validation via `claude plugin init` and `claude plugin validate`.
 - Local `~/.claude/skills` existed but held an older Legion surface than the current 37-skill Cohors Secunda repository surface.
@@ -56,7 +57,14 @@ node integrations/claude-legion-kit/scripts/claude-order-guard.mjs snapshot \
   --out /tmp/claude-before.json
 ```
 
-Then run Claude with the smallest practical tool surface. Claude Code must be logged in first; if `claude -p` returns `Not logged in`, run `/login` in an interactive Claude session before live delegation tests.
+Then run Claude with the smallest practical tool surface. On this workstation, print-mode live tests should use the local Claude proxy environment instead of the OAuth login path:
+
+```bash
+source integrations/claude-legion-kit/scripts/proxy-env.sh.example
+claude -p 'Say OK only.'
+```
+
+If `claude -p` returns `Not logged in`, first confirm that `ANTHROPIC_BASE_URL` points at the local proxy and `ANTHROPIC_API_KEY` is set for the proxy session. That error can mean the proxy env was not present, not that Claude Code is misconfigured.
 
 For long orders, pass the prompt through stdin so variadic tool options cannot consume the prompt text:
 
@@ -64,9 +72,11 @@ For long orders, pass the prompt through stdin so variadic tool options cannot c
 claude -p \
   --agent pictor \
   --permission-mode default \
-  --allowedTools 'Read,Grep,Edit,Bash(npm test)' \
+  --allowedTools 'Read,Grep,Edit,Write,Bash(npm test)' \
   < /tmp/claude-order-prompt.txt
 ```
+
+Include `Write` whenever the order requires `CLAUDE_RESULT.json` or any newly created file. If the tool surface omits `Write`, Claude may edit existing files but fail to produce the required result artifact.
 
 For planning-only work:
 
@@ -90,6 +100,8 @@ node integrations/claude-legion-kit/scripts/claude-order-guard.mjs verify \
 ```
 
 Never accept Claude stdout, narration, or confidence alone. Accept only after guard verification, owner proof, and direct diff or artifact inspection.
+
+Live proxy testing showed that short bounded orders can pass end to end, while longer print-mode orders may edit files and then hit the controller timeout before clean stdout. Treat timeout, missing result files, `proof` values other than `passed`, or partial artifacts as rejection conditions. Retry with a smaller order instead of accepting partial work.
 
 ## WAR ROOM Verdict
 

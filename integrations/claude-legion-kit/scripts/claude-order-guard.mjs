@@ -103,16 +103,35 @@ function scanForbidden(workspace, files, patterns) {
 
 function validateResultShape(result) {
   const failures = [];
+  if (!result || typeof result !== 'object' || Array.isArray(result)) {
+    return ['result must be a JSON object'];
+  }
   if (result.orderVersion !== 'CLAUDE_ORDER_V1') failures.push('result.orderVersion must be CLAUDE_ORDER_V1');
   if (!['done', 'blocked'].includes(result.status)) failures.push('result.status must be done or blocked');
   if (!Array.isArray(result.filesChanged)) failures.push('result.filesChanged must be an array');
+  else if (!result.filesChanged.every((item) => typeof item === 'string')) failures.push('result.filesChanged must contain only strings');
   if (!Array.isArray(result.proof)) failures.push('result.proof must be an array');
   if (!['yes', 'no'].includes(result.selfReviewFixed)) failures.push('result.selfReviewFixed must be yes or no');
   if (!Array.isArray(result.scopeViolations)) failures.push('result.scopeViolations must be an array');
   if (!Array.isArray(result.forbiddenPatternHits)) failures.push('result.forbiddenPatternHits must be an array');
   if (!Array.isArray(result.remainingRisks)) failures.push('result.remainingRisks must be an array');
   if (result.status === 'done' && result.selfReviewFixed !== 'yes') failures.push('done result requires selfReviewFixed=yes');
+  if (result.status === 'done' && Array.isArray(result.proof)) {
+    if (!result.proof.length) failures.push('done result requires at least one proof entry');
+    const pendingProof = result.proof.filter((item) => item?.result !== 'passed');
+    if (pendingProof.length) failures.push('done result requires every proof[].result to be passed');
+  }
   return failures;
+}
+
+function sortedList(value) {
+  return [...new Set(value)].sort();
+}
+
+function sameList(left, right) {
+  const a = sortedList(left);
+  const b = sortedList(right);
+  return a.length === b.length && a.every((item, index) => item === b[index]);
 }
 
 function verify(args) {
@@ -140,6 +159,9 @@ function verify(args) {
     try {
       result = readJson(resultFullPath);
       failures.push(...validateResultShape(result));
+      if (Array.isArray(result.filesChanged) && result.filesChanged.every((item) => typeof item === 'string') && !sameList(result.filesChanged.map(normalizeRelative), changed)) {
+        failures.push(`result.filesChanged mismatch: expected ${changed.join(', ') || '<none>'}; got ${result.filesChanged.join(', ') || '<none>'}`);
+      }
     } catch (error) {
       failures.push(`result JSON parse failed: ${error.message}`);
     }
@@ -147,8 +169,8 @@ function verify(args) {
 
   if (scopeViolations.length) failures.push(`scope violations: ${scopeViolations.join(', ')}`);
   if (forbiddenHits.length) failures.push(`forbidden pattern hits: ${forbiddenHits.map((hit) => `${hit.file}:${hit.pattern}`).join(', ')}`);
-  if (result?.scopeViolations?.length) failures.push(`claude reported scope violations: ${result.scopeViolations.join(', ')}`);
-  if (result?.forbiddenPatternHits?.length) failures.push(`claude reported forbidden hits: ${result.forbiddenPatternHits.join(', ')}`);
+  if (Array.isArray(result?.scopeViolations) && result.scopeViolations.length) failures.push(`claude reported scope violations: ${result.scopeViolations.join(', ')}`);
+  if (Array.isArray(result?.forbiddenPatternHits) && result.forbiddenPatternHits.length) failures.push(`claude reported forbidden hits: ${result.forbiddenPatternHits.join(', ')}`);
 
   const report = { ok: failures.length === 0, changed, scopeViolations, forbiddenHits, resultFile: resultPath, failures };
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);

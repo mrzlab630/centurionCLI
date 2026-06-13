@@ -23,6 +23,26 @@ This skill defines strict bounded execution for Claude Code.
    `node integrations/claude-legion-kit/scripts/claude-order-guard.mjs verify --workspace <dir> --before /tmp/claude-before.json --allowed <paths> --result CLAUDE_RESULT.json --forbidden <patterns>`
 5. Rerun proof and inspect the diff/artifact directly.
 
+## Result Contract
+
+`CLAUDE_RESULT.json` must use this exact shape:
+
+```json
+{
+  "orderVersion": "CLAUDE_ORDER_V1",
+  "owner": "PICTOR",
+  "status": "done",
+  "filesChanged": ["relative/path", "CLAUDE_RESULT.json"],
+  "proof": [{ "command": "npm test", "result": "passed", "summary": "..." }],
+  "selfReviewFixed": "yes",
+  "scopeViolations": [],
+  "forbiddenPatternHits": [],
+  "remainingRisks": []
+}
+```
+
+`filesChanged`, `proof`, `scopeViolations`, `forbiddenPatternHits`, and `remainingRisks` are arrays. Use `[]` for no findings; never use strings such as `"none"`. `filesChanged` must match the actual changed files, including `CLAUDE_RESULT.json`. For `status=done`, every `proof[].result` must be `"passed"`; use `status=blocked` if proof was not run or did not pass.
+
 ## Acceptance Rule
 
 Never accept Claude stdout, narration, or confidence alone. Accept only observed filesystem scope, structured result, proof, and owner review.

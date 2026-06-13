@@ -22,7 +22,7 @@ The kit does not commit or print secrets. It deliberately does not rewrite Claud
 - `claude plugin validate --strict` is the validation gate for plugin shape.
 - `claude mcp list` showed the current MCP fleet connected: context7, brave-search, playwright, sequential-thinking, solanaMcp, memoria, and github.
 - Existing `~/.claude/skills` had 27 Legion skills, while current Cohors Secunda has 37 canonical skills. The installer syncs the current repository surface when requested.
-- Live `claude -p` execution requires an authenticated Claude Code session. If print-mode returns `Not logged in`, run `/login` interactively before testing `CLAUDE_ORDER v1` against a real model.
+- Live `claude -p` execution on this workstation uses local `cli-proxy-api` at `http://127.0.0.1:8317`. If print-mode returns `Not logged in`, treat that as a missing proxy environment first: set `ANTHROPIC_BASE_URL`, set a proxy `ANTHROPIC_API_KEY` placeholder, and keep `NO_PROXY=127.0.0.1,localhost`.
 
 ## Design
 
@@ -46,6 +46,8 @@ Prompt text is advisory. Enforcement comes from combining:
 - owner review: direct diff/artifact inspection plus rerun proof.
 
 For long print-mode orders, pass the prompt through stdin. `--allowedTools` and similar options accept variable-length values, so stdin avoids the prompt being interpreted as another tool rule.
+
+The repository includes `integrations/claude-legion-kit/scripts/proxy-env.sh.example` with the current proxy defaults for non-interactive tests.
 
 ## Maintenance
 
