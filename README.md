@@ -36,6 +36,7 @@ avoid duplicate skill names and context bloat.
 - **MEMORIA v1.2.0** — semantic memory MCP server with local embeddings.
 - **PROBATIO doctrine** — every material task requires proof: facts, tests, logs, diffs, scans, or live checks.
 - **Antigravity Legion Kit** — portable Google Antigravity IDE and `agy` CLI integration under `integrations/antigravity-legion-kit`.
+- **Claude Legion Kit** — native Claude Code plugin, 37 subagents, and `CLAUDE_ORDER v1` guard under `integrations/claude-legion-kit`.
 
 ---
 
@@ -136,6 +137,22 @@ node ./installer/install.mjs --dry-run
 ```
 
 See [docs/ANTIGRAVITY_LEGION_KIT.md](docs/ANTIGRAVITY_LEGION_KIT.md) for install, validation, and maintenance rules.
+
+---
+
+## Claude Code Integration
+
+`integrations/claude-legion-kit` preserves the Claude Code-facing CENTURION pack. It contains a native Claude plugin, one entry skill, 37 Legionary subagents, a proof-first output style, installer, smoke test, and the guarded `CLAUDE_ORDER v1` protocol for bounded Claude execution.
+
+Start here:
+
+```bash
+cd integrations/claude-legion-kit
+node ./scripts/smoke.mjs
+node ./installer/install.mjs --dry-run
+```
+
+See [docs/CLAUDE_LEGION_KIT.md](docs/CLAUDE_LEGION_KIT.md) for local audit findings, install, validation, and maintenance rules.
 
 ---
 

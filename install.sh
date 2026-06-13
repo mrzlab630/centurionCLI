@@ -223,7 +223,7 @@ echo ""
 
 # ─── PHASE 6: MCP Server Registration ───
 
-echo -e "${BOLD}[6/7] Registering MCP servers...${NC}"
+echo -e "${BOLD}[6/8] Registering MCP servers...${NC}"
 
 # MEMORIA (local)
 if [ -f "$MEMORIA_DIR/dist/index.js" ]; then
@@ -282,9 +282,24 @@ fi
 
 echo ""
 
-# ─── PHASE 7: Verification ───
+# ─── PHASE 7: Claude Code Plugin Integration ───
 
-echo -e "${BOLD}[7/7] Verification...${NC}"
+echo -e "${BOLD}[7/8] Installing Claude Legion plugin...${NC}"
+
+CLAUDE_LEGION_KIT="$SCRIPT_DIR/integrations/claude-legion-kit"
+if [ -f "$CLAUDE_LEGION_KIT/installer/install.mjs" ]; then
+    node "$CLAUDE_LEGION_KIT/installer/install.mjs" --claude-home "$CLAUDE_DIR" >/dev/null && \
+        echo -e "${GREEN}  ✓${NC} Claude Legion plugin installed and canonical skills synced" || \
+        echo -e "${YELLOW}  ! Claude Legion plugin install failed; inspect $CLAUDE_LEGION_KIT${NC}"
+else
+    echo -e "${YELLOW}  ! Claude Legion kit not found, skipping${NC}"
+fi
+
+echo ""
+
+# ─── PHASE 8: Verification ───
+
+echo -e "${BOLD}[8/8] Verification...${NC}"
 
 # Count installed skills
 INSTALLED=$(ls -d "$SKILLS_DIR/"*/ 2>/dev/null | wc -l)
@@ -311,6 +326,12 @@ fi
 # Check pipeline
 if [ -f "$CLAUDE_DIR/pipeline/TEMPLATE-handoff.md" ]; then
     echo -e "${GREEN}  ✓${NC} Pipeline templates: installed"
+fi
+
+if [ -f "$CLAUDE_DIR/skills/centurion-legion/.claude-plugin/plugin.json" ]; then
+    claude plugin validate "$CLAUDE_DIR/skills/centurion-legion" --strict >/dev/null && \
+        echo -e "${GREEN}  ✓${NC} Claude Legion plugin: valid" || \
+        echo -e "${YELLOW}  ! Claude Legion plugin validation failed${NC}"
 fi
 
 echo ""
