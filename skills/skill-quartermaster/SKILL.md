@@ -62,6 +62,13 @@ Rules:
 
 Before install, verify the upstream source independently. Read the skill's `SKILL.md`, scripts, install instructions, license, dependency manifests, and recent activity.
 
+For local clones or downloaded candidates, ask GUARDIAN to apply
+`skills/security/references/external-skill-security.md` and run:
+
+```bash
+node integrations/claude-legion-kit/scripts/external-skill-scan.mjs <candidate-dir>
+```
+
 Hard blockers:
 
 - `curl | sh`, `wget | sh`, `base64 -d | bash`, encoded install payloads, or remote shell execution without a pinned, auditable source.

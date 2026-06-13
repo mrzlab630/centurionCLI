@@ -27,6 +27,13 @@ npm outdated
 ### 3. EXTERNAL SKILL SAFETY GATE
 **Action:** Before installing or running a third-party skill, MCP server, or agent tool, verify source and install path.
 
+For Claude/GitHub skill candidates, load `references/external-skill-security.md`
+and run the static scanner before any install or adaptation:
+
+```bash
+node integrations/claude-legion-kit/scripts/external-skill-scan.mjs <candidate-dir>
+```
+
 **Blockers:**
 - `curl | sh`, `wget | sh`, `base64 -d | bash`, encoded install payloads, or remote shell execution.
 - Obfuscated code, hidden telemetry, credential exfiltration, cryptominers, or destructive filesystem commands.

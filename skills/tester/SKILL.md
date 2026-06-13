@@ -73,6 +73,11 @@ node /home/mrz/.agents/skills/tester/scripts/legion-skill-eval.mjs
 ```
 
 Run it after changing OPTIO, CURATOR, TESTER, or mission-prep tooling.
+
+Frontend/UI acceptance: when verifying implemented interfaces, load
+`references/frontend-sweep.md`. TESTER owns browser proof and routes fixes to
+PICTOR, UX ambiguity to AEDILIS, copy issues to NOMENCLATOR, SEO issues to
+INDAGATOR, and security findings to GUARDIAN.
                     ┌─────────────────┐
                     │     E2E         │  Few, slow
                     │   (Playwright)  │

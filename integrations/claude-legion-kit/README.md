@@ -23,6 +23,9 @@ Secrets were not copied into this kit. The installer does not edit `~/.claude/se
 - `plugin/skills/claude-order/SKILL.md`: `CLAUDE_ORDER v1` protocol.
 - `plugin/output-styles/centurion-legion.md`: proof-first output style for plugin sessions.
 - `scripts/claude-order-guard.mjs`: snapshot and verify guard for bounded Claude execution.
+- `scripts/external-skill-scan.mjs`: GUARDIAN scanner for external skill/plugin candidates.
+- `scripts/frontend-sweep-plan.mjs`: TESTER-owned frontend acceptance sweep planner.
+- `plugin/references/opus-4-8-profile.md`: compact Opus 4.8 operating profile for controller prompts.
 - `installer/install.mjs`: installs the plugin and optionally syncs canonical repository skills to `~/.claude/skills`.
 
 ## Quick Start
@@ -120,6 +123,15 @@ For repository-only validation, use:
 node ./scripts/claude-surface-audit.mjs --repo-only
 ```
 
+## Opus 4.8 Workflow Guards
+
+Opus 4.8 is treated as a stronger executor, not a reason to change the Legion shape. Keep one owner per task and load references on demand.
+
+- CURATOR builds a compact dossier from `skills/context-optimizer/references/opus-dossier.md`; large context is reserve capacity, not the default prompt style.
+- TESTER owns frontend acceptance and can plan a browser sweep with `npm run plan:frontend-sweep -- --workspace <dir> --base-url <url>`; implementation fixes go to PICTOR, UX ambiguity to AEDILIS, copy issues to NOMENCLATOR, SEO issues to INDAGATOR, and security findings to GUARDIAN.
+- SKILL-QUARTERMASTER may discover external candidates, but GUARDIAN must scan local clones before install or adaptation with `npm run scan:external-skill -- <candidate-dir>`.
+- REVIEWER accepts completion only after checking the diff, proof commands, changed files, integration points, and missing states against `skills/reviewer/references/completion-verification.md`.
+
 ## WAR ROOM Verdict
 
 **Prosecutor:** Prompt-only obedience is fragile. Claude can drift through broad tools, old skills, permissive settings, MCP access, or self-reported success. A 27-skill `~/.claude/skills` surface conflicts with the current 37-owner repository surface.
@@ -144,9 +156,11 @@ node --check installer/install.mjs
 node --check scripts/smoke.mjs
 node --check scripts/claude-order-guard.mjs
 node --check scripts/claude-surface-audit.mjs
+node --check scripts/external-skill-scan.mjs
+node --check scripts/frontend-sweep-plan.mjs
 claude plugin validate ./plugin --strict
 npm run audit:surface
 npm run smoke
 ```
 
-The smoke check validates the plugin manifest, root skill, `claude-order` skill, output style, 37 generated subagents, canonical skill surface, installer dry target, and `CLAUDE_ORDER v1` guard pass/fail behavior.
+The smoke check validates the plugin manifest, root skill, `claude-order` skill, output style, 37 generated subagents, canonical skill surface, installer dry target, `CLAUDE_ORDER v1` guard pass/fail behavior, external skill scanner behavior, and frontend sweep planner ownership.

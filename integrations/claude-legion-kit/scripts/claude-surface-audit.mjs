@@ -23,6 +23,25 @@ const REQUIRED_AGENT_PHRASES = [
   'Report facts, changed files, proof commands, remaining risks, and handoffs actually used'
 ];
 
+const REQUIRED_PROTOCOL_FILES = [
+  'scripts/external-skill-scan.mjs',
+  'scripts/frontend-sweep-plan.mjs',
+  'plugin/references/opus-4-8-profile.md',
+  '../../skills/tester/references/frontend-sweep.md',
+  '../../skills/reviewer/references/completion-verification.md',
+  '../../skills/security/references/external-skill-security.md',
+  '../../skills/context-optimizer/references/opus-dossier.md'
+];
+
+const REQUIRED_PROTOCOL_LINKS = [
+  { file: '../../skills/tester/SKILL.md', phrase: 'references/frontend-sweep.md' },
+  { file: '../../skills/reviewer/SKILL.md', phrase: 'references/completion-verification.md' },
+  { file: '../../skills/security/SKILL.md', phrase: 'external-skill-scan.mjs' },
+  { file: '../../skills/skill-quartermaster/SKILL.md', phrase: 'external-skill-scan.mjs' },
+  { file: '../../skills/context-optimizer/SKILL.md', phrase: 'references/opus-dossier.md' },
+  { file: 'plugin/SKILL.md', phrase: 'references/opus-4-8-profile.md' }
+];
+
 const ROUTING_EVALS = [
   { id: 'orchestrate-complex-task', owner: 'orchestrator', handoffs: ['planner','researcher','praemonitor'] },
   { id: 'durable-plan', owner: 'planner', handoffs: ['orchestrator','tester'] },
@@ -231,6 +250,17 @@ function auditRepo(options, report) {
 
   for (const file of [pluginManifest, rootSkill, claudeOrder, outputStyle]) {
     if (!fs.existsSync(file)) addFailure(report, 'required plugin file missing', { file: normalizeSlash(path.relative(KIT_ROOT, file)) });
+  }
+
+  for (const relative of REQUIRED_PROTOCOL_FILES) {
+    const file = path.resolve(KIT_ROOT, relative);
+    if (!fs.existsSync(file)) addFailure(report, 'required Opus 4.8 protocol file missing', { file: normalizeSlash(path.relative(REPO_ROOT, file)) });
+  }
+
+  for (const item of REQUIRED_PROTOCOL_LINKS) {
+    const file = path.resolve(KIT_ROOT, item.file);
+    if (!fs.existsSync(file)) addFailure(report, 'required protocol link file missing', { file: normalizeSlash(path.relative(REPO_ROOT, file)) });
+    else if (!readText(file).includes(item.phrase)) addFailure(report, 'required protocol link missing', { file: normalizeSlash(path.relative(REPO_ROOT, file)), phrase: item.phrase });
   }
 
   if (fs.existsSync(pluginManifest)) {

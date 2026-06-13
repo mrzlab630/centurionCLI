@@ -33,6 +33,8 @@ The plugin uses two layers:
 
 This avoids duplicate ownership. It also lets Claude Code use its native `--agent <slug>` control when a controller wants one owner for a session.
 
+Opus 4.8 does not change the ownership model. The kit uses it through compact references and deterministic guards: CURATOR prepares dossiers, TESTER plans frontend acceptance sweeps, GUARDIAN scans external skill candidates, and REVIEWER verifies completion claims before acceptance.
+
 ## Obedience Strategy
 
 Prompt text is advisory. Enforcement comes from combining:
@@ -59,11 +61,18 @@ node --check installer/install.mjs
 node --check scripts/smoke.mjs
 node --check scripts/claude-order-guard.mjs
 node --check scripts/claude-surface-audit.mjs
+node --check scripts/external-skill-scan.mjs
+node --check scripts/frontend-sweep-plan.mjs
 claude plugin validate ./plugin --strict
 npm run audit:surface
 npm run smoke
 ```
 
 `npm run audit:surface` proves the Claude surface is still one-owner: 37 canonical skills, 37 plugin agents, no high-overlap role descriptions, routing eval coverage for every Legionary, installed plugin drift checks, installed standalone skill drift checks, and loaded-plugin validation.
+
+Additional guard commands are intentionally owner-scoped:
+
+- `npm run scan:external-skill -- <candidate-dir>`: GUARDIAN gate for local external skills/plugins before install or adaptation.
+- `npm run plan:frontend-sweep -- --workspace <dir> --base-url <url>`: TESTER plan for frontend proof; fixes still route to PICTOR and adjacent Product/UX owners.
 
 When canonical Legion skills change, regenerate or update `plugin/agents/*.md` so every skill still has exactly one Claude subagent, then rerun `npm run audit:surface` before installing or accepting the change.

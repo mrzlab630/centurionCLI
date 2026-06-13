@@ -89,6 +89,14 @@ use_checklists: true  # See Checklists section below
 
 ## Instrumented Quality Gates
 
+### Completion Verification Gate
+
+When a developer, subagent, or external model claims a task is complete, load
+`references/completion-verification.md` and verify the claim against the actual
+diff, requirements, proof commands, integration points, and missing states before
+accepting. Route missing proof to TESTER and implementation fixes to CODER or
+PICTOR; do not turn REVIEWER into the implementer.
+
 ### React Doctor Gate
 
 Use this gate when reviewing React, Next.js, Vite React, TanStack, or React Native code, especially after feature work, bug fixes, cleanup, or before commit/merge. React Doctor is an additional scanner for React-specific correctness, state/effect misuse, performance, architecture, accessibility, security exposure, and dead-code diagnostics. It does not replace manual review, tests, typecheck, lint, or GUARDIAN review.
