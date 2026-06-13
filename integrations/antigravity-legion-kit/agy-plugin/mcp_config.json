@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "centurion-legion": {
+      "command": "node",
+      "args": [
+        "/home/mrz/projects/al/centurionCLI/cohors-prima/integrations/antigravity-legion-kit/mcp-server/index.mjs"
+      ],
+      "env": {
+        "CENTURION_AGENT_ROOT": "/home/mrz/projects/al/centurionCLI/cohors-prima/integrations/antigravity-legion-kit/agent",
+        "CENTURION_SKILL_ROOT": "/home/mrz/.agents/skills"
+      }
+    }
+  }
+}

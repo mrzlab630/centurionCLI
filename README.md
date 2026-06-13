@@ -35,6 +35,7 @@ avoid duplicate skill names and context bloat.
 - **Eval gate** — TESTER runs a deterministic Legion smoke eval that checks routing, GUARDIAN risk gating, and duplicate-free skill names.
 - **MEMORIA v1.2.0** — semantic memory MCP server with local embeddings.
 - **PROBATIO doctrine** — every material task requires proof: facts, tests, logs, diffs, scans, or live checks.
+- **Antigravity Legion Kit** — portable Google Antigravity IDE and `agy` CLI integration under `integrations/antigravity-legion-kit`.
 
 ---
 
@@ -122,6 +123,22 @@ Built-in MCP server for persistent semantic memory across conversations.
 
 ---
 
+## Antigravity Integration
+
+`integrations/antigravity-legion-kit` preserves the Antigravity-facing CENTURION pack in this repository. It contains IDE rules, workflows, compact skill briefs, an `agy` CLI plugin, a local MCP bridge, catalog refresh scripts, frontend/reference/content catalogs, and the guarded `AUXILIUM AGY` delegation protocol.
+
+Start here:
+
+```bash
+cd integrations/antigravity-legion-kit
+node ./scripts/smoke.mjs
+node ./installer/install.mjs --dry-run
+```
+
+See [docs/ANTIGRAVITY_LEGION_KIT.md](docs/ANTIGRAVITY_LEGION_KIT.md) for install, validation, and maintenance rules.
+
+---
+
 ## Installation
 
 ```bash
@@ -169,6 +186,8 @@ centurionCLI/
 ├── PROBATIO.md            # Proof protocol standards
 ├── README.md              # This file
 ├── install.sh             # Installer
+├── docs/                  # Operator docs, including Antigravity kit guidance
+├── integrations/          # External product integrations
 ├── libs/                  # Shared libraries
 ├── scripts/               # Utility scripts
 ├── pipeline/              # Handoff templates
