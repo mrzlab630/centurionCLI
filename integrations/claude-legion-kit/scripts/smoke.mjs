@@ -113,6 +113,9 @@ function main() {
   const validation = run('claude', ['plugin', 'validate', './plugin', '--strict']);
   assert(validation.status === 0, `claude plugin validate failed: ${validation.stderr || validation.stdout}`);
 
+  const surfaceAudit = run(process.execPath, [path.join(KIT_ROOT, 'scripts', 'claude-surface-audit.mjs'), '--repo-only']);
+  assert(surfaceAudit.status === 0, `surface audit failed: ${surfaceAudit.stderr || surfaceAudit.stdout}`);
+
   const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-legion-install-'));
   try {
     const install = run(process.execPath, [path.join(KIT_ROOT, 'installer', 'install.mjs'), '--claude-home', tempHome]);

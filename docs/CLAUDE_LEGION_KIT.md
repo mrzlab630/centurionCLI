@@ -58,8 +58,12 @@ cd integrations/claude-legion-kit
 node --check installer/install.mjs
 node --check scripts/smoke.mjs
 node --check scripts/claude-order-guard.mjs
+node --check scripts/claude-surface-audit.mjs
 claude plugin validate ./plugin --strict
+npm run audit:surface
 npm run smoke
 ```
 
-When canonical Legion skills change, regenerate or update `plugin/agents/*.md` so every skill still has exactly one Claude subagent.
+`npm run audit:surface` proves the Claude surface is still one-owner: 37 canonical skills, 37 plugin agents, no high-overlap role descriptions, routing eval coverage for every Legionary, installed plugin drift checks, installed standalone skill drift checks, and loaded-plugin validation.
+
+When canonical Legion skills change, regenerate or update `plugin/agents/*.md` so every skill still has exactly one Claude subagent, then rerun `npm run audit:surface` before installing or accepting the change.

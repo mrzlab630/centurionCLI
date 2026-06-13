@@ -30,6 +30,7 @@ Secrets were not copied into this kit. The installer does not edit `~/.claude/se
 ```bash
 cd integrations/claude-legion-kit
 node ./scripts/smoke.mjs
+node ./scripts/claude-surface-audit.mjs
 node ./installer/install.mjs --dry-run
 node ./installer/install.mjs
 claude plugin validate /home/mrz/.claude/skills/centurion-legion --strict
@@ -103,6 +104,22 @@ Never accept Claude stdout, narration, or confidence alone. Accept only after gu
 
 Live proxy testing showed that short bounded orders can pass end to end, while longer print-mode orders may edit files and then hit the controller timeout before clean stdout. Treat timeout, missing result files, `proof` values other than `passed`, or partial artifacts as rejection conditions. Retry with a smaller order instead of accepting partial work.
 
+## Surface Audit
+
+Run the Claude surface audit after changing Legion skills, plugin agents, installer behavior, or routing rules:
+
+```bash
+npm run audit:surface
+```
+
+The audit verifies that every canonical Legion skill has exactly one Claude plugin agent, every agent points back to its canonical source, one-owner and handoff guardrails are present, routing evals cover all 37 Legionaries, high-overlap role descriptions are absent, the installed `~/.claude/skills/centurion-legion` tree matches the repository plugin, standalone installed Legion skills match the canonical repository skills, and Claude reports the plugin as loaded.
+
+For repository-only validation, use:
+
+```bash
+node ./scripts/claude-surface-audit.mjs --repo-only
+```
+
 ## WAR ROOM Verdict
 
 **Prosecutor:** Prompt-only obedience is fragile. Claude can drift through broad tools, old skills, permissive settings, MCP access, or self-reported success. A 27-skill `~/.claude/skills` surface conflicts with the current 37-owner repository surface.
@@ -126,7 +143,9 @@ Live proxy testing showed that short bounded orders can pass end to end, while l
 node --check installer/install.mjs
 node --check scripts/smoke.mjs
 node --check scripts/claude-order-guard.mjs
+node --check scripts/claude-surface-audit.mjs
 claude plugin validate ./plugin --strict
+npm run audit:surface
 npm run smoke
 ```
 

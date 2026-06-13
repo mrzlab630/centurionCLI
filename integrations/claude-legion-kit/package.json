@@ -5,6 +5,7 @@
   "description": "CENTURION Legion plugin, subagents, and guarded CLAUDE_ORDER v1 execution for Claude Code.",
   "type": "module",
   "scripts": {
+    "audit:surface": "node ./scripts/claude-surface-audit.mjs",
     "smoke": "node ./scripts/smoke.mjs",
     "install:local": "node ./installer/install.mjs",
     "plugin:validate": "claude plugin validate ./plugin --strict"
