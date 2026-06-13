@@ -47,6 +47,12 @@ function smokeSync() {
     const write = readJsonOutput(run(process.execPath, [sync, '--agents-home', tempHome, '--skill', 'tester', '--write', '--json']), 'temp sync write');
     assert(write.synced.includes('tester'), 'temp write must sync tester');
     assert(fs.existsSync(path.join(tempHome, 'skills', 'tester', 'references', 'frontend-sweep.md')), 'tester reference missing after sync');
+    const sentinel = path.join(tempHome, 'skills', 'tester', 'references', 'node_modules', '.sentinel');
+    fs.mkdirSync(path.dirname(sentinel), { recursive: true });
+    fs.writeFileSync(sentinel, 'keep generated dependencies');
+    const preserve = readJsonOutput(run(process.execPath, [sync, '--agents-home', tempHome, '--skill', 'tester', '--write', '--json']), 'temp sync preserve generated');
+    assert(preserve.synced.length === 0 && preserve.drift.length === 0, 'temp generated-only drift must stay ignored');
+    assert(fs.existsSync(sentinel), 'generated node_modules sentinel must survive write sync');
     const clean = readJsonOutput(run(process.execPath, [sync, '--agents-home', tempHome, '--skill', 'tester', '--json']), 'temp sync clean');
     assert(clean.drift.length === 0, 'temp sync should be clean after write');
   } finally {

@@ -84,22 +84,33 @@ function compareTrees(source, target) {
   return mismatches;
 }
 
-function pruneTarget(target) {
+function pruneTarget(target, source) {
   if (!fs.existsSync(target)) return;
   for (const entry of fs.readdirSync(target, { withFileTypes: true })) {
     if (entry.isDirectory() && IGNORED_GENERATED_DIRS.has(entry.name)) continue;
-    fs.rmSync(path.join(target, entry.name), { recursive: true, force: true });
+    const src = path.join(source, entry.name);
+    const dest = path.join(target, entry.name);
+    if (!fs.existsSync(src)) {
+      fs.rmSync(dest, { recursive: true, force: true });
+      continue;
+    }
+    const srcStat = fs.statSync(src);
+    if (entry.isDirectory() && srcStat.isDirectory()) pruneTarget(dest, src);
+    else if (entry.isDirectory() || srcStat.isDirectory()) fs.rmSync(dest, { recursive: true, force: true });
   }
 }
 
 function copyTree(source, target) {
   fs.mkdirSync(target, { recursive: true });
-  pruneTarget(target);
+  pruneTarget(target, source);
   for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
     if (entry.isDirectory() && IGNORED_GENERATED_DIRS.has(entry.name)) continue;
     const src = path.join(source, entry.name);
     const dest = path.join(target, entry.name);
-    if (entry.isDirectory()) copyTree(src, dest);
+    if (entry.isDirectory()) {
+      fs.mkdirSync(dest, { recursive: true });
+      copyTree(src, dest);
+    }
     else fs.copyFileSync(src, dest);
   }
 }
