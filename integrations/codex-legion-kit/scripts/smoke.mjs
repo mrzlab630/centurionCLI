@@ -4,10 +4,11 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
+import { parseTomlLite } from './codex-surface-audit.mjs';
+import { EXPECTED_SKILL_COUNT } from './lib/surface-config.mjs';
 
 const KIT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const REPO_ROOT = path.resolve(KIT_ROOT, '..', '..');
-const EXPECTED_COUNT = 37;
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -25,14 +26,28 @@ function readJsonOutput(result, label) {
 function smokeAudit() {
   const audit = path.join(KIT_ROOT, 'scripts', 'codex-surface-audit.mjs');
   const repoOnly = readJsonOutput(run(process.execPath, [audit, '--repo-only', '--json']), 'repo-only audit');
-  assert(repoOnly.repo.canonicalSkillCount === EXPECTED_COUNT, 'repo canonical skill count mismatch');
+  assert(repoOnly.repo.canonicalSkillCount === EXPECTED_SKILL_COUNT, 'repo canonical skill count mismatch');
   assert(repoOnly.repo.missingProtocolPointers.length === 0, 'repo protocol pointers missing');
 
   const full = readJsonOutput(run(process.execPath, [audit, '--json']), 'full audit');
-  assert(full.repo.canonicalSkillCount === EXPECTED_COUNT, 'full audit canonical count mismatch');
-  assert(full.activeSkills.count === EXPECTED_COUNT, 'active skill count mismatch');
+  assert(full.repo.canonicalSkillCount === EXPECTED_SKILL_COUNT, 'full audit canonical count mismatch');
+  assert(full.activeSkills.count === EXPECTED_SKILL_COUNT, 'active skill count mismatch');
   assert(full.activeSkills.drift.length === 0, 'active ~/.agents skill drift must be zero');
   assert(full.codex.model === 'gpt-5.5', 'Codex model must be gpt-5.5');
+}
+
+function smokeTomlParsing() {
+  const parsed = parseTomlLite(`
+model = "gpt-5.5" # keep this comment outside the value
+description = "keep # inside double quotes"
+literal = 'keep # inside single quotes'
+[features]
+memories = true # trailing comment
+`);
+  assert(parsed.model === 'gpt-5.5', 'TOML parser should strip trailing comments');
+  assert(parsed.description === 'keep # inside double quotes', 'TOML parser should preserve # in double-quoted values');
+  assert(parsed.literal === 'keep # inside single quotes', 'TOML parser should preserve # in single-quoted values');
+  assert(parsed.features.memories === true, 'TOML parser should keep nested booleans with trailing comments');
 }
 
 function smokeSync() {
@@ -69,6 +84,7 @@ function smokeLegionEval() {
 }
 
 function main() {
+  smokeTomlParsing();
   smokeAudit();
   smokeSync();
   smokeLegionEval();

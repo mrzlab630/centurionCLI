@@ -28,6 +28,7 @@ Required team rules still belong in `AGENTS.md`, checked-in docs, and skills. Me
 
 ```bash
 cd integrations/codex-legion-kit
+node --check scripts/lib/surface-config.mjs
 node --check scripts/codex-surface-audit.mjs
 node --check scripts/sync-agents.mjs
 node --check scripts/smoke.mjs
@@ -49,6 +50,11 @@ scripts, package manifests, and other checked-in skill files. It intentionally
 ignores generated local artifacts such as `node_modules`, build output,
 coverage output, virtual environments, vendored dependency trees, and runtime
 `reports/` written by helper scripts.
+
+Audit, sync, and smoke share the canonical skill list and generated-artifact
+ignore rules from `scripts/lib/surface-config.mjs`. Skill content still lives in
+`skills/`; when adding or removing a Legion skill, update that shared config in
+the same change.
 
 To repair active skill drift after reviewing the audit:
 

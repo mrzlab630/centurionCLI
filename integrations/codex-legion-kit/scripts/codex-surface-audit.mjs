@@ -5,25 +5,13 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { EXPECTED_SKILLS, isIgnoredGeneratedDir } from './lib/surface-config.mjs';
 
-const KIT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+const SCRIPT_FILE = fileURLToPath(import.meta.url);
+const KIT_ROOT = path.resolve(path.dirname(SCRIPT_FILE), '..');
 const REPO_ROOT = path.resolve(KIT_ROOT, '..', '..');
 const CANONICAL_SKILLS = path.join(REPO_ROOT, 'skills');
-const EXPECTED = [
-  'aedilis','aleator','architect','artifex','augur','capabilities','censor','coder','context-optimizer','documenter','error-handler','evocate-ad-opus','git-master','glossator','haruspex','indagator','ludifex','mercator','nomenclator','orator','orchestrator','pictor','planner','pontifex','praeco','praemonitor','prompt-engineer','quaestor','refactorer','researcher','reviewer','security','sicarius','skill-quartermaster','tabularius','tester','velites'
-];
-
-const IGNORED_GENERATED_DIRS = new Set([
-  '.git',
-  '.next',
-  '.venv',
-  'build',
-  'coverage',
-  'dist',
-  'node_modules',
-  'reports',
-  'vendor'
-]);
 
 const REQUIRED_CONFIG = [
   { key: 'model', value: 'gpt-5.5', severity: 'failure' },
@@ -104,7 +92,7 @@ function walkFiles(root, directory = root) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const full = path.join(directory, entry.name);
     if (entry.isDirectory()) {
-      if (IGNORED_GENERATED_DIRS.has(entry.name)) continue;
+      if (isIgnoredGeneratedDir(entry.name)) continue;
       files.push(...walkFiles(root, full));
     }
     else files.push(normalizeSlash(path.relative(root, full)));
@@ -134,11 +122,38 @@ function compareTrees(leftRoot, rightRoot) {
   return mismatches;
 }
 
-function parseTomlLite(text) {
+export function stripTomlComment(rawLine) {
+  let quote = null;
+  let escaped = false;
+  for (let index = 0; index < rawLine.length; index += 1) {
+    const char = rawLine[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (quote === '"') {
+      if (char === '\\') escaped = true;
+      else if (char === '"') quote = null;
+      continue;
+    }
+    if (quote === "'") {
+      if (char === "'") quote = null;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+    if (char === '#') return rawLine.slice(0, index);
+  }
+  return rawLine;
+}
+
+export function parseTomlLite(text) {
   const root = {};
   let current = root;
   for (const rawLine of text.split('\n')) {
-    const line = rawLine.replace(/#.*/, '').trim();
+    const line = stripTomlComment(rawLine).trim();
     if (!line) continue;
     const section = line.match(/^\[([^\]]+)\]$/);
     if (section) {
@@ -188,8 +203,8 @@ function addWarning(report, message, details = {}) {
 function auditRepo(report) {
   const canonical = listSkillSlugs(CANONICAL_SKILLS);
   report.repo.canonicalSkillCount = canonical.length;
-  report.repo.expectedSkillCount = EXPECTED.length;
-  if (!sameList(canonical, EXPECTED)) addFailure(report, 'canonical skill surface drift', { expected: EXPECTED, actual: canonical });
+  report.repo.expectedSkillCount = EXPECTED_SKILLS.length;
+  if (!sameList(canonical, EXPECTED_SKILLS)) addFailure(report, 'canonical skill surface drift', { expected: EXPECTED_SKILLS, actual: canonical });
 
   const missingPointers = [];
   for (const item of REQUIRED_POINTERS) {
@@ -210,13 +225,13 @@ function auditActiveSkills(options, report) {
   }
   const active = listSkillSlugs(activeRoot);
   report.activeSkills.count = active.length;
-  report.activeSkills.extra = active.filter((slug) => !EXPECTED.includes(slug));
-  report.activeSkills.missing = EXPECTED.filter((slug) => !active.includes(slug));
+  report.activeSkills.extra = active.filter((slug) => !EXPECTED_SKILLS.includes(slug));
+  report.activeSkills.missing = EXPECTED_SKILLS.filter((slug) => !active.includes(slug));
   if (report.activeSkills.missing.length) addFailure(report, 'active Legion skills missing from ~/.agents', { missing: report.activeSkills.missing });
   if (report.activeSkills.extra.length) addWarning(report, 'extra active skills exist outside canonical Legion surface', { extra: report.activeSkills.extra });
 
   const drift = [];
-  for (const slug of EXPECTED) {
+  for (const slug of EXPECTED_SKILLS) {
     const source = path.join(CANONICAL_SKILLS, slug);
     const target = path.join(activeRoot, slug);
     if (!fs.existsSync(target)) continue;
@@ -358,9 +373,11 @@ function main() {
   if (!report.ok) process.exitCode = 1;
 }
 
-try {
-  main();
-} catch (error) {
-  process.stderr.write(`${error.message}\n`);
-  process.exitCode = 1;
+if (process.argv[1] && path.resolve(process.argv[1]) === SCRIPT_FILE) {
+  try {
+    main();
+  } catch (error) {
+    process.stderr.write(`${error.message}\n`);
+    process.exitCode = 1;
+  }
 }

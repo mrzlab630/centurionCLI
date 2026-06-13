@@ -4,25 +4,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+import { EXPECTED_SKILLS, isIgnoredGeneratedDir } from './lib/surface-config.mjs';
 
 const KIT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const REPO_ROOT = path.resolve(KIT_ROOT, '..', '..');
 const CANONICAL_SKILLS = path.join(REPO_ROOT, 'skills');
-const EXPECTED = [
-  'aedilis','aleator','architect','artifex','augur','capabilities','censor','coder','context-optimizer','documenter','error-handler','evocate-ad-opus','git-master','glossator','haruspex','indagator','ludifex','mercator','nomenclator','orator','orchestrator','pictor','planner','pontifex','praeco','praemonitor','prompt-engineer','quaestor','refactorer','researcher','reviewer','security','sicarius','skill-quartermaster','tabularius','tester','velites'
-];
-
-const IGNORED_GENERATED_DIRS = new Set([
-  '.git',
-  '.next',
-  '.venv',
-  'build',
-  'coverage',
-  'dist',
-  'node_modules',
-  'reports',
-  'vendor'
-]);
 
 function parseArgs(argv) {
   const options = {
@@ -46,7 +32,7 @@ function parseArgs(argv) {
 }
 
 function usage() {
-  return `Usage: node scripts/sync-agents.mjs [options]\n\nOptions:\n  --agents-home <dir>  Agent root parent. Default: ~/.agents\n  --skill <slug>       Limit to one skill; repeatable\n  --all                Consider all canonical Legion skills\n  --write              Apply sync. Without this, dry-run only\n  --json               Print JSON report\n`;
+  return `Usage: node scripts/sync-agents.mjs [options]\n\nOptions:\n  --agents-home <dir>  Agent root parent. Default: ~/.agents\n  --skill <slug>       Limit to one skill; repeatable\n  --all                Explicitly select all canonical Legion skills (default)\n  --write              Apply sync. Without this, dry-run only\n  --json               Print JSON report\n`;
 }
 
 function normalizeSlash(value) {
@@ -59,7 +45,7 @@ function walkFiles(root, directory = root) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const full = path.join(directory, entry.name);
     if (entry.isDirectory()) {
-      if (IGNORED_GENERATED_DIRS.has(entry.name)) continue;
+      if (isIgnoredGeneratedDir(entry.name)) continue;
       files.push(...walkFiles(root, full));
     }
     else files.push(normalizeSlash(path.relative(root, full)));
@@ -87,7 +73,7 @@ function compareTrees(source, target) {
 function pruneTarget(target, source) {
   if (!fs.existsSync(target)) return;
   for (const entry of fs.readdirSync(target, { withFileTypes: true })) {
-    if (entry.isDirectory() && IGNORED_GENERATED_DIRS.has(entry.name)) continue;
+    if (entry.isDirectory() && isIgnoredGeneratedDir(entry.name)) continue;
     const src = path.join(source, entry.name);
     const dest = path.join(target, entry.name);
     if (!fs.existsSync(src)) {
@@ -104,7 +90,7 @@ function copyTree(source, target) {
   fs.mkdirSync(target, { recursive: true });
   pruneTarget(target, source);
   for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
-    if (entry.isDirectory() && IGNORED_GENERATED_DIRS.has(entry.name)) continue;
+    if (entry.isDirectory() && isIgnoredGeneratedDir(entry.name)) continue;
     const src = path.join(source, entry.name);
     const dest = path.join(target, entry.name);
     if (entry.isDirectory()) {
@@ -122,11 +108,11 @@ function main() {
     return;
   }
   const activeRoot = path.join(options.agentsHome, 'skills');
-  const selected = options.skills.length ? options.skills : (options.all ? EXPECTED : EXPECTED);
+  const selected = options.skills.length ? options.skills : EXPECTED_SKILLS;
   const report = { dryRun: !options.write, activeRoot, synced: [], unchanged: [], missingSource: [], drift: [] };
 
   for (const slug of selected) {
-    if (!EXPECTED.includes(slug)) throw new Error(`unknown canonical skill: ${slug}`);
+    if (!EXPECTED_SKILLS.includes(slug)) throw new Error(`unknown canonical skill: ${slug}`);
     const source = path.join(CANONICAL_SKILLS, slug);
     const target = path.join(activeRoot, slug);
     if (!fs.existsSync(path.join(source, 'SKILL.md'))) {
