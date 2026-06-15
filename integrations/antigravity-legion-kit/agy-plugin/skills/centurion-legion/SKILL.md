@@ -17,6 +17,13 @@ Use this skill for non-trivial `agy` tasks, WAR ROOM requests, frontend/interfac
 - Load only the needed local workflow or skill brief; do not flood context with the full Legion pack.
 - If the user asks to choose, select, route, or name an owner/Legionary, call `centurion-legion.select_legionary` first and answer from that result. Do not inspect the filesystem first.
 
+## MCP Tool Discipline
+
+- Use `centurion-legion` MCP tools for routing, mission prep, reference catalogs, WAR ROOM, AGY delegation briefs, and quality gates.
+- Use `serena` only after the primary owner has narrowed the task and symbol-aware navigation, diagnostics, references, or symbol-scoped edits will reduce risk.
+- Do not use Serena as a broad file browser, shell, owner, planner, or safety gate. It is a code-intelligence tool that supports CODER, PICTOR, EXPLORATOR, DEBUGGER, FABER, REVIEWER, or TESTER when they need symbol-level context.
+- If Serena's result conflicts with source files, tests, runtime output, or owner instructions, trust the direct proof and reroute through the responsible Legionary.
+
 ## AUXILIUM AGY
 
 `agy` is a recruited auxiliary executor for CENTURION. It is not a Legionary owner, not a 38th owner, and must not override the selected Legionary.
@@ -118,6 +125,7 @@ For names, buttons, sections, descriptions, hints, tooltips, selling copy, onboa
 - Source kit: `/home/mrz/projects/al/centurionCLI/cohors-prima/integrations/antigravity-legion-kit`
 - Canonical Legion skills: `/home/mrz/.agents/skills`
 - MCP server: `centurion-legion`
+- MCP tool: `serena` for symbol-aware code assistance only
 
 ## Proof
 

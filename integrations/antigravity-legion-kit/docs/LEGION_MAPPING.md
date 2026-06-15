@@ -50,17 +50,20 @@ The MCP bridge returns compact routing output. Full skill instructions remain in
 
 `AUXILIUM AGY` is deliberately outside the owner matrix. It may execute a slice for OPTIO, PICTOR, EXPLORATOR, NOMENCLATOR, ORATOR, SCRIBA, TESTER, DEBUGGER, or another owner, but it never becomes the owner of the task.
 
-## Antigravity CLI Surface
+## Antigravity IDE and CLI Surface
 
 `agy` receives the Legion through one plugin: `/home/mrz/.gemini/antigravity-cli/plugins/centurion-legion`.
+The IDE receives the Legion through `/home/mrz/.gemini/antigravity/agent` and `/home/mrz/.gemini/antigravity/mcp_config.json`.
 
 | Plugin Component | Purpose |
 | --- | --- |
 | `skills/centurion-legion/SKILL.md` | Compact single-owner routing and handoff rules for CLI sessions. |
-| `mcp_config.json` | Registers the local `centurion-legion` MCP server for routing, catalogs, reference search, WAR ROOM, and quality gates. |
+| `mcp_config.json` | Registers the local `centurion-legion` MCP server for routing, catalogs, reference search, WAR ROOM, and quality gates, plus Serena for symbol-aware code assistance in IDE and CLI surfaces. |
 | `plugin.json` | Enables the plugin under the Antigravity CLI plugin manager. |
 
 The CLI plugin is intentionally compact. It does not duplicate every workflow as a separate command because that would create overlapping entry points; the owner selects the needed workflow through MCP or the installed IDE agent pack.
+
+Serena is a tool surface, not an owner. Use it only after the owner has narrowed the task and symbol-level navigation, diagnostics, or symbol-scoped edits would reduce risk. It must not be used to bypass GUARDIAN/TESTER/REVIEWER gates or to perform broad shell/file operations.
 
 ## Routing Contract
 

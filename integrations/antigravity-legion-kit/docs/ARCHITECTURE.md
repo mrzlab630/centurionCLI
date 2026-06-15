@@ -17,7 +17,7 @@ The local Antigravity install exposes custom editors for `.agent/rules/**/*.md` 
 
 - `agent/`: portable prompt and workflow assets for Antigravity.
 - `mcp-server/`: dependency-free stdio JSON-RPC bridge for Legion routing.
-- `agy-plugin/`: compact Antigravity CLI plugin for `agy`; it exposes one routing skill and a plugin-local `mcp_config.json` for `centurion-legion`.
+- `agy-plugin/`: compact Antigravity CLI plugin for `agy`; it exposes one routing skill and a plugin-local `mcp_config.json` for `centurion-legion` plus Serena.
 - `installer/`: copies IDE assets, writes IDE MCP config, installs the `agy` CLI plugin, and registers it through `agy plugin install`.
 - `scripts/smoke.mjs`: deterministic proof that the package is internally usable.
 - `docs/EXTERNAL_CATALOG.md`: vetted discovery notes for external Antigravity-native skills and packs.
@@ -57,6 +57,8 @@ The kit uses a single-owner routing model. `mission_prep` and `select_legionary`
 `agy` uses `~/.gemini/antigravity-cli` as its config root. The installed Legion plugin lives at `~/.gemini/antigravity-cli/plugins/centurion-legion` and the active CLI registry is verified with `agy plugin list`. A local `import_manifest.json` fallback is written only when installation is run with `--skip-agy-install`.
 
 The CLI plugin deliberately exposes one compact `centurion-legion` skill instead of one command per Legionary. That keeps routing centralized: the active task still has one owner, and the MCP server supplies reference search, content catalogs, external-source intake, routing, WAR ROOM, and quality-gate tools on demand.
+
+Serena is registered in both the IDE MCP config and the CLI plugin as an MCP tool, not as a Legionary. It is available for symbol-aware project navigation, diagnostics, and symbol-scoped edits when the selected owner needs that capability. The command uses `--context codex` because that Serena context excludes broad shell/file tools and keeps the surface narrower than Antigravity's default Serena context.
 
 ## AUXILIUM AGY Direction
 
