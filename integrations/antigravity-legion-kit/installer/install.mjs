@@ -7,6 +7,25 @@ import { spawnSync } from 'node:child_process';
 
 const KIT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 
+function serenaMcpDefinition() {
+  return {
+    command: 'uvx',
+    args: [
+      '-p',
+      '3.13',
+      'serena-agent',
+      'start-mcp-server',
+      '--project-from-cwd',
+      '--context',
+      'codex',
+      '--enable-web-dashboard',
+      'false',
+      '--open-web-dashboard',
+      'false'
+    ]
+  };
+}
+
 function parseArgs(argv) {
   const options = {
     target: path.join(os.homedir(), '.gemini', 'antigravity'),
@@ -76,6 +95,7 @@ function ensureMcpConfig(file, dryRun) {
       CENTURION_SKILL_ROOT: '/home/mrz/.agents/skills'
     }
   };
+  config.mcpServers.serena = serenaMcpDefinition();
   writeJson(file, config, dryRun);
   return config.mcpServers['centurion-legion'];
 }
@@ -111,12 +131,16 @@ function ensureCliPlugin(cliTarget, mcpDefinition, options) {
   const { dryRun, installWithAgy } = options;
   const sourcePlugin = path.join(KIT_ROOT, 'agy-plugin');
   const pluginTarget = path.join(cliTarget, 'plugins', 'centurion-legion');
+  const sourceMcpConfig = readJson(path.join(sourcePlugin, 'mcp_config.json'));
+  const pluginMcpServers = {
+    ...(sourceMcpConfig.mcpServers || {}),
+    serena: serenaMcpDefinition(),
+    'centurion-legion': mcpDefinition
+  };
   if (!dryRun) fs.rmSync(pluginTarget, { recursive: true, force: true });
   copyTree(sourcePlugin, pluginTarget, dryRun);
   writeJson(path.join(pluginTarget, 'mcp_config.json'), {
-    mcpServers: {
-      'centurion-legion': mcpDefinition
-    }
+    mcpServers: pluginMcpServers
   }, dryRun);
   const manifest = installWithAgy ? null : ensureImportManifest(cliTarget, dryRun);
   const agyInstall = installWithAgyCli(pluginTarget, dryRun || !installWithAgy);

@@ -15,7 +15,7 @@ Portable CENTURION rules, workflows, skill briefs, and a small MCP bridge for Go
 - `agent/workflows/skill-migrator.md`: migration path from external `SKILL.md` files into local rules/workflows.
 - `agent/skills`: Antigravity-facing skill briefs copied from the current local pack.
 - `agent/skills/product-language-copy.md`: compact brief for product language, UX-writing, naming, and claim-safe copy.
-- `agy-plugin`: Antigravity CLI plugin for `agy`, with one compact Legion routing skill and the local MCP server entry.
+- `agy-plugin`: Antigravity CLI plugin for `agy`, with one compact Legion routing skill, the local Legion MCP server entry, and Serena for symbol-aware code navigation/editing.
 - `mcp-server`: local stdio MCP server exposing Legion routing and proof tools.
 - `installer`: local installer that copies the pack and updates `mcp_config.json`.
 - `docs/EXTERNAL_CATALOG.md`: curated GitHub sources and safety decisions.
@@ -71,7 +71,7 @@ node ./installer/install.mjs --skip-agy-install
 
 The default install updates two local surfaces and registers the CLI plugin through `agy plugin install`:
 
-- IDE: `/home/mrz/.gemini/antigravity/agent` and `/home/mrz/.gemini/antigravity/mcp_config.json`.
+- IDE: `/home/mrz/.gemini/antigravity/agent` and `/home/mrz/.gemini/antigravity/mcp_config.json`, including `centurion-legion` and `serena` MCP entries.
 - CLI: `/home/mrz/.gemini/antigravity-cli/plugins/centurion-legion`, registered in the active `agy` plugin registry and verified with `agy plugin list`.
 
 ## MCP Tools
@@ -89,6 +89,7 @@ The default install updates two local surfaces and registers the CLI plugin thro
 - `content_sources`: returns the curated content design, UX-writing, product-language, and copywriting source catalog.
 - `content_source_intake`: returns a safe action, blockers, Legion route, and next workflow for one content/copy candidate.
 - `agy_delegation_brief`: returns a safe delegation brief for using `agy` as AUXILIUM AGY without changing the primary Legionary owner.
+- `serena`: external MCP tool available to Antigravity IDE and `agy` for project symbol navigation, diagnostics, and symbol-scoped edits. It is installed with `--context codex` to avoid overlapping shell and broad file tools.
 
 ## AUXILIUM AGY
 
@@ -110,6 +111,7 @@ node integrations/antigravity-legion-kit/scripts/agy-order-guard.mjs verify --wo
 ## Security Notes
 
 - The MCP bridge is local-only and exposes no shell execution tool.
+- Serena is an MCP tool, not a Legionary. It should be used only when symbol-aware code navigation or symbol-scoped edits reduce risk; it must not replace the single-owner routing model.
 - The installer updates JSON on disk and can optionally call `antigravity-ide --add-mcp`.
 - Existing third-party MCP servers in user config are not modified.
 - Inline secrets in existing MCP configs should be moved to environment variables before sharing the config.
