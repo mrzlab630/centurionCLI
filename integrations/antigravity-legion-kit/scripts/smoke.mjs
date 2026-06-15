@@ -211,7 +211,7 @@ function validateAgyPlugin(pluginDir) {
   assert(result.status === 0, `agy plugin validate failed: ${result.stderr || result.stdout}`);
   const output = stripAnsi(`${result.stdout}\n${result.stderr}`);
   assert(output.includes('skills') && output.includes('1 processed'), 'agy plugin validate did not process skills');
-  assert(output.includes('mcpServers') && output.includes('1 processed'), 'agy plugin validate did not process mcpServers');
+  assert(output.includes('mcpServers') && output.includes('2 processed'), 'agy plugin validate did not process both MCP servers');
 }
 
 function assertAgyPlugin(pluginDir) {
@@ -225,7 +225,19 @@ function assertAgyPlugin(pluginDir) {
   assert(server?.args?.[0]?.endsWith(path.join('mcp-server', 'index.mjs')), 'agy plugin MCP args missing server path');
   assert(server?.env?.CENTURION_AGENT_ROOT, 'agy plugin MCP missing CENTURION_AGENT_ROOT');
   assert(server?.env?.CENTURION_SKILL_ROOT === '/home/mrz/.agents/skills', 'agy plugin MCP missing canonical skill root');
+  assertSerenaMcp(mcpConfig.mcpServers?.serena, 'agy plugin');
   validateAgyPlugin(pluginDir);
+}
+
+function assertSerenaMcp(server, label) {
+  assert(server?.command === 'uvx', `${label} missing Serena MCP command`);
+  assert(Array.isArray(server.args), `${label} Serena MCP args missing`);
+  assert(server.args.includes('serena-agent'), `${label} Serena package missing`);
+  assert(server.args.includes('start-mcp-server'), `${label} Serena server command missing`);
+  assert(server.args.includes('--project-from-cwd'), `${label} Serena must activate projects from cwd`);
+  assert(server.args.includes('--context') && server.args[server.args.indexOf('--context') + 1] === 'codex', `${label} Serena must use constrained codex context`);
+  assert(server.args.includes('--enable-web-dashboard') && server.args[server.args.indexOf('--enable-web-dashboard') + 1] === 'false', `${label} Serena dashboard must be disabled`);
+  assert(server.args.includes('--open-web-dashboard') && server.args[server.args.indexOf('--open-web-dashboard') + 1] === 'false', `${label} Serena must not open dashboard`);
 }
 
 function smokeInstaller() {
@@ -249,6 +261,8 @@ function smokeInstaller() {
     assert(report.agyCliPlugin?.agyInstall?.skipped === true, 'installer smoke must not call real agy plugin install');
     assert(report.agyCliPlugin?.manifest?.record?.source === 'local-install', 'installer smoke missing local manifest fallback');
     assert(fs.existsSync(path.join(target, 'agent', 'rules', '05-single-owner-routing.md')), 'installer did not copy IDE agent pack');
+    const ideMcpConfig = readJson(path.join(target, 'mcp_config.json'));
+    assertSerenaMcp(ideMcpConfig.mcpServers?.serena, 'IDE config');
     assertAgyPlugin(report.agyCliPlugin.pluginDir);
     const manifest = readJson(path.join(cliTarget, 'import_manifest.json'));
     const record = manifest.imports?.find((entry) => entry.name === 'centurion-legion');

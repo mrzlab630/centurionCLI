@@ -9,9 +9,10 @@ The pack was moved into this repository so Antigravity rules, workflows, MCP too
 - Repository path: `integrations/antigravity-legion-kit`
 - Installed IDE target: `~/.gemini/antigravity/agent`
 - Installed CLI plugin target: `~/.gemini/antigravity-cli/plugins/centurion-legion`
+- Serena MCP entry: installed into both IDE and CLI surfaces with `--context codex`
 - Canonical Legion skills: `~/.agents/skills`
 
-The kit does not duplicate the canonical Legion skill root. It ships Antigravity-facing rules, workflows, compact skill briefs, catalogs, an MCP bridge, an installer, and proof scripts.
+The kit does not duplicate the canonical Legion skill root. It ships Antigravity-facing rules, workflows, compact skill briefs, catalogs, an MCP bridge, an installer, and proof scripts. Serena remains an MCP tool for symbol-aware code assistance, not a Legionary owner.
 
 ## Contents
 
@@ -20,7 +21,7 @@ The kit does not duplicate the canonical Legion skill root. It ships Antigravity
 | `agent/rules/` | Global Antigravity behavior rules, including single-owner routing and external-skill safety. |
 | `agent/workflows/` | Reusable workflows for WAR ROOM, quality gates, frontend/iGaming work, reference search, content copy, and `agy` delegation. |
 | `agent/skills/` | Compact Antigravity-facing skill briefs. |
-| `agy-plugin/` | Antigravity CLI plugin exposing the compact `centurion-legion` skill and MCP config. |
+| `agy-plugin/` | Antigravity CLI plugin exposing the compact `centurion-legion` skill, Legion MCP config, and Serena MCP entry. |
 | `mcp-server/` | Dependency-free stdio MCP bridge for routing, quality gates, catalogs, reference search, and delegation briefs. |
 | `installer/` | Local installer for IDE rules, MCP config, and the `agy` CLI plugin. |
 | `scripts/` | Smoke, catalog refresh, and `AGY_ORDER v1` guard scripts. |
