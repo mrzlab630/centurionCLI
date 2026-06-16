@@ -61,7 +61,7 @@ npm run legion:eval
 agy plugin validate ./agy-plugin
 ```
 
-`npm run smoke` verifies required rules, workflows, plugin shape, MCP round trips, catalog JSON, owner routing coverage, installer behavior, and `AGY_ORDER v1` guard behavior.
+`npm run smoke` verifies required rules, workflows, plugin shape, MCP round trips, catalog JSON, owner routing coverage, installer behavior, `AGY_ORDER v1` guard behavior, and shared Legion result-contract compatibility.
 
 ## AUXILIUM AGY Contract
 
@@ -83,6 +83,8 @@ node integrations/antigravity-legion-kit/scripts/agy-order-guard.mjs verify \
 ```
 
 Never accept `agy` stdout, narration, or self-report alone. Accept only after guard verification, owner proof, and direct diff or artifact inspection.
+
+`AGY_ORDER v1` remains the Antigravity/`agy` protocol. Its `AGY_RESULT.json` shape is also validated through the shared Legion contract layer as a legacy result payload; see [LEGION_CONTRACTS.md](LEGION_CONTRACTS.md). The shared validator does not replace `agy-order-guard.mjs`, because the guard owns workspace snapshots, allowed-path enforcement, and forbidden-pattern checks.
 
 Do not delegate secrets, credentials, production deploys, destructive commands, wallet/payment/KYC flows, exploit execution, or final architecture/security/legal/product-risk judgment to `agy`.
 

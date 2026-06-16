@@ -4,6 +4,8 @@ Portable CENTURION integration for Claude Code CLI.
 
 This kit installs a Claude Code plugin with one CENTURION entry skill, 37 Legionary subagents generated from the canonical repository skill surface, and a `CLAUDE_ORDER v1` guard for bounded implementation work.
 
+`CLAUDE_RESULT.json` is also checked through the shared Legion result-contract validator as a legacy `CLAUDE_ORDER_V1` payload. The shared contract lives in `../legion-contracts`; it standardizes result shape while `claude-order-guard.mjs` still owns snapshot, changed-file, and forbidden-pattern enforcement.
+
 ## Observed Local Baseline
 
 - Claude CLI: `Claude Code 2.1.177` from `/home/mrz/.local/bin/claude`.
@@ -163,4 +165,4 @@ npm run audit:surface
 npm run smoke
 ```
 
-The smoke check validates the plugin manifest, root skill, `claude-order` skill, output style, 37 generated subagents, canonical skill surface, installer dry target, `CLAUDE_ORDER v1` guard pass/fail behavior, external skill scanner behavior, and frontend sweep planner ownership.
+The smoke check validates the plugin manifest, root skill, `claude-order` skill, output style, 37 generated subagents, canonical skill surface, installer dry target, `CLAUDE_ORDER v1` guard pass/fail behavior, shared Legion result-contract compatibility, external skill scanner behavior, and frontend sweep planner ownership.

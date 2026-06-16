@@ -37,6 +37,8 @@ avoid duplicate skill names and context bloat.
 - **PROBATIO doctrine** — every material task requires proof: facts, tests, logs, diffs, scans, or live checks.
 - **Antigravity Legion Kit** — portable Google Antigravity IDE and `agy` CLI integration under `integrations/antigravity-legion-kit`.
 - **Claude Legion Kit** — native Claude Code plugin, 37 subagents, and `CLAUDE_ORDER v1` guard under `integrations/claude-legion-kit`.
+- **Codex Legion Kit** — Codex CLI surface audit and canonical skill sync under `integrations/codex-legion-kit`.
+- **Shared Legion JSON contracts** — bounded order/result/review validation under `integrations/legion-contracts`.
 
 ---
 
@@ -153,6 +155,18 @@ node ./installer/install.mjs --dry-run
 ```
 
 See [docs/CLAUDE_LEGION_KIT.md](docs/CLAUDE_LEGION_KIT.md) for local audit findings, install, validation, and maintenance rules.
+
+---
+
+## Legion JSON Contracts
+
+`integrations/legion-contracts` provides shared `LEGION_ORDER_V1`, `LEGION_RESULT_V1`, and `LEGION_REVIEW_V1` validators for bounded delegation between Codex, `agy`, Claude, and future executors.
+
+Use JSON only for orders, results, and review artifacts that a controller can validate mechanically. Keep WAR ROOM reasoning, research notes, normal agent discussion, and user-facing summaries in Markdown.
+
+Surface-specific protocols remain in place: Antigravity keeps `AGY_ORDER_V1`, Claude keeps `CLAUDE_ORDER_V1`, and their guards explicitly opt in to legacy result validation while still owning workspace scope checks.
+
+See [docs/LEGION_CONTRACTS.md](docs/LEGION_CONTRACTS.md) for the exact boundary and validation commands.
 
 ---
 

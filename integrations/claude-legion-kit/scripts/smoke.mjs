@@ -91,6 +91,29 @@ function smokeGuard() {
   }
 }
 
+function smokeLegionContracts() {
+  const validator = path.resolve(KIT_ROOT, '..', 'legion-contracts', 'scripts', 'legion-contract.mjs');
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-legion-contract-'));
+  try {
+    const resultFile = path.join(tempRoot, 'CLAUDE_RESULT.json');
+    fs.writeFileSync(resultFile, JSON.stringify({
+      orderVersion: 'CLAUDE_ORDER_V1',
+      owner: 'PICTOR',
+      status: 'done',
+      filesChanged: ['index.html', 'CLAUDE_RESULT.json'],
+      proof: [{ command: 'synthetic', result: 'passed', summary: 'legacy accepted' }],
+      selfReviewFixed: 'yes',
+      scopeViolations: [],
+      forbiddenPatternHits: [],
+      remainingRisks: []
+    }, null, 2));
+    const ok = run(process.execPath, [validator, 'validate-result', '--file', resultFile, '--accept-order-version', 'CLAUDE_ORDER_V1']);
+    assert(ok.status === 0, `CLAUDE legacy result should pass shared contract: ${ok.stderr || ok.stdout}`);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
 function smokeExternalSkillScan() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'external-skill-scan-'));
   const scanner = path.join(KIT_ROOT, 'scripts', 'external-skill-scan.mjs');
@@ -166,6 +189,7 @@ function main() {
   }
 
   smokeGuard();
+  smokeLegionContracts();
   smokeExternalSkillScan();
   smokeFrontendSweepPlan();
   process.stdout.write('claude-legion-kit smoke: pass\n');

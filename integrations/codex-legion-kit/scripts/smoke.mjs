@@ -83,11 +83,50 @@ function smokeLegionEval() {
   assert(report.status === 'pass', 'legion skill eval status must pass');
 }
 
+function smokeLegionContracts() {
+  const validator = path.join(REPO_ROOT, 'integrations', 'legion-contracts', 'scripts', 'legion-contract.mjs');
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-legion-contract-'));
+  try {
+    const resultFile = path.join(tempRoot, 'LEGION_RESULT.json');
+    fs.writeFileSync(resultFile, JSON.stringify({
+      contractVersion: 'LEGION_RESULT_V1',
+      owner: 'REVIEWER',
+      executor: 'codex',
+      status: 'done',
+      filesChanged: ['README.md'],
+      proof: [{ command: 'npm run smoke', result: 'passed', summary: 'contract smoke' }],
+      selfReviewFixed: 'yes',
+      scopeViolations: [],
+      forbiddenPatternHits: [],
+      remainingRisks: []
+    }, null, 2));
+    const ok = run(process.execPath, [validator, 'validate-result', '--file', resultFile], { cwd: REPO_ROOT });
+    assert(ok.status === 0, `LEGION_RESULT validator failed: ${ok.stderr || ok.stdout}`);
+    fs.writeFileSync(resultFile, JSON.stringify({
+      contractVersion: 'LEGION_RESULT_V1',
+      owner: 'REVIEWER',
+      executor: 'codex',
+      status: 'done',
+      filesChanged: ['README.md'],
+      proof: [],
+      selfReviewFixed: 'yes',
+      scopeViolations: [],
+      forbiddenPatternHits: [],
+      remainingRisks: []
+    }, null, 2));
+    const bad = run(process.execPath, [validator, 'validate-result', '--file', resultFile], { cwd: REPO_ROOT });
+    assert(bad.status !== 0, 'LEGION_RESULT validator should fail on done result without proof');
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
 function main() {
   smokeTomlParsing();
   smokeAudit();
   smokeSync();
   smokeLegionEval();
+  smokeLegionContracts();
   process.stdout.write('codex-legion-kit smoke: pass\n');
 }
 

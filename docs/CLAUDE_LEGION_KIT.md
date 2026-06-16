@@ -51,6 +51,8 @@ For long print-mode orders, pass the prompt through stdin. `--allowedTools` and 
 
 The repository includes `integrations/claude-legion-kit/scripts/proxy-env.sh.example` with the current proxy defaults for non-interactive tests.
 
+`CLAUDE_ORDER v1` remains the Claude Code protocol. Its `CLAUDE_RESULT.json` shape is also validated through the shared Legion contract layer as a legacy result payload; see [LEGION_CONTRACTS.md](LEGION_CONTRACTS.md). The shared validator does not replace `claude-order-guard.mjs`, because the guard owns workspace snapshots, changed-file policy, forbidden-pattern checks, and Claude-specific strictness.
+
 ## Maintenance
 
 Run before changing the kit:

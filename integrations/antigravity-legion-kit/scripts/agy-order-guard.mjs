@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { validateDelegationResult } from '../../legion-contracts/lib/contracts.mjs';
 
 const IGNORE_DIRS = new Set(['.git', 'node_modules', 'dist', 'build', 'coverage', '.venv', 'vendor']);
 
@@ -102,17 +103,12 @@ function scanForbidden(workspace, files, patterns) {
 }
 
 function validateResultShape(result) {
-  const failures = [];
-  if (result.orderVersion !== 'AGY_ORDER_V1') failures.push('result.orderVersion must be AGY_ORDER_V1');
-  if (!['done', 'blocked'].includes(result.status)) failures.push('result.status must be done or blocked');
-  if (!Array.isArray(result.filesChanged)) failures.push('result.filesChanged must be an array');
-  if (!Array.isArray(result.proof)) failures.push('result.proof must be an array');
-  if (!['yes', 'no'].includes(result.selfReviewFixed)) failures.push('result.selfReviewFixed must be yes or no');
-  if (!Array.isArray(result.scopeViolations)) failures.push('result.scopeViolations must be an array');
-  if (!Array.isArray(result.forbiddenPatternHits)) failures.push('result.forbiddenPatternHits must be an array');
-  if (!Array.isArray(result.remainingRisks)) failures.push('result.remainingRisks must be an array');
-  if (result.status === 'done' && result.selfReviewFixed !== 'yes') failures.push('done result requires selfReviewFixed=yes');
-  return failures;
+  return validateDelegationResult(result, {
+    acceptedOrderVersions: ['AGY_ORDER_V1'],
+    actorLabel: 'agy',
+    requireProofForDone: false,
+    requirePassedProofForDone: false
+  });
 }
 
 function verify(args) {

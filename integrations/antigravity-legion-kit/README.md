@@ -101,6 +101,8 @@ Acceptance rule: require `agy` to self-review, fix confirmed defects, rerun proo
 
 For implementation tasks, use `AGY_ORDER v1`: take a snapshot with `scripts/agy-order-guard.mjs`, pass `agy` exact allowed paths, non-goals, forbidden patterns, and proof commands, require `AGY_RESULT.json`, then verify scope and result shape with the guard before accepting. This is model-agnostic and does not depend on a specific Gemini version being perfectly obedient.
 
+`AGY_RESULT.json` is checked through the shared Legion result-contract validator as a legacy `AGY_ORDER_V1` payload. The shared contract lives in `../legion-contracts`; it standardizes result shape while `agy-order-guard.mjs` still owns snapshot, allowed-path, and forbidden-pattern enforcement.
+
 When this kit is maintained inside `centurionCLI`, use the repo path as the source of truth:
 
 ```bash
@@ -131,7 +133,7 @@ npm run content-catalog:check
 agy plugin validate ./agy-plugin
 ```
 
-The smoke check verifies required rules/workflows/skills, the `agy` CLI plugin shape, Antigravity's local MCP schema, package bins, external/frontend/reference/content catalog JSON, a stdio MCP initialize/tools/call round trip, full 37-owner Legion routing coverage, AUXILIUM AGY delegation guards, `AGY_ORDER` scope verification, and a temporary installer run for both IDE and CLI targets. `npm run legion:eval` prints the routing matrix and should report all cases passing with `37/37 owners covered`; the case count may exceed 37 because high-risk regression guards are included without adding owners.
+The smoke check verifies required rules/workflows/skills, the `agy` CLI plugin shape, Antigravity's local MCP schema, package bins, external/frontend/reference/content catalog JSON, a stdio MCP initialize/tools/call round trip, full 37-owner Legion routing coverage, AUXILIUM AGY delegation guards, `AGY_ORDER` scope verification, shared Legion result-contract compatibility, and a temporary installer run for both IDE and CLI targets. `npm run legion:eval` prints the routing matrix and should report all cases passing with `37/37 owners covered`; the case count may exceed 37 because high-risk regression guards are included without adding owners.
 
 ## External Catalog Refresh
 

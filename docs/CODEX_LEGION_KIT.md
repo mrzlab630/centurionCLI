@@ -56,6 +56,8 @@ ignore rules from `scripts/lib/surface-config.mjs`. Skill content still lives in
 `skills/`; when adding or removing a Legion skill, update that shared config in
 the same change.
 
+Codex uses the shared Legion JSON contract layer for bounded delegation artifacts where a result must be machine-validated. See [LEGION_CONTRACTS.md](LEGION_CONTRACTS.md). This does not create Codex-specific Legionary owners; it only standardizes `LEGION_ORDER_V1`, `LEGION_RESULT_V1`, and `LEGION_REVIEW_V1` validation for handoffs that already have one primary owner.
+
 To repair active skill drift after reviewing the audit:
 
 ```bash

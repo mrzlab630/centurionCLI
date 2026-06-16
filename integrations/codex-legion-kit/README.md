@@ -16,8 +16,10 @@ This kit keeps Codex aligned with the current Legion structure without adding mo
 
 - `scripts/codex-surface-audit.mjs`: read-only audit for Codex model/config, active skill drift, protocol pointers, hooks, custom agents, plugins, and MCP risk warnings.
 - `scripts/sync-agents.mjs`: dry-run-first synchronization from repository `skills/` to active `~/.agents/skills`; writes only with `--write`.
-- `scripts/smoke.mjs`: regression proof for audit, sync behavior, and Legion routing evals.
+- `scripts/smoke.mjs`: regression proof for audit, sync behavior, shared Legion result-contract validation, and Legion routing evals.
 - `scripts/lib/surface-config.mjs`: the shared canonical skill list and generated-artifact ignore rules used by audit, sync, and smoke checks.
+
+Codex uses `../legion-contracts` for neutral `LEGION_ORDER_V1`, `LEGION_RESULT_V1`, and `LEGION_REVIEW_V1` validation when a bounded delegation artifact needs machine checking. Normal discussion, research notes, and WAR ROOM reasoning stay in Markdown.
 
 It does not install external GitHub skill packs, rewrite `~/.codex/config.toml`, or create new Legionary owners.
 

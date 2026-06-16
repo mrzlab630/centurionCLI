@@ -308,6 +308,29 @@ function smokeAgyOrderGuard() {
   }
 }
 
+function smokeLegionContracts() {
+  const validator = path.resolve(KIT_ROOT, '..', 'legion-contracts', 'scripts', 'legion-contract.mjs');
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-legion-contract-'));
+  try {
+    const resultFile = path.join(tempRoot, 'AGY_RESULT.json');
+    fs.writeFileSync(resultFile, JSON.stringify({
+      orderVersion: 'AGY_ORDER_V1',
+      owner: 'PICTOR',
+      status: 'done',
+      filesChanged: ['index.html'],
+      proof: [{ command: 'synthetic', result: 'passed', summary: 'legacy accepted' }],
+      selfReviewFixed: 'yes',
+      scopeViolations: [],
+      forbiddenPatternHits: [],
+      remainingRisks: []
+    }, null, 2));
+    const ok = spawnSync(process.execPath, [validator, 'validate-result', '--file', resultFile, '--accept-order-version', 'AGY_ORDER_V1'], { encoding: 'utf8' });
+    assert(ok.status === 0, `AGY legacy result should pass shared contract: ${ok.stderr || ok.stdout}`);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
 function send(child, payload) {
   child.stdin.write(`${JSON.stringify(payload)}\n`);
 }
@@ -509,6 +532,7 @@ async function main() {
   await smokeMcp();
   smokeInstaller();
   smokeAgyOrderGuard();
+  smokeLegionContracts();
   process.stdout.write('antigravity-legion-kit smoke: pass\n');
 }
 
