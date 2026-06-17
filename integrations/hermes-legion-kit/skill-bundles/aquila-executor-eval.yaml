@@ -1,0 +1,12 @@
+name: aquila-executor-eval
+skills:
+- aquila-executor-eval
+- aquila-team-orchestration
+- delegated-cli-executor-orchestration
+- delegating-code-to-executors
+description: Lean Aquila eval mode for benchmarking codex, claude, agy, and delegate_task
+  with repeatable tasks and deterministic proof.
+instruction: Use this bundle to compare executor reliability. Use isolated workspaces
+  where edits are involved, require AGENT_RESULT_JSON_V1 or a mappable structured
+  result, record pass@1/pass@3, scope, proof, time, and correction count, and load
+  test-driven-development or requesting-code-review only when designing concrete graders.
