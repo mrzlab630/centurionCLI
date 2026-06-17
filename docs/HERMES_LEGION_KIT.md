@@ -12,6 +12,9 @@ The pack is designed for Aquila managing `codex`, `claude`, `agy`, Hermes `deleg
 
 - `aquila-team-orchestration`: routing, one owner per task, merge gates, result artifacts, proof acceptance.
 - `aquila-harness-audit`: Hermes surface audit for SOUL, skills, bundles, plugins, MCP, contracts, context, and security.
+- `scripts/harness-audit.mjs`: read-only deterministic local audit for runtime model ambiguity, `npx -y` MCP supply-chain warnings, oversized `SKILL.md` files, and the SOUL runtime-model rule.
+- `overrides/skills/research/research-paper-writing/SKILL.md`: compact optional override that keeps the research-paper skill under the Hermes size limit while routing detail to `references/`.
+- `overrides/SOUL_RUNTIME_MODEL_RULE.md`: reviewed SOUL rule text for runtime-model precedence; not applied by the default installer.
 - `aquila-executor-eval`: repeatable executor benchmarks with pass@1/pass@3, scope, proof, time, and correction metrics.
 - `aquila-self-debug`: recovery loop for executor failures, adapter noise, missing artifacts, and repeated retry loops.
 - `/aquila-delivery`: lean delivery bundle.
@@ -30,6 +33,23 @@ This kit intentionally does not:
 - add external dependencies.
 
 ECC remains a pattern source only. Any future plugin, hook, MCP server, or third-party skill import requires a separate GUARDIAN safety gate.
+
+## Runtime Model Rule
+
+Hermes can report different model names through persistent config/profile surfaces and active runtime evidence. For the current session, active turn context and live API-call logs are stronger evidence than stale `config.yaml`, `hermes profile list`, or `hermes prompt-size` summaries.
+
+Mismatch handling:
+
+- classify as `warn`, not identity conflict;
+- report both values and the proof path;
+- continue only if the active provider is otherwise healthy;
+- clean persistent config separately when stale summaries will confuse future preflight or reports.
+
+## MCP Supply-Chain Rule
+
+Enabled `npx -y package@version` MCP servers are warnings even when version-pinned. Version pins reduce drift but still use registry execution and cache/integrity assumptions. High-trust MCP servers should prefer local checked binaries or pinned local installs after separate review.
+
+The harness audit must record owner, server name, package/version, enabled status, config line, and mitigation decision.
 
 ## Install
 
@@ -52,6 +72,14 @@ Install into a test home:
 node ./installer/install.mjs --hermes-home /tmp/hermes-home-test
 ```
 
+Apply optional skill overrides explicitly:
+
+```bash
+node ./installer/install.mjs --include-overrides
+```
+
+The default install remains conservative and changes only Aquila skills/bundles. `--include-overrides` can update reviewed builtin skill overrides, but still does not edit `SOUL.md`, `config.yaml`, plugins, hooks, or MCP servers.
+
 ## Verify
 
 Repository-only proof:
@@ -59,7 +87,9 @@ Repository-only proof:
 ```bash
 node --check installer/install.mjs
 node --check scripts/smoke.mjs
+node --check scripts/harness-audit.mjs
 npm run smoke
+npm run audit:local
 ```
 
 Live Hermes proof after install:
@@ -71,7 +101,10 @@ hermes bundles show aquila-delivery
 hermes bundles show aquila-harness-audit
 hermes bundles show aquila-executor-eval
 hermes doctor
+hermes security audit
 ```
+
+`hermes doctor` npm advisories and `hermes security audit` Python findings are separate gates. Build-tool npm advisories can be warnings when they do not affect runtime execution; Python runtime dependency findings need their own exposure analysis and may be blockers.
 
 `hermes skills inspect aquila-*` was observed to hang during the first local rollout. Until that Hermes CLI behavior is fixed, use `skills list`, `bundles show`, repository smoke, and direct file validation as the reliable proof path.
 

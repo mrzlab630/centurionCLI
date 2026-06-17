@@ -19,6 +19,7 @@ This kit versions the local Hermes additions that were first installed under `~/
 ```bash
 cd integrations/hermes-legion-kit
 npm run smoke
+npm run audit:local
 npm run install:dry-run
 npm run install
 hermes skills list | rg aquila
@@ -32,6 +33,14 @@ To install into a temporary Hermes home:
 node ./installer/install.mjs --hermes-home /tmp/hermes-home-test
 ```
 
+To also apply reviewed optional overrides such as the compact `research-paper-writing` entrypoint:
+
+```bash
+node ./installer/install.mjs --include-overrides
+```
+
+`--include-overrides` still does not edit `SOUL.md` or `config.yaml`; the SOUL runtime-model rule is stored as a reviewed note in `overrides/SOUL_RUNTIME_MODEL_RULE.md`.
+
 ## Design Rules
 
 - Keep `SOUL.md` compact. Optional Team Lead workflows live in skills and bundles.
@@ -39,6 +48,9 @@ node ./installer/install.mjs --hermes-home /tmp/hermes-home-test
 - Do not bulk-import ECC. ECC is an idea source; this kit contains manually adapted Hermes-native procedures only.
 - Do not enable Hermes plugins or hooks from this kit. Plugins execute code and require a separate GUARDIAN review.
 - Do not widen MCP access from this kit. MCP changes belong to a separate harness audit and explicit operator decision.
+- Treat runtime model evidence as current-session truth. If `config.yaml`, `hermes profile list`, or `hermes prompt-size` reports a stale model while turn context/logs show a runtime switch, classify it as a warning with proof, not an identity conflict.
+- Treat enabled `npx -y` MCP servers as explicit supply-chain warnings even when the package is version-pinned.
+- Keep optional overrides explicit. Builtin skill overrides are installed only with `--include-overrides`; SOUL/config changes stay manual and reviewable.
 
 ## Local Baseline
 
@@ -52,11 +64,17 @@ node ./installer/install.mjs --hermes-home /tmp/hermes-home-test
 ```bash
 node --check installer/install.mjs
 node --check scripts/smoke.mjs
+node --check scripts/harness-audit.mjs
 node ./scripts/smoke.mjs
 node ./installer/install.mjs --dry-run
+npm run audit:local
 ```
 
-The smoke check verifies all four skills, all three lean bundles, trigger-bearing descriptions, absence of direct ECC clone references, no remote-shell install pattern, JavaScript syntax, and installer dry-run behavior.
+The smoke check verifies all four skills, all three lean bundles, trigger-bearing descriptions, absence of direct ECC clone references, no remote-shell install pattern, JavaScript syntax, deterministic audit script syntax, and installer dry-run behavior.
+
+`npm run audit:local` is read-only. It checks the local Hermes home for stale model/profile ambiguity, missing runtime-model SOUL rule, enabled `npx -y` MCP servers, and oversized `SKILL.md` files that should be split into `references/`.
+
+The smoke check also verifies that optional overrides stay below the Hermes `SKILL.md` size limit and remain reference-routed.
 
 After installing on a live Hermes home, verify through Hermes itself:
 
@@ -67,6 +85,7 @@ hermes bundles show aquila-delivery
 hermes bundles show aquila-harness-audit
 hermes bundles show aquila-executor-eval
 hermes doctor
+hermes security audit
 ```
 
 `hermes skills inspect aquila-*` was observed to hang on this host during the first local rollout. Treat `skills list`, `bundles show`, the offline smoke check, and direct file validation as the reliable proof path until that Hermes CLI behavior is fixed upstream.

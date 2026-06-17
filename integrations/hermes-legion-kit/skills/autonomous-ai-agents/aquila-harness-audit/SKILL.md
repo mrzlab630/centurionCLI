@@ -27,15 +27,15 @@ Load this when:
 
 | Area | Checks |
 | --- | --- |
-| SOUL | Team Lead boundary, direct-work override rule, executor hierarchy, result contract, retry policy. |
-| Skills | Trigger clarity, overlap, local/builtin count, missing frontmatter, overly broad skills, stale external imports. |
+| SOUL | Team Lead boundary, direct-work override rule, executor hierarchy, result contract, retry policy, runtime model precedence rule. |
+| Skills | Trigger clarity, overlap, local/builtin count, missing frontmatter, overly broad skills, stale external imports, `SKILL.md` size over 100,000 chars. |
 | Bundles | Recurring workflows encoded as compact slash commands, no skill slug collisions, missing skills skipped intentionally. |
 | Plugins/hooks | Opt-in status, arbitrary code risk, env requirements, lifecycle hook blast radius. |
-| MCP | Enabled/disabled servers, include/exclude filters, broad filesystem/browser/cloud access, unpinned `npx -y`. |
+| MCP | Enabled/disabled servers, include/exclude filters, broad filesystem/browser/cloud access, enabled `npx -y` MCP even when version-pinned. |
 | Kanban | Durable board use for multi-agent work, available profiles, stuck ready/running/blocked tasks. |
 | Contracts | AGENT_ORDER_JSON_V1 and AGENT_RESULT_JSON_V1 schemas, exact artifact paths, proof commands, stop conditions. |
 | Context | Heavy always-loaded instructions, duplicate surfaces, verbose skills that should become references. |
-| Security | Secrets, credential exfiltration patterns, remote shell installs, destructive commands, broad home access. |
+| Security | Secrets, credential exfiltration patterns, remote shell installs, destructive commands, broad home access, npm/Python dependency findings. |
 
 ## Minimum Command Set
 
@@ -48,8 +48,30 @@ hermes bundles list
 hermes plugins list
 hermes mcp list
 hermes profile list
+hermes prompt-size --json
+hermes doctor
+hermes security audit
 rg -n "curl .*\|.*sh|wget .*\|.*sh|base64 -d|eval\(|API_KEY|PASSWORD|SECRET|TOKEN" ~/.hermes ~/.config 2>/dev/null
 ```
+
+For deterministic local surface checks from this kit:
+
+```bash
+node integrations/hermes-legion-kit/scripts/harness-audit.mjs --json
+```
+
+That script is read-only. It reports:
+- stale or ambiguous model summaries from `config.yaml`, `hermes profile list`, and `hermes prompt-size`;
+- missing SOUL rule: runtime model evidence overrides stale profile summaries for the current session;
+- enabled `npx -y` MCP servers with owner/risk/proof;
+- oversized `SKILL.md` files that should be split into `references/`;
+- proof paths for each warning.
+
+Runtime model rule: if `config.yaml`, `hermes profile list`, or `hermes prompt-size` reports one model while active session logs or turn context show an explicit runtime switch or live API calls with another model, classify it as `warn`, not identity conflict. Current-session runtime evidence wins for the current session; persistent config still needs cleanup if it will confuse future preflight/reporting.
+
+MCP supply-chain rule: a package version in `npx -y package@version` reduces drift but does not remove registry execution, cache integrity, or availability risk. Prefer local/pinned binaries for high-trust surfaces; otherwise record owner, package, version, enabled status, and exact config line.
+
+Dependency rule: keep `hermes doctor` npm advisories separate from `hermes security audit` Python findings. Build-tool npm advisories may be warnings; high Python runtime dependencies may be blockers depending on exposure and exploit path.
 
 For contract presence:
 
@@ -72,6 +94,8 @@ Rate each category `pass`, `warn`, or `blocker`:
 6. Security guardrails: no unsafe external imports, broad hooks, or secret leakage.
 7. Cost/model routing: expensive models reserved for high-value reasoning, fallback policy respected.
 8. Git/repo hygiene: dirty trees are inspected and protected before delegation.
+9. Runtime model clarity: stale config/profile summaries cannot override live turn-context evidence, and mismatches are reported with proof.
+10. Supply-chain posture: enabled remote-execution MCP paths are explicitly owned, versioned, and justified.
 
 ## Decision Rules
 
@@ -96,6 +120,8 @@ harness_audit:
     mcp: true
     contracts: true
     kanban: true
+    model_runtime: true
+    dependencies: true
   blockers: []
   warnings: []
   top_fixes:

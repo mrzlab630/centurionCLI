@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "smoke": "node ./scripts/smoke.mjs",
+    "audit:local": "node ./scripts/harness-audit.mjs",
     "install:dry-run": "node ./installer/install.mjs --dry-run",
     "install": "node ./installer/install.mjs"
   },

@@ -7,16 +7,19 @@ import process from 'node:process';
 const KIT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const SKILL_SOURCE = path.join(KIT_ROOT, 'skills');
 const BUNDLE_SOURCE = path.join(KIT_ROOT, 'skill-bundles');
+const OVERRIDES_SOURCE = path.join(KIT_ROOT, 'overrides');
 
 function parseArgs(argv) {
   const options = {
     hermesHome: process.env.HERMES_HOME || path.join(os.homedir(), '.hermes'),
-    dryRun: false
+    dryRun: false,
+    includeOverrides: false
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--hermes-home') options.hermesHome = path.resolve(argv[++index]);
     else if (arg === '--dry-run') options.dryRun = true;
+    else if (arg === '--include-overrides') options.includeOverrides = true;
     else if (arg === '--help') options.help = true;
     else throw new Error(`Unknown argument: ${arg}`);
   }
@@ -24,7 +27,7 @@ function parseArgs(argv) {
 }
 
 function usage() {
-  return `Usage: node installer/install.mjs [options]\n\nOptions:\n  --hermes-home <dir>  Hermes config root. Default: ~/.hermes\n  --dry-run           Print planned changes without writing\n`;
+  return `Usage: node installer/install.mjs [options]\n\nOptions:\n  --hermes-home <dir>   Hermes config root. Default: ~/.hermes\n  --dry-run            Print planned changes without writing\n  --include-overrides  Also install reviewed optional overrides from overrides/\n`;
 }
 
 function copyFile(source, destination, dryRun) {
@@ -61,20 +64,29 @@ function listFiles(root) {
 function install(options) {
   const skillsTarget = path.join(options.hermesHome, 'skills');
   const bundlesTarget = path.join(options.hermesHome, 'skill-bundles');
+  const overrideSkillsSource = path.join(OVERRIDES_SOURCE, 'skills');
+  const overrideSkillsTarget = path.join(options.hermesHome, 'skills');
   const skillFiles = listFiles(SKILL_SOURCE);
   const bundleFiles = listFiles(BUNDLE_SOURCE);
+  const overrideSkillFiles = fs.existsSync(overrideSkillsSource) ? listFiles(overrideSkillsSource) : [];
 
   copyTree(SKILL_SOURCE, skillsTarget, options.dryRun);
   copyTree(BUNDLE_SOURCE, bundlesTarget, options.dryRun);
+  if (options.includeOverrides && overrideSkillFiles.length > 0) {
+    copyTree(overrideSkillsSource, overrideSkillsTarget, options.dryRun);
+  }
 
   return {
     dryRun: options.dryRun,
+    includeOverrides: options.includeOverrides,
     hermesHome: options.hermesHome,
     copiedSkillsTo: skillsTarget,
     copiedBundlesTo: bundlesTarget,
+    copiedOverrideSkillsTo: options.includeOverrides ? overrideSkillsTarget : null,
     skillFiles,
     bundleFiles,
-    changedSurfaces: ['skills', 'skill-bundles'],
+    overrideSkillFiles: options.includeOverrides ? overrideSkillFiles : [],
+    changedSurfaces: options.includeOverrides ? ['skills', 'skill-bundles', 'override-skills'] : ['skills', 'skill-bundles'],
     untouchedSurfaces: ['SOUL.md', 'config.yaml', 'plugins', 'hooks', 'mcp_servers']
   };
 }
