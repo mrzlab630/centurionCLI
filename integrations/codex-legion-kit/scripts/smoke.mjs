@@ -121,12 +121,31 @@ function smokeLegionContracts() {
   }
 }
 
+function smokeCamofoxSkill() {
+  const skillRoot = path.join(KIT_ROOT, 'skills', 'camofox-browser');
+  const skillFile = path.join(skillRoot, 'SKILL.md');
+  const scriptFile = path.join(skillRoot, 'scripts', 'camofox-smoke.mjs');
+  const metadataFile = path.join(skillRoot, 'agents', 'openai.yaml');
+  assert(fs.existsSync(skillFile), 'camofox-browser SKILL.md missing');
+  assert(fs.existsSync(scriptFile), 'camofox-smoke script missing');
+  assert(fs.existsSync(metadataFile), 'camofox openai.yaml missing');
+  const skill = fs.readFileSync(skillFile, 'utf8');
+  const metadata = fs.readFileSync(metadataFile, 'utf8');
+  assert(/Do not use for routine localhost UI checks/.test(skill), 'camofox skill must defer routine UI checks to normal browser tools');
+  assert(/Do not import cookies/.test(skill), 'camofox skill must guard cookie import');
+  assert(/Run Camofox checks sequentially/.test(skill), 'camofox skill must document sequential execution');
+  assert(/allow_implicit_invocation: false/.test(metadata), 'camofox skill must be explicit opt-in');
+  const check = run(process.execPath, ['--check', scriptFile]);
+  assert(check.status === 0, `camofox script syntax failed: ${check.stderr || check.stdout}`);
+}
+
 function main() {
   smokeTomlParsing();
   smokeAudit();
   smokeSync();
   smokeLegionEval();
   smokeLegionContracts();
+  smokeCamofoxSkill();
   process.stdout.write('codex-legion-kit smoke: pass\n');
 }
 

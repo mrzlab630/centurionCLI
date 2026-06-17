@@ -17,12 +17,13 @@ Required team rules still belong in `AGENTS.md`, checked-in docs, and skills. Me
 
 ## Current Host Baseline
 
-- `codex --version` reported `codex-cli 0.139.0`.
+- `codex --version` reported `codex-cli 0.140.0` during the Camofox integration pass.
 - `~/.codex/config.toml` already uses `model = "gpt-5.5"` and `model_reasoning_effort = "xhigh"`.
 - `features.memories = true` is enabled.
 - `features.multi_agent_v2.enabled = true` is enabled.
 - No custom agent TOML files were present under `~/.codex/agents` during this setup pass.
 - No user-level `~/.codex/hooks.json` was present during this setup pass.
+- Optional Camofox skill is installed under `~/.codex/skills/camofox-browser` with implicit invocation disabled. It uses the local REST server at `http://127.0.0.1:9377` only when explicitly invoked.
 
 ## Maintenance Commands
 
@@ -35,6 +36,15 @@ node --check scripts/smoke.mjs
 npm run audit:surface
 npm run smoke
 ```
+
+Optional Camofox proof:
+
+```bash
+node /home/mrz/.codex/skills/camofox-browser/scripts/camofox-smoke.mjs --health --json
+node /home/mrz/.codex/skills/camofox-browser/scripts/camofox-smoke.mjs --screenshot /tmp/camofox-example.png https://example.com/
+```
+
+Run Camofox checks sequentially. On this host, parallel tab creation can time out even when the server remains healthy.
 
 `npm run audit:surface` checks:
 
@@ -88,3 +98,9 @@ The next useful layer is optional and should stay small:
 - repo-local or user-local Codex custom agents only for bounded read-heavy lanes;
 - warning-only hooks for Stop/PostToolUse checks, trusted after review;
 - a Codex plugin wrapper only after the current CLI exposes a reliable local validation/install flow for the target shape.
+
+## Optional Camofox Browser
+
+`integrations/codex-legion-kit/skills/camofox-browser` versions the local opt-in Camofox skill. It is not a global MCP server and does not replace `playwright` or `chrome-devtools` MCP.
+
+Use it only for public web pages where normal browser tools are blocked or fingerprinted, or when independent Camofox screenshot/snapshot proof is useful. Do not use it for authenticated sites, cookie import, secrets, or arbitrary page JavaScript without explicit approval.

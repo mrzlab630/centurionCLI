@@ -6,7 +6,7 @@ This kit keeps Codex aligned with the current Legion structure without adding mo
 
 ## Local Baseline
 
-- Codex CLI observed on this workstation: `codex-cli 0.139.0`.
+- Codex CLI observed on this workstation: `codex-cli 0.140.0`.
 - Current Codex model baseline: `gpt-5.5` with `model_reasoning_effort = "xhigh"`.
 - Active Legion skill root: `~/.agents/skills`.
 - Canonical repository skill root: `skills/` in this repository.
@@ -18,10 +18,13 @@ This kit keeps Codex aligned with the current Legion structure without adding mo
 - `scripts/sync-agents.mjs`: dry-run-first synchronization from repository `skills/` to active `~/.agents/skills`; writes only with `--write`.
 - `scripts/smoke.mjs`: regression proof for audit, sync behavior, shared Legion result-contract validation, and Legion routing evals.
 - `scripts/lib/surface-config.mjs`: the shared canonical skill list and generated-artifact ignore rules used by audit, sync, and smoke checks.
+- `skills/camofox-browser`: optional explicit Codex skill for bounded Camofox/Camoufox browser snapshots and screenshots when normal browser tooling is blocked.
 
 Codex uses `../legion-contracts` for neutral `LEGION_ORDER_V1`, `LEGION_RESULT_V1`, and `LEGION_REVIEW_V1` validation when a bounded delegation artifact needs machine checking. Normal discussion, research notes, and WAR ROOM reasoning stay in Markdown.
 
 It does not install external GitHub skill packs, rewrite `~/.codex/config.toml`, or create new Legionary owners.
+
+The Camofox skill is intentionally not an MCP server and has `allow_implicit_invocation: false`; use it explicitly only for public web pages where Playwright or Chrome DevTools are insufficient.
 
 ## Quick Start
 
@@ -46,6 +49,15 @@ To sync one owner:
 ```bash
 npm run sync:agents -- --skill tester --write
 ```
+
+Optional live Camofox proof, when the local PM2 server is online:
+
+```bash
+node /home/mrz/.codex/skills/camofox-browser/scripts/camofox-smoke.mjs --health --json
+node /home/mrz/.codex/skills/camofox-browser/scripts/camofox-smoke.mjs --screenshot /tmp/camofox-example.png https://example.com/
+```
+
+Run those commands sequentially. Parallel Camofox tab creation can time out on this host.
 
 ## Guard Philosophy
 

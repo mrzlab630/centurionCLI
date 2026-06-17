@@ -1,0 +1,6 @@
+interface:
+  display_name: "Camofox Browser"
+  short_description: "Opt-in stealth browser smoke checks"
+  default_prompt: "Use $camofox-browser to capture a bounded Camofox snapshot for this public URL."
+policy:
+  allow_implicit_invocation: false
