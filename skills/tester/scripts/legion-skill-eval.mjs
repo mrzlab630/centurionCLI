@@ -1,13 +1,38 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const skillsRoot = process.env.CENTURION_SKILLS_ROOT || path.resolve(scriptDir, '..', '..');
 
+const repoRootCandidates = [
+  process.env.CENTURION_REPO_ROOT,
+  path.resolve(skillsRoot, '..'),
+  path.resolve(scriptDir, '..', '..', '..'),
+  process.cwd(),
+].filter(Boolean);
+
+const repoRoot = repoRootCandidates.find((candidate) => (
+  fs.existsSync(path.join(candidate, 'docs', 'ECC_INTAKE_PLAN.md'))
+  && fs.existsSync(path.join(candidate, 'skills'))
+));
+
 function skillScript(skillName, scriptName) {
   return path.join(skillsRoot, skillName, 'scripts', scriptName);
+}
+
+function repoFile(relativePath) {
+  return repoRoot ? path.join(repoRoot, relativePath) : null;
+}
+
+function skillFile(skillName, relativePath) {
+  return path.join(skillsRoot, skillName, relativePath);
+}
+
+function fileContains(filePath, expectedText) {
+  return Boolean(filePath) && fs.existsSync(filePath) && fs.readFileSync(filePath, 'utf8').includes(expectedText);
 }
 
 function runJson(command, args) {
@@ -113,6 +138,26 @@ const checks = [
     name: 'mission prep routes specialized Legionaries without overlap regressions',
     pass: routeResults.every((item) => item.pass),
     detail: routeResults.map((item) => `${item.primary}:${item.actualPrimary}:${item.actualGuardianGate}`).join(', '),
+  },
+  {
+    name: 'ECC intake keeps portable patterns under existing Legionary owners',
+    pass: !repoRoot || fileContains(repoFile('docs/ECC_INTAKE_PLAN.md'), 'do not add ECC agents as new owners')
+      && fileContains(repoFile('docs/ECC_INTAKE_PLAN.md'), 'Keep `AGY_ORDER_V1` unchanged')
+      && fileContains(repoFile('docs/ECC_INTAKE_PLAN.md'), 'Keep `CLAUDE_ORDER_V1` unchanged')
+      && fileContains(repoFile('docs/ECC_INTAKE_PLAN.md'), 'Do not change `LEGION_RESULT_V1` semantics'),
+    detail: repoRoot
+      ? 'ECC intake boundary, owners, and contract compatibility pointers'
+      : 'repo docs unavailable from installed skill root; runtime reference gates still checked',
+  },
+  {
+    name: 'ECC-adapted references are progressive-disclosure gated',
+    pass: fileContains(skillFile('context-optimizer', 'SKILL.md'), 'references/context-budget.md')
+      && fileContains(skillFile('context-optimizer', 'references/context-budget.md'), 'Config GC Doctrine')
+      && fileContains(skillFile('tester', 'SKILL.md'), 'references/ai-regression.md')
+      && fileContains(skillFile('tester', 'references/ai-regression.md'), 'Sandbox / Production Parity')
+      && fileContains(skillFile('error-handler', 'SKILL.md'), 'references/agent-self-debug.md')
+      && fileContains(skillFile('error-handler', 'references/agent-self-debug.md'), 'Four-Phase Drill'),
+    detail: 'CURATOR, TESTER, and DEBUGGER load ECC-derived detail on demand',
   },
 ];
 

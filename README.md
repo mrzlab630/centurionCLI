@@ -168,6 +168,8 @@ Surface-specific protocols remain in place: Antigravity keeps `AGY_ORDER_V1`, Cl
 
 See [docs/LEGION_CONTRACTS.md](docs/LEGION_CONTRACTS.md) for the exact boundary and validation commands.
 
+See [docs/ECC_INTAKE_PLAN.md](docs/ECC_INTAKE_PLAN.md) for the constrained ECC pattern intake plan. It preserves existing Legionary ownership and keeps ECC as a vetted idea source, not an installed runtime pack.
+
 ---
 
 ## Installation

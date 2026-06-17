@@ -217,6 +217,9 @@ Review buckets:
 - **On demand:** domain/framework skills and rare workflows.
 - **Candidate merge/retire:** duplicate, stale, thin, or superseded skills.
 
+For context-budget or config-GC decisions, load
+`references/context-budget.md` before recommending expansion or cleanup.
+
 ### Health Indicators
 
 | Usage | Status | Action |
