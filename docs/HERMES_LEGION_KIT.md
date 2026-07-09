@@ -45,6 +45,31 @@ Mismatch handling:
 - continue only if the active provider is otherwise healthy;
 - clean persistent config separately when stale summaries will confuse future preflight or reports.
 
+## Sanitized Local Baseline
+
+The current sanitized workstation baseline was refreshed on 2026-07-09 from
+read-only checks and recorded without copying `~/.hermes/config.yaml` or any
+secret-bearing home config into this repository.
+
+- Hermes version: `Hermes Agent v0.18.2 (2026.7.7.2)`.
+- Install directory: `/home/mrz/.hermes/hermes-agent`.
+- Upstream/local revisions: upstream `8e734810`, local `08058889` with one carried commit.
+- Runtime stack: Python `3.11.15`, OpenAI SDK `2.24.0`.
+- Main model: `gpt-5.5` through provider `custom:cliproxyapi`.
+- Local proxy: `http://127.0.0.1:8317/v1` with `codex_responses` API mode and `256000` context length.
+- Auxiliary routes for vision, web extract, compression, skills hub, approvals, MCP, title generation, TTS audio tags, triage, kanban decomposition, profile description, curator, and monitor use the same sanitized `gpt-5.5` local proxy pattern where configured.
+- Browser baseline: Camofox `auto_start = true`, `managed_persistence = false`, `adopt_existing_tab = false`, `rewrite_loopback_urls = false`, and loopback host alias `host.docker.internal`.
+- Web baseline: `web.backend = brave-free`, `web.extract_backend = native`.
+- Enabled plugin families observed: `image_gen/cliproxy` and `video_gen/cliproxy`.
+- Enabled built-in toolsets observed: web, browser, terminal, file, code execution, vision, image generation, video generation, TTS, skills, todo, memory, session search, clarify, delegation, cronjob.
+- Disabled built-ins observed: video analysis, x_search, context engine, homeassistant, spotify, yuanbao, computer use.
+- Enabled MCP servers in sanitized config summary: brave-search, github, playwright, context7, perplexity, memory, markitdown, pal.
+- Config-disabled MCP servers: sequential-thinking and deepwiki.
+
+Do not treat this kit as authority to edit live Hermes home config. Refresh live
+settings separately and record only sanitized summaries in
+`docs/settings-snapshots/`.
+
 ## MCP Supply-Chain Rule
 
 Enabled `npx -y package@version` MCP servers are warnings even when version-pinned. Version pins reduce drift but still use registry execution and cache/integrity assumptions. High-trust MCP servers should prefer local checked binaries or pinned local installs after separate review.

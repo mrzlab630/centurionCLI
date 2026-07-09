@@ -5,7 +5,7 @@
 <img src="logo/logo_vexillum.jpg" alt="CENTURION Vexillum" width="300">
 
 ![Name](https://img.shields.io/badge/⚔️-CENTURION-gold)
-![Version](https://img.shields.io/badge/version-COHORS%20SECUNDA%20v2.1-blue)
+![Version](https://img.shields.io/badge/version-COHORS%20SECUNDA%20v2.2-blue)
 ![Legionaries](https://img.shields.io/badge/legionaries-37-red)
 ![MCP](https://img.shields.io/badge/MCP%20servers-7-green)
 ![Status](https://img.shields.io/badge/status-BATTLE%20TESTED-green)
@@ -22,9 +22,11 @@
 
 CENTURION turns a coding agent into a disciplined Roman Legion of specialized
 skills. Each Legionary has a role, activation rules, tools, and proof standards.
-Cohors Secunda v2.1 keeps one canonical active Legion skill surface in
+Cohors Secunda v2.2 keeps one canonical active Legion skill surface in
 `~/.agents/skills` and leaves Codex system skills in `~/.codex/skills/.system` to
-avoid duplicate skill names and context bloat.
+avoid duplicate skill names and context bloat. It also records the current
+sanitized local tooling baseline for Hermes, Codex, Claude Code, and
+Antigravity/`agy` without copying secret-bearing home configs into the repo.
 
 ### Key Features
 
@@ -39,6 +41,7 @@ avoid duplicate skill names and context bloat.
 - **Claude Legion Kit** — native Claude Code plugin, 37 subagents, and `CLAUDE_ORDER v1` guard under `integrations/claude-legion-kit`.
 - **Codex Legion Kit** — Codex CLI surface audit and canonical skill sync under `integrations/codex-legion-kit`.
 - **Hermes Legion Kit** — Aquila Team Lead skills and lean Hermes bundles under `integrations/hermes-legion-kit`.
+- **Sanitized local tooling baseline** — current Hermes, Codex, Claude, Antigravity/`agy`, and toolchain settings under `docs/LOCAL_TOOLING_BASELINE.md` and `docs/settings-snapshots/`.
 - **Shared Legion JSON contracts** — bounded order/result/review validation under `integrations/legion-contracts`.
 
 ---
@@ -175,6 +178,22 @@ See [docs/HERMES_LEGION_KIT.md](docs/HERMES_LEGION_KIT.md) and [integrations/her
 
 ---
 
+## Local Tooling Baseline
+
+The repository tracks a sanitized local tooling baseline for operator-facing
+settings that affect Hermes/Aquila, Codex CLI, Claude Code, Antigravity/`agy`,
+and the basic host toolchain. The baseline is intentionally summary-only: it
+documents model/provider shape, local proxy endpoints, installed integration
+surfaces, current CLI versions, Camofox/native web settings, and known installed
+configuration drift without storing raw home config files, secrets, OAuth data,
+permissions allowlists, trusted project lists, or memory contents.
+
+Start with [docs/LOCAL_TOOLING_BASELINE.md](docs/LOCAL_TOOLING_BASELINE.md). The
+machine-readable sanitized snapshot is
+[docs/settings-snapshots/local-tooling-baseline-2026-07-09.json](docs/settings-snapshots/local-tooling-baseline-2026-07-09.json).
+
+---
+
 ## Legion JSON Contracts
 
 `integrations/legion-contracts` provides shared `LEGION_ORDER_V1`, `LEGION_RESULT_V1`, and `LEGION_REVIEW_V1` validators for bounded delegation between Codex, `agy`, Claude, and future executors.
@@ -256,6 +275,7 @@ centurionCLI/
 | 1.5 | Cohors Ferrata | 11 | Velites, Haruspex, Sicarius |
 | 2.0 | Cohors Secunda | 27 | Full roster, MEMORIA, WAR ROOM, AGMEN |
 | **2.1** | **Cohors Secunda** | **37** | **Canonical `.agents` skill surface, specialized Product/UX Legionaries, mission-prep, skill audit/eval, duplicate-name guard** |
+| **2.2** | **Cohors Secunda** | **37** | **Sanitized Hermes/Codex/Claude/Antigravity local tooling baselines, HTTP local proxy correction, native web_extract, Camofox autostart, current CLI versions** |
 
 ---
 

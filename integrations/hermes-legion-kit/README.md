@@ -54,8 +54,16 @@ node ./installer/install.mjs --include-overrides
 
 ## Local Baseline
 
-- Hermes observed on this workstation: `Hermes Agent v0.16.0 (2026.6.5)`.
+- Sanitized baseline date: 2026-07-09. Raw `~/.hermes/config.yaml`, API keys, credentials, and private permission state are intentionally not copied into this repository.
+- Hermes observed on this workstation: `Hermes Agent v0.18.2 (2026.7.7.2)`.
 - Local Hermes home: `/home/mrz/.hermes`.
+- Install directory: `/home/mrz/.hermes/hermes-agent`; upstream revision `8e734810`, local revision `08058889` with one carried commit.
+- Runtime stack: Python `3.11.15`, OpenAI SDK `2.24.0`.
+- Main model: `gpt-5.5` through `custom:cliproxyapi` at `http://127.0.0.1:8317/v1`, `api_mode = codex_responses`, context length `256000`.
+- Web baseline: `web.backend = brave-free`, `web.extract_backend = native`.
+- Browser baseline: Camofox `auto_start = true`, `managed_persistence = false`, `adopt_existing_tab = false`, `rewrite_loopback_urls = false`, loopback alias `host.docker.internal`.
+- Enabled plugins observed: `image_gen/cliproxy` and `video_gen/cliproxy`.
+- Enabled MCP servers in sanitized config summary: brave-search, github, playwright, context7, perplexity, memory, markitdown, pal. Config-disabled MCP servers: sequential-thinking and deepwiki.
 - Aquila Team Lead identity lives in `/home/mrz/.hermes/SOUL.md` and remains the primary role contract.
 - Live `hermes -z` smoke may depend on current provider health; the repository smoke is intentionally offline and deterministic.
 

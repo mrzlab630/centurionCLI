@@ -29,6 +29,16 @@ Portable CENTURION rules, workflows, skill briefs, and a small MCP bridge for Go
 
 The canonical Legion skill source remains `/home/mrz/.agents/skills`; this kit does not duplicate that root.
 
+## Sanitized Local Baseline
+
+- Sanitized baseline date: 2026-07-09. Raw `~/.gemini` configs, account data, machine identifiers, credentials, and installed runtime dumps are intentionally not copied into this repository.
+- `agy` CLI version: `1.1.0`.
+- Installed Antigravity IDE agent root exists at `~/.gemini/antigravity/agent` with rules, skills, and workflows.
+- Installed Antigravity CLI plugins include `centurion-legion` and `google-genmedia-extension`.
+- Repository plugin MCP config points `centurion-legion` to `integrations/antigravity-legion-kit/mcp-server/index.mjs` and sets `CENTURION_AGENT_ROOT` to `integrations/antigravity-legion-kit/agent`.
+- Installed-config drift warning: live `~/.gemini/antigravity/mcp_config.json` currently points `centurion-legion` at `/home/mrz/tmp/antigravity-legion-kit/mcp-server/index.mjs` with `CENTURION_AGENT_ROOT=/home/mrz/tmp/antigravity-legion-kit/agent`.
+- Reinstalling from this repository should refresh the installed MCP paths. This kit refresh does not edit home config.
+
 ## Quick Start
 
 ```bash

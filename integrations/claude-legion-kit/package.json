@@ -1,6 +1,6 @@
 {
   "name": "claude-legion-kit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "CENTURION Legion plugin, subagents, and guarded CLAUDE_ORDER v1 execution for Claude Code.",
   "type": "module",

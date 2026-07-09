@@ -15,14 +15,24 @@ The kit does not commit or print secrets. It deliberately does not rewrite Claud
 
 ## Local Audit Summary
 
-- `claude --version` reported `2.1.177 (Claude Code)`.
+This 2026-07-09 summary is sanitized from local checks. Do not copy
+`~/.claude/settings.json`, `~/.claude/settings.local.json`, `~/.claude.json`,
+OAuth state, credentials, raw permission allowlists, project history, or machine
+identifiers into this repository.
+
+- `claude --version` reported `2.1.204 (Claude Code)`.
+- Default model baseline: `claude-opus-4-8`.
+- Settings contain effort and dangerous-mode prompt controls, but raw values are intentionally not copied.
 - `claude --help` confirmed `--agent`, `--agents`, `--allowedTools`, `--disallowedTools`, `--tools`, `--permission-mode`, `--mcp-config`, `--strict-mcp-config`, `--plugin-dir`, `--settings`, `--system-prompt`, `--json-schema`, `--safe-mode`, and `--bare`.
 - `claude agents --help` confirmed default model, effort, permission mode, settings, MCP config, plugin dir, and strict MCP config controls for dispatched sessions.
 - `claude plugin init --with skills agents hooks mcp output-style channel` confirmed the on-disk plugin shape.
 - `claude plugin validate --strict` is the validation gate for plugin shape.
-- `claude mcp list` showed the current MCP fleet connected: context7, brave-search, playwright, sequential-thinking, solanaMcp, memoria, and github.
-- Existing `~/.claude/skills` had 27 Legion skills, while current Cohors Secunda has 37 canonical skills. The installer syncs the current repository surface when requested.
-- Live `claude -p` execution on this workstation uses local `cli-proxy-api` at `http://127.0.0.1:8317`. If print-mode returns `Not logged in`, treat that as a missing proxy environment first: set `ANTHROPIC_BASE_URL`, set a proxy `ANTHROPIC_API_KEY` placeholder, and keep `NO_PROXY=127.0.0.1,localhost`.
+- MCP servers observed in sanitized settings: solanaMcp, brave-search, context7, playwright, sequential-thinking, memoria, github, and serena where present in the host-level Claude JSON.
+- Installed `~/.claude/skills` entries include `centurion-legion` plus 37 Legionaries: aedilis, aleator, architect, artifex, augur, capabilities, censor, coder, context-optimizer, documenter, error-handler, evocate-ad-opus, git-master, glossator, haruspex, indagator, ludifex, mercator, nomenclator, orator, orchestrator, pictor, planner, pontifex, praeco, praemonitor, prompt-engineer, quaestor, refactorer, researcher, reviewer, security, sicarius, skill-quartermaster, tabularius, tester, and velites.
+- `~/.claude/plugins` exists with installed plugin metadata; raw plugin registry details are not copied.
+- No `~/.claude/agents` directory was present in the sanitized baseline.
+- Non-interactive local proxy defaults remain: `ANTHROPIC_BASE_URL=http://127.0.0.1:8317`, placeholder `ANTHROPIC_API_KEY`, default opus `claude-opus-4-8`, default sonnet `claude-sonnet-4-6`, default haiku `claude-haiku-4-5-20251001`, and `NO_PROXY=127.0.0.1,localhost`.
+- If print-mode returns `Not logged in`, treat that as a missing proxy environment first.
 
 ## Design
 

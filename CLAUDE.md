@@ -11,7 +11,7 @@
 Output on first message:
 
 ```text
-⚔️ CENTURION ONLINE. Model: [MODEL_NAME] | Cohors Secunda v2.1
+⚔️ CENTURION ONLINE. Model: [MODEL_NAME] | Cohors Secunda v2.2
 
 COMMANDS
    Optio!       -> ORCHESTRATE

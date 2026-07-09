@@ -14,6 +14,20 @@ The pack was moved into this repository so Antigravity rules, workflows, MCP too
 
 The kit does not duplicate the canonical Legion skill root. It ships Antigravity-facing rules, workflows, compact skill briefs, catalogs, an MCP bridge, an installer, and proof scripts. Serena remains an MCP tool for symbol-aware code assistance, not a Legionary owner.
 
+## Sanitized Local Baseline
+
+The current sanitized workstation baseline was refreshed on 2026-07-09 from
+read-only checks. Do not copy `~/.gemini/antigravity`, Antigravity CLI plugin
+registries, MCP configs, account data, machine identifiers, credentials, or raw
+runtime config dumps into this repository.
+
+- `agy` CLI version: `1.1.0`.
+- Installed Antigravity IDE agent root exists at `~/.gemini/antigravity/agent` with rules, skills, and workflows.
+- Installed Antigravity CLI plugins include `centurion-legion` and `google-genmedia-extension`.
+- Repository plugin MCP config points `centurion-legion` to `integrations/antigravity-legion-kit/mcp-server/index.mjs` and sets `CENTURION_AGENT_ROOT` to `integrations/antigravity-legion-kit/agent`.
+- Installed-config drift warning: the live `~/.gemini/antigravity/mcp_config.json` currently points `centurion-legion` at `/home/mrz/tmp/antigravity-legion-kit/mcp-server/index.mjs` with `CENTURION_AGENT_ROOT=/home/mrz/tmp/antigravity-legion-kit/agent`.
+- Reinstalling from this repository should refresh the installed MCP paths. This task deliberately does not edit home config.
+
 ## Contents
 
 | Path | Purpose |

@@ -17,12 +17,21 @@ Required team rules still belong in `AGENTS.md`, checked-in docs, and skills. Me
 
 ## Current Host Baseline
 
-- `codex --version` reported `codex-cli 0.140.0` during the Camofox integration pass.
-- `~/.codex/config.toml` already uses `model = "gpt-5.5"` and `model_reasoning_effort = "xhigh"`.
-- `features.memories = true` is enabled.
-- `features.multi_agent_v2.enabled = true` is enabled.
-- No custom agent TOML files were present under `~/.codex/agents` during this setup pass.
-- No user-level `~/.codex/hooks.json` was present during this setup pass.
+This 2026-07-09 baseline is sanitized from read-only local checks. Do not copy
+`~/.codex/config.toml`, raw memories, provider credentials, permissions state,
+or trusted project lists into this repository.
+
+- `codex --version` reported `codex-cli 0.142.5`.
+- Default model: `gpt-5.5`.
+- Model provider: `cliproxyapi`.
+- Reasoning effort: `xhigh`.
+- Personality: `pragmatic`.
+- Local provider endpoint: `http://127.0.0.1:8317/v1` using the Responses wire API.
+- `features.memories = true` is enabled; memories remain a recall layer and are not copied into the repo.
+- `features.multi_agent_v2.enabled = true` is enabled with spawn-agent metadata hidden.
+- No `~/.codex/agents` directory was present in the sanitized baseline.
+- No `~/.codex/hooks.json` was present in the sanitized baseline.
+- Installed `~/.codex/skills` entries observed: `.system`, `camofox-browser`, and `migrate-to-codex`.
 - Optional Camofox skill is installed under `~/.codex/skills/camofox-browser` with implicit invocation disabled. It uses the local REST server at `http://127.0.0.1:9377` only when explicitly invoked.
 
 ## Maintenance Commands

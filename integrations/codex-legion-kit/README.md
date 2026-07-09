@@ -6,10 +6,16 @@ This kit keeps Codex aligned with the current Legion structure without adding mo
 
 ## Local Baseline
 
-- Codex CLI observed on this workstation: `codex-cli 0.140.0`.
-- Current Codex model baseline: `gpt-5.5` with `model_reasoning_effort = "xhigh"`.
+- Sanitized baseline date: 2026-07-09. Raw `~/.codex/config.toml`, provider credentials, memories, permission state, and trusted project lists are intentionally not copied into this repository.
+- Codex CLI observed on this workstation: `codex-cli 0.142.5`.
+- Current Codex model baseline: `gpt-5.5` with provider `cliproxyapi`, `model_reasoning_effort = "xhigh"`, and `personality = "pragmatic"`.
+- Local provider endpoint: `http://127.0.0.1:8317/v1` using the Responses wire API.
+- `features.memories = true` is enabled; memories remain a recall layer and are not copied into the repo.
+- `features.multi_agent_v2.enabled = true` is enabled with spawn-agent metadata hidden.
 - Active Legion skill root: `~/.agents/skills`.
 - Canonical repository skill root: `skills/` in this repository.
+- No `~/.codex/agents` directory or `~/.codex/hooks.json` file was present in the sanitized baseline.
+- Installed `~/.codex/skills` entries observed: `.system`, `camofox-browser`, and `migrate-to-codex`.
 - Current Codex plugin validation is not used by this kit because this CLI version does not expose a dedicated `codex plugin validate` subcommand.
 
 ## What It Provides

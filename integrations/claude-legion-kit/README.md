@@ -8,12 +8,17 @@ This kit installs a Claude Code plugin with one CENTURION entry skill, 37 Legion
 
 ## Observed Local Baseline
 
-- Claude CLI: `Claude Code 2.1.177` from `/home/mrz/.local/bin/claude`.
-- Local model access uses `cli-proxy-api` on `http://127.0.0.1:8317`; non-interactive shells may not inherit this from `~/.bashrc` because that file returns early when not interactive.
+- Sanitized baseline date: 2026-07-09. Raw Claude settings, OAuth state, credentials, project history, permission allowlists, and machine identifiers are intentionally not copied into this repository.
+- Claude CLI: `2.1.204 (Claude Code)`.
+- Default model baseline: `claude-opus-4-8`.
+- Local model access uses the proxy default `http://127.0.0.1:8317`; non-interactive shells may not inherit this from `~/.bashrc` because that file returns early when not interactive.
 - Native control surfaces confirmed by `claude --help`: `--agent`, `--agents`, `--allowedTools`, `--disallowedTools`, `--tools`, `--permission-mode`, `--mcp-config`, `--strict-mcp-config`, `--plugin-dir`, `--settings`, `--system-prompt`, `--json-schema`, `--safe-mode`, and `--bare`.
 - Claude Code supports plugin scaffolding and validation via `claude plugin init` and `claude plugin validate`.
-- Local `~/.claude/skills` existed but held an older Legion surface than the current 37-skill Cohors Secunda repository surface.
-- Existing MCP servers were connected during audit: context7, brave-search, playwright, sequential-thinking, solanaMcp, memoria, and github.
+- Installed `~/.claude/skills` entries include `centurion-legion` plus all 37 Legionaries from the Cohors Secunda repository surface.
+- MCP servers observed in sanitized settings include solanaMcp, brave-search, context7, playwright, sequential-thinking, memoria, github, and serena where present in host-level Claude JSON.
+- `~/.claude/plugins` exists with installed plugin metadata; raw registry details are not copied.
+- No `~/.claude/agents` directory was present in the sanitized baseline.
+- Non-interactive proxy defaults remain `ANTHROPIC_BASE_URL=http://127.0.0.1:8317`, placeholder `ANTHROPIC_API_KEY`, default opus `claude-opus-4-8`, default sonnet `claude-sonnet-4-6`, default haiku `claude-haiku-4-5-20251001`, and `NO_PROXY=127.0.0.1,localhost`.
 
 Secrets were not copied into this kit. The installer does not edit `~/.claude/settings.json`, `~/.claude/settings.local.json`, or `~/.claude.json`.
 
