@@ -108,7 +108,8 @@ function assertOverrides() {
     'Principal reviewer and reasoning-heavy executor',
     'Codex remains the default implementation owner',
     'Claude is not allowed to self-approve',
-    'Claude implementation is not limited to Codex unavailability'
+    'Claude implementation is not limited to Codex unavailability',
+    'Aquila retains final judgment'
   ]) {
     assert(claudeRoleText.includes(marker), `SOUL Claude role rule note missing marker: ${marker}`);
   }
