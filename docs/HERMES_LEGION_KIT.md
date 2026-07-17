@@ -15,6 +15,7 @@ The pack is designed for Aquila managing `codex`, `claude`, `agy`, Hermes `deleg
 - `scripts/harness-audit.mjs`: read-only deterministic local audit for runtime model ambiguity, `npx -y` MCP supply-chain warnings, oversized `SKILL.md` files, and the SOUL runtime-model rule.
 - `overrides/skills/research/research-paper-writing/SKILL.md`: compact optional override that keeps the research-paper skill under the Hermes size limit while routing detail to `references/`.
 - `overrides/SOUL_RUNTIME_MODEL_RULE.md`: reviewed SOUL rule text for runtime-model precedence; not applied by the default installer.
+- `overrides/SOUL_CLAUDE_ROLE_RULE.md`: reviewed SOUL rule text for Claude/Codex routing, independent review, and Aquila final judgment; not applied by the default installer.
 - `aquila-executor-eval`: repeatable executor benchmarks with pass@1/pass@3, scope, proof, time, and correction metrics.
 - `aquila-self-debug`: recovery loop for executor failures, adapter noise, missing artifacts, and repeated retry loops.
 - `/aquila-delivery`: lean delivery bundle.
@@ -103,7 +104,7 @@ Apply optional skill overrides explicitly:
 node ./installer/install.mjs --include-overrides
 ```
 
-The default install remains conservative and changes only Aquila skills/bundles. `--include-overrides` can update reviewed builtin skill overrides, but still does not edit `SOUL.md`, `config.yaml`, plugins, hooks, or MCP servers.
+The default install remains conservative and changes only Aquila skills/bundles. `--include-overrides` can update reviewed builtin skill overrides, but still does not edit `SOUL.md`, `config.yaml`, plugins, hooks, or MCP servers. The reviewed `SOUL_RUNTIME_MODEL_RULE.md` and `SOUL_CLAUDE_ROLE_RULE.md` notes are manual and reviewable; neither is automatically applied by the installer.
 
 ## Verify
 

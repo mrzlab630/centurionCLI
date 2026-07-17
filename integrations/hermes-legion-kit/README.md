@@ -39,7 +39,7 @@ To also apply reviewed optional overrides such as the compact `research-paper-wr
 node ./installer/install.mjs --include-overrides
 ```
 
-`--include-overrides` still does not edit `SOUL.md` or `config.yaml`; the SOUL runtime-model rule is stored as a reviewed note in `overrides/SOUL_RUNTIME_MODEL_RULE.md`.
+`--include-overrides` still does not edit `SOUL.md` or `config.yaml`. The reviewed SOUL notes are `overrides/SOUL_RUNTIME_MODEL_RULE.md` and `overrides/SOUL_CLAUDE_ROLE_RULE.md`; both remain manual and reviewable, and neither is applied automatically by the installer.
 
 ## Design Rules
 
@@ -82,7 +82,7 @@ The smoke check verifies all four skills, all three lean bundles, trigger-bearin
 
 `npm run audit:local` is read-only. It checks the local Hermes home for stale model/profile ambiguity, missing runtime-model SOUL rule, enabled `npx -y` MCP servers, and oversized `SKILL.md` files that should be split into `references/`.
 
-The smoke check also verifies that optional overrides stay below the Hermes `SKILL.md` size limit and remain reference-routed.
+The smoke check also verifies that optional overrides stay below the Hermes `SKILL.md` size limit, remain reference-routed, and include the reviewed runtime-model and Claude-role SOUL notes.
 
 After installing on a live Hermes home, verify through Hermes itself:
 

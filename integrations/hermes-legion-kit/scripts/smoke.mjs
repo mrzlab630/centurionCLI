@@ -96,11 +96,22 @@ function runInstallerOverrideDryRun() {
 function assertOverrides() {
   const researchSkill = path.join(KIT_ROOT, 'overrides', 'skills', 'research', 'research-paper-writing', 'SKILL.md');
   const soulRule = path.join(KIT_ROOT, 'overrides', 'SOUL_RUNTIME_MODEL_RULE.md');
+  const claudeRoleRule = path.join(KIT_ROOT, 'overrides', 'SOUL_CLAUDE_ROLE_RULE.md');
   assert(fs.existsSync(researchSkill), 'missing research-paper-writing override');
   assert(fs.statSync(researchSkill).size < SKILL_SIZE_LIMIT, 'research-paper-writing override exceeds skill size limit');
   assert(/references\/experiment-patterns\.md/.test(readText(researchSkill)), 'research override missing reference routing');
   assert(fs.existsSync(soulRule), 'missing SOUL runtime model rule note');
   assert(/Runtime model evidence overrides stale profile summaries/.test(readText(soulRule)), 'SOUL runtime rule note missing exact rule');
+  assert(fs.existsSync(claudeRoleRule), 'missing SOUL Claude role rule note');
+  const claudeRoleText = readText(claudeRoleRule);
+  for (const marker of [
+    'Principal reviewer and reasoning-heavy executor',
+    'Codex remains the default implementation owner',
+    'Claude is not allowed to self-approve',
+    'Claude implementation is not limited to Codex unavailability'
+  ]) {
+    assert(claudeRoleText.includes(marker), `SOUL Claude role rule note missing marker: ${marker}`);
+  }
 }
 
 function main() {
