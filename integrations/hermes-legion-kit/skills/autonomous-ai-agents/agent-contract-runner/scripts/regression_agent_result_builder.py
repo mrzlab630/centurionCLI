@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+"""Regression checks for create-only AGENT_RESULT_JSON_V1 construction."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import shutil
+from pathlib import Path
+from typing import Any
+from unittest.mock import patch
+
+from jsonschema import Draft202012Validator
+
+import agent_result_builder as builder
+from agent_result_builder import BuilderError, build_result, resolve_schema_path
+
+
+ROOT = Path("/tmp/agent-result-builder-regression")
+SCHEMA = Path(__file__).resolve().parent.parent / "references" / "agent-result.schema.json"
+
+
+def write_json(path: Path, payload: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def make_case(name: str, status: str = "done") -> tuple[Path, Path, Path, Path, Path, dict[str, Any]]:
+    case = ROOT / name
+    case.mkdir(parents=True)
+    product = case / "product.txt"
+    product.write_text("unchanged product bytes\n", encoding="utf-8")
+    result = case / "result.json"
+    candidate = case / "candidate.json"
+    evidence = case / "evidence"
+    order = {
+        "orderVersion": "AGENT_ORDER_JSON_V1",
+        "orderId": f"builder-{name}",
+        "executor": "codex",
+        "outputContract": {"resultVersion": "AGENT_RESULT_JSON_V1", "resultPath": str(result)},
+    }
+    payload = {
+        "resultVersion": "AGENT_RESULT_JSON_V1",
+        "orderId": order["orderId"],
+        "executor": "codex",
+        "status": status,
+        "summary": f"candidate remains {status}",
+        "filesChanged": [{"path": str(product), "action": "none"}],
+        "artifacts": [{"path": str(product), "exists": True, "type": "fixture", "note": "product fixture"}],
+        "proof": [{"command": "fixture proof", "cwd": str(case), "status": "pass", "exitCode": 0, "summary": "fixture passed"}],
+        "selfReview": {"performed": True, "findings": [], "fixesApplied": []},
+        "scopeDeviations": [],
+        "forbiddenPatternHits": [],
+        "remainingRisks": [],
+        "questions": [],
+        "errors": [],
+        "stdoutSummary": "",
+        "stderrSummary": "",
+    }
+    order_path = case / "order.json"
+    write_json(order_path, order)
+    write_json(candidate, payload)
+    return order_path, candidate, result, evidence, product, payload
+
+
+def finalized(name: str, mutate: Any = None, status: str = "done") -> tuple[dict[str, Any], bytes, Path, Path]:
+    order, candidate, result, evidence, product, payload = make_case(name, status=status)
+    if mutate is not None:
+        mutate(payload)
+        write_json(candidate, payload)
+    original = candidate.read_bytes()
+    product_before = hashlib.sha256(product.read_bytes()).hexdigest()
+    built = build_result(order, candidate, result, evidence)
+    assert hashlib.sha256(product.read_bytes()).hexdigest() == product_before, "builder must not modify product bytes"
+    return built, original, result, evidence
+
+
+def assert_failed_with_evidence(built: dict[str, Any], original: bytes, evidence: Path) -> None:
+    assert built["status"] == "failed", "malformed candidate must never become done"
+    digest = hashlib.sha256(original).hexdigest()
+    evidence_path = evidence / f"{digest}.candidate-result.bin"
+    assert evidence_path.read_bytes() == original, "original malformed bytes must be preserved exactly"
+    assert built["artifacts"][0]["path"] == str(evidence_path), "failed result must bind the evidence path"
+
+
+def main() -> int:
+    if ROOT.exists():
+        shutil.rmtree(ROOT)
+    ROOT.mkdir(parents=True)
+    schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+    validator = Draft202012Validator(schema)
+
+    explicit_schema = ROOT / "explicit-schema.json"
+    environment_schema = ROOT / "environment-schema.json"
+    hermes_home = ROOT / "hermes-home"
+    fallback_home = ROOT / "fallback-home"
+    with patch.dict(os.environ, {"AQUILA_AGENT_RESULT_SCHEMA": str(environment_schema), "HERMES_HOME": str(hermes_home)}):
+        assert resolve_schema_path(explicit_schema) == explicit_schema
+        assert resolve_schema_path() == environment_schema
+    with patch.dict(os.environ, {"AQUILA_AGENT_RESULT_SCHEMA": "", "HERMES_HOME": str(hermes_home)}):
+        assert resolve_schema_path() == SCHEMA
+    with patch.object(builder, "PACKAGED_SCHEMA", ROOT / "missing-packaged-schema.json"):
+        with patch.dict(os.environ, {"AQUILA_AGENT_RESULT_SCHEMA": "", "HERMES_HOME": str(hermes_home)}):
+            assert resolve_schema_path() == hermes_home / "contracts" / "agent-result.schema.json"
+        with patch.dict(os.environ, {"AQUILA_AGENT_RESULT_SCHEMA": "", "HERMES_HOME": ""}):
+            with patch.object(Path, "home", return_value=fallback_home):
+                assert resolve_schema_path() == fallback_home / ".hermes" / "contracts" / "agent-result.schema.json"
+    print("PASS schema precedence is explicit, environment, packaged, HERMES_HOME, then HOME")
+
+    valid, _, valid_result, _ = finalized("valid")
+    assert valid["status"] == "done"
+    validator.validate(json.loads(valid_result.read_text(encoding="utf-8")))
+    print("PASS valid candidate finalized once with canonical identity and schema")
+
+    cases = {
+        "proof-near-miss": lambda payload: payload["proof"][0].__setitem__("status", "pass_with_finding"),
+        "files-changed-string": lambda payload: payload.__setitem__("filesChanged", "product.txt"),
+        "self-review-string": lambda payload: payload.__setitem__("selfReview", "performed"),
+        "wrong-order-id": lambda payload: payload.__setitem__("orderId", "wrong-order-id"),
+        "wrong-executor": lambda payload: payload.__setitem__("executor", "claude"),
+    }
+    for name, mutate in cases.items():
+        built, original, result, evidence = finalized(name, mutate)
+        assert_failed_with_evidence(built, original, evidence)
+        validator.validate(json.loads(result.read_text(encoding="utf-8")))
+        print(f"PASS {name} rejected without status promotion")
+
+    order, candidate, result, evidence, product, _ = make_case("unparseable")
+    candidate.write_bytes(b"{not-json\x00")
+    product_before = product.read_bytes()
+    unparseable = build_result(order, candidate, result, evidence)
+    assert product.read_bytes() == product_before
+    assert_failed_with_evidence(unparseable, b"{not-json\x00", evidence)
+    print("PASS unparseable original bytes preserved by SHA-256 evidence")
+
+    for status in ("blocked", "failed"):
+        built, _, _, _ = finalized(f"preserve-{status}", status=status)
+        assert built["status"] == status, f"valid {status} candidate must not be promoted"
+    print("PASS blocked and failed candidate verdicts are preserved")
+
+    order, candidate, result, evidence, product, _ = make_case("collision")
+    result.write_text("existing result bytes\n", encoding="utf-8")
+    try:
+        build_result(order, candidate, result, evidence)
+    except BuilderError as exc:
+        assert "result path collision" in str(exc)
+    else:
+        raise AssertionError("create-only finalization must reject a result collision")
+    assert result.read_text(encoding="utf-8") == "existing result bytes\n"
+    assert product.read_text(encoding="utf-8") == "unchanged product bytes\n"
+    print("PASS create-only collision preserves existing result and product bytes")
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

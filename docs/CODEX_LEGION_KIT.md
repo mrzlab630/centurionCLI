@@ -21,8 +21,8 @@ This 2026-07-09 baseline is sanitized from read-only local checks. Do not copy
 `~/.codex/config.toml`, raw memories, provider credentials, permissions state,
 or trusted project lists into this repository.
 
-- `codex --version` reported `codex-cli 0.142.5`.
-- Default model: `gpt-5.5`.
+- `codex --version` reported `codex-cli 0.146.0`.
+- Default model: `gpt-5.6-sol`.
 - Model provider: `cliproxyapi`.
 - Reasoning effort: `xhigh`.
 - Personality: `pragmatic`.

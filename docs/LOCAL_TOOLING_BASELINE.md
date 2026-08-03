@@ -20,12 +20,12 @@ The machine-readable sanitized snapshot is
 - Install directory: `/home/mrz/.hermes/hermes-agent`.
 - Revision summary: upstream `8e734810`, local `08058889`, with one carried commit.
 - Runtime stack: Python `3.11.15`, OpenAI SDK `2.24.0`.
-- Default model: `gpt-5.5`.
+- Default model: `gpt-5.6-sol`.
 - Provider: `custom:cliproxyapi`.
 - Local proxy: `http://127.0.0.1:8317/v1`.
 - API mode: `codex_responses`.
 - Context length: `256000`.
-- Auxiliary routes for vision, web extract, compression, skills hub, approval, MCP, title generation, TTS audio tags, triage specifier, kanban decomposer, profile describer, curator, and monitor follow the same sanitized `gpt-5.5` local proxy pattern where configured.
+- Auxiliary routes for vision, web extract, compression, skills hub, approval, MCP, title generation, TTS audio tags, triage specifier, kanban decomposer, profile describer, curator, and monitor follow the same sanitized `gpt-5.6-sol` local proxy pattern where configured.
 - Browser baseline: Camofox `auto_start = true`, `managed_persistence = false`, `adopt_existing_tab = false`, `rewrite_loopback_urls = false`, loopback host alias `host.docker.internal`.
 - Web baseline: `web.backend = brave-free`, `web.extract_backend = native`.
 - Enabled plugins: `image_gen/cliproxy`, `video_gen/cliproxy`.
@@ -39,8 +39,8 @@ plugins, hooks, or MCP server config as part of this baseline refresh.
 
 ## Codex CLI
 
-- Version: `codex-cli 0.142.5`.
-- Default model: `gpt-5.5`.
+- Version: `codex-cli 0.146.0`.
+- Default model: `gpt-5.6-sol`.
 - Model provider: `cliproxyapi`.
 - Reasoning effort: `xhigh`.
 - Personality: `pragmatic`.
@@ -58,13 +58,13 @@ permissions state, trusted projects, or other private config state.
 ## Claude Code
 
 - Version: `2.1.204 (Claude Code)`.
-- Default model baseline: `claude-opus-4-8`.
+- Default model baseline: `claude-opus-5`.
 - Settings summary: effort level and dangerous-mode prompt controls are present; raw settings are not copied.
 - MCP servers observed in sanitized settings: solanaMcp, brave-search, context7, playwright, sequential-thinking, memoria, github, and serena where present in host-level Claude JSON.
 - Installed `~/.claude/skills` entries include `centurion-legion` plus 37 Legionaries: aedilis, aleator, architect, artifex, augur, capabilities, censor, coder, context-optimizer, documenter, error-handler, evocate-ad-opus, git-master, glossator, haruspex, indagator, ludifex, mercator, nomenclator, orator, orchestrator, pictor, planner, pontifex, praeco, praemonitor, prompt-engineer, quaestor, refactorer, researcher, reviewer, security, sicarius, skill-quartermaster, tabularius, tester, velites.
 - `~/.claude/plugins` exists with installed plugin metadata.
 - `~/.claude/agents` absent in the sanitized baseline.
-- Non-interactive proxy defaults: `ANTHROPIC_BASE_URL=http://127.0.0.1:8317`, placeholder `ANTHROPIC_API_KEY`, default opus `claude-opus-4-8`, default sonnet `claude-sonnet-4-6`, default haiku `claude-haiku-4-5-20251001`, `NO_PROXY=127.0.0.1,localhost`.
+- Non-interactive proxy defaults: `ANTHROPIC_BASE_URL=http://127.0.0.1:8317`, placeholder `ANTHROPIC_API_KEY`, default opus `claude-opus-5`, default sonnet `claude-sonnet-5`, default haiku `claude-haiku-4-5-20251001`, `NO_PROXY=127.0.0.1,localhost`.
 
 Do not commit raw Claude settings, OAuth state, permission allowlists, project
 history, credentials, or machine identifiers.

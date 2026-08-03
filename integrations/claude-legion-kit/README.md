@@ -10,7 +10,7 @@ This kit installs a Claude Code plugin with one CENTURION entry skill, 37 Legion
 
 - Sanitized baseline date: 2026-07-09. Raw Claude settings, OAuth state, credentials, project history, permission allowlists, and machine identifiers are intentionally not copied into this repository.
 - Claude CLI: `2.1.204 (Claude Code)`.
-- Default model baseline: `claude-opus-4-8`.
+- Default model baseline: `claude-opus-5`.
 - Local model access uses the proxy default `http://127.0.0.1:8317`; non-interactive shells may not inherit this from `~/.bashrc` because that file returns early when not interactive.
 - Native control surfaces confirmed by `claude --help`: `--agent`, `--agents`, `--allowedTools`, `--disallowedTools`, `--tools`, `--permission-mode`, `--mcp-config`, `--strict-mcp-config`, `--plugin-dir`, `--settings`, `--system-prompt`, `--json-schema`, `--safe-mode`, and `--bare`.
 - Claude Code supports plugin scaffolding and validation via `claude plugin init` and `claude plugin validate`.
@@ -18,7 +18,7 @@ This kit installs a Claude Code plugin with one CENTURION entry skill, 37 Legion
 - MCP servers observed in sanitized settings include solanaMcp, brave-search, context7, playwright, sequential-thinking, memoria, github, and serena where present in host-level Claude JSON.
 - `~/.claude/plugins` exists with installed plugin metadata; raw registry details are not copied.
 - No `~/.claude/agents` directory was present in the sanitized baseline.
-- Non-interactive proxy defaults remain `ANTHROPIC_BASE_URL=http://127.0.0.1:8317`, placeholder `ANTHROPIC_API_KEY`, default opus `claude-opus-4-8`, default sonnet `claude-sonnet-4-6`, default haiku `claude-haiku-4-5-20251001`, and `NO_PROXY=127.0.0.1,localhost`.
+- Non-interactive proxy defaults remain `ANTHROPIC_BASE_URL=http://127.0.0.1:8317`, placeholder `ANTHROPIC_API_KEY`, default opus `claude-opus-5`, default sonnet `claude-sonnet-5`, default haiku `claude-haiku-4-5-20251001`, and `NO_PROXY=127.0.0.1,localhost`.
 
 Secrets were not copied into this kit. The installer does not edit `~/.claude/settings.json`, `~/.claude/settings.local.json`, or `~/.claude.json`.
 
@@ -32,7 +32,7 @@ Secrets were not copied into this kit. The installer does not edit `~/.claude/se
 - `scripts/claude-order-guard.mjs`: snapshot and verify guard for bounded Claude execution.
 - `scripts/external-skill-scan.mjs`: GUARDIAN scanner for external skill/plugin candidates.
 - `scripts/frontend-sweep-plan.mjs`: TESTER-owned frontend acceptance sweep planner.
-- `plugin/references/opus-4-8-profile.md`: compact Opus 4.8 operating profile for controller prompts.
+- `plugin/references/opus-5-profile.md`: compact Opus 5 operating profile for controller prompts.
 - `installer/install.mjs`: installs the plugin and optionally syncs canonical repository skills to `~/.claude/skills`.
 
 ## Quick Start
@@ -130,9 +130,9 @@ For repository-only validation, use:
 node ./scripts/claude-surface-audit.mjs --repo-only
 ```
 
-## Opus 4.8 Workflow Guards
+## Opus 5 Workflow Guards
 
-Opus 4.8 is treated as a stronger executor, not a reason to change the Legion shape. Keep one owner per task and load references on demand.
+Opus 5 is treated as a stronger executor, not a reason to change the Legion shape. Keep one owner per task and load references on demand.
 
 - CURATOR builds a compact dossier from `skills/context-optimizer/references/opus-dossier.md`; large context is reserve capacity, not the default prompt style.
 - TESTER owns frontend acceptance and can plan a browser sweep with `npm run plan:frontend-sweep -- --workspace <dir> --base-url <url>`; implementation fixes go to PICTOR, UX ambiguity to AEDILIS, copy issues to NOMENCLATOR, SEO issues to INDAGATOR, and security findings to GUARDIAN.

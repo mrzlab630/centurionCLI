@@ -7,8 +7,8 @@ This kit keeps Codex aligned with the current Legion structure without adding mo
 ## Local Baseline
 
 - Sanitized baseline date: 2026-07-09. Raw `~/.codex/config.toml`, provider credentials, memories, permission state, and trusted project lists are intentionally not copied into this repository.
-- Codex CLI observed on this workstation: `codex-cli 0.142.5`.
-- Current Codex model baseline: `gpt-5.5` with provider `cliproxyapi`, `model_reasoning_effort = "xhigh"`, and `personality = "pragmatic"`.
+- Codex CLI observed on this workstation: `codex-cli 0.146.0`.
+- Current Codex model baseline: `gpt-5.6-sol` with provider `cliproxyapi`, `model_reasoning_effort = "xhigh"`, and `personality = "pragmatic"`.
 - Local provider endpoint: `http://127.0.0.1:8317/v1` using the Responses wire API.
 - `features.memories = true` is enabled; memories remain a recall layer and are not copied into the repo.
 - `features.multi_agent_v2.enabled = true` is enabled with spawn-agent metadata hidden.
@@ -68,7 +68,7 @@ Run those commands sequentially. Parallel Camofox tab creation can time out on t
 ## Guard Philosophy
 
 - One task still has one primary Legionary owner.
-- Codex `gpt-5.5` is treated as a stronger executor, not permission to broaden roles.
+- Codex `gpt-5.6-sol` is treated as a stronger executor, not permission to broaden roles.
 - Large context is reserve capacity; CURATOR keeps dossiers compact.
 - Subagents are for bounded read-heavy work and review lanes, not uncontrolled write fan-out.
 - Hooks and plugins are power tools. They must be audited before being trusted in broad workflows.
@@ -90,6 +90,6 @@ Expected green audit on this host:
 - repository canonical skills: `37`;
 - active `~/.agents/skills`: `37`;
 - active skill drift dirs: `0`;
-- Codex model: `gpt-5.5`;
+- Codex model: `gpt-5.6-sol`;
 - Codex custom agents: low or zero unless intentionally configured;
 - warnings may appear for inline secret-like config values or broad MCP servers; these are security visibility signals, not automatic blockers unless `--strict-secrets` is used.

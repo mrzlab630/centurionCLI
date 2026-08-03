@@ -34,14 +34,14 @@
       "openaiSdk": "2.24.0"
     },
     "model": {
-      "default": "gpt-5.5",
+      "default": "gpt-5.6-sol",
       "provider": "custom:cliproxyapi",
       "base_url": "http://127.0.0.1:8317/v1",
       "api_mode": "codex_responses",
       "context_length": 256000
     },
     "auxiliaryRoutes": {
-      "summary": "vision, web_extract, compression, skills_hub, approval, mcp, title_generation, tts_audio_tags, triage_specifier, kanban_decomposer, profile_describer, curator, and monitor use the same sanitized gpt-5.5 local proxy pattern where configured",
+      "summary": "vision, web_extract, compression, skills_hub, approval, mcp, title_generation, tts_audio_tags, triage_specifier, kanban_decomposer, profile_describer, curator, and monitor use the same sanitized gpt-5.6-sol local proxy pattern where configured",
       "redactedKeyRoutes": ["background_review"]
     },
     "browser": {
@@ -102,8 +102,8 @@
     }
   },
   "codex": {
-    "version": "codex-cli 0.142.5",
-    "model": "gpt-5.5",
+    "version": "codex-cli 0.146.0",
+    "model": "gpt-5.6-sol",
     "modelProvider": "cliproxyapi",
     "modelReasoningEffort": "xhigh",
     "personality": "pragmatic",
@@ -125,7 +125,7 @@
   },
   "claude": {
     "version": "2.1.204 (Claude Code)",
-    "defaultModel": "claude-opus-4-8",
+    "defaultModel": "claude-opus-5",
     "settingsSummary": {
       "effortLevelPresent": true,
       "skipDangerousModePermissionPromptPresent": true,
@@ -189,8 +189,8 @@
     "nonInteractiveProxyEnvExample": {
       "ANTHROPIC_BASE_URL": "http://127.0.0.1:8317",
       "ANTHROPIC_API_KEY": "placeholder proxy",
-      "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-8",
-      "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-6",
+      "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-5",
+      "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-5",
       "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5-20251001",
       "NO_PROXY": "127.0.0.1,localhost"
     }

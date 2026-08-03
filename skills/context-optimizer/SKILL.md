@@ -235,9 +235,9 @@ For detailed dump/restoration templates, load `REFERENCE.md` on demand.
 
 ## Smart Context Loading
 
-### Opus 4.8 Dossier Mode
+### Opus 5 Dossier Mode
 
-When Claude Opus 4.8 could accept a very large context, still load
+When Claude Opus 5 could accept a very large context, still load
 `references/opus-dossier.md` first and build a compact dossier. Use the large
 window as a reserve for exact source excerpts, not as permission to paste an
 entire repo or every reference into the prompt.

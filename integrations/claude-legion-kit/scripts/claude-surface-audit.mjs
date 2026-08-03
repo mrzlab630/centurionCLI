@@ -26,7 +26,7 @@ const REQUIRED_AGENT_PHRASES = [
 const REQUIRED_PROTOCOL_FILES = [
   'scripts/external-skill-scan.mjs',
   'scripts/frontend-sweep-plan.mjs',
-  'plugin/references/opus-4-8-profile.md',
+  'plugin/references/opus-5-profile.md',
   '../../skills/tester/references/frontend-sweep.md',
   '../../skills/reviewer/references/completion-verification.md',
   '../../skills/security/references/external-skill-security.md',
@@ -39,7 +39,7 @@ const REQUIRED_PROTOCOL_LINKS = [
   { file: '../../skills/security/SKILL.md', phrase: 'external-skill-scan.mjs' },
   { file: '../../skills/skill-quartermaster/SKILL.md', phrase: 'external-skill-scan.mjs' },
   { file: '../../skills/context-optimizer/SKILL.md', phrase: 'references/opus-dossier.md' },
-  { file: 'plugin/SKILL.md', phrase: 'references/opus-4-8-profile.md' }
+  { file: 'plugin/SKILL.md', phrase: 'references/opus-5-profile.md' }
 ];
 
 const ROUTING_EVALS = [
@@ -254,7 +254,7 @@ function auditRepo(options, report) {
 
   for (const relative of REQUIRED_PROTOCOL_FILES) {
     const file = path.resolve(KIT_ROOT, relative);
-    if (!fs.existsSync(file)) addFailure(report, 'required Opus 4.8 protocol file missing', { file: normalizeSlash(path.relative(REPO_ROOT, file)) });
+    if (!fs.existsSync(file)) addFailure(report, 'required Opus 5 protocol file missing', { file: normalizeSlash(path.relative(REPO_ROOT, file)) });
   }
 
   for (const item of REQUIRED_PROTOCOL_LINKS) {

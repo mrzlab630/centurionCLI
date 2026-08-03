@@ -1,6 +1,6 @@
-# Claude Opus 4.8 Profile
+# Claude Opus 5 Profile
 
-Use this reference when routing Claude Code work to Opus 4.8.
+Use this reference when routing Claude Code work to Opus 5.
 
 ## Strengths To Exploit
 
@@ -17,7 +17,7 @@ Use this reference when routing Claude Code work to Opus 4.8.
 - Use explicit allowed files, non-goals, forbidden patterns, proof commands, and timeout.
 - Prefer stdin prompts for long orders so variadic CLI options do not consume the prompt.
 - For coding/high-autonomy work, prefer high or xhigh effort when available in the active surface.
-- Do not set manual extended thinking budgets for Opus 4.8; use adaptive thinking/effort controls instead.
+- Do not set manual extended thinking budgets for Opus 5; use adaptive thinking/effort controls instead.
 - Do not rely on stdout. Accept only guard output, proof commands, and direct artifact inspection.
 
 ## Context Discipline

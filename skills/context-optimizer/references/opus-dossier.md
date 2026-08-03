@@ -1,6 +1,6 @@
-# Opus 4.8 Dossier Mode
+# Opus 5 Dossier Mode
 
-Use this reference when a task is large enough to tempt loading many files into Claude Opus 4.8.
+Use this reference when a task is large enough to tempt loading many files into Claude Opus 5.
 
 ## Rule
 

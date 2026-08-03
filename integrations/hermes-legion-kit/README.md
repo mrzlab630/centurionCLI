@@ -1,8 +1,8 @@
 # Hermes Legion Kit
 
-CENTURION/Aquila Team Lead skills and lean skill bundles for Hermes Agent (kit version 0.3.0).
+CENTURION/Aquila Team Lead skills and lean skill bundles for Hermes Agent (kit version 0.4.0).
 
-This kit versions the local Hermes additions that were first installed under `~/.hermes`: four Aquila skills and three slash-command bundles. It does not import ECC runtime code, enable plugins, change MCP servers, or edit `SOUL.md`.
+This kit versions the local Hermes additions that were first installed under `~/.hermes`: five Aquila skills and three slash-command bundles. It does not import ECC runtime code, enable plugins, change MCP servers, or edit `SOUL.md`.
 
 The reviewed adaptive routing policy is available as the manual note
 `overrides/ADAPTIVE_MODEL_ROUTING_POLICY.md`. It is reference-only: the
@@ -12,6 +12,7 @@ and MCP policy files.
 ## What It Installs
 
 - `skills/autonomous-ai-agents/aquila-team-orchestration`: Team Lead routing for codex, claude, agy, Hermes `delegate_task`, and Kanban with one owner per task.
+- `skills/autonomous-ai-agents/agent-contract-runner`: portable AGENT_ORDER_JSON_V1 validation, fail-closed V0-V3 routing, append-only attempt ledger, canonical result building, and offline regressions.
 - `skills/autonomous-ai-agents/aquila-harness-audit`: Hermes surface audit for SOUL, skills, bundles, plugins, MCP, contracts, context, and security gates.
 - `skills/autonomous-ai-agents/aquila-executor-eval`: repeatable executor evals for codex, claude, agy, and `delegate_task` using deterministic proof.
 - `skills/autonomous-ai-agents/aquila-self-debug`: contained recovery workflow for executor failures, adapter noise, missing artifacts, and loops.
@@ -19,6 +20,7 @@ and MCP policy files.
 - `skill-bundles/aquila-harness-audit.yaml`: lean `/aquila-harness-audit` entrypoint.
 - `skill-bundles/aquila-executor-eval.yaml`: lean `/aquila-executor-eval` entrypoint.
 - `overrides/ADAPTIVE_MODEL_ROUTING_POLICY.md`: concise reviewed model/effort routing invariants; manual and not automatically installed.
+- `overrides/AQUILA_SOUL_OVERRIDES.md`: manual V0-V3 SOUL policy note; never installed or patched into `SOUL.md`.
 
 ## Quick Start
 
@@ -65,7 +67,7 @@ node ./installer/install.mjs --include-overrides
 - Local Hermes home: `/home/mrz/.hermes`.
 - Install directory: `/home/mrz/.hermes/hermes-agent`; upstream revision `8e734810`, local revision `08058889` with one carried commit.
 - Runtime stack: Python `3.11.15`, OpenAI SDK `2.24.0`.
-- Main model: `gpt-5.5` through `custom:cliproxyapi` at `http://127.0.0.1:8317/v1`, `api_mode = codex_responses`, context length `256000`.
+- Main model: `gpt-5.6-sol` through `custom:cliproxyapi` at `http://127.0.0.1:8317/v1`, `api_mode = codex_responses`, context length `256000`.
 - Web baseline: `web.backend = brave-free`, `web.extract_backend = native`.
 - Browser baseline: Camofox `auto_start = true`, `managed_persistence = false`, `adopt_existing_tab = false`, `rewrite_loopback_urls = false`, loopback alias `host.docker.internal`.
 - Enabled plugins observed: `image_gen/cliproxy` and `video_gen/cliproxy`.
@@ -84,7 +86,9 @@ node ./installer/install.mjs --dry-run
 npm run audit:local
 ```
 
-The smoke check verifies all four skills, all three lean bundles, trigger-bearing descriptions, absence of direct ECC clone references, no remote-shell install pattern, JavaScript syntax, deterministic audit script syntax, and installer dry-run behavior.
+The smoke check verifies all five skills, all three lean bundles, trigger-bearing descriptions, absence of direct ECC clone references, no remote-shell install pattern, JavaScript syntax, deterministic audit script syntax, and installer dry-run behavior. It also installs into an isolated temporary HOME, checks the packaged routing reference and runner scripts, preserves the Opus 5 routing assertions, and runs all three packaged Python regressions without touching the live Hermes home.
+
+The packaged contract-runner Python scripts require the existing Python `jsonschema` runtime. The kit does not install or declare that dependency in its JavaScript package manifests. Result-schema lookup uses an explicit `--schema`/library argument first, then `AQUILA_AGENT_RESULT_SCHEMA`, the packaged `references/agent-result.schema.json`, `HERMES_HOME/contracts/agent-result.schema.json`, and finally `~/.hermes/contracts/agent-result.schema.json`.
 
 `npm run audit:local` is read-only. It checks the local Hermes home for stale model/profile ambiguity, missing runtime-model SOUL rule, enabled `npx -y` MCP servers, and oversized `SKILL.md` files that should be split into `references/`.
 

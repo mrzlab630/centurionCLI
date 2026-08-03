@@ -14,7 +14,7 @@ const REPO_ROOT = path.resolve(KIT_ROOT, '..', '..');
 const CANONICAL_SKILLS = path.join(REPO_ROOT, 'skills');
 
 const REQUIRED_CONFIG = [
-  { key: 'model', value: 'gpt-5.5', severity: 'failure' },
+  { key: 'model', value: 'gpt-5.6-sol', severity: 'failure' },
   { key: 'model_reasoning_effort', value: 'xhigh', severity: 'warning' }
 ];
 

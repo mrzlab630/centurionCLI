@@ -33,18 +33,18 @@ function smokeAudit() {
   assert(full.repo.canonicalSkillCount === EXPECTED_SKILL_COUNT, 'full audit canonical count mismatch');
   assert(full.activeSkills.count === EXPECTED_SKILL_COUNT, 'active skill count mismatch');
   assert(full.activeSkills.drift.length === 0, 'active ~/.agents skill drift must be zero');
-  assert(full.codex.model === 'gpt-5.5', 'Codex model must be gpt-5.5');
+  assert(full.codex.model === 'gpt-5.6-sol', 'Codex model must be gpt-5.6-sol');
 }
 
 function smokeTomlParsing() {
   const parsed = parseTomlLite(`
-model = "gpt-5.5" # keep this comment outside the value
+model = "gpt-5.6-sol" # keep this comment outside the value
 description = "keep # inside double quotes"
 literal = 'keep # inside single quotes'
 [features]
 memories = true # trailing comment
 `);
-  assert(parsed.model === 'gpt-5.5', 'TOML parser should strip trailing comments');
+  assert(parsed.model === 'gpt-5.6-sol', 'TOML parser should strip trailing comments');
   assert(parsed.description === 'keep # inside double quotes', 'TOML parser should preserve # in double-quoted values');
   assert(parsed.literal === 'keep # inside single quotes', 'TOML parser should preserve # in single-quoted values');
   assert(parsed.features.memories === true, 'TOML parser should keep nested booleans with trailing comments');

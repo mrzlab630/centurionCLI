@@ -1,6 +1,6 @@
 # Hermes Legion Kit
 
-`integrations/hermes-legion-kit` (version 0.3.0) is the versioned source for the local Hermes/Aquila Team Lead pack.
+`integrations/hermes-legion-kit` (version 0.4.0) is the versioned source for the local Hermes/Aquila Team Lead pack.
 
 ## Purpose
 
@@ -11,12 +11,14 @@ The pack is designed for Aquila managing `codex`, `claude`, `agy`, Hermes `deleg
 ## Installed Surface
 
 - `aquila-team-orchestration`: routing, one owner per task, merge gates, result artifacts, proof acceptance.
+- `agent-contract-runner`: portable contract validation, V0-V3 review routing, append-only attempt-ledger handling, canonical result builder, and offline regressions.
 - `aquila-harness-audit`: Hermes surface audit for SOUL, skills, bundles, plugins, MCP, contracts, context, and security.
 - `scripts/harness-audit.mjs`: read-only deterministic local audit for runtime model ambiguity, `npx -y` MCP supply-chain warnings, oversized `SKILL.md` files, and the SOUL runtime-model rule.
 - `overrides/skills/research/research-paper-writing/SKILL.md`: compact optional override that keeps the research-paper skill under the Hermes size limit while routing detail to `references/`.
 - `overrides/SOUL_RUNTIME_MODEL_RULE.md`: reviewed SOUL rule text for runtime-model precedence; not applied by the default installer.
 - `overrides/SOUL_CLAUDE_ROLE_RULE.md`: reviewed SOUL rule text for Claude/Codex routing, independent review, and Aquila final judgment; not applied by the default installer.
 - `overrides/ADAPTIVE_MODEL_ROUTING_POLICY.md`: reviewed adaptive model/effort policy; manual reference only and not automatically installed.
+- `overrides/AQUILA_SOUL_OVERRIDES.md`: manual V0-V3 cutover note; the installer never patches `SOUL.md`.
 - `aquila-executor-eval`: repeatable executor benchmarks with pass@1/pass@3, scope, proof, time, and correction metrics.
 - `aquila-self-debug`: recovery loop for executor failures, adapter noise, missing artifacts, and repeated retry loops.
 - `/aquila-delivery`: lean delivery bundle.
@@ -57,9 +59,9 @@ secret-bearing home config into this repository.
 - Install directory: `/home/mrz/.hermes/hermes-agent`.
 - Upstream/local revisions: upstream `8e734810`, local `08058889` with one carried commit.
 - Runtime stack: Python `3.11.15`, OpenAI SDK `2.24.0`.
-- Main model: `gpt-5.5` through provider `custom:cliproxyapi`.
+- Main model: `gpt-5.6-sol` through provider `custom:cliproxyapi`.
 - Local proxy: `http://127.0.0.1:8317/v1` with `codex_responses` API mode and `256000` context length.
-- Auxiliary routes for vision, web extract, compression, skills hub, approvals, MCP, title generation, TTS audio tags, triage, kanban decomposition, profile description, curator, and monitor use the same sanitized `gpt-5.5` local proxy pattern where configured.
+- Auxiliary routes for vision, web extract, compression, skills hub, approvals, MCP, title generation, TTS audio tags, triage, kanban decomposition, profile description, curator, and monitor use the same sanitized `gpt-5.6-sol` local proxy pattern where configured.
 - Browser baseline: Camofox `auto_start = true`, `managed_persistence = false`, `adopt_existing_tab = false`, `rewrite_loopback_urls = false`, and loopback host alias `host.docker.internal`.
 - Web baseline: `web.backend = brave-free`, `web.extract_backend = native`.
 - Enabled plugin families observed: `image_gen/cliproxy` and `video_gen/cliproxy`.

@@ -21,7 +21,7 @@ OAuth state, credentials, raw permission allowlists, project history, or machine
 identifiers into this repository.
 
 - `claude --version` reported `2.1.204 (Claude Code)`.
-- Default model baseline: `claude-opus-4-8`.
+- Default model baseline: `claude-opus-5`.
 - Settings contain effort and dangerous-mode prompt controls, but raw values are intentionally not copied.
 - `claude --help` confirmed `--agent`, `--agents`, `--allowedTools`, `--disallowedTools`, `--tools`, `--permission-mode`, `--mcp-config`, `--strict-mcp-config`, `--plugin-dir`, `--settings`, `--system-prompt`, `--json-schema`, `--safe-mode`, and `--bare`.
 - `claude agents --help` confirmed default model, effort, permission mode, settings, MCP config, plugin dir, and strict MCP config controls for dispatched sessions.
@@ -31,7 +31,7 @@ identifiers into this repository.
 - Installed `~/.claude/skills` entries include `centurion-legion` plus 37 Legionaries: aedilis, aleator, architect, artifex, augur, capabilities, censor, coder, context-optimizer, documenter, error-handler, evocate-ad-opus, git-master, glossator, haruspex, indagator, ludifex, mercator, nomenclator, orator, orchestrator, pictor, planner, pontifex, praeco, praemonitor, prompt-engineer, quaestor, refactorer, researcher, reviewer, security, sicarius, skill-quartermaster, tabularius, tester, and velites.
 - `~/.claude/plugins` exists with installed plugin metadata; raw plugin registry details are not copied.
 - No `~/.claude/agents` directory was present in the sanitized baseline.
-- Non-interactive local proxy defaults remain: `ANTHROPIC_BASE_URL=http://127.0.0.1:8317`, placeholder `ANTHROPIC_API_KEY`, default opus `claude-opus-4-8`, default sonnet `claude-sonnet-4-6`, default haiku `claude-haiku-4-5-20251001`, and `NO_PROXY=127.0.0.1,localhost`.
+- Non-interactive local proxy defaults remain: `ANTHROPIC_BASE_URL=http://127.0.0.1:8317`, placeholder `ANTHROPIC_API_KEY`, default opus `claude-opus-5`, default sonnet `claude-sonnet-5`, default haiku `claude-haiku-4-5-20251001`, and `NO_PROXY=127.0.0.1,localhost`.
 - If print-mode returns `Not logged in`, treat that as a missing proxy environment first.
 
 ## Design
@@ -43,7 +43,7 @@ The plugin uses two layers:
 
 This avoids duplicate ownership. It also lets Claude Code use its native `--agent <slug>` control when a controller wants one owner for a session.
 
-Opus 4.8 does not change the ownership model. The kit uses it through compact references and deterministic guards: CURATOR prepares dossiers, TESTER plans frontend acceptance sweeps, GUARDIAN scans external skill candidates, and REVIEWER verifies completion claims before acceptance.
+Opus 5 does not change the ownership model. The kit uses it through compact references and deterministic guards: CURATOR prepares dossiers, TESTER plans frontend acceptance sweeps, GUARDIAN scans external skill candidates, and REVIEWER verifies completion claims before acceptance.
 
 ## Obedience Strategy
 

@@ -29,7 +29,7 @@ Claude Code gives this plugin native control surfaces:
 
 Prompting alone is not an obedience guarantee. For risky or implementation work, combine prompt constraints with tool restrictions, permission mode, result schema, and owner-side verification.
 
-For Claude Opus 4.8, use `references/opus-4-8-profile.md` as the compact model profile. Do not use the large context window as a default; pass a CURATOR-style dossier and load exact references only when the owner needs them.
+For Claude Opus 5, use `references/opus-5-profile.md` as the compact model profile. Do not use the large context window as a default; pass a CURATOR-style dossier and load exact references only when the owner needs them.
 
 ## Owner Selection
 

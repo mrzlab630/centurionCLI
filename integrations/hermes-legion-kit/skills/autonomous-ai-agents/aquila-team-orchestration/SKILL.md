@@ -49,6 +49,19 @@ need may raise but never lower the applicable floor. No executor self-approves;
 Aquila retains final judgment. See the manual, non-installed
 `overrides/ADAPTIVE_MODEL_ROUTING_POLICY.md` for the complete invariant set.
 
+## Atomic V0-V3 Routing Cutover
+
+For orders created at or after `2026-08-03T11:00:42Z`, add exactly one compact `AQUILA_ROUTING_JSON_V1:` item to `notesForExecutor`. It records objective and attempt identity, task class, complexity, risk, ambiguity, reversibility, evidence need, executor/model/effort, execution and verification profiles, reviewer, confidence, and reasons. Deterministic pre-delegation routing chooses V3 first, then V2, V1, and V0 only when every trust predicate is true.
+
+| Profile | Terminal reviewer | Rule |
+| --- | --- | --- |
+| V0 | none | Deterministic proof only; low-risk, local, fully observable work. |
+| V1 | `gpt-5.6-sol` | Recoverable work with a meaningful proof gap. |
+| V2 | `claude-opus-5` | Medium consequence, shared contract, ambiguity, architecture, or hidden-failure risk. |
+| V3 | `claude-opus-5` plus specialist/Boss gate | Security, auth, secrets, money, production, dependencies, public endpoints, or infrastructure. |
+
+The terminal review never delegates a review of itself. After its model gate, Aquila performs only deterministic identity, schema, hash, path, artifact, and proof closure. Record escaped V0 defects and Sol misses in the append-only attempt ledger; the history promotions in the policy elevate future task-class routes without retrospective review of unrelated objectives. See `references/review-routing-ladder-and-cost-control.md` and the installed `agent-contract-runner` skill for the enforceable runner and regressions.
+
 ## Board/Card Contract
 
 For any multi-agent or durable task, record these fields in the order, Kanban card, or handoff:
