@@ -1,7 +1,7 @@
 ---
 name: aquila-team-orchestration
 description: Aquila Team Lead workflow for routing codex, claude, agy, Hermes delegate_task, and Kanban work with one owner per task, explicit artifacts, merge gates, and evidence-based acceptance. Use when Aquila manages multi-agent delivery, delegates implementation, reviews executor results, or coordinates durable Kanban handoffs.
-version: 1.0.0
+version: 1.1.0
 author: Aquila/CENTURION
 license: MIT
 platforms: [linux, macos]
@@ -36,6 +36,18 @@ One task has one accountable owner. If the owner lacks a needed capability, they
 | UI alternatives, UX/content drafts, fast frontend prototypes | agy | Narrow scope, exact paths, browser/layout proof for UI, mandatory `AGY_RESULT.json`. |
 | Small isolated parallel reasoning | Hermes `delegate_task` | Good for bounded research/review. Require structured final output mappable to AGENT_RESULT_JSON_V1. |
 | Durable multi-step work, restart-safe handoffs, human interjection | Hermes Kanban | Use explicit board/card state and owner. |
+
+## Adaptive Model and Effort Routing
+
+Choose the model and reasoning effort independently for every DAG node. Use
+Luna for mechanical/read-only/high-volume low-complexity work, Terra as the
+routine bounded implementation default, and Sol for high complexity, material
+ambiguity, cross-service/architecture/security, hard debugging, or
+long-horizon reasoning. The effort enum is exactly
+`none|low|medium|high|xhigh|max`; risk, ambiguity, reversibility, and evidence
+need may raise but never lower the applicable floor. No executor self-approves;
+Aquila retains final judgment. See the manual, non-installed
+`overrides/ADAPTIVE_MODEL_ROUTING_POLICY.md` for the complete invariant set.
 
 ## Board/Card Contract
 

@@ -8,3 +8,7 @@ Runtime model evidence overrides stale profile summaries for the current session
 ```
 
 The default installer does not patch `SOUL.md`; apply this rule manually or through a separately reviewed control-plane edit.
+
+The reviewed adaptive-routing policy is recorded in
+`overrides/ADAPTIVE_MODEL_ROUTING_POLICY.md`. It is a manual repository note;
+the installer does not apply it to `SOUL.md`, config, plugins, hooks, or MCP.

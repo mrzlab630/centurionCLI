@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 
 const KIT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const SKILL_SIZE_LIMIT = 100_000;
+const PACKAGE_MANIFEST = path.join(KIT_ROOT, 'package.json');
 const REQUIRED_SKILLS = [
   'aquila-team-orchestration',
   'aquila-harness-audit',
@@ -55,6 +56,12 @@ function assertSkill(skill) {
     assert(/hermes security audit/.test(text), `${skill} missing security audit command`);
     assert(/harness-audit\.mjs/.test(text), `${skill} missing deterministic audit script reference`);
   }
+  if (skill === 'aquila-team-orchestration') {
+    assert(/^version:\s*1\.1\.0$/m.test(text), `${skill} version must be 1.1.0`);
+    assert(/^## Adaptive Model and Effort Routing$/m.test(text), `${skill} missing adaptive model and effort routing section`);
+    assert(text.includes('`none|low|medium|high|xhigh|max`'), `${skill} missing exact effort enum`);
+    assert(text.includes('overrides/ADAPTIVE_MODEL_ROUTING_POLICY.md'), `${skill} missing adaptive policy manual reference`);
+  }
 }
 
 function assertBundle(fileName, expectedSkills) {
@@ -97,6 +104,7 @@ function assertOverrides() {
   const researchSkill = path.join(KIT_ROOT, 'overrides', 'skills', 'research', 'research-paper-writing', 'SKILL.md');
   const soulRule = path.join(KIT_ROOT, 'overrides', 'SOUL_RUNTIME_MODEL_RULE.md');
   const claudeRoleRule = path.join(KIT_ROOT, 'overrides', 'SOUL_CLAUDE_ROLE_RULE.md');
+  const adaptivePolicy = path.join(KIT_ROOT, 'overrides', 'ADAPTIVE_MODEL_ROUTING_POLICY.md');
   assert(fs.existsSync(researchSkill), 'missing research-paper-writing override');
   assert(fs.statSync(researchSkill).size < SKILL_SIZE_LIMIT, 'research-paper-writing override exceeds skill size limit');
   assert(/references\/experiment-patterns\.md/.test(readText(researchSkill)), 'research override missing reference routing');
@@ -113,9 +121,32 @@ function assertOverrides() {
   ]) {
     assert(claudeRoleText.includes(marker), `SOUL Claude role rule note missing marker: ${marker}`);
   }
+  assert(fs.existsSync(adaptivePolicy), 'missing adaptive model routing policy note');
+  const policyText = readText(adaptivePolicy);
+  for (const marker of [
+    'gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol',
+    'none|low|medium|high|xhigh|max',
+    'independently for every DAG node', 'Aquila retains final judgment',
+    'No executor self-approves', 'not automatically installed',
+    'Runtime/launcher evidence overrides stale static summaries',
+    'Claude Opus 5',
+    'Terra, not Sol, is the routine bounded implementation default',
+    'can raise but never lower',
+    'prose does not activate effort'
+  ]) assert(policyText.includes(marker), `adaptive policy missing marker: ${marker}`);
+  assert(/Codex\s+personality remains a valid CLI enum/.test(policyText), 'adaptive policy missing marker: Codex personality remains a valid CLI enum');
+  for (const [label, text] of [['SOUL Claude role note', claudeRoleText], ['adaptive policy', policyText]]) {
+    assert(!/Claude Opus 4\.8|Sol owns routine implementation/.test(text), `${label} contains stale routing claim`);
+  }
+}
+
+function assertPackageVersion() {
+  const manifest = JSON.parse(readText(PACKAGE_MANIFEST));
+  assert(manifest.version === '0.3.0', 'package version must be 0.3.0');
 }
 
 function main() {
+  assertPackageVersion();
   for (const skill of REQUIRED_SKILLS) assertSkill(skill);
   for (const [fileName, skills] of Object.entries(REQUIRED_BUNDLES)) assertBundle(fileName, skills);
   runNodeCheck('installer/install.mjs');

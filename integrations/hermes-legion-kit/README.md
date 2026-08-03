@@ -1,8 +1,13 @@
 # Hermes Legion Kit
 
-CENTURION/Aquila Team Lead skills and lean skill bundles for Hermes Agent.
+CENTURION/Aquila Team Lead skills and lean skill bundles for Hermes Agent (kit version 0.3.0).
 
 This kit versions the local Hermes additions that were first installed under `~/.hermes`: four Aquila skills and three slash-command bundles. It does not import ECC runtime code, enable plugins, change MCP servers, or edit `SOUL.md`.
+
+The reviewed adaptive routing policy is available as the manual note
+`overrides/ADAPTIVE_MODEL_ROUTING_POLICY.md`. It is reference-only: the
+installer remains non-applying for SOUL, Codex, Claude, config, plugins, hooks,
+and MCP policy files.
 
 ## What It Installs
 
@@ -13,6 +18,7 @@ This kit versions the local Hermes additions that were first installed under `~/
 - `skill-bundles/aquila-delivery.yaml`: lean `/aquila-delivery` entrypoint.
 - `skill-bundles/aquila-harness-audit.yaml`: lean `/aquila-harness-audit` entrypoint.
 - `skill-bundles/aquila-executor-eval.yaml`: lean `/aquila-executor-eval` entrypoint.
+- `overrides/ADAPTIVE_MODEL_ROUTING_POLICY.md`: concise reviewed model/effort routing invariants; manual and not automatically installed.
 
 ## Quick Start
 
