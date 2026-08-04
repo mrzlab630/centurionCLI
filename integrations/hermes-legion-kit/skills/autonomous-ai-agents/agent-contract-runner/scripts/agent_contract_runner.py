@@ -17,6 +17,7 @@ from typing import Any
 
 from attempt_ledger import LedgerError, load_attempt_history
 from review_ladder import RoutingError, validate_order_routing
+from strict_json import StrictJSONError, strict_json_load_path
 
 
 ORDER_VERSION = "AGENT_ORDER_JSON_V1"
@@ -189,12 +190,11 @@ def append_event(events_path: Path, event: str, **payload: Any) -> None:
 
 def load_json(path: Path) -> Any:
     try:
-        with path.open("r", encoding="utf-8") as handle:
-            return json.load(handle)
+        return strict_json_load_path(path, f"JSON file {path}")
     except FileNotFoundError as exc:
         raise RunnerError(f"file not found: {path}") from exc
-    except json.JSONDecodeError as exc:
-        raise RunnerError(f"invalid JSON in {path}: {exc}") from exc
+    except StrictJSONError as exc:
+        raise RunnerError(str(exc)) from exc
 
 
 def load_routing_history() -> tuple[dict[str, Any], ...]:

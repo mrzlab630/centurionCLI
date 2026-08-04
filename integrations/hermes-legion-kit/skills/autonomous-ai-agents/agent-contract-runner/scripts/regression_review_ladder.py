@@ -123,7 +123,19 @@ def main() -> int:
     noncanonical = order_for(metadata("V1"))
     noncanonical["notesForExecutor"] = [ROUTING_PREFIX + json.dumps(metadata("V1"))]
     expect_error(noncanonical, "compact canonical")
-    print("PASS post-cutover missing, duplicate, malformed, and noncanonical metadata fail closed")
+    base_routing = json.dumps(metadata("V1"), separators=(",", ":"))
+    strict_routing = {
+        "duplicate-key": '{"objectiveId":"ambiguous",' + base_routing[1:],
+        "nan": base_routing[:-1] + ',"ambiguous":NaN}',
+        "infinity": base_routing[:-1] + ',"ambiguous":Infinity}',
+        "negative-infinity": base_routing[:-1] + ',"ambiguous":-Infinity}',
+        "overflow": base_routing[:-1] + ',"ambiguous":1e999}',
+    }
+    for raw in strict_routing.values():
+        strict_order = order_for(None)
+        strict_order["notesForExecutor"] = [ROUTING_PREFIX + raw]
+        expect_error(strict_order, "strict JSON")
+    print("PASS post-cutover missing, duplicate, malformed, noncanonical, and non-finite metadata fail closed")
 
     for profile in ("V0", "V1", "V2", "V3"):
         parsed = validate_order_routing(order_for(metadata(profile)))
@@ -255,9 +267,34 @@ def main() -> int:
     try:
         load_attempt_history(malformed_ledger)
     except LedgerError as exc:
-        assert "not valid JSON" in str(exc)
+        assert "strict JSON" in str(exc)
     else:
         raise AssertionError("malformed ledger history must fail closed")
+    base_ledger = json.dumps(ledger_row("strict-ledger"), separators=(",", ":"))
+    strict_ledger_rows = {
+        "duplicate-key": '{"orderId":"ambiguous",' + base_ledger[1:],
+        "nan": base_ledger[:-1] + ',"ambiguous":NaN}',
+        "infinity": base_ledger[:-1] + ',"ambiguous":Infinity}',
+        "negative-infinity": base_ledger[:-1] + ',"ambiguous":-Infinity}',
+        "overflow": base_ledger[:-1] + ',"ambiguous":1e999}',
+    }
+    for name, raw in strict_ledger_rows.items():
+        strict_ledger = ROOT / f"strict-{name}.jsonl"
+        strict_ledger.write_text(raw + "\n", encoding="utf-8")
+        try:
+            load_attempt_history(strict_ledger)
+        except LedgerError as exc:
+            assert "strict JSON" in str(exc)
+        else:
+            raise AssertionError(f"ledger must reject {name} JSON")
+    for value in (float("nan"), float("inf"), float("-inf")):
+        try:
+            append_attempt(ROOT / "programmatic-non-finite.jsonl", ledger_row("programmatic", durationSeconds=value))
+        except LedgerError as exc:
+            assert "durationSeconds" in str(exc)
+        else:
+            raise AssertionError("ledger must reject programmatic non-finite numeric values")
+    print("PASS ledger rejects duplicate keys, NaN, Infinity, -Infinity, 1e999, and programmatic non-finite values")
     try:
         append_attempt(ledger, ledger_row("ledger-2", attempt=3))
     except ValueError as exc:

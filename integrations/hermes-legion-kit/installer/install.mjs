@@ -7,6 +7,7 @@ import process from 'node:process';
 const KIT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const SKILL_SOURCE = path.join(KIT_ROOT, 'skills');
 const BUNDLE_SOURCE = path.join(KIT_ROOT, 'skill-bundles');
+const RUNTIME_SOURCE = path.join(KIT_ROOT, 'runtime');
 const OVERRIDES_SOURCE = path.join(KIT_ROOT, 'overrides');
 
 function parseArgs(argv) {
@@ -34,6 +35,9 @@ function copyFile(source, destination, dryRun) {
   if (dryRun) return;
   fs.mkdirSync(path.dirname(destination), { recursive: true });
   fs.copyFileSync(source, destination);
+  const normalized = source.split(path.sep).join('/');
+  const executable = normalized.includes('/runtime/bin/') || (/\/scripts\/[^/]+\.(?:py|sh)$/.test(normalized));
+  fs.chmodSync(destination, executable ? 0o755 : 0o644);
 }
 
 function copyTree(source, destination, dryRun) {
@@ -64,14 +68,17 @@ function listFiles(root) {
 function install(options) {
   const skillsTarget = path.join(options.hermesHome, 'skills');
   const bundlesTarget = path.join(options.hermesHome, 'skill-bundles');
+  const runtimeBinTarget = path.join(options.hermesHome, 'bin');
   const overrideSkillsSource = path.join(OVERRIDES_SOURCE, 'skills');
   const overrideSkillsTarget = path.join(options.hermesHome, 'skills');
   const skillFiles = listFiles(SKILL_SOURCE);
   const bundleFiles = listFiles(BUNDLE_SOURCE);
+  const runtimeFiles = listFiles(RUNTIME_SOURCE);
   const overrideSkillFiles = fs.existsSync(overrideSkillsSource) ? listFiles(overrideSkillsSource) : [];
 
   copyTree(SKILL_SOURCE, skillsTarget, options.dryRun);
   copyTree(BUNDLE_SOURCE, bundlesTarget, options.dryRun);
+  copyTree(path.join(RUNTIME_SOURCE, 'bin'), runtimeBinTarget, options.dryRun);
   if (options.includeOverrides && overrideSkillFiles.length > 0) {
     copyTree(overrideSkillsSource, overrideSkillsTarget, options.dryRun);
   }
@@ -82,11 +89,13 @@ function install(options) {
     hermesHome: options.hermesHome,
     copiedSkillsTo: skillsTarget,
     copiedBundlesTo: bundlesTarget,
+    copiedRuntimeBinTo: runtimeBinTarget,
     copiedOverrideSkillsTo: options.includeOverrides ? overrideSkillsTarget : null,
     skillFiles,
     bundleFiles,
+    runtimeFiles,
     overrideSkillFiles: options.includeOverrides ? overrideSkillFiles : [],
-    changedSurfaces: options.includeOverrides ? ['skills', 'skill-bundles', 'override-skills'] : ['skills', 'skill-bundles'],
+    changedSurfaces: options.includeOverrides ? ['skills', 'skill-bundles', 'runtime-bin', 'override-skills'] : ['skills', 'skill-bundles', 'runtime-bin'],
     untouchedSurfaces: ['SOUL.md', 'config.yaml', 'plugins', 'hooks', 'mcp_servers']
   };
 }

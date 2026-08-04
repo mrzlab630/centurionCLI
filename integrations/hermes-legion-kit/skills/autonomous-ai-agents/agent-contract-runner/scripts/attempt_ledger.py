@@ -6,9 +6,12 @@ from __future__ import annotations
 import argparse
 import fcntl
 import json
+import math
 import os
 from pathlib import Path
 from typing import Any
+
+from strict_json import StrictJSONError, strict_json_load_bytes, strict_json_load_path
 
 
 REQUIRED_FIELDS = (
@@ -70,13 +73,23 @@ def normalize_attempt_row(candidate: dict[str, Any]) -> dict[str, Any]:
     if isinstance(row["attempt"], bool) or not isinstance(row["attempt"], int) or row["attempt"] < 1:
         raise LedgerError("attempt must be a positive integer")
     duration = row["durationSeconds"]
-    if isinstance(duration, bool) or not isinstance(duration, (int, float)) or duration < 0:
+    if (
+        isinstance(duration, bool)
+        or not isinstance(duration, (int, float))
+        or (isinstance(duration, float) and not math.isfinite(duration))
+        or duration < 0
+    ):
         raise LedgerError("durationSeconds must be a non-negative number")
     for field in USAGE_FIELDS:
         value = row[field]
         if value == "unmeasured":
             continue
-        if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or (isinstance(value, float) and not math.isfinite(value))
+            or value < 0
+        ):
             raise LedgerError(f"{field} must be a non-negative number or unmeasured")
     if any(row[field] == "unmeasured" for field in USAGE_FIELDS) and row["telemetryStatus"] != "unmeasured":
         raise LedgerError("telemetryStatus must be unmeasured when any usage field is absent")
@@ -97,9 +110,9 @@ def _read_existing_rows(fd: int, ledger_path: Path) -> list[dict[str, Any]]:
         if not line.strip():
             continue
         try:
-            parsed = json.loads(line)
-        except json.JSONDecodeError as exc:
-            raise LedgerError(f"ledger line {line_number} is not valid JSON: {exc}") from exc
+            parsed = strict_json_load_bytes(line, f"ledger line {line_number}")
+        except StrictJSONError as exc:
+            raise LedgerError(str(exc)) from exc
         if not isinstance(parsed, dict):
             raise LedgerError(f"ledger line {line_number} must be a JSON object")
         rows.append(parsed)
@@ -183,11 +196,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     try:
-        candidate = json.loads(args.row.read_text(encoding="utf-8"))
+        candidate = strict_json_load_path(args.row, "attempt row")
         if not isinstance(candidate, dict):
             raise LedgerError("row JSON must be an object")
         row = append_attempt(args.ledger, candidate)
-    except (OSError, json.JSONDecodeError, LedgerError) as exc:
+    except (OSError, StrictJSONError, LedgerError) as exc:
         print(f"error: {exc}", file=__import__("sys").stderr)
         return 1
     print(json.dumps({"status": "appended", "orderId": row["orderId"]}, sort_keys=True))

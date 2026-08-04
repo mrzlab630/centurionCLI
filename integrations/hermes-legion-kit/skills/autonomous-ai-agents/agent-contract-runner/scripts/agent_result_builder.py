@@ -13,6 +13,8 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from strict_json import StrictJSONError, strict_json_load_bytes, strict_json_load_path
+
 
 RESULT_VERSION = "AGENT_RESULT_JSON_V1"
 PACKAGED_SCHEMA = Path(__file__).resolve().parent.parent / "references" / "agent-result.schema.json"
@@ -47,8 +49,8 @@ def _schema_errors(validator: Draft202012Validator, payload: Any) -> list[str]:
 
 def _load_schema(path: Path) -> tuple[dict[str, Any], Draft202012Validator]:
     try:
-        schema = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        schema = strict_json_load_path(path, "result schema")
+    except (OSError, StrictJSONError) as exc:
         raise BuilderError(f"could not load result schema: {exc}") from exc
     if not isinstance(schema, dict):
         raise BuilderError("result schema must be a JSON object")
@@ -162,8 +164,8 @@ def build_result(
     schema_path: Path | None = None,
 ) -> dict[str, Any]:
     try:
-        order = json.loads(order_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        order = strict_json_load_path(order_path, "order")
+    except (OSError, StrictJSONError) as exc:
         raise BuilderError(f"could not load order: {exc}") from exc
     if not isinstance(order, dict):
         raise BuilderError("order must be a JSON object")
@@ -183,8 +185,8 @@ def build_result(
         raise BuilderError(f"could not read candidate: {exc}") from exc
     parse_errors: list[str] = []
     try:
-        candidate = json.loads(candidate_bytes.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        candidate = strict_json_load_bytes(candidate_bytes, "candidate result")
+    except StrictJSONError as exc:
         candidate = None
         parse_errors.append(f"candidate JSON parse failed: {exc}")
     errors = parse_errors + validate_candidate(candidate, order, validator)

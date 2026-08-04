@@ -29,6 +29,19 @@ def write_json(path: Path, value: dict[str, Any]) -> None:
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def ambiguous_json_bytes(original: bytes, variant: str) -> bytes:
+    text = original.decode("utf-8").rstrip()
+    if variant == "duplicate-key":
+        return ('{"orderId":"ambiguous",' + text[1:] + "\n").encode("utf-8")
+    literal = {
+        "nan": "NaN",
+        "infinity": "Infinity",
+        "negative-infinity": "-Infinity",
+        "overflow": "1e999",
+    }[variant]
+    return (text[:-1] + ',"ambiguous":' + literal + "}\n").encode("utf-8")
+
+
 def install_fake_executor() -> None:
     BIN_DIR.mkdir(parents=True, exist_ok=True)
     fake_source = (
@@ -91,6 +104,15 @@ def install_fake_executor() -> None:
         "    raise SystemExit(0)\n"
         "if result_mode == 'unparseable':\n"
         "    result_path.write_text('{not-json', encoding='utf-8')\n"
+        "    raise SystemExit(0)\n"
+        "if result_mode in {'duplicate_key', 'non_finite', 'infinity', 'negative_infinity', 'overflow_non_finite'}:\n"
+        "    raw = json.dumps(payload)\n"
+        "    if result_mode == 'duplicate_key':\n"
+        "        raw = '{\\\"orderId\\\":\\\"ambiguous\\\",' + raw[1:]\n"
+        "    else:\n"
+        "        literal = {'non_finite': 'NaN', 'infinity': 'Infinity', 'negative_infinity': '-Infinity', 'overflow_non_finite': '1e999'}[result_mode]\n"
+        "        raw = raw[:-1] + ',\\\"ambiguous\\\":' + literal + '}'\n"
+        "    result_path.write_text(raw, encoding='utf-8')\n"
         "    raise SystemExit(0)\n"
         "if result_mode == 'stdout_only':\n"
         "    print(json.dumps(payload, sort_keys=True), flush=True)\n"
@@ -339,6 +361,43 @@ def main() -> int:
         shutil.rmtree(FIXTURE_ROOT)
     FIXTURE_ROOT.mkdir(parents=True)
     install_fake_executor()
+
+    for variant in ("duplicate-key", "nan", "infinity", "negative-infinity", "overflow"):
+        case_dir = FIXTURE_ROOT / f"strict-order-{variant}"
+        case_dir.mkdir(parents=True)
+        order_path, result_path, _, _, _, events_path = make_order(
+            case_dir,
+            f"strict-order-{variant}",
+            "pass",
+            True,
+            "python3 -c 'print(\"proof ok\")'",
+        )
+        order_path.write_bytes(ambiguous_json_bytes(order_path.read_bytes(), variant))
+        strict_env = os.environ.copy()
+        strict_env["AGENT_CONTRACT_RUNNER_ALLOW_OTHER"] = "1"
+        completed = subprocess.run(
+            [sys.executable, str(RUNNER), "--order", str(order_path), "--validate-only", "--events", str(events_path), "--result", str(result_path)],
+            cwd=ROOT,
+            env=strict_env,
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+        assert_case(completed.returncode != 0 and "strict JSON" in completed.stderr, f"runner must reject {variant} order JSON")
+        assert_case("dispatch_started" not in events_text(events_path), "strict order rejection must precede dispatch")
+    print("PASS runner rejects duplicate keys, NaN, Infinity, -Infinity, and 1e999 orders")
+
+    for mode in ("duplicate_key", "non_finite", "infinity", "negative_infinity", "overflow_non_finite"):
+        completed, _, _, _, _, events_path = run_case(
+            f"strict-result-{mode}",
+            "pass",
+            True,
+            "python3 -c 'print(\"proof ok\")'",
+            result_mode=mode,
+        )
+        assert_case(completed.returncode != 0 and "strict JSON" in completed.stderr, f"runner must reject {mode} result JSON")
+        assert_case("dispatch_started" in events_text(events_path), "strict result fixture must exercise post-dispatch result loading")
+    print("PASS runner rejects duplicate keys, NaN, Infinity, -Infinity, and 1e999 results")
 
     post_cutover_dir = FIXTURE_ROOT / "post-cutover-routing"
     post_cutover_dir.mkdir(parents=True)

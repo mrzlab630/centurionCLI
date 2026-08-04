@@ -11,7 +11,10 @@ The pack is designed for Aquila managing `codex`, `claude`, `agy`, Hermes `deleg
 ## Installed Surface
 
 - `aquila-team-orchestration`: routing, one owner per task, merge gates, result artifacts, proof acceptance.
-- `agent-contract-runner`: portable contract validation, V0-V3 review routing, append-only attempt-ledger handling, canonical result builder, and offline regressions.
+- `agent-contract-runner`: portable contract validation, shared strict JSON semantics, V0-V3 review routing, append-only attempt-ledger handling, controller-owned Result Gateway, internal canonical result builder, and offline regressions.
+- `agent-contract-runner/scripts/strict_json.py`: duplicate-key and non-finite rejection for packaged Python orders, results, schemas, ledger rows, loop state, and routing metadata.
+- `agent-contract-runner/scripts/result_gateway.py`: mandatory direct Codex/Claude launch and candidate-finalization boundary.
+- `$HERMES_HOME/bin/monitor-delegation.sh`: installed strict terminal monitor for route-bound start and closure receipts.
 - `aquila-harness-audit`: Hermes surface audit for SOUL, skills, bundles, plugins, MCP, contracts, context, and security.
 - `scripts/harness-audit.mjs`: read-only deterministic local audit for runtime model ambiguity, `npx -y` MCP supply-chain warnings, oversized `SKILL.md` files, and the SOUL runtime-model rule.
 - `overrides/skills/research/research-paper-writing/SKILL.md`: compact optional override that keeps the research-paper skill under the Hermes size limit while routing detail to `references/`.
@@ -107,10 +110,18 @@ Apply optional skill overrides explicitly:
 node ./installer/install.mjs --include-overrides
 ```
 
-The default install remains conservative and changes only Aquila skills/bundles. `--include-overrides` can update reviewed builtin skill overrides, but still does not edit `SOUL.md`, `config.yaml`, plugins, hooks, or MCP servers. The reviewed `SOUL_RUNTIME_MODEL_RULE.md` and `SOUL_CLAUDE_ROLE_RULE.md` notes are manual and reviewable; neither is automatically applied by the installer.
+The default installer writes Aquila content under `$HERMES_HOME/skills` and `$HERMES_HOME/skill-bundles`, and writes the packaged monitor to `$HERMES_HOME/bin/monitor-delegation.sh`. It does not edit `SOUL.md`, `config.yaml`, plugins, hooks, or MCP servers. `--include-overrides` can additionally update reviewed builtin skill overrides. Before activating the kit in a live Hermes home, back up every existing destination, record its content hash and file mode, verify the installed hash and mode, and keep a tested rollback path. The reviewed `SOUL_RUNTIME_MODEL_RULE.md` and `SOUL_CLAUDE_ROLE_RULE.md` notes are manual and reviewable; neither is automatically applied by the installer.
 
 The adaptive model/effort policy note is also manual and reviewable; no
 installer mode applies it automatically.
+
+## Delegation Result Boundary
+
+All external Codex or Claude candidates go through `result_gateway.py`. Before any output preflight can create a receipt or the child can launch, the gateway runs full canonical `validate_order`, including attempt-ledger-aware routing validation. Missing, duplicate, malformed, below-floor, wrong-reviewer/model, or recursive terminal routing fails with no child or candidate/result/start/closure/stdout/stderr artifacts.
+
+The packaged Python control plane uses `strict_json.py` for every authoritative JSON read. Duplicate object keys, `NaN`, `Infinity`, `-Infinity`, and float literals such as `1e999` that overflow to a non-finite value are rejected with input context. The separately installed monitor embeds equivalent parsing for order, result, schema, start-receipt, and closure JSON.
+
+For valid post-cutover orders, the gateway stores the exact canonical routing metadata and deterministic `routingSha256` in both start and closure receipts. The monitor recomputes the binding from the strict order and requires exact order/start/closure equality before it reports `terminal-closure-verified`. `agent_result_builder.py` is internal canonicalization after this preflight and launcher closure; it is not an external bypass.
 
 ## Verify
 
@@ -122,6 +133,11 @@ node --check scripts/smoke.mjs
 node --check scripts/harness-audit.mjs
 npm run smoke
 npm run audit:local
+cd skills/autonomous-ai-agents/agent-contract-runner/scripts
+PYTHONDONTWRITEBYTECODE=1 python3 regression_review_ladder.py
+PYTHONDONTWRITEBYTECODE=1 python3 regression_agent_contract_runner.py
+PYTHONDONTWRITEBYTECODE=1 python3 regression_agent_result_builder.py
+PYTHONDONTWRITEBYTECODE=1 python3 regression_result_gateway.py
 ```
 
 Live Hermes proof after install:

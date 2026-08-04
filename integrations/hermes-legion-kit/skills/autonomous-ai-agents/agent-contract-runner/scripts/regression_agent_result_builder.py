@@ -26,6 +26,19 @@ def write_json(path: Path, payload: Any) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def ambiguous_json_bytes(original: bytes, variant: str, duplicate_key: str = "orderId") -> bytes:
+    text = original.decode("utf-8").rstrip()
+    if variant == "duplicate-key":
+        return (json.dumps({duplicate_key: "ambiguous"})[:-1] + "," + text[1:] + "\n").encode("utf-8")
+    literal = {
+        "nan": "NaN",
+        "infinity": "Infinity",
+        "negative-infinity": "-Infinity",
+        "overflow": "1e999",
+    }[variant]
+    return (text[:-1] + ',"ambiguous":' + literal + "}\n").encode("utf-8")
+
+
 def make_case(name: str, status: str = "done") -> tuple[Path, Path, Path, Path, Path, dict[str, Any]]:
     case = ROOT / name
     case.mkdir(parents=True)
@@ -133,6 +146,37 @@ def main() -> int:
     assert product.read_bytes() == product_before
     assert_failed_with_evidence(unparseable, b"{not-json\x00", evidence)
     print("PASS unparseable original bytes preserved by SHA-256 evidence")
+
+    for variant in ("duplicate-key", "nan", "infinity", "negative-infinity", "overflow"):
+        order, candidate, result, evidence, _, _ = make_case(f"strict-candidate-{variant}")
+        original = ambiguous_json_bytes(candidate.read_bytes(), variant)
+        candidate.write_bytes(original)
+        built = build_result(order, candidate, result, evidence)
+        assert_failed_with_evidence(built, original, evidence)
+    print("PASS builder rejects duplicate keys, NaN, Infinity, -Infinity, and 1e999 candidates")
+
+    for variant in ("duplicate-key", "nan", "infinity", "negative-infinity", "overflow"):
+        order, candidate, result, evidence, _, _ = make_case(f"strict-order-{variant}")
+        order.write_bytes(ambiguous_json_bytes(order.read_bytes(), variant))
+        try:
+            build_result(order, candidate, result, evidence)
+        except BuilderError as exc:
+            assert "strict JSON" in str(exc)
+        else:
+            raise AssertionError(f"builder must reject {variant} order JSON")
+        assert not result.exists()
+    print("PASS builder rejects ambiguous and overflowed order JSON before finalization")
+
+    strict_schema = ROOT / "strict-schema.json"
+    for variant in ("duplicate-key", "nan", "infinity", "negative-infinity", "overflow"):
+        strict_schema.write_bytes(ambiguous_json_bytes(SCHEMA.read_bytes(), variant, "$schema"))
+        try:
+            builder._load_schema(strict_schema)
+        except BuilderError as exc:
+            assert "strict JSON" in str(exc)
+        else:
+            raise AssertionError(f"builder must reject {variant} schema JSON")
+    print("PASS builder rejects duplicate keys, non-finite constants, and 1e999 schemas")
 
     for status in ("blocked", "failed"):
         built, _, _, _ = finalized(f"preserve-{status}", status=status)

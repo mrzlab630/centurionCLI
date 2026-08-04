@@ -8,6 +8,8 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
+from strict_json import StrictJSONError, strict_json_loads
+
 
 ROUTING_PREFIX = "AQUILA_ROUTING_JSON_V1:"
 CUTOVER_AT = datetime(2026, 8, 3, 11, 0, 42, tzinfo=timezone.utc)
@@ -124,15 +126,6 @@ def _parse_timestamp(value: Any) -> datetime:
     if parsed.tzinfo is None:
         raise RoutingError("createdAt must include a timezone")
     return parsed.astimezone(timezone.utc)
-
-
-def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-    for key, value in pairs:
-        if key in result:
-            raise RoutingError(f"routing metadata contains duplicate key: {key}")
-        result[key] = value
-    return result
 
 
 def _normalized_decision_text(metadata: dict[str, Any]) -> str:
@@ -362,11 +355,9 @@ def parse_routing_entry(entry: str) -> dict[str, Any]:
     if not payload_text:
         raise RoutingError("routing metadata payload is empty")
     try:
-        payload = json.loads(payload_text, object_pairs_hook=_reject_duplicate_keys)
-    except RoutingError:
-        raise
-    except (json.JSONDecodeError, TypeError) as exc:
-        raise RoutingError("routing metadata is not strict JSON") from exc
+        payload = strict_json_loads(payload_text, "routing metadata")
+    except StrictJSONError as exc:
+        raise RoutingError(str(exc)) from exc
     if not isinstance(payload, dict):
         raise RoutingError("routing metadata must be a JSON object")
     canonical = ROUTING_PREFIX + json.dumps(payload, ensure_ascii=False, separators=(",", ":"))

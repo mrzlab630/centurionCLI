@@ -104,7 +104,7 @@ function assertSkill(skill) {
   }
   if (skill === 'agent-contract-runner') {
     assert(/^version:\s*0\.4\.0$/m.test(text), `${skill} version must be 0.4.0`);
-    for (const marker of ['2026-08-03T11:00:42Z', 'AQUILA_ROUTING_JSON_V1', 'V0', 'V1', 'V2', 'V3', 'attempt_ledger.py', 'review_ladder.py', 'agent_result_builder.py', 'terminal']) {
+    for (const marker of ['2026-08-03T11:00:42Z', 'AQUILA_ROUTING_JSON_V1', 'V0', 'V1', 'V2', 'V3', 'strict_json.py', 'attempt_ledger.py', 'review_ladder.py', 'agent_result_builder.py', 'internal canonicalization', 'result_gateway.py', 'validate_order', 'routingSha256', 'monitor-delegation.sh', '--start-receipt', 'terminal closure', 'routing intent', 'backup', 'rollback', 'terminal']) {
       assert(text.includes(marker), `${skill} missing marker: ${marker}`);
     }
   }
@@ -133,6 +133,8 @@ function runInstallerDryRun() {
   assert(report.dryRun === true, 'installer dry-run did not report dryRun=true');
   assert(report.changedSurfaces.includes('skills'), 'installer report missing skills surface');
   assert(report.changedSurfaces.includes('skill-bundles'), 'installer report missing skill-bundles surface');
+  assert(report.changedSurfaces.includes('runtime-bin'), 'installer report missing runtime-bin surface');
+  assert(report.runtimeFiles.includes('bin/monitor-delegation.sh'), 'installer report missing packaged monitor');
   assert(report.untouchedSurfaces.includes('SOUL.md'), 'installer must not edit SOUL.md');
 }
 
@@ -147,13 +149,15 @@ function runInstallerOverrideDryRun() {
 }
 
 function runPackagedPythonRegressions(scriptRoot) {
-  const scripts = ['regression_review_ladder.py', 'regression_agent_contract_runner.py', 'regression_agent_result_builder.py'];
+  assert(!process.env.PYTHONOPTIMIZE, 'PYTHONOPTIMIZE must be unset so packaged regression assertions cannot be stripped');
+  const scripts = ['regression_review_ladder.py', 'regression_agent_contract_runner.py', 'regression_agent_result_builder.py', 'regression_result_gateway.py'];
   const isolatedEnvironment = {
     ...process.env,
     HOME: path.join(path.dirname(scriptRoot), 'nonexistent-home'),
     HERMES_HOME: path.join(path.dirname(scriptRoot), 'nonexistent-hermes-home'),
     PYTHONDONTWRITEBYTECODE: '1'
   };
+  delete isolatedEnvironment.PYTHONOPTIMIZE;
   delete isolatedEnvironment.AQUILA_AGENT_RESULT_SCHEMA;
   for (const script of scripts) {
     const result = spawnSync('python3', [script], { cwd: scriptRoot, encoding: 'utf8', env: isolatedEnvironment });
@@ -171,9 +175,14 @@ function runIsolatedInstallSmoke() {
       path.join(tempHome, 'skills', 'autonomous-ai-agents', 'agent-contract-runner', 'SKILL.md'),
       path.join(tempHome, 'skills', 'autonomous-ai-agents', 'agent-contract-runner', 'references', 'agent-result.schema.json'),
       path.join(tempHome, 'skills', 'autonomous-ai-agents', 'aquila-team-orchestration', 'references', 'review-routing-ladder-and-cost-control.md'),
-      ...['agent_contract_runner.py', 'regression_agent_contract_runner.py', 'agent_result_builder.py', 'regression_agent_result_builder.py', 'attempt_ledger.py', 'review_ladder.py', 'regression_review_ladder.py'].map((file) => path.join(scriptRoot, file))
+      path.join(tempHome, 'bin', 'monitor-delegation.sh'),
+      ...['strict_json.py', 'agent_contract_runner.py', 'regression_agent_contract_runner.py', 'agent_result_builder.py', 'regression_agent_result_builder.py', 'result_gateway.py', 'regression_result_gateway.py', 'attempt_ledger.py', 'review_ladder.py', 'regression_review_ladder.py'].map((file) => path.join(scriptRoot, file))
     ];
     for (const file of requiredFiles) assert(fs.existsSync(file), `isolated install missing: ${file}`);
+    for (const file of [path.join(tempHome, 'bin', 'monitor-delegation.sh'), path.join(scriptRoot, 'result_gateway.py')]) {
+      assert((fs.statSync(file).mode & 0o777) === 0o755, `isolated install executable mode mismatch: ${file}`);
+    }
+    assert((fs.statSync(path.join(scriptRoot, '..', 'SKILL.md')).mode & 0o777) === 0o644, 'isolated install SKILL.md mode must be 0644');
     assert(!fs.existsSync(path.join(tempHome, 'SOUL.md')), 'installer must not create SOUL.md');
     runPackagedPythonRegressions(scriptRoot);
   } finally {
@@ -190,6 +199,26 @@ function assertCurrentBaselines() {
     for (const mutation of ['gpt-5.5', 'codex-cli 0.142.5']) {
       assert(STALE_BASELINE_CLAIM.test(`${text}\n${mutation}`), `${label} stale-baseline mutation escaped guard`);
     }
+  }
+}
+
+function assertResultGatewayDocs() {
+  const surfaces = [
+    ['package README', path.join(KIT_ROOT, 'README.md')],
+    ['Hermes Legion Kit documentation', path.resolve(KIT_ROOT, '..', '..', 'docs', 'HERMES_LEGION_KIT.md')]
+  ];
+  const regressions = [
+    'regression_review_ladder.py',
+    'regression_agent_contract_runner.py',
+    'regression_agent_result_builder.py',
+    'regression_result_gateway.py'
+  ];
+  for (const [label, file] of surfaces) {
+    const text = readText(file);
+    for (const marker of ['strict_json.py', 'result_gateway.py', 'agent_result_builder.py', 'routingSha256', 'monitor-delegation.sh']) {
+      assert(text.includes(marker), `${label} missing result-boundary marker: ${marker}`);
+    }
+    for (const regression of regressions) assert(text.includes(regression), `${label} missing regression command: ${regression}`);
   }
 }
 
@@ -246,6 +275,7 @@ function assertPackageVersion() {
 function main() {
   assertPackageVersion();
   assertCurrentBaselines();
+  assertResultGatewayDocs();
   for (const skill of REQUIRED_SKILLS) assertSkill(skill);
   for (const [fileName, skills] of Object.entries(REQUIRED_BUNDLES)) assertBundle(fileName, skills);
   runNodeCheck('installer/install.mjs');
