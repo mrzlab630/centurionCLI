@@ -2,6 +2,8 @@
 
 `integrations/claude-legion-kit` is the permanent CENTURION integration pack for Claude Code CLI.
 
+Current kit version: `0.3.0`.
+
 It exists because Claude Code has native extension points that should be used directly instead of relying on prompt text alone: plugins, skills, subagents, session agents, tool allow/deny lists, permission modes, MCP config controls, safe/bare modes, and plugin validation.
 
 ## Source Of Truth
@@ -9,6 +11,7 @@ It exists because Claude Code has native extension points that should be used di
 - Repository kit: `integrations/claude-legion-kit`
 - Installed plugin target: `~/.claude/skills/centurion-legion`
 - Canonical Legion skills: `skills/` in this repository and installed `~/.agents/skills`
+- Shared design capability: `skills/open-design-producer`; it has no Claude subagent.
 - Existing Claude global config: `~/.claude/settings.json`, `~/.claude/settings.local.json`, `~/.claude.json`
 
 The kit does not commit or print secrets. It deliberately does not rewrite Claude settings files; those contain host-local credentials, MCP definitions, project history, and permission state.
@@ -42,6 +45,11 @@ The plugin uses two layers:
 2. `agents/*.md`: one Claude Code subagent per Legionary. Each agent is scoped to one specialty and must hand back if adjacent skills are required.
 
 This avoids duplicate ownership. It also lets Claude Code use its native `--agent <slug>` control when a controller wants one owner for a session.
+
+The installer also syncs `open-design-producer` as a standalone skill and writes
+`~/.claude/centurion/open-design-bridge.json`. AEDILIS owns UX briefs and visual
+acceptance; PICTOR owns create/revise HTML/UI production. The capability does not
+change the 37-agent ownership surface.
 
 Opus 5 does not change the ownership model. The kit uses it through compact references and deterministic guards: CURATOR prepares dossiers, TESTER plans frontend acceptance sweeps, GUARDIAN scans external skill candidates, and REVIEWER verifies completion claims before acceptance.
 
@@ -80,11 +88,11 @@ npm run audit:surface
 npm run smoke
 ```
 
-`npm run audit:surface` proves the Claude surface is still one-owner: 37 canonical skills, 37 plugin agents, no high-overlap role descriptions, routing eval coverage for every Legionary, installed plugin drift checks, installed standalone skill drift checks, and loaded-plugin validation.
+`npm run audit:surface` proves the Claude surface is still one-owner: 37 Legionary owners, 37 plugin agents, 38 canonical skills including one shared Open Design capability, no high-overlap role descriptions, routing eval coverage for every Legionary, installed plugin drift checks, installed standalone skill drift checks, and loaded-plugin validation.
 
 Additional guard commands are intentionally owner-scoped:
 
 - `npm run scan:external-skill -- <candidate-dir>`: GUARDIAN gate for local external skills/plugins before install or adaptation.
 - `npm run plan:frontend-sweep -- --workspace <dir> --base-url <url>`: TESTER plan for frontend proof; fixes still route to PICTOR and adjacent Product/UX owners.
 
-When canonical Legion skills change, regenerate or update `plugin/agents/*.md` so every skill still has exactly one Claude subagent, then rerun `npm run audit:surface` before installing or accepting the change.
+When a canonical Legionary owner changes, regenerate or update its `plugin/agents/*.md` entry. Shared capabilities such as `open-design-producer` must not receive an agent. Rerun `npm run audit:surface` before installing or accepting the change.

@@ -64,7 +64,12 @@ External skill discovery never replaces GUARDIAN review.
 - **Infra/DB** -> **PONTIFEX**
 - **Tests** -> **TESTER**
 - **Security/Deps** -> **GUARDIAN**
+- **UX brief, flow, design system, visual review** -> **AEDILIS**
+- **Create/revise landing page, dashboard, prototype, HTML/UI** -> **PICTOR**
 - **Missing external skill / FindSkills / skill acquisition** -> **SKILL-QUARTERMASTER**
+
+AEDILIS and PICTOR may invoke `$open-design-producer` as a shared production
+capability. It is never a primary owner or an additional Legionary.
 
 When multiple specialists are independent, dispatch them in parallel. When one
 specialist depends on another's evidence, chain them sequentially and pass only

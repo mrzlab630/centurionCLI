@@ -5,6 +5,7 @@ import process from 'node:process';
 import { spawnSync } from 'node:child_process';
 
 const KIT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+const REPO_ROOT = path.resolve(KIT_ROOT, '..', '..');
 const SKILL_SIZE_LIMIT = 100_000;
 const PACKAGE_MANIFEST = path.join(KIT_ROOT, 'package.json');
 const STALE_BASELINE_CLAIM = /gpt-5\.5|codex-cli 0\.142\.5/i;
@@ -46,6 +47,8 @@ const REQUIRED_SKILLS = [
   'aquila-executor-eval',
   'aquila-self-debug'
 ];
+const SHARED_CAPABILITIES = ['open-design-producer'];
+const OPEN_DESIGN_CONFIG_VERSION = 'CENTURION_OPEN_DESIGN_CONFIG_V1';
 const REQUIRED_BUNDLES = {
   'aquila-delivery.yaml': [
     'aquila-team-orchestration',
@@ -62,6 +65,10 @@ const REQUIRED_BUNDLES = {
     'aquila-team-orchestration',
     'delegated-cli-executor-orchestration',
     'delegating-code-to-executors'
+  ],
+  'aquila-design-production.yaml': [
+    'open-design-producer',
+    'aquila-team-orchestration'
   ]
 };
 
@@ -110,6 +117,18 @@ function assertSkill(skill) {
   }
 }
 
+function assertSharedOpenDesignCapability() {
+  const root = path.join(REPO_ROOT, 'skills', 'open-design-producer');
+  const skill = path.join(root, 'SKILL.md');
+  const script = path.join(root, 'scripts', 'open-design.mjs');
+  assert(fs.existsSync(skill), 'missing shared Open Design skill');
+  assert(fs.existsSync(script), 'missing shared Open Design wrapper');
+  const text = readText(skill);
+  assert(/^name:\s*open-design-producer$/m.test(text), 'Open Design skill name mismatch');
+  assert(text.includes('AEDILIS') && text.includes('PICTOR'), 'Open Design role ownership missing');
+  assert(text.includes('explicit user consent'), 'Open Design project deletion consent rule missing');
+}
+
 function assertBundle(fileName, expectedSkills) {
   const file = path.join(KIT_ROOT, 'skill-bundles', fileName);
   assert(fs.existsSync(file), `missing bundle: ${fileName}`);
@@ -134,7 +153,11 @@ function runInstallerDryRun() {
   assert(report.changedSurfaces.includes('skills'), 'installer report missing skills surface');
   assert(report.changedSurfaces.includes('skill-bundles'), 'installer report missing skill-bundles surface');
   assert(report.changedSurfaces.includes('runtime-bin'), 'installer report missing runtime-bin surface');
+  assert(report.changedSurfaces.includes('centurion-config'), 'installer report missing centurion-config surface');
   assert(report.runtimeFiles.includes('bin/monitor-delegation.sh'), 'installer report missing packaged monitor');
+  assert(report.openDesignSkillFiles.includes('SKILL.md'), 'installer report missing shared Open Design skill');
+  assert(!report.skillFiles.some((file) => file.includes('__pycache__') || file.endsWith('.pyc')), 'installer report includes transient Python artifacts');
+  assert(report.openDesignConfigVersion === OPEN_DESIGN_CONFIG_VERSION, 'installer Open Design config version mismatch');
   assert(report.untouchedSurfaces.includes('SOUL.md'), 'installer must not edit SOUL.md');
 }
 
@@ -175,6 +198,9 @@ function runIsolatedInstallSmoke() {
       path.join(tempHome, 'skills', 'autonomous-ai-agents', 'agent-contract-runner', 'SKILL.md'),
       path.join(tempHome, 'skills', 'autonomous-ai-agents', 'agent-contract-runner', 'references', 'agent-result.schema.json'),
       path.join(tempHome, 'skills', 'autonomous-ai-agents', 'aquila-team-orchestration', 'references', 'review-routing-ladder-and-cost-control.md'),
+      path.join(tempHome, 'skills', 'autonomous-ai-agents', 'open-design-producer', 'SKILL.md'),
+      path.join(tempHome, 'skills', 'autonomous-ai-agents', 'open-design-producer', 'scripts', 'open-design.mjs'),
+      path.join(tempHome, 'centurion', 'open-design-bridge.json'),
       path.join(tempHome, 'bin', 'monitor-delegation.sh'),
       ...['strict_json.py', 'agent_contract_runner.py', 'regression_agent_contract_runner.py', 'agent_result_builder.py', 'regression_agent_result_builder.py', 'result_gateway.py', 'regression_result_gateway.py', 'attempt_ledger.py', 'review_ladder.py', 'regression_review_ladder.py'].map((file) => path.join(scriptRoot, file))
     ];
@@ -182,6 +208,18 @@ function runIsolatedInstallSmoke() {
     for (const file of [path.join(tempHome, 'bin', 'monitor-delegation.sh'), path.join(scriptRoot, 'result_gateway.py')]) {
       assert((fs.statSync(file).mode & 0o777) === 0o755, `isolated install executable mode mismatch: ${file}`);
     }
+    assert((fs.statSync(path.join(tempHome, 'skills', 'autonomous-ai-agents', 'open-design-producer', 'scripts', 'open-design.mjs')).mode & 0o777) === 0o755, 'Open Design wrapper mode must be 0755');
+    const openDesignConfig = JSON.parse(readText(path.join(tempHome, 'centurion', 'open-design-bridge.json')));
+    assert(openDesignConfig.configVersion === OPEN_DESIGN_CONFIG_VERSION, 'installed Open Design config version mismatch');
+    assert(openDesignConfig.bridgeRoot === path.join(REPO_ROOT, 'integrations', 'open-design-bridge'), 'installed Open Design bridge root mismatch');
+    const wrapper = spawnSync(process.execPath, [path.join(tempHome, 'skills', 'autonomous-ai-agents', 'open-design-producer', 'scripts', 'open-design.mjs'), '--print-cli'], {
+      encoding: 'utf8',
+      env: { ...process.env, HOME: tempHome, CLAUDE_HOME: path.join(tempHome, 'missing-claude'), HERMES_HOME: tempHome }
+    });
+    assert(wrapper.status === 0, `installed Open Design wrapper failed: ${wrapper.stderr || wrapper.stdout}`);
+    const wrapperResolution = JSON.parse(wrapper.stdout);
+    assert(wrapperResolution.source === 'harness-config', 'installed Open Design wrapper did not use Hermes harness config');
+    assert(wrapperResolution.configPath === path.join(tempHome, 'centurion', 'open-design-bridge.json'), 'installed Open Design wrapper config path mismatch');
     assert((fs.statSync(path.join(scriptRoot, '..', 'SKILL.md')).mode & 0o777) === 0o644, 'isolated install SKILL.md mode must be 0644');
     assert(!fs.existsSync(path.join(tempHome, 'SOUL.md')), 'installer must not create SOUL.md');
     runPackagedPythonRegressions(scriptRoot);
@@ -269,7 +307,7 @@ function assertOverrides() {
 
 function assertPackageVersion() {
   const manifest = JSON.parse(readText(PACKAGE_MANIFEST));
-  assert(manifest.version === '0.4.0', 'package version must be 0.4.0');
+  assert(manifest.version === '0.5.0', 'package version must be 0.5.0');
 }
 
 function main() {
@@ -277,6 +315,7 @@ function main() {
   assertCurrentBaselines();
   assertResultGatewayDocs();
   for (const skill of REQUIRED_SKILLS) assertSkill(skill);
+  assertSharedOpenDesignCapability();
   for (const [fileName, skills] of Object.entries(REQUIRED_BUNDLES)) assertBundle(fileName, skills);
   runNodeCheck('installer/install.mjs');
   runNodeCheck('scripts/smoke.mjs');
@@ -285,7 +324,7 @@ function main() {
   runInstallerDryRun();
   runInstallerOverrideDryRun();
   runIsolatedInstallSmoke();
-  process.stdout.write(JSON.stringify({ ok: true, skills: REQUIRED_SKILLS.length, bundles: Object.keys(REQUIRED_BUNDLES).length }, null, 2) + '\n');
+  process.stdout.write(JSON.stringify({ ok: true, skills: REQUIRED_SKILLS.length, sharedCapabilities: SHARED_CAPABILITIES.length, bundles: Object.keys(REQUIRED_BUNDLES).length }, null, 2) + '\n');
 }
 
 try {

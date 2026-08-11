@@ -1,0 +1,10 @@
+name: aquila-design-production
+skills:
+- open-design-producer
+- aquila-team-orchestration
+description: Lean Aquila design-production mode for verified Open Design HTML,
+  screenshots, revisions, and artifact lifecycle control.
+instruction: Use AEDILIS for UX briefs and visual acceptance, PICTOR for create or
+  revise implementation, and open-design-producer as the shared execution capability.
+  Require JSON results, inspect HTML and screenshot paths, remove disposable request
+  files, and never delete an Open Design project without explicit user consent.

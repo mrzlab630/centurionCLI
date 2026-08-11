@@ -8,6 +8,8 @@ import { spawnSync } from 'node:child_process';
 const KIT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const REPO_ROOT = path.resolve(KIT_ROOT, '..', '..');
 const CANONICAL_SKILLS = path.join(REPO_ROOT, 'skills');
+const OPEN_DESIGN_BRIDGE = path.join(REPO_ROOT, 'integrations', 'open-design-bridge');
+const OPEN_DESIGN_CONFIG_VERSION = 'CENTURION_OPEN_DESIGN_CONFIG_V1';
 
 function parseArgs(argv) {
   const options = {
@@ -67,6 +69,15 @@ function validatePlugin(pluginDir) {
   };
 }
 
+function writeOpenDesignConfig(configTarget, dryRun) {
+  if (dryRun) return;
+  fs.mkdirSync(path.dirname(configTarget), { recursive: true });
+  fs.writeFileSync(configTarget, `${JSON.stringify({
+    configVersion: OPEN_DESIGN_CONFIG_VERSION,
+    bridgeRoot: OPEN_DESIGN_BRIDGE
+  }, null, 2)}\n`);
+}
+
 function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
@@ -75,13 +86,16 @@ function main() {
   }
   const skillsTarget = path.join(options.claudeHome, 'skills');
   const pluginTarget = path.join(skillsTarget, 'centurion-legion');
+  const openDesignConfigTarget = path.join(options.claudeHome, 'centurion', 'open-design-bridge.json');
 
   if (!fs.existsSync(CANONICAL_SKILLS)) throw new Error(`canonical skills not found: ${CANONICAL_SKILLS}`);
+  if (!fs.existsSync(path.join(OPEN_DESIGN_BRIDGE, 'bin', 'centurion-design.mjs'))) throw new Error(`Open Design bridge not found: ${OPEN_DESIGN_BRIDGE}`);
 
   if (!options.dryRun) fs.mkdirSync(skillsTarget, { recursive: true });
   if (!options.dryRun) fs.rmSync(pluginTarget, { recursive: true, force: true });
   copyTree(path.join(KIT_ROOT, 'plugin'), pluginTarget, options.dryRun);
   const syncedSkills = options.syncSkills ? syncCanonicalSkills(skillsTarget, options.dryRun) : [];
+  if (options.syncSkills) writeOpenDesignConfig(openDesignConfigTarget, options.dryRun);
   const validation = options.dryRun ? { ok: null, skipped: true } : validatePlugin(pluginTarget);
 
   const report = {
@@ -91,6 +105,10 @@ function main() {
     canonicalSkills: CANONICAL_SKILLS,
     syncedSkillCount: syncedSkills.length,
     syncedSkills,
+    sharedCapabilities: syncedSkills.includes('open-design-producer') ? ['open-design-producer'] : [],
+    openDesignConfigTarget,
+    openDesignConfigVersion: OPEN_DESIGN_CONFIG_VERSION,
+    openDesignConfigWritten: options.syncSkills && !options.dryRun,
     validation
   };
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);

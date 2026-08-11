@@ -20,6 +20,8 @@ Use this skill when the user asks for Legionaries, WAR ROOM, Claude CLI optimiza
 Claude Code gives this plugin native control surfaces:
 
 - `agents/*.md` defines the 37 Legionary subagents.
+- `skills/open-design-producer` is installed as a shared production capability;
+  it is not a 38th owner or subagent.
 - `--agent <name>` can force a session to one owner.
 - `--agents <json>` can define ephemeral bounded agents for one session.
 - `--allowedTools`, `--disallowedTools`, `--tools`, and `--permission-mode` constrain what the model can do.
@@ -38,8 +40,8 @@ Default owner route:
 - OPTIO / `orchestrator`: plan, route, mission prep.
 - EXPLORATOR / `researcher`: local or web research, reference search, docs.
 - CODER / `coder`: implementation.
-- PICTOR / `pictor`: frontend UI implementation, responsive layouts, animation.
-- AEDILIS / `aedilis`: UI/UX architecture, design systems, accessibility review.
+- PICTOR / `pictor`: frontend UI implementation, Open Design create/revise work, responsive layouts, animation.
+- AEDILIS / `aedilis`: UI/UX architecture, Open Design briefs and visual acceptance, design systems, accessibility review.
 - NOMENCLATOR / `nomenclator`: product language, CTA, labels, microcopy.
 - TESTER / `tester`: tests, evals, regression proof.
 - REVIEWER / `reviewer`: code review and regression risk.
@@ -49,6 +51,10 @@ Default owner route:
 - CURATOR / `context-optimizer`: skill-surface drift, context load, duplicate skills.
 
 If no route is clear, use OPTIO first.
+
+AEDILIS and PICTOR may invoke `$open-design-producer`. Domain owners such as
+LUDIFEX, PRAECO, NOMENCLATOR, GLOSSATOR, MERCATOR, and INDAGATOR supply
+constraints; TESTER, REVIEWER, and GUARDIAN provide acceptance gates.
 
 ## CLAUDE_ORDER v1
 

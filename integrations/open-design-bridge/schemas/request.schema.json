@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://centurion.local/schemas/open-design-request.v1.json",
+  "title": "CENTURION Open Design Request V1",
+  "type": "object",
+  "required": ["requestVersion", "action"],
+  "properties": {
+    "requestVersion": { "const": "CENTURION_OD_REQUEST_V1" },
+    "requestId": { "type": "string", "minLength": 1 },
+    "action": { "enum": ["create", "revise", "cleanup"] },
+    "brief": { "type": "string", "minLength": 1 },
+    "project": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "projectId": { "type": "string", "minLength": 1 },
+        "conversationId": { "type": "string", "minLength": 1 },
+        "previousResultPath": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "executor": {
+      "type": "object",
+      "properties": {
+        "agent": { "type": "string", "minLength": 1, "default": "codex" },
+        "model": {
+          "anyOf": [
+            { "type": "string", "minLength": 1 },
+            { "type": "null" }
+          ]
+        },
+        "plugin": { "type": "string", "minLength": 1, "default": "design-system-creative" },
+        "inputs": { "type": "object" },
+        "grantCapabilities": { "type": "array", "items": { "enum": ["fs:write", "prompt:inject"] } },
+        "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 3600000 }
+      },
+      "additionalProperties": false
+    },
+    "artifact": {
+      "type": "object",
+      "properties": {
+        "entry": { "type": "string", "minLength": 1, "default": "index.html" },
+        "outputDir": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "screenshot": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "fullPage": { "type": "boolean", "default": true },
+        "allowNetwork": { "type": "boolean", "default": false },
+        "waitMs": { "type": "integer", "minimum": 0, "maximum": 60000 },
+        "viewport": {
+          "type": "object",
+          "required": ["width", "height"],
+          "properties": {
+            "width": { "type": "integer", "minimum": 320, "maximum": 4096 },
+            "height": { "type": "integer", "minimum": 480, "maximum": 4096 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "daemon": {
+      "type": "object",
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "ensureRunning": { "type": "boolean" },
+        "startupTimeoutMs": { "type": "integer", "minimum": 1000, "maximum": 300000 }
+      },
+      "additionalProperties": false
+    },
+    "cleanup": {
+      "type": "object",
+      "properties": {
+        "onFailure": { "enum": ["delete", "keep", "ask"], "default": "delete" },
+        "mode": { "enum": ["delete", "trash"], "default": "delete" },
+        "deleteProject": { "type": "boolean", "default": false },
+        "deleteFailedProject": { "type": "boolean", "default": true },
+        "stagingMaxAgeHours": { "type": "integer", "minimum": 1, "maximum": 720, "default": 24 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "action": { "enum": ["create", "revise"] } },
+        "required": ["action"]
+      },
+      "then": { "required": ["brief"] }
+    },
+    {
+      "if": {
+        "properties": { "action": { "const": "cleanup" } },
+        "required": ["action"]
+      },
+      "then": {
+        "required": ["project"],
+        "properties": {
+          "project": { "required": ["previousResultPath"] }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

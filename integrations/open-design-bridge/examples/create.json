@@ -1,0 +1,29 @@
+{
+  "requestVersion": "CENTURION_OD_REQUEST_V1",
+  "requestId": "clear-day-create",
+  "action": "create",
+  "brief": "Create a polished one-page landing page for a calm productivity app called ClearDay.",
+  "project": {
+    "name": "ClearDay Landing"
+  },
+  "executor": {
+    "agent": "codex",
+    "plugin": "design-system-creative",
+    "inputs": {
+      "artifactKind": "landing page"
+    },
+    "grantCapabilities": ["fs:write"]
+  },
+  "artifact": {
+    "entry": "index.html",
+    "outputDir": "./.centurion/design/clear-day-create"
+  },
+  "screenshot": {
+    "enabled": true,
+    "fullPage": true,
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    }
+  }
+}

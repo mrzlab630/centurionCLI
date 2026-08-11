@@ -80,7 +80,8 @@ const skillAliases = {
   pontifex: ['docker', 'infra', 'инфра', 'deploy', 'ci', 'postgres', 'database', 'db'],
   architect: ['architecture', 'архитект', 'module boundary', 'adr', 'system design'],
   aedilis: ['ui', 'ux', 'дизайн', 'interface', 'layout', 'shadcn', 'radix', 'dashboard', 'форма', 'таблица'],
-  pictor: ['frontend', 'react', 'vue', 'tailwind', 'css', 'web app'],
+  pictor: ['frontend', 'react', 'vue', 'tailwind', 'css', 'web app', 'landing page', 'лендинг', 'html prototype'],
+  'open-design-producer': ['open design', 'open-design', 'landing page', 'лендинг', 'dashboard', 'прототип', 'screenshot', 'скриншот'],
   praeco: ['telegram api', 'bot api', 'mini apps sdk', 'grammy', 'callback_data', 'telegram payments'],
   ludifex: ['telegram mini app game', 'игра', 'game', 'core loop', 'screen map', 'reward model'],
   nomenclator: ['cta', 'microcopy', 'ux writing', 'ux-writing', 'empty state', 'error state', 'naming', 'назван', 'текст интерфейс'],
@@ -120,6 +121,7 @@ const routeRules = [
   ['ludifex', ['telegram mini app game', 'игра', 'game', 'core loop', 'screen map', 'экраны', 'reward model']],
   ['nomenclator', ['cta', 'microcopy', 'ux writing', 'ux-writing', 'empty state', 'error state', 'naming', 'назван', 'текст интерфейс']],
   ['glossator', ['i18n', 'localization', 'localisation', 'translation', 'translate', 'перевод', 'plural', 'rtl', 'locale']],
+  ['pictor', ['open design', 'open-design', 'landing page', 'лендинг', 'html prototype', 'create dashboard', 'revise dashboard', 'создать интерфейс', 'изменить интерфейс', 'реализовать интерфейс']],
   ['aedilis', ['ui', 'ux', 'interface', 'интерфейс', 'layout', 'shadcn', 'radix', 'dashboard', 'form', 'table']],
   ['praeco', ['telegram api', 'bot api', 'mini apps sdk', 'grammy', 'callback_data', 'telegram payments']],
   ['orator', ['twitter', 'reddit', 'social', 'посты', 'posts', 'thread', 'caption', 'hashtags']],
@@ -142,9 +144,26 @@ const routeRules = [
   ['planner', ['roadmap', 'todo', 'milestone', 'knowledge', 'план']],
 ];
 
-const legionaries = routeRules
+let legionaries = routeRules
   .filter(([, terms]) => terms.some((term) => lower.includes(term)))
   .map(([name]) => name);
+
+function prioritize(items, owner) {
+  return items.includes(owner) ? [owner, ...items.filter((item) => item !== owner)] : items;
+}
+
+const openDesignProductionIntent = [
+  'open design', 'open-design', 'landing page html', 'html prototype',
+  'создать лендинг', 'создать интерфейс', 'изменить интерфейс',
+  'реализовать интерфейс', 'revise dashboard', 'create dashboard'
+].some((term) => lower.includes(term));
+const uxArchitectureIntent = [
+  'ux', 'visual review', 'design brief', 'дизайн бриф', 'спроектировать',
+  'информационная архитектура', 'user flow'
+].some((term) => lower.includes(term));
+
+if (openDesignProductionIntent) legionaries = prioritize(legionaries, 'pictor');
+else if (uxArchitectureIntent) legionaries = prioritize(legionaries, 'aedilis');
 
 const guardianHardTerms = ['install', 'mcp', 'secret', 'wallet', 'prod', 'cloud', 'external', 'curl', 'npx', 'безопас', 'security', 'supply', 'vulner', 'опас'];
 const guardianRiskContext = /(risk|risky|риск)/.test(lower)

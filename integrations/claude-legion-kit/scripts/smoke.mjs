@@ -7,9 +7,12 @@ import { spawnSync } from 'node:child_process';
 
 const KIT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const REPO_ROOT = path.resolve(KIT_ROOT, '..', '..');
-const EXPECTED = [
+const LEGIONARY_OWNERS = [
   'aedilis','aleator','architect','artifex','augur','capabilities','censor','coder','context-optimizer','documenter','error-handler','evocate-ad-opus','git-master','glossator','haruspex','indagator','ludifex','mercator','nomenclator','orator','orchestrator','pictor','planner','pontifex','praeco','praemonitor','prompt-engineer','quaestor','refactorer','researcher','reviewer','security','sicarius','skill-quartermaster','tabularius','tester','velites'
 ];
+const SHARED_CAPABILITIES = ['open-design-producer'];
+const EXPECTED_SKILLS = [...LEGIONARY_OWNERS, ...SHARED_CAPABILITIES].sort();
+const OPEN_DESIGN_CONFIG_VERSION = 'CENTURION_OPEN_DESIGN_CONFIG_V1';
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -160,11 +163,11 @@ function main() {
   assert(fs.existsSync(path.join(KIT_ROOT, 'plugin', 'output-styles', 'centurion-legion.md')), 'output style missing');
 
   const canonical = listSkillSlugs(path.join(REPO_ROOT, 'skills'));
-  assert(JSON.stringify(canonical) === JSON.stringify(EXPECTED), `canonical skills drift: ${canonical.length}`);
+  assert(JSON.stringify(canonical) === JSON.stringify(EXPECTED_SKILLS), `canonical skills drift: ${canonical.length}`);
   const agents = fs.readdirSync(path.join(KIT_ROOT, 'plugin', 'agents')).filter((name) => name.endsWith('.md')).map((name) => name.replace(/\.md$/, '')).sort();
-  assert(JSON.stringify(agents) === JSON.stringify(EXPECTED), `agent surface drift: ${agents.length}`);
+  assert(JSON.stringify(agents) === JSON.stringify(LEGIONARY_OWNERS), `agent surface drift: ${agents.length}`);
 
-  for (const slug of EXPECTED) {
+  for (const slug of LEGIONARY_OWNERS) {
     const text = fs.readFileSync(path.join(KIT_ROOT, 'plugin', 'agents', `${slug}.md`), 'utf8');
     assert(text.includes(`Canonical skill source: \`skills/${slug}/SKILL.md\``), `agent ${slug} missing source link`);
     assert(text.includes('CLAUDE_ORDER v1'), `agent ${slug} missing CLAUDE_ORDER guardrail`);
@@ -181,9 +184,21 @@ function main() {
     const install = run(process.execPath, [path.join(KIT_ROOT, 'installer', 'install.mjs'), '--claude-home', tempHome]);
     assert(install.status === 0, `installer failed: ${install.stderr || install.stdout}`);
     const report = JSON.parse(install.stdout);
-    assert(report.syncedSkillCount === EXPECTED.length, `installer synced ${report.syncedSkillCount} skills`);
+    assert(report.syncedSkillCount === EXPECTED_SKILLS.length, `installer synced ${report.syncedSkillCount} skills`);
+    assert(JSON.stringify(report.sharedCapabilities) === JSON.stringify(SHARED_CAPABILITIES), 'installer shared capability report mismatch');
     assert(fs.existsSync(path.join(tempHome, 'skills', 'centurion-legion', '.claude-plugin', 'plugin.json')), 'installed plugin missing');
     assert(fs.existsSync(path.join(tempHome, 'skills', 'pictor', 'SKILL.md')), 'installed canonical skill missing');
+    assert(fs.existsSync(path.join(tempHome, 'skills', 'open-design-producer', 'scripts', 'open-design.mjs')), 'installed Open Design capability missing');
+    const openDesignConfig = readJson(path.join(tempHome, 'centurion', 'open-design-bridge.json'));
+    assert(openDesignConfig.configVersion === OPEN_DESIGN_CONFIG_VERSION, 'Open Design config version mismatch');
+    assert(openDesignConfig.bridgeRoot === path.join(REPO_ROOT, 'integrations', 'open-design-bridge'), 'Open Design bridge root mismatch');
+    const wrapper = run(process.execPath, [path.join(tempHome, 'skills', 'open-design-producer', 'scripts', 'open-design.mjs'), '--print-cli'], {
+      env: { ...process.env, HOME: tempHome, CLAUDE_HOME: tempHome, HERMES_HOME: path.join(tempHome, 'missing-hermes') }
+    });
+    assert(wrapper.status === 0, `installed Open Design wrapper failed: ${wrapper.stderr || wrapper.stdout}`);
+    const wrapperResolution = JSON.parse(wrapper.stdout);
+    assert(wrapperResolution.source === 'harness-config', 'installed Open Design wrapper did not use Claude harness config');
+    assert(wrapperResolution.configPath === path.join(tempHome, 'centurion', 'open-design-bridge.json'), 'installed Open Design wrapper config path mismatch');
   } finally {
     fs.rmSync(tempHome, { recursive: true, force: true });
   }
