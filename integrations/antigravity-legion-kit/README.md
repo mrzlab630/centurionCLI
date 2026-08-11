@@ -2,6 +2,8 @@
 
 Portable CENTURION rules, workflows, skill briefs, and a small MCP bridge for Google Antigravity.
 
+Current kit version: `0.2.1`.
+
 ## What It Installs
 
 - `agent/rules`: global Antigravity rules for disciplined coding behavior.

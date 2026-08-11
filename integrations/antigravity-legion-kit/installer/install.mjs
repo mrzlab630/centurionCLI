@@ -60,6 +60,20 @@ function usage() {
   return `Usage: node installer/install.mjs [options]\n\nOptions:\n  --target <dir>            Antigravity IDE config directory. Default: ~/.gemini/antigravity\n  --cli-target <dir>        Antigravity CLI config directory. Default: ~/.gemini/antigravity-cli\n  --no-cli-plugin           Do not install the agy CLI plugin\n  --skip-agy-install        Copy CLI plugin files but do not call agy plugin install\n  --workspace-agent <dir>   Optional workspace .agent directory to install/update\n  --mcp-config <file>       IDE MCP config file to update. Default: <target>/mcp_config.json\n  --register-mcp            Also call antigravity-ide --add-mcp when available\n  --dry-run                 Print planned changes without writing\n`;
 }
 
+function copyFile(source, destination, dryRun) {
+  if (dryRun) return;
+  const extension = path.extname(source);
+  if (['.md', '.json', '.mjs'].includes(extension)) {
+    const legacyKitRoot = '/home/mrz/projects/al/centurionCLI/cohors-prima/integrations/antigravity-legion-kit';
+    const content = fs.readFileSync(source, 'utf8')
+      .replaceAll(legacyKitRoot, KIT_ROOT)
+      .replaceAll('/home/mrz', os.homedir());
+    fs.writeFileSync(destination, content);
+  } else {
+    fs.copyFileSync(source, destination);
+  }
+}
+
 function copyDirectory(source, destination, dryRun) {
   if (dryRun) return;
   fs.mkdirSync(destination, { recursive: true });
@@ -67,7 +81,7 @@ function copyDirectory(source, destination, dryRun) {
     const sourcePath = path.join(source, entry.name);
     const destinationPath = path.join(destination, entry.name);
     if (entry.isDirectory()) copyDirectory(sourcePath, destinationPath, dryRun);
-    else fs.copyFileSync(sourcePath, destinationPath);
+    else copyFile(sourcePath, destinationPath, dryRun);
   }
 }
 
@@ -92,7 +106,7 @@ function ensureMcpConfig(file, dryRun) {
     args: [path.join(KIT_ROOT, 'mcp-server', 'index.mjs')],
     env: {
       CENTURION_AGENT_ROOT: path.join(KIT_ROOT, 'agent'),
-      CENTURION_SKILL_ROOT: '/home/mrz/.agents/skills'
+      CENTURION_SKILL_ROOT: path.join(os.homedir(), '.agents', 'skills')
     }
   };
   config.mcpServers.serena = serenaMcpDefinition();
@@ -107,7 +121,7 @@ function copyTree(source, destination, dryRun) {
     const sourcePath = path.join(source, entry.name);
     const destinationPath = path.join(destination, entry.name);
     if (entry.isDirectory()) copyTree(sourcePath, destinationPath, dryRun);
-    else fs.copyFileSync(sourcePath, destinationPath);
+    else copyFile(sourcePath, destinationPath, dryRun);
   }
 }
 

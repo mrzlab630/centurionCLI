@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 
 const KIT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const AGENT_ROOT = process.env.CENTURION_AGENT_ROOT || path.join(KIT_ROOT, 'agent');
-const CANONICAL_SKILL_ROOT = process.env.CENTURION_SKILL_ROOT || '/home/mrz/.agents/skills';
+const CANONICAL_SKILL_ROOT = process.env.CENTURION_SKILL_ROOT || path.join(os.homedir(), '.agents', 'skills');
 const CATALOG_JSON_PATH = path.join(KIT_ROOT, 'docs', 'external-catalog.json');
 const FRONTEND_CATALOG_JSON_PATH = path.join(KIT_ROOT, 'docs', 'frontend-catalog.json');
 const FRONTEND_REFERENCE_INDEX_JSON_PATH = path.join(KIT_ROOT, 'docs', 'frontend-reference-index.json');
@@ -1046,7 +1047,7 @@ function handleRequest(message) {
       result: {
         protocolVersion: params?.protocolVersion || '2024-11-05',
         capabilities: { tools: {} },
-        serverInfo: { name: 'centurion-legion', version: '0.1.0' }
+        serverInfo: { name: 'centurion-legion', version: '0.2.1' }
       }
     });
     return;

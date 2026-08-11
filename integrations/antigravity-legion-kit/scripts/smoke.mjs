@@ -169,7 +169,8 @@ function assertLegionSurface() {
   const source = fs.readFileSync(path.join(KIT_ROOT, 'mcp-server', 'index.mjs'), 'utf8');
   const expectedNames = EXPECTED_LEGIONARIES.map(([name]) => name).sort();
   const expectedSlugs = EXPECTED_LEGIONARIES.map(([, slug]) => slug).sort();
-  const installedSlugs = listSkillSlugs('/home/mrz/.agents/skills');
+  const canonicalSkillRoot = path.join(os.homedir(), '.agents', 'skills');
+  const installedSlugs = listSkillSlugs(canonicalSkillRoot);
   const missingInstalled = expectedSlugs.filter((slug) => !installedSlugs.includes(slug));
   const extraExpected = expectedSlugs.filter((slug, index, list) => list.indexOf(slug) !== index);
 
@@ -197,7 +198,7 @@ function stripAnsi(text) {
 }
 
 function agyBinary() {
-  const local = '/home/mrz/.local/bin/agy';
+  const local = path.join(os.homedir(), '.local', 'bin', 'agy');
   return fs.existsSync(local) ? local : 'agy';
 }
 
@@ -224,7 +225,7 @@ function assertAgyPlugin(pluginDir) {
   assert(server?.command === 'node', 'agy plugin MCP command mismatch');
   assert(server?.args?.[0]?.endsWith(path.join('mcp-server', 'index.mjs')), 'agy plugin MCP args missing server path');
   assert(server?.env?.CENTURION_AGENT_ROOT, 'agy plugin MCP missing CENTURION_AGENT_ROOT');
-  assert(server?.env?.CENTURION_SKILL_ROOT === '/home/mrz/.agents/skills', 'agy plugin MCP missing canonical skill root');
+  assert(server?.env?.CENTURION_SKILL_ROOT?.endsWith(path.join('.agents', 'skills')), 'agy plugin MCP missing canonical skill root');
   assertSerenaMcp(mcpConfig.mcpServers?.serena, 'agy plugin');
   validateAgyPlugin(pluginDir);
 }

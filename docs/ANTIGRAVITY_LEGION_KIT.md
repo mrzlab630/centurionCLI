@@ -2,6 +2,8 @@
 
 `integrations/antigravity-legion-kit` is the permanent CENTURION integration pack for Google Antigravity IDE and the `agy` Antigravity CLI.
 
+Current kit version: `0.2.1`.
+
 The pack was moved into this repository so Antigravity rules, workflows, MCP tools, frontend/content catalogs, and the `AUXILIUM AGY` delegation protocol are versioned together with the canonical Legion surface.
 
 ## Source Of Truth
