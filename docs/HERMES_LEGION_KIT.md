@@ -1,6 +1,6 @@
 # Hermes Legion Kit
 
-`integrations/hermes-legion-kit` (version 0.5.0) is the versioned source for the local Hermes/Aquila Team Lead pack.
+`integrations/hermes-legion-kit` (version 0.6.0) is the versioned source for the local Hermes/Aquila Team Lead pack.
 
 ## Purpose
 
@@ -30,6 +30,7 @@ The pack is designed for Aquila managing `codex`, `claude`, `agy`, Hermes `deleg
 - `/aquila-executor-eval`: lean executor-eval bundle.
 - `/aquila-design-production`: lean design-production bundle.
 - `$HERMES_HOME/centurion/open-design-bridge.json`: absolute bridge discovery config written by the installer.
+- `centurion-open-design` MCP: local four-tool facade for reference search, async production, polling, and cleanup.
 
 ## Safety Boundary
 
@@ -38,7 +39,7 @@ This kit intentionally does not:
 - edit `SOUL.md`;
 - edit `~/.hermes/config.yaml`;
 - enable Hermes plugins or hooks;
-- modify MCP server configuration;
+- modify unrelated MCP server configuration;
 - import ECC runtime files;
 - add external dependencies.
 
@@ -113,7 +114,11 @@ Apply optional skill overrides explicitly:
 node ./installer/install.mjs --include-overrides
 ```
 
-The default installer writes Aquila content under `$HERMES_HOME/skills` and `$HERMES_HOME/skill-bundles`, copies the canonical Open Design skill to `$HERMES_HOME/skills/autonomous-ai-agents/open-design-producer`, writes its bridge discovery config under `$HERMES_HOME/centurion`, and writes the packaged monitor to `$HERMES_HOME/bin/monitor-delegation.sh`. It does not edit `SOUL.md`, `config.yaml`, plugins, hooks, or MCP servers. `--include-overrides` can additionally update reviewed builtin skill overrides. Before activating the kit in a live Hermes home, back up every existing destination, record its content hash and file mode, verify the installed hash and mode, and keep a tested rollback path. The reviewed `SOUL_RUNTIME_MODEL_RULE.md` and `SOUL_CLAUDE_ROLE_RULE.md` notes are manual and reviewable; neither is automatically applied by the installer.
+The default installer writes Aquila content under `$HERMES_HOME/skills` and `$HERMES_HOME/skill-bundles`, copies the canonical Open Design skill to `$HERMES_HOME/skills/autonomous-ai-agents/open-design-producer`, writes its bridge discovery config under `$HERMES_HOME/centurion`, registers only the local `centurion-open-design` MCP through `hermes mcp add`, and writes the packaged monitor to `$HERMES_HOME/bin/monitor-delegation.sh`. It does not edit `SOUL.md`, plugins, hooks, or unrelated MCP entries. `--include-overrides` can additionally update reviewed builtin skill overrides. Installation stages every owned target, snapshots the Hermes MCP config, swaps only after staging succeeds, and restores every touched target when registration fails. Keep an external backup for operator recovery before changing a live home. The reviewed `SOUL_RUNTIME_MODEL_RULE.md` and `SOUL_CLAUDE_ROLE_RULE.md` notes are manual and reviewable; neither is automatically applied by the installer.
+
+For production, Aquila calls `search_design_references`, chooses references with
+AEDILIS/PICTOR, starts the design, and polls until terminal. A result can then be
+handed to Claude or Codex unchanged through `project.previousResultPath`.
 
 The adaptive model/effort policy note is also manual and reviewable; no
 installer mode applies it automatically.

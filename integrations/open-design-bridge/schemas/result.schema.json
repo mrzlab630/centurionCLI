@@ -14,6 +14,8 @@
     "runId": { "type": ["string", "null"] },
     "revisionOf": { "type": ["string", "null"] },
     "executor": { "type": ["object", "null"] },
+    "orchestrator": { "type": ["object", "null"] },
+    "references": { "type": ["object", "null"] },
     "artifact": { "type": ["object", "null"] },
     "screenshot": { "type": ["object", "null"] },
     "proof": { "type": "array", "items": { "type": "object" } },

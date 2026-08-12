@@ -7,6 +7,7 @@ new Legionary or replace the one-owner rule.
 | --- | --- | --- |
 | UX architecture, information hierarchy, flows, design systems, visual acceptance | AEDILIS | Write the design brief, constrain the run, inspect the screenshot, request revisions |
 | Landing page, dashboard, prototype, responsive HTML/UI implementation or revision | PICTOR | Execute create/revise requests, inspect HTML and responsive output, fix implementation issues |
+| Reference discovery, source verification, license and attribution facts | EXPLORATOR | Search the curated reference adapters, verify source URLs, and hand the selected manifest to AEDILIS/PICTOR |
 | Game screens and product loop | LUDIFEX | Supply game rules and screen requirements to AEDILIS/PICTOR |
 | Telegram Bot or Mini App constraints | PRAECO | Supply platform limits and interaction constraints |
 | Naming, CTA, labels, microcopy | NOMENCLATOR | Supply approved interface copy |
@@ -20,3 +21,7 @@ new Legionary or replace the one-owner rule.
 For mixed requests, keep one primary owner. A request to "design the UX" starts
 with AEDILIS; a request to "create or revise the landing page/dashboard/HTML"
 starts with PICTOR. Either owner may invoke `$open-design-producer`.
+
+Hermes, Claude, and Codex are orchestrator clients, not owners. Preserve the one
+owner rule in `orchestrator.owner`, and continue the same OD project by passing
+the prior result JSON through `project.previousResultPath`.

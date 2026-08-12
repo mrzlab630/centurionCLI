@@ -2,7 +2,7 @@
 
 Portable CENTURION integration for Claude Code CLI.
 
-Current kit version: `0.3.0`.
+Current kit version: `0.4.0`.
 
 This kit installs a Claude Code plugin with one CENTURION entry skill, 37 Legionary subagents, the shared `open-design-producer` capability, and a `CLAUDE_ORDER v1` guard for bounded implementation work.
 
@@ -25,8 +25,9 @@ This kit installs a Claude Code plugin with one CENTURION entry skill, 37 Legion
 Secrets were not copied into this kit. The installer does not edit `~/.claude/settings.json`, `~/.claude/settings.local.json`, or `~/.claude.json`.
 
 The installer writes `~/.claude/centurion/open-design-bridge.json` with the
-absolute repository bridge path. The skill wrapper uses that file without
-adding an MCP server or changing Claude permissions.
+absolute repository bridge path. Plugin and skill trees are staged and validated
+before atomic replacement; a failed validation leaves the previous trees intact.
+The skill wrapper uses that file without changing Claude permissions.
 
 ## What It Installs
 

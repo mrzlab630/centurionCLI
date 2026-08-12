@@ -6,6 +6,8 @@ import { spawn, spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright-core';
 import { normalizedRequest, RESULT_VERSION } from './contracts.mjs';
+import { assertPathWithinRoot, assertPublicOutputPath, isWithinPath, projectedRealPath } from './path-safety.mjs';
+import { AnchoredRoot } from './descriptor-fs.mjs';
 
 const MAX_CAPTURE_BYTES = 24 * 1024 * 1024;
 const TERMINAL_RUN_STATUSES = new Set(['completed', 'succeeded', 'failed', 'cancelled']);
@@ -16,13 +18,31 @@ export async function runDesignRequest(rawRequest, options = {}) {
   const outputRoot = env.CENTURION_DESIGN_ROOT
     ? path.resolve(env.CENTURION_DESIGN_ROOT)
     : path.resolve(cwd, '.centurion', 'design');
-  const request = normalizedRequest(rawRequest, { cwd, outputRoot });
-  const staleStagingRemoved = sweepTransientRoot(outputRoot, '.staging', request.cleanup.stagingMaxAgeHours);
-  const staleTrashRemoved = sweepTransientRoot(outputRoot, '.trash', request.cleanup.stagingMaxAgeHours);
+  const referenceRoot = env.CENTURION_REFERENCE_ROOT
+    ? path.resolve(env.CENTURION_REFERENCE_ROOT)
+    : path.join(outputRoot, '.reference-cache');
+  const storageRoot = new AnchoredRoot(outputRoot, { create: true, hook: options.storageHook });
+  try {
+    return await runDesignRequestAnchored(rawRequest, options, { cwd, env, outputRoot, referenceRoot, storageRoot });
+  } finally {
+    storageRoot.close();
+  }
+}
+
+async function runDesignRequestAnchored(rawRequest, options, context) {
+  const { cwd, env, outputRoot, referenceRoot, storageRoot } = context;
+  const request = normalizedRequest(rawRequest, { cwd, outputRoot, referenceRoot, storageRoot, storageHook: options.storageHook });
+  options.afterNormalize?.(request);
+  if (request.action !== 'cleanup' && options.resultPath) {
+    assertResultPathOutsideBundle(request.artifact.outputDir, options.resultPath);
+  }
+  const staleStagingRemoved = sweepTransientRoot(storageRoot, '.staging', request.cleanup.stagingMaxAgeHours);
+  const staleTrashRemoved = sweepTransientRoot(storageRoot, '.trash', request.cleanup.stagingMaxAgeHours);
   if (request.action === 'cleanup') {
     return runCleanupRequest(request, {
       env,
       outputRoot,
+      storageRoot,
       resultPath: options.resultPath ?? null,
       staleStagingRemoved,
       staleTrashRemoved
@@ -46,6 +66,7 @@ export async function runDesignRequest(rawRequest, options = {}) {
   let executorExitCode = null;
   let runLogPath = null;
   let previousArtifactSha256 = null;
+  let references = null;
   let od = null;
   let cleanup = {
     policy: request.cleanup.onFailure,
@@ -59,13 +80,13 @@ export async function runDesignRequest(rawRequest, options = {}) {
 
   try {
     assertOutputTargetsUnused(request);
-    stagingDir = createStagingDir(outputRoot, request.requestId);
+    stagingDir = createStagingDir(storageRoot, request.requestId);
     executionRequest = {
       ...request,
       artifact: { ...request.artifact, outputDir: stagingDir }
     };
     od = resolveOdCommand(env);
-    daemonStarted = await ensureDaemon(od, executionRequest, env, stagingDir);
+    daemonStarted = await ensureDaemon(od, executionRequest, env, stagingDir, storageRoot);
     proof.push({ check: 'daemon', result: 'passed', summary: `Open Design reachable at ${request.daemon.url}` });
 
     if (request.action === 'create') {
@@ -89,6 +110,15 @@ export async function runDesignRequest(rawRequest, options = {}) {
         : null;
     }
 
+    references = await stageReferences(od, projectId, executionRequest, env);
+    if (references) {
+      proof.push({
+        check: 'references-staged',
+        result: 'passed',
+        summary: `${references.selectedIds.length} reference(s) staged in Open Design project`
+      });
+    }
+
     const prompt = buildProductionPrompt(request);
     const runArgs = [
       'run', 'start',
@@ -110,8 +140,10 @@ export async function runDesignRequest(rawRequest, options = {}) {
     const watched = await odCapture(od, ['run', 'watch', runId], executionRequest, env, request.executor.timeoutMs);
     executorExitCode = watched.code;
     runLogPath = path.join(stagingDir, 'open-design-events.ndjson');
-    fs.writeFileSync(runLogPath, watched.stdout);
-    if (watched.stderr.trim()) fs.writeFileSync(path.join(stagingDir, 'open-design-stderr.log'), watched.stderr);
+    storageRoot.writeFile(storageRoot.relative(runLogPath), watched.stdout, { operation: 'run-log-write' });
+    if (watched.stderr.trim()) {
+      storageRoot.writeFile(storageRoot.relative(path.join(stagingDir, 'open-design-stderr.log')), watched.stderr, { operation: 'stderr-log-write' });
+    }
 
     runInfo = await odJson(od, ['run', 'info', runId, '--json'], executionRequest, env, 30_000);
     if (!TERMINAL_RUN_STATUSES.has(runInfo.status)) {
@@ -122,8 +154,8 @@ export async function runDesignRequest(rawRequest, options = {}) {
       warnings.push(`Open Design run ended with status=${runInfo.status}${runInfo.error ? `: ${runInfo.error}` : ''}`);
     }
 
-    artifact = await materializeProject(od, projectId, executionRequest, env);
-    proof.push(...verifyHtmlArtifact(artifact.absolutePath));
+    artifact = await materializeProject(od, projectId, executionRequest, env, storageRoot);
+    proof.push(...verifyHtmlArtifact(storageRoot.readFile(storageRoot.relative(artifact.absolutePath), { operation: 'artifact-proof-read' })));
     if (request.action === 'revise') {
       const changed = Boolean(previousArtifactSha256) && artifact.sha256 !== previousArtifactSha256;
       proof.push({
@@ -134,7 +166,7 @@ export async function runDesignRequest(rawRequest, options = {}) {
     }
 
     if (request.screenshot.enabled) {
-      screenshot = await captureScreenshot(artifact.absolutePath, executionRequest, env);
+      screenshot = await captureScreenshot(artifact.absolutePath, executionRequest, env, storageRoot);
       proof.push({
         check: 'screenshot',
         result: 'passed',
@@ -145,10 +177,12 @@ export async function runDesignRequest(rawRequest, options = {}) {
     const failedProof = proof.filter((entry) => entry.result !== 'passed');
     if (failedProof.length) errors.push(...failedProof.map((entry) => `${entry.check}: ${entry.summary}`));
     if (errors.length === 0) {
-      promoteStaging(stagingDir, finalOutputDir);
+      references = preserveReferenceEvidence(references, executionRequest, stagingDir, storageRoot);
+      promoteStaging(storageRoot, stagingDir, finalOutputDir);
       artifact = rebaseArtifact(artifact, stagingDir, finalOutputDir);
       screenshot = rebaseScreenshot(screenshot, stagingDir, finalOutputDir);
       runLogPath = rebasePath(runLogPath, stagingDir, finalOutputDir);
+      references = rebaseReferences(references, stagingDir, finalOutputDir);
     }
   } catch (error) {
     errors.push(error.message);
@@ -163,6 +197,7 @@ export async function runDesignRequest(rawRequest, options = {}) {
       od,
       projectId,
       env,
+      storageRoot,
       warnings
     });
     artifact = null;
@@ -192,6 +227,8 @@ export async function runDesignRequest(rawRequest, options = {}) {
       runExitCode: runInfo?.exitCode ?? executorExitCode,
       runError: runInfo?.error ?? null
     },
+    orchestrator: request.orchestrator,
+    references,
     artifact,
     screenshot,
     proof,
@@ -211,20 +248,27 @@ async function runCleanupRequest(request, options) {
   const errors = [];
   const warnings = [];
   const proof = [];
-  const targetPath = path.resolve(request.artifact.outputDir);
-  if (!isWithin(options.outputRoot, targetPath) || targetPath === path.resolve(options.outputRoot)) {
-    errors.push(`cleanup target must be a child of CENTURION_DESIGN_ROOT: ${options.outputRoot}`);
+  let targetPath = path.resolve(request.artifact.outputDir);
+  try {
+    const targetRelative = options.storageRoot.relative(targetPath);
+    if (!targetRelative) throw new Error(`cleanup target must stay within ${options.outputRoot}: ${targetPath}`);
+    const stats = options.storageRoot.lstat(targetRelative);
+    if (stats?.isSymbolicLink()) throw new Error(`cleanup target must not be a symbolic link: ${targetPath}`);
+    if (stats && !stats.isDirectory()) throw new Error(`cleanup target must be a directory: ${targetPath}`);
+  } catch (error) {
+    errors.push(error.message);
   }
   if ([path.join(options.outputRoot, '.staging'), path.join(options.outputRoot, '.trash')]
     .some((reservedRoot) => targetPath === path.resolve(reservedRoot))) {
     errors.push('cleanup target cannot be a transient root directory');
   }
-  if (options.resultPath && isWithin(targetPath, options.resultPath)) {
-    errors.push('cleanup --result path must be outside the bundle being removed');
+  if (options.resultPath) {
+    try { assertResultPathOutsideBundle(targetPath, options.resultPath, 'cleanup --result path'); }
+    catch (error) { errors.push(error.message); }
   }
   if (errors.length === 0) {
     try {
-      assertRemovableDirectory(targetPath);
+      assertRemovableDirectory(options.storageRoot, targetPath);
     } catch (error) {
       errors.push(error.message);
     }
@@ -239,11 +283,11 @@ async function runCleanupRequest(request, options) {
   if (errors.length === 0 && request.cleanup.deleteProject) {
     if (!projectId) errors.push('previous result contains no projectId for project deletion');
     else {
-      const scratch = createStagingDir(options.outputRoot, `${request.requestId}-cleanup`);
+      const scratch = createStagingDir(options.storageRoot, `${request.requestId}-cleanup`);
       try {
         const od = resolveOdCommand(options.env);
         const cleanupRequest = { ...request, artifact: { ...request.artifact, outputDir: scratch } };
-        await ensureDaemon(od, cleanupRequest, options.env, scratch);
+        await ensureDaemon(od, cleanupRequest, options.env, scratch, options.storageRoot);
         const deleted = await odCapture(od, ['project', 'delete', projectId], cleanupRequest, options.env, 30_000);
         if (deleted.code !== 0) throw new Error(deleted.stderr.trim() || deleted.stdout.trim());
         projectDeleted = true;
@@ -252,7 +296,10 @@ async function runCleanupRequest(request, options) {
         errors.push(`Open Design project cleanup failed: ${error.message}`);
       } finally {
         try {
-          fs.rmSync(scratch, { recursive: true, force: true });
+          options.storageRoot.remove(options.storageRoot.relative(scratch), {
+            operation: 'cleanup-scratch-remove',
+            expectedType: 'directory'
+          });
         } catch (error) {
           warnings.push(`failed cleanup scratch removal: ${error.message}`);
         }
@@ -262,19 +309,24 @@ async function runCleanupRequest(request, options) {
 
   if (errors.length === 0) {
     try {
-      if (!fs.existsSync(targetPath)) {
+      const targetRelative = options.storageRoot.relative(targetPath);
+      if (!options.storageRoot.exists(targetRelative)) {
         warnings.push(`cleanup target already absent: ${targetPath}`);
         localAction = 'already-absent';
       } else if (request.cleanup.mode === 'trash') {
         const trashRoot = path.join(options.outputRoot, '.trash');
-        fs.mkdirSync(trashRoot, { recursive: true });
+        const trashDirectory = options.storageRoot.openDirectory('.trash', { create: true });
+        trashDirectory.close();
         trashPath = path.join(trashRoot, `${Date.now()}-${crypto.randomUUID()}-${path.basename(targetPath)}`);
-        fs.renameSync(targetPath, trashPath);
+        options.storageRoot.rename(targetRelative, options.storageRoot, options.storageRoot.relative(trashPath), {
+          createParents: true,
+          operation: 'cleanup-trash-rename'
+        });
         const trashedAt = new Date();
-        fs.utimesSync(trashPath, trashedAt, trashedAt);
+        options.storageRoot.utimes(options.storageRoot.relative(trashPath), trashedAt, trashedAt, { operation: 'cleanup-trash-retention' });
         localAction = 'trashed';
       } else {
-        fs.rmSync(targetPath, { recursive: true, force: true });
+        options.storageRoot.remove(targetRelative, { operation: 'cleanup-delete', expectedType: 'directory' });
         localAction = 'deleted';
       }
       proof.push({ check: 'local-cleanup', result: 'passed', summary: `${localAction}: ${targetPath}` });
@@ -293,6 +345,8 @@ async function runCleanupRequest(request, options) {
     runId: null,
     revisionOf: request.project.previousResultPath,
     executor: null,
+    orchestrator: request.orchestrator,
+    references: previous?.references ?? null,
     artifact: null,
     screenshot: null,
     proof,
@@ -312,14 +366,17 @@ async function runCleanupRequest(request, options) {
   };
 }
 
-async function cleanupFailedRun({ cleanup, request, executionRequest, stagingDir, od, projectId, env, warnings }) {
+async function cleanupFailedRun({ cleanup, request, executionRequest, stagingDir, od, projectId, env, storageRoot, warnings }) {
   if (request.cleanup.onFailure === 'delete') {
     try {
-      fs.rmSync(stagingDir, { recursive: true, force: true });
-      cleanup.stagingDeleted = !fs.existsSync(stagingDir);
+      storageRoot.remove(storageRoot.relative(stagingDir), {
+        operation: 'failed-staging-remove',
+        expectedType: 'directory'
+      });
+      cleanup.stagingDeleted = !storageRoot.exists(storageRoot.relative(stagingDir));
     } catch (error) {
       warnings.push(`failed staging cleanup: ${error.message}`);
-      cleanup.stagingDeleted = !fs.existsSync(stagingDir);
+      cleanup.stagingDeleted = !storageRoot.exists(storageRoot.relative(stagingDir));
       cleanup.pending = !cleanup.stagingDeleted;
       cleanup.preservedPath = cleanup.stagingDeleted ? null : stagingDir;
     }
@@ -339,19 +396,33 @@ async function cleanupFailedRun({ cleanup, request, executionRequest, stagingDir
   return cleanup;
 }
 
-function createStagingDir(outputRoot, requestId) {
-  const stagingRoot = path.join(outputRoot, '.staging');
-  fs.mkdirSync(stagingRoot, { recursive: true });
+function createStagingDir(storageRoot, requestId) {
   const safeId = String(requestId).replace(/[^A-Za-z0-9._-]/g, '-');
-  return fs.mkdtempSync(path.join(stagingRoot, `${safeId}-`));
+  const staging = storageRoot.createUniqueDirectory('.staging', `${safeId}-`, { operation: 'staging-create' });
+  const stagingDir = staging.absolutePath;
+  staging.close();
+  return stagingDir;
 }
 
-function promoteStaging(stagingDir, finalOutputDir) {
-  fs.mkdirSync(path.dirname(finalOutputDir), { recursive: true });
-  if (fs.existsSync(finalOutputDir)) {
+function promoteStaging(storageRoot, stagingDir, finalOutputDir) {
+  assertPublicOutputPath(storageRoot.absolutePath, finalOutputDir);
+  const stagingRelative = storageRoot.relative(stagingDir);
+  const finalRelative = storageRoot.relative(finalOutputDir);
+  if (storageRoot.exists(finalRelative)) {
     throw new Error(`output bundle appeared during execution; refusing to replace it: ${finalOutputDir}`);
   }
-  fs.renameSync(stagingDir, finalOutputDir);
+  try {
+    storageRoot.renameNoReplace(stagingRelative, storageRoot, finalRelative, {
+      createParents: true,
+      operation: 'publish-rename',
+      label: 'output publication parent'
+    });
+  } catch (error) {
+    if (['EEXIST', 'ENOTEMPTY'].includes(error.code)) {
+      throw new Error(`output bundle appeared during execution; refusing to replace it: ${finalOutputDir}`);
+    }
+    throw error;
+  }
 }
 
 function rebaseArtifact(artifact, fromRoot, toRoot) {
@@ -378,36 +449,28 @@ function rebasePath(value, fromRoot, toRoot) {
   return path.join(toRoot, path.relative(fromRoot, value));
 }
 
-function sweepTransientRoot(outputRoot, directory, maxAgeHours) {
-  const transientRoot = path.join(outputRoot, directory);
-  if (!fs.existsSync(transientRoot)) return 0;
+function sweepTransientRoot(storageRoot, directory, maxAgeHours) {
+  if (!storageRoot.exists(directory)) return 0;
+  const transientRoot = storageRoot.openDirectory(directory);
   const cutoff = Date.now() - (maxAgeHours * 60 * 60 * 1000);
   let removed = 0;
-  for (const entry of fs.readdirSync(transientRoot, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
-    const target = path.join(transientRoot, entry.name);
-    let stats;
-    try {
-      stats = fs.lstatSync(target);
-    } catch (error) {
-      if (error.code === 'ENOENT') continue;
-      throw error;
+  try {
+    for (const entry of transientRoot.entries()) {
+      if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
+      const stats = transientRoot.lstat(entry.name);
+      if (!stats?.isDirectory() || stats.isSymbolicLink() || stats.mtimeMs >= cutoff) continue;
+      transientRoot.remove(entry.name, { operation: `${directory}-ttl-remove`, expectedType: 'directory' });
+      removed += 1;
     }
-    if (stats.isSymbolicLink() || !stats.isDirectory() || stats.mtimeMs >= cutoff) continue;
-    fs.rmSync(target, { recursive: true, force: true });
-    removed += 1;
+  } finally {
+    transientRoot.close();
   }
   return removed;
 }
 
-function assertRemovableDirectory(targetPath) {
-  let stats;
-  try {
-    stats = fs.lstatSync(targetPath);
-  } catch (error) {
-    if (error.code === 'ENOENT') return;
-    throw error;
-  }
+function assertRemovableDirectory(storageRoot, targetPath) {
+  const stats = storageRoot.lstat(storageRoot.relative(targetPath));
+  if (!stats) return;
   if (stats.isSymbolicLink()) throw new Error(`cleanup target must not be a symbolic link: ${targetPath}`);
   if (!stats.isDirectory()) throw new Error(`cleanup target must be a directory: ${targetPath}`);
 }
@@ -416,16 +479,172 @@ function buildProductionPrompt(request) {
   const action = request.action === 'create'
     ? `Create the requested interface and write the canonical deliverable to ${request.artifact.entry}.`
     : `Inspect the current ${request.artifact.entry}, then revise that same artifact in place.`;
+  const referenceLines = request.references
+    ? [
+        `Reference manifest: ${request.references.manifestPath}`,
+        `Selected reference IDs: ${request.references.selectedIds.join(', ')}.`,
+        `Reference strategy: ${request.references.strategy}.`,
+        'Read context/centurion/reference-manifest.json before implementation.',
+        'Use import-and-adapt references as ingredients, not as a full-page clone. Use inspire-only references for direction only; do not copy their code, assets, branding, or text.'
+      ]
+    : [];
   return [
     'You are the Open Design production executor inside a CENTURION proof-first workflow.',
     action,
     `User brief: ${request.brief}`,
     `Target viewport: ${request.screenshot.viewport.width}x${request.screenshot.viewport.height}.`,
+    ...referenceLines,
     'Return a working implementation, not a prose-only design.',
     'Keep the primary artifact directly renderable in Chrome.',
     'Preserve valid existing behavior during revisions unless the brief explicitly replaces it.',
     'Verify the artifact before finishing. Do not delete unrelated project files.'
   ].join('\n');
+}
+
+async function stageReferences(od, projectId, request, env) {
+  if (!request.references) return null;
+  verifyReferenceManifest(request.references);
+  const selected = request.references.manifest.references
+    .filter((reference) => request.references.selectedIds.includes(reference.id));
+  const manifest = portableReferenceManifest({
+    ...request.references.manifest,
+    strategy: request.references.strategy,
+    references: selected
+  });
+  const manifestText = `${JSON.stringify(manifest, null, 2)}\n`;
+  await odWrite(od, projectId, 'context/centurion/reference-manifest.json', Buffer.from(manifestText), request, env);
+  const stagedSnippets = [];
+  for (const reference of selected) {
+    if (!reference.snippet?.absolutePath) continue;
+    const snippet = readVerifiedReferenceSnippet(reference, request.references.manifestPath);
+    const projectPath = `context/centurion/snippets/${referenceSnippetName(reference)}`;
+    await odWrite(od, projectId, projectPath, snippet.bytes, request, env);
+    stagedSnippets.push({ id: reference.id, projectPath, sha256: reference.snippet.sha256 });
+  }
+  return {
+    manifestPath: request.references.manifestPath,
+    manifestSha256: request.references.manifestSha256,
+    projectManifestPath: 'context/centurion/reference-manifest.json',
+    selectedIds: request.references.selectedIds,
+    strategy: request.references.strategy,
+    stagedSnippets
+  };
+}
+
+function preserveReferenceEvidence(references, request, stagingDir, storageRoot) {
+  if (!references) return null;
+  verifyReferenceManifest(request.references);
+  const evidenceDir = path.join(stagingDir, 'references');
+  const manifestTarget = path.join(evidenceDir, 'reference-manifest.json');
+  const acceptedManifest = portableReferenceManifest({
+    ...request.references.manifest,
+    strategy: request.references.strategy,
+    references: request.references.manifest.references
+      .filter((item) => request.references.selectedIds.includes(item.id))
+  });
+  storageRoot.writeFile(storageRoot.relative(manifestTarget), `${JSON.stringify(acceptedManifest, null, 2)}\n`, {
+    operation: 'reference-evidence-manifest-write'
+  });
+  const snippetCopies = [];
+  for (const reference of request.references.manifest.references
+    .filter((item) => request.references.selectedIds.includes(item.id) && item.snippet?.absolutePath)) {
+    const target = path.join(evidenceDir, 'snippets', referenceSnippetName(reference));
+    const snippet = readVerifiedReferenceSnippet(reference, request.references.manifestPath);
+    storageRoot.writeFile(storageRoot.relative(target), snippet.bytes, { operation: 'reference-evidence-snippet-write' });
+    snippetCopies.push({
+      id: reference.id,
+      absolutePath: target,
+      sha256: sha256Bytes(storageRoot.readFile(storageRoot.relative(target), { operation: 'reference-evidence-snippet-read' }))
+    });
+  }
+  return {
+    ...references,
+    acceptedManifestPath: manifestTarget,
+    acceptedManifestSha256: sha256Bytes(storageRoot.readFile(storageRoot.relative(manifestTarget), { operation: 'reference-evidence-manifest-read' })),
+    acceptedSnippets: snippetCopies
+  };
+}
+
+function verifyReferenceManifest(references) {
+  const checked = assertPathWithinRoot(path.dirname(references.manifestPath), references.manifestPath, {
+    label: 'reference manifest',
+    rejectFinalSymlink: true,
+    requireExisting: true
+  });
+  if (!checked.stats.isFile()) throw new Error(`reference manifest must be a regular file: ${references.manifestPath}`);
+  const storageRoot = new AnchoredRoot(references.manifestRoot ?? path.dirname(references.manifestPath), { create: false });
+  let bytes;
+  try {
+    bytes = storageRoot.readFile(storageRoot.relative(references.manifestPath), {
+      operation: 'reference-manifest-read',
+      label: 'reference manifest'
+    });
+  } finally {
+    storageRoot.close();
+  }
+  const actual = sha256Bytes(bytes);
+  if (actual !== references.manifestSha256) throw new Error('reference manifest SHA-256 changed after validation');
+}
+
+function readVerifiedReferenceSnippet(reference, manifestPath) {
+  const snippetPath = path.resolve(reference.snippet.absolutePath);
+  const checked = assertPathWithinRoot(path.dirname(manifestPath), snippetPath, {
+    allowRoot: false,
+    label: `reference snippet ${reference.id}`,
+    rejectFinalSymlink: true,
+    requireExisting: true
+  });
+  if (!checked.stats.isFile()) throw new Error(`reference snippet missing or unsafe: ${reference.id}`);
+  const storageRoot = new AnchoredRoot(path.dirname(manifestPath), { create: false });
+  let bytes;
+  try {
+    bytes = storageRoot.readFile(storageRoot.relative(snippetPath), {
+      operation: 'reference-snippet-read',
+      label: `reference snippet ${reference.id}`
+    });
+  } finally {
+    storageRoot.close();
+  }
+  const actual = crypto.createHash('sha256').update(bytes).digest('hex');
+  if (actual !== reference.snippet.sha256) throw new Error(`reference snippet SHA-256 mismatch: ${reference.id}`);
+  if (reference.snippet.bytes !== undefined && reference.snippet.bytes !== bytes.length) {
+    throw new Error(`reference snippet byte count mismatch: ${reference.id}`);
+  }
+  return { bytes, sha256: actual };
+}
+
+function referenceSnippetName(reference) {
+  const extension = path.extname(reference.snippet?.relativePath ?? '') || '.txt';
+  return `${String(reference.id).replace(/[^A-Za-z0-9._-]/g, '-')}${extension}`;
+}
+
+function portableReferenceManifest(manifest) {
+  return {
+    ...manifest,
+    references: manifest.references.map((reference) => ({
+      ...reference,
+      snippet: reference.snippet
+        ? {
+            relativePath: reference.snippet.relativePath,
+            bytes: reference.snippet.bytes,
+            sha256: reference.snippet.sha256,
+            truncated: reference.snippet.truncated
+          }
+        : null
+    }))
+  };
+}
+
+function rebaseReferences(references, fromRoot, toRoot) {
+  if (!references) return null;
+  return {
+    ...references,
+    acceptedManifestPath: rebasePath(references.acceptedManifestPath, fromRoot, toRoot),
+    acceptedSnippets: (references.acceptedSnippets ?? []).map((snippet) => ({
+      ...snippet,
+      absolutePath: rebasePath(snippet.absolutePath, fromRoot, toRoot)
+    }))
+  };
 }
 
 function resolveOdCommand(env) {
@@ -447,12 +666,14 @@ function resolveOdCommand(env) {
   throw new Error('Open Design command is not configured; set CENTURION_OD_COMMAND_JSON, CENTURION_OD_ROOT, or OD_BIN');
 }
 
-async function ensureDaemon(od, request, env, outputDir) {
+async function ensureDaemon(od, request, env, outputDir, storageRoot) {
   const status = await odCapture(od, ['status', '--json'], request, env, 15_000);
   if (status.code === 0) return false;
   if (!request.daemon.ensureRunning) throw new Error(`Open Design daemon is unavailable at ${request.daemon.url}`);
 
-  const daemonLog = fs.openSync(path.join(outputDir, 'open-design-daemon.log'), 'a');
+  const daemonLog = storageRoot.openAppendFile(storageRoot.relative(path.join(outputDir, 'open-design-daemon.log')), {
+    operation: 'daemon-log-open'
+  });
   const url = new URL(request.daemon.url);
   const child = spawn(od.command, [
     ...od.prefix,
@@ -475,7 +696,7 @@ async function ensureDaemon(od, request, env, outputDir) {
   throw new Error(`Open Design daemon did not start within ${request.daemon.startupTimeoutMs}ms`);
 }
 
-async function materializeProject(od, projectId, request, env) {
+async function materializeProject(od, projectId, request, env, storageRoot) {
   const listing = await odJson(od, ['files', 'list', projectId, '--json'], request, env, 30_000);
   const files = Array.isArray(listing.files) ? listing.files : [];
   const entryFile = files.find((file) => file.path === request.artifact.entry)
@@ -488,29 +709,34 @@ async function materializeProject(od, projectId, request, env) {
     if (file.type !== 'file') continue;
     if (!safeProjectPath(file.path)) throw new Error(`unsafe Open Design file path: ${file.path}`);
     const target = path.resolve(request.artifact.outputDir, file.path);
-    if (!isWithin(request.artifact.outputDir, target)) throw new Error(`unsafe Open Design file path: ${file.path}`);
+    const targetRelative = storageRoot.relative(target);
     const read = await odCapture(od, ['files', 'read', projectId, file.path], request, env, 30_000, false);
     if (read.code !== 0) throw new Error(`failed to read Open Design file ${file.path}: ${read.stderr.trim()}`);
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.writeFileSync(target, read.stdoutBuffer);
+    storageRoot.writeFile(targetRelative, read.stdoutBuffer, {
+      createParents: true,
+      operation: 'materialize-write',
+      label: `Open Design file ${file.path}`
+    });
     materialized.push({ path: file.path, absolutePath: target, bytes: read.stdoutBuffer.length });
   }
 
   const absolutePath = path.resolve(request.artifact.outputDir, entryFile.path);
-  if (!fs.existsSync(absolutePath)) throw new Error(`materialized artifact missing: ${absolutePath}`);
-  const bytes = fs.statSync(absolutePath).size;
+  const entryRelative = storageRoot.relative(absolutePath);
+  const stats = storageRoot.lstat(entryRelative);
+  if (!stats?.isFile() || stats.isSymbolicLink()) throw new Error(`materialized artifact missing: ${absolutePath}`);
+  const bytes = stats.size;
   return {
     entry: entryFile.path,
     absolutePath,
     outputDir: request.artifact.outputDir,
     bytes,
-    sha256: sha256File(absolutePath),
+    sha256: sha256Bytes(storageRoot.readFile(entryRelative, { operation: 'materialized-artifact-read' })),
     files: materialized
   };
 }
 
-function verifyHtmlArtifact(file) {
-  const html = fs.readFileSync(file, 'utf8');
+function verifyHtmlArtifact(bytes) {
+  const html = Buffer.isBuffer(bytes) ? bytes.toString('utf8') : String(bytes);
   const checks = [
     ['html-size', html.length >= 512, `${html.length} characters`],
     ['html-document', /<!doctype\s+html/i.test(html) && /<html[\s>]/i.test(html) && /<body[\s>]/i.test(html), 'doctype, html, and body present'],
@@ -533,7 +759,7 @@ function verifyHtmlArtifact(file) {
   return checks.map(([check, passed, summary]) => ({ check, result: passed ? 'passed' : 'failed', summary }));
 }
 
-async function captureScreenshot(htmlFile, request, env) {
+async function captureScreenshot(htmlFile, request, env, storageRoot) {
   const browserPath = resolveBrowserPath(env);
   const browser = await chromium.launch({
     executablePath: browserPath,
@@ -555,12 +781,13 @@ async function captureScreenshot(htmlFile, request, env) {
     if (request.screenshot.waitMs > 0) await page.waitForTimeout(request.screenshot.waitMs);
     if (pageErrors.length) throw new Error(`browser page error: ${pageErrors.join('; ')}`);
     const screenshotPath = path.join(request.artifact.outputDir, 'screenshot.png');
-    await page.screenshot({ path: screenshotPath, fullPage: request.screenshot.fullPage });
-    const dimensions = pngDimensions(screenshotPath);
+    const screenshotBytes = await page.screenshot({ fullPage: request.screenshot.fullPage });
+    storageRoot.writeFile(storageRoot.relative(screenshotPath), screenshotBytes, { operation: 'screenshot-write' });
+    const dimensions = pngDimensions(screenshotBytes);
     return {
       absolutePath: screenshotPath,
-      bytes: fs.statSync(screenshotPath).size,
-      sha256: sha256File(screenshotPath),
+      bytes: screenshotBytes.length,
+      sha256: sha256Bytes(screenshotBytes),
       width: dimensions.width,
       height: dimensions.height,
       fullPage: request.screenshot.fullPage,
@@ -589,10 +816,15 @@ async function odJson(od, args, request, env, timeoutMs = 30_000) {
   }
 }
 
-async function odCapture(od, args, request, env, timeoutMs = 30_000, text = true) {
+async function odWrite(od, projectId, relativePath, content, request, env) {
+  const result = await odCapture(od, ['files', 'write', projectId, relativePath], request, env, 30_000, true, content);
+  if (result.code !== 0) throw new Error(`failed to stage Open Design reference ${relativePath}: ${result.stderr.trim() || result.stdout.trim()}`);
+}
+
+async function odCapture(od, args, request, env, timeoutMs = 30_000, text = true, stdin = null) {
   const daemonArgs = ['--daemon-url', request.daemon.url];
   const finalArgs = [...od.prefix, ...args, ...daemonArgs];
-  return runCommand(od.command, finalArgs, { env, timeoutMs });
+  return runCommand(od.command, finalArgs, { env, timeoutMs, stdin });
 }
 
 async function readProjectFileMaybe(od, projectId, relativePath, request, env) {
@@ -611,9 +843,18 @@ function assertOutputTargetsUnused(request) {
   }
 }
 
+function assertResultPathOutsideBundle(bundlePath, resultPath, label = '--result path') {
+  const bundleReal = projectedRealPath(bundlePath);
+  const resultReal = projectedRealPath(resultPath);
+  if (isWithinPath(bundleReal, resultReal)) {
+    throw new Error(`${label} must be outside the immutable bundle: ${path.resolve(bundlePath)}`);
+  }
+}
+
 function runCommand(command, args, options) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { env: options.env, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(command, args, { env: options.env, stdio: [options.stdin === null ? 'ignore' : 'pipe', 'pipe', 'pipe'] });
+    if (options.stdin !== null) child.stdin.end(options.stdin);
     const stdout = [];
     const stderr = [];
     let captured = 0;
@@ -669,17 +910,12 @@ function safeProjectPath(value) {
     && !normalized.split('/').includes('..');
 }
 
-function isWithin(root, target) {
-  const relative = path.relative(path.resolve(root), path.resolve(target));
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+function sha256Bytes(bytes) {
+  return crypto.createHash('sha256').update(bytes).digest('hex');
 }
 
-function sha256File(file) {
-  return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
-}
-
-function pngDimensions(file) {
-  const header = fs.readFileSync(file).subarray(0, 24);
+function pngDimensions(bytes) {
+  const header = Buffer.from(bytes).subarray(0, 24);
   if (header.length < 24 || header.toString('hex', 0, 8) !== '89504e470d0a1a0a') throw new Error('screenshot is not a valid PNG');
   return { width: header.readUInt32BE(16), height: header.readUInt32BE(20) };
 }

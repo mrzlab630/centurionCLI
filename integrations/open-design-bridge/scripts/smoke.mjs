@@ -40,6 +40,10 @@ try {
   assert.equal(payload.status, 'done');
   assert(fs.existsSync(payload.artifact.absolutePath));
   assert(payload.proof.every((entry) => entry.result === 'passed'));
+  const referenceHelp = spawnSync(process.execPath, [path.join(kitRoot, 'bin', 'centurion-reference.mjs'), '--help'], { encoding: 'utf8' });
+  assert.equal(referenceHelp.status, 0, referenceHelp.stderr || referenceHelp.stdout);
+  assert(referenceHelp.stdout.includes('centurion-reference'), 'reference CLI help missing');
+  assert(fs.existsSync(path.join(kitRoot, 'mcp-server', 'index.mjs')));
   process.stdout.write(`${JSON.stringify({ status: 'pass', resultPath, artifactPath: payload.artifact.absolutePath }, null, 2)}\n`);
 } finally {
   fs.rmSync(tempRoot, { recursive: true, force: true });

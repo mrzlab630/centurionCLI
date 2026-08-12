@@ -1,5 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { normalizeDesignReferences } from './references.mjs';
+import { readFileAnchored } from './descriptor-fs.mjs';
+import { assertPathWithinRoot, assertPublicOutputPath, isWithinPath } from './path-safety.mjs';
 
 export const REQUEST_VERSION = 'CENTURION_OD_REQUEST_V1';
 export const RESULT_VERSION = 'CENTURION_OD_RESULT_V1';
@@ -49,6 +52,8 @@ export function validateRequest(request) {
   if (request.screenshot !== undefined && !isObject(request.screenshot)) failures.push('request.screenshot must be an object');
   if (request.daemon !== undefined && !isObject(request.daemon)) failures.push('request.daemon must be an object');
   if (request.cleanup !== undefined && !isObject(request.cleanup)) failures.push('request.cleanup must be an object');
+  if (request.orchestrator !== undefined && !isObject(request.orchestrator)) failures.push('request.orchestrator must be an object');
+  if (request.references !== undefined && !isObject(request.references)) failures.push('request.references must be an object');
 
   for (const [value, label, allowNull] of [
     [request.project?.name, 'request.project.name', false],
@@ -58,7 +63,10 @@ export function validateRequest(request) {
     [request.executor?.agent, 'request.executor.agent', false],
     [request.executor?.model, 'request.executor.model', true],
     [request.executor?.plugin, 'request.executor.plugin', false],
-    [request.artifact?.outputDir, 'request.artifact.outputDir', false]
+    [request.artifact?.outputDir, 'request.artifact.outputDir', false],
+    [request.orchestrator?.client, 'request.orchestrator.client', false],
+    [request.orchestrator?.owner, 'request.orchestrator.owner', false],
+    [request.references?.manifestPath, 'request.references.manifestPath', false]
   ]) {
     const failure = optionalStringFailure(value, label, allowNull);
     if (failure) failures.push(failure);
@@ -97,6 +105,14 @@ export function validateRequest(request) {
   }
   if (request.executor?.inputs !== undefined && !isObject(request.executor.inputs)) {
     failures.push('request.executor.inputs must be an object');
+  }
+  if (request.references?.selectedIds !== undefined
+    && (!Array.isArray(request.references.selectedIds)
+      || !request.references.selectedIds.every((item) => typeof item === 'string' && item.trim()))) {
+    failures.push('request.references.selectedIds must contain only non-empty strings');
+  }
+  if (request.references?.strategy !== undefined && !['compose', 'adapt', 'inspire'].includes(request.references.strategy)) {
+    failures.push('request.references.strategy must be compose, adapt, or inspire');
   }
   for (const [value, label, minimum, maximum] of [
     [request.executor?.timeoutMs, 'request.executor.timeoutMs', 1_000, 3_600_000],
@@ -146,9 +162,19 @@ export function validateRequest(request) {
   return failures;
 }
 
-export function loadPreviousResult(file, cwd = process.cwd()) {
+export function loadPreviousResult(file, cwd = process.cwd(), options = {}) {
   const absolutePath = path.resolve(cwd, file);
-  const data = JSON.parse(fs.readFileSync(absolutePath, 'utf8'));
+  const bytes = options.storageRoot
+    ? options.storageRoot.readFile(options.storageRoot.relative(absolutePath), {
+        operation: 'previous-result-read',
+        label: 'request.project.previousResultPath'
+      })
+    : readFileAnchored(path.dirname(absolutePath), absolutePath, {
+        operation: 'previous-result-read',
+        label: 'request.project.previousResultPath',
+        hook: options.storageHook
+      });
+  const data = JSON.parse(bytes.toString('utf8'));
   if (data.resultVersion !== RESULT_VERSION) throw new Error(`previous result must use ${RESULT_VERSION}`);
   return { absolutePath, data };
 }
@@ -158,8 +184,13 @@ export function normalizedRequest(request, options = {}) {
   if (failures.length) throw new Error(failures.join('; '));
   const cwd = options.cwd ?? process.cwd();
   const outputRoot = path.resolve(options.outputRoot ?? path.join(cwd, '.centurion', 'design'));
+  const references = normalizeDesignReferences(request.references, {
+    cwd,
+    allowedRoots: [outputRoot, options.referenceRoot ?? path.join(outputRoot, '.reference-cache')],
+    storageHook: options.storageHook
+  });
   const previous = request.project?.previousResultPath
-    ? loadPreviousResultWithinRoot(request.project.previousResultPath, cwd, outputRoot)
+    ? loadPreviousResultWithinRoot(request.project.previousResultPath, cwd, outputRoot, options)
     : null;
   const requestId = request.requestId?.trim() || createRequestId();
   const entry = request.artifact?.entry ?? previous?.data.artifact?.entry ?? 'index.html';
@@ -174,8 +205,12 @@ export function normalizedRequest(request, options = {}) {
   if (request.action === 'cleanup' && !outputDir) {
     throw new Error('previous result contains no cleanup target or artifact outputDir');
   }
-  if (!isWithin(outputRoot, outputDir)) {
-    throw new Error(`request.artifact.outputDir must stay within CENTURION_DESIGN_ROOT: ${outputRoot}`);
+  if (request.action === 'cleanup') {
+    if (!isWithinPath(outputRoot, outputDir) || path.resolve(outputRoot) === path.resolve(outputDir)) {
+      throw new Error(`cleanup target must stay within CENTURION_DESIGN_ROOT: ${outputRoot}`);
+    }
+  } else {
+    assertPublicOutputPath(outputRoot, outputDir);
   }
   if (request.action === 'revise' && !(request.project?.projectId ?? previous?.data.projectId)) {
     throw new Error('previous result does not contain projectId');
@@ -193,6 +228,10 @@ export function normalizedRequest(request, options = {}) {
       previousResultPath: previous?.absolutePath ?? null,
       previousResult: previous?.data ?? null
     },
+    orchestrator: {
+      client: request.orchestrator?.client ?? previous?.data.orchestrator?.client ?? 'unknown',
+      owner: request.orchestrator?.owner ?? previous?.data.orchestrator?.owner ?? null
+    },
     executor: {
       agent: request.executor?.agent ?? previous?.data.executor?.agent ?? 'codex',
       model: request.executor?.model ?? previous?.data.executor?.model ?? null,
@@ -209,6 +248,7 @@ export function normalizedRequest(request, options = {}) {
       entry,
       outputDir
     },
+    references,
     screenshot: {
       enabled: request.screenshot?.enabled !== false,
       fullPage: request.screenshot?.fullPage !== false,
@@ -228,18 +268,25 @@ export function normalizedRequest(request, options = {}) {
       onFailure: request.cleanup?.onFailure ?? 'delete',
       mode: request.cleanup?.mode ?? 'delete',
       deleteProject: request.cleanup?.deleteProject === true,
-      deleteFailedProject: request.cleanup?.deleteFailedProject !== false,
+      deleteFailedProject: request.cleanup?.deleteFailedProject === true,
       stagingMaxAgeHours: request.cleanup?.stagingMaxAgeHours ?? 24
     }
   };
 }
 
-function loadPreviousResultWithinRoot(file, cwd, outputRoot) {
+function loadPreviousResultWithinRoot(file, cwd, outputRoot, options = {}) {
   const absolutePath = path.resolve(cwd, file);
-  if (!isWithin(outputRoot, absolutePath)) {
-    throw new Error(`request.project.previousResultPath must stay within CENTURION_DESIGN_ROOT: ${outputRoot}`);
+  const storageRoot = options.storageRoot;
+  if (!storageRoot) {
+    const checked = assertPathWithinRoot(outputRoot, absolutePath, {
+      allowRoot: false,
+      label: 'request.project.previousResultPath',
+      rejectFinalSymlink: true,
+      requireExisting: true
+    });
+    if (!checked.stats.isFile()) throw new Error(`request.project.previousResultPath must be a regular file: ${absolutePath}`);
   }
-  return loadPreviousResult(absolutePath);
+  return loadPreviousResult(absolutePath, cwd, { storageRoot, storageHook: options.storageHook });
 }
 
 function cleanupTargetFromPrevious(previous, outputRoot, entry) {
@@ -262,16 +309,14 @@ function cleanupTargetFromPrevious(previous, outputRoot, entry) {
     throw new Error('previous result artifact cleanup paths must be absolute');
   }
   const target = path.resolve(artifact.outputDir);
+  if (!isWithinPath(outputRoot, target) || path.resolve(outputRoot) === target) {
+    throw new Error(`previous result artifact.outputDir must stay within CENTURION_DESIGN_ROOT: ${outputRoot}`);
+  }
   const expectedArtifactPath = path.resolve(target, entry);
   if (path.resolve(artifact.absolutePath) !== expectedArtifactPath) {
     throw new Error('previous result artifact.absolutePath must match artifact.outputDir and artifact.entry');
   }
   return target;
-}
-
-function isWithin(root, target) {
-  const relative = path.relative(path.resolve(root), path.resolve(target));
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
 function createRequestId() {

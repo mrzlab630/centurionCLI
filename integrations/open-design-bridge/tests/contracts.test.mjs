@@ -17,6 +17,7 @@ test('accepts a minimal create request and applies deterministic defaults', () =
   assert.equal(request.artifact.entry, 'index.html');
   assert.equal(request.screenshot.viewport.width, 1440);
   assert.equal(request.artifact.outputDir, '/tmp/.centurion/design/test-create');
+  assert.equal(request.cleanup.deleteFailedProject, false);
 });
 
 test('defaults output into the configured design root', () => {

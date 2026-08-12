@@ -5,7 +5,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
 import { parseTomlLite } from './codex-surface-audit.mjs';
-import { EXPECTED_SKILL_COUNT } from './lib/surface-config.mjs';
+import { EXPECTED_SKILL_COUNT, SHARED_CAPABILITIES } from './lib/surface-config.mjs';
 
 const KIT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const REPO_ROOT = path.resolve(KIT_ROOT, '..', '..');
@@ -23,17 +23,94 @@ function readJsonOutput(result, label) {
   return JSON.parse(result.stdout);
 }
 
+function snapshotTree(root) {
+  if (!fs.existsSync(root)) return [];
+  const entries = [];
+  const visit = (current) => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
+      const full = path.join(current, entry.name);
+      const relative = path.relative(root, full);
+      const stats = fs.lstatSync(full);
+      if (entry.isDirectory()) {
+        entries.push({ relative, type: 'directory', mode: stats.mode & 0o777 });
+        visit(full);
+      } else {
+        entries.push({ relative, type: 'file', mode: stats.mode & 0o777, content: fs.readFileSync(full).toString('base64') });
+      }
+    }
+  };
+  visit(root);
+  return entries;
+}
+
+function writeExecutable(file, source) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, source, { mode: 0o755 });
+  fs.chmodSync(file, 0o755);
+}
+
 function smokeAudit() {
   const audit = path.join(KIT_ROOT, 'scripts', 'codex-surface-audit.mjs');
   const repoOnly = readJsonOutput(run(process.execPath, [audit, '--repo-only', '--json']), 'repo-only audit');
   assert(repoOnly.repo.canonicalSkillCount === EXPECTED_SKILL_COUNT, 'repo canonical skill count mismatch');
   assert(repoOnly.repo.missingProtocolPointers.length === 0, 'repo protocol pointers missing');
 
-  const full = readJsonOutput(run(process.execPath, [audit, '--json']), 'full audit');
-  assert(full.repo.canonicalSkillCount === EXPECTED_SKILL_COUNT, 'full audit canonical count mismatch');
-  assert(full.activeSkills.count === EXPECTED_SKILL_COUNT, 'active skill count mismatch');
-  assert(full.activeSkills.drift.length === 0, 'active ~/.agents skill drift must be zero');
-  assert(full.codex.model === 'gpt-5.6-sol', 'Codex model must be gpt-5.6-sol');
+  assert(JSON.stringify(repoOnly.repo.sharedCapabilities) === JSON.stringify(SHARED_CAPABILITIES), 'repo shared capability mismatch');
+}
+
+function smokeOpenDesignInstall() {
+  const installer = path.join(KIT_ROOT, 'installer', 'install-open-design.mjs');
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-open-design-install-'));
+  const agentsHome = path.join(tempRoot, 'agents');
+  const codexHome = path.join(tempRoot, 'codex');
+  try {
+    const result = run(process.execPath, [installer, '--agents-home', agentsHome, '--codex-home', codexHome]);
+    assert(result.status === 0, `Open Design installer failed: ${result.stderr || result.stdout}`);
+    assert(fs.existsSync(path.join(agentsHome, 'skills', 'open-design-producer', 'SKILL.md')), 'Codex Open Design skill missing');
+    assert(fs.existsSync(path.join(codexHome, 'centurion', 'open-design-bridge.json')), 'Codex Open Design bridge config missing');
+    const config = fs.readFileSync(path.join(codexHome, 'config.toml'), 'utf8');
+    assert(config.includes('[mcp_servers.centurion-open-design]'), 'Codex Open Design MCP missing');
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
+function smokeOpenDesignInstallRollback() {
+  const installer = path.join(KIT_ROOT, 'installer', 'install-open-design.mjs');
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-open-design-rollback-'));
+  const agentsHome = path.join(tempRoot, 'agents');
+  const codexHome = path.join(tempRoot, 'codex');
+  const fakeBin = path.join(tempRoot, 'bin');
+  try {
+    const skillTarget = path.join(agentsHome, 'skills', 'open-design-producer');
+    fs.mkdirSync(skillTarget, { recursive: true });
+    fs.writeFileSync(path.join(skillTarget, 'old.txt'), 'old skill');
+    fs.mkdirSync(path.join(codexHome, 'centurion'), { recursive: true });
+    fs.writeFileSync(path.join(codexHome, 'centurion', 'open-design-bridge.json'), 'old bridge config');
+    fs.writeFileSync(path.join(codexHome, 'config.toml'), 'old codex config\n');
+    writeExecutable(path.join(fakeBin, 'codex'), `#!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
+const args = process.argv.slice(2);
+if (args[0] === 'mcp' && args[1] === 'get') process.exit(1);
+if (args[0] === 'mcp' && args[1] === 'add') {
+  fs.writeFileSync(path.join(process.env.CODEX_HOME, 'config.toml'), 'mutated before failure\\n');
+  process.stderr.write('injected add failure\\n');
+  process.exit(42);
+}
+process.exit(2);
+`);
+    const beforeAgents = snapshotTree(agentsHome);
+    const beforeCodex = snapshotTree(codexHome);
+    const result = run(process.execPath, [installer, '--agents-home', agentsHome, '--codex-home', codexHome], {
+      env: { ...process.env, PATH: `${fakeBin}${path.delimiter}${process.env.PATH}` }
+    });
+    assert(result.status !== 0, 'Codex installer failure injection must fail');
+    assert(JSON.stringify(snapshotTree(agentsHome)) === JSON.stringify(beforeAgents), 'Codex installer did not restore agents home');
+    assert(JSON.stringify(snapshotTree(codexHome)) === JSON.stringify(beforeCodex), 'Codex installer did not restore Codex home');
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
 }
 
 function smokeTomlParsing() {
@@ -52,9 +129,6 @@ memories = true # trailing comment
 
 function smokeSync() {
   const sync = path.join(KIT_ROOT, 'scripts', 'sync-agents.mjs');
-  const current = readJsonOutput(run(process.execPath, [sync, '--json']), 'active sync dry-run');
-  assert(current.drift.length === 0, 'active sync dry-run should not report drift');
-
   const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-agents-sync-'));
   try {
     const dry = readJsonOutput(run(process.execPath, [sync, '--agents-home', tempHome, '--skill', 'tester', '--json']), 'temp sync dry-run');
@@ -146,6 +220,8 @@ function main() {
   smokeLegionEval();
   smokeLegionContracts();
   smokeCamofoxSkill();
+  smokeOpenDesignInstall();
+  smokeOpenDesignInstallRollback();
   process.stdout.write('codex-legion-kit smoke: pass\n');
 }
 

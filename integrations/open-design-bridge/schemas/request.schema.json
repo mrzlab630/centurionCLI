@@ -19,6 +19,14 @@
       },
       "additionalProperties": false
     },
+    "orchestrator": {
+      "type": "object",
+      "properties": {
+        "client": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
     "executor": {
       "type": "object",
       "properties": {
@@ -41,6 +49,16 @@
       "properties": {
         "entry": { "type": "string", "minLength": 1, "default": "index.html" },
         "outputDir": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "references": {
+      "type": "object",
+      "required": ["manifestPath"],
+      "properties": {
+        "manifestPath": { "type": "string", "minLength": 1 },
+        "selectedIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "strategy": { "enum": ["compose", "adapt", "inspire"], "default": "compose" }
       },
       "additionalProperties": false
     },
@@ -78,7 +96,7 @@
         "onFailure": { "enum": ["delete", "keep", "ask"], "default": "delete" },
         "mode": { "enum": ["delete", "trash"], "default": "delete" },
         "deleteProject": { "type": "boolean", "default": false },
-        "deleteFailedProject": { "type": "boolean", "default": true },
+        "deleteFailedProject": { "type": "boolean", "default": false },
         "stagingMaxAgeHours": { "type": "integer", "minimum": 1, "maximum": 720, "default": 24 }
       },
       "additionalProperties": false

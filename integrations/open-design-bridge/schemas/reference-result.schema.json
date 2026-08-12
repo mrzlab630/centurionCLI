@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://centurion.local/schemas/open-design-reference-result.v1.json",
+  "title": "CENTURION Reference Result V1",
+  "type": "object",
+  "required": ["resultVersion", "searchId", "status", "references", "sources", "warnings", "errors"],
+  "properties": {
+    "resultVersion": { "const": "CENTURION_REFERENCE_RESULT_V1" },
+    "searchId": { "type": ["string", "null"] },
+    "status": { "enum": ["done", "failed"] },
+    "query": { "type": ["string", "null"] },
+    "manifestPath": { "type": ["string", "null"] },
+    "manifestSha256": { "type": ["string", "null"] },
+    "references": { "type": "array", "items": { "type": "object" } },
+    "sources": { "type": "array", "items": { "type": "object" } },
+    "cleanup": { "type": ["object", "null"] },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "errors": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": false
+}

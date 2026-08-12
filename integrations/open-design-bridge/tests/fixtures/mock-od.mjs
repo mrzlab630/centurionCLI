@@ -38,10 +38,12 @@ const baseHtml = `<!doctype html>
   <script>document.querySelector('#cta').addEventListener('click', () => document.body.dataset.clicked = 'true');</script>
 </body>
 </html>`;
-const revisedHtml = baseHtml.replace('Mock landing page', 'Improved mock landing page');
-
 function currentHtml() {
-  return fs.existsSync(path.join(stateDir, 'revised')) ? revisedHtml : baseHtml;
+  const revisionFile = path.join(stateDir, 'revision-count');
+  const revision = fs.existsSync(revisionFile) ? Number(fs.readFileSync(revisionFile, 'utf8')) : 0;
+  return revision > 0
+    ? baseHtml.replace('Mock landing page', `Improved mock landing page revision ${revision}`)
+    : baseHtml;
 }
 
 function json(value) {
@@ -58,7 +60,11 @@ else if (args[0] === 'project' && args[1] === 'delete') {
 else if (args[0] === 'run' && args[1] === 'start') {
   fs.mkdirSync(stateDir, { recursive: true });
   fs.writeFileSync(path.join(stateDir, 'started.json'), JSON.stringify({ args }));
-  if (args.join(' ').includes('Improve the hero')) fs.writeFileSync(path.join(stateDir, 'revised'), 'yes');
+  if (args.join(' ').includes('Improve the hero')) {
+    const revisionFile = path.join(stateDir, 'revision-count');
+    const revision = fs.existsSync(revisionFile) ? Number(fs.readFileSync(revisionFile, 'utf8')) : 0;
+    fs.writeFileSync(revisionFile, String(revision + 1));
+  }
   json({ runId, conversationId });
 } else if (args[0] === 'run' && args[1] === 'watch') {
   const delayMs = Number(process.env.MOCK_OD_WATCH_DELAY_MS ?? 0);
@@ -69,10 +75,31 @@ else if (args[0] === 'run' && args[1] === 'start') {
   json({ id: runId, status: 'completed', exitCode: 0 });
 } else if (args[0] === 'files' && args[1] === 'list') {
   const html = currentHtml();
-  const filePath = process.env.MOCK_OD_UNSAFE_PATH === '1' ? '../outside.html' : 'index.html';
+  const filePath = process.env.MOCK_OD_UNSAFE_PATH === '1'
+    ? '../outside.html'
+    : process.env.MOCK_OD_MATERIALIZE_SYMLINK_PARENT === '1'
+      ? 'assets/index.html'
+      : 'index.html';
+  if (process.env.MOCK_OD_MATERIALIZE_SYMLINK_PARENT === '1') {
+    const stagingRoot = path.resolve(stateDir, '..', '.staging');
+    const stagingDir = fs.readdirSync(stagingRoot, { withFileTypes: true })
+      .find((entry) => entry.isDirectory())?.name;
+    if (stagingDir) {
+      const target = path.join(stagingRoot, stagingDir, 'assets');
+      const outside = process.env.MOCK_OD_SYMLINK_OUTSIDE;
+      if (!fs.existsSync(target)) fs.symlinkSync(outside, target, 'dir');
+    }
+  }
   json({ files: [{ name: path.basename(filePath), path: filePath, type: 'file', size: Buffer.byteLength(html), kind: 'html', artifactManifest: { status: 'complete' } }] });
 } else if (args[0] === 'files' && args[1] === 'read') {
   process.stdout.write(currentHtml());
+} else if (args[0] === 'files' && args[1] === 'write') {
+  const content = fs.readFileSync(0);
+  const relativePath = args[3];
+  const target = path.join(stateDir, 'written-files', relativePath);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, content);
+  json({ file: { name: relativePath } });
 } else {
   process.stderr.write(`unsupported mock od command: ${args.join(' ')}\n`);
   process.exitCode = 2;

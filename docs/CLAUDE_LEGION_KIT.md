@@ -2,7 +2,7 @@
 
 `integrations/claude-legion-kit` is the permanent CENTURION integration pack for Claude Code CLI.
 
-Current kit version: `0.3.0`.
+Current kit version: `0.4.0`.
 
 It exists because Claude Code has native extension points that should be used directly instead of relying on prompt text alone: plugins, skills, subagents, session agents, tool allow/deny lists, permission modes, MCP config controls, safe/bare modes, and plugin validation.
 
@@ -50,6 +50,12 @@ The installer also syncs `open-design-producer` as a standalone skill and writes
 `~/.claude/centurion/open-design-bridge.json`. AEDILIS owns UX briefs and visual
 acceptance; PICTOR owns create/revise HTML/UI production. The capability does not
 change the 37-agent ownership surface.
+
+The plugin bundles `.mcp.json` with the local `centurion-open-design` stdio
+server. Use `search_design_references`, `start_design`, and `get_design`; continue
+an existing Hermes or Codex receipt from the durable results root through
+`project.previousResultPath` and set
+`orchestrator.client="claude"`.
 
 Opus 5 does not change the ownership model. The kit uses it through compact references and deterministic guards: CURATOR prepares dossiers, TESTER plans frontend acceptance sweeps, GUARDIAN scans external skill candidates, and REVIEWER verifies completion claims before acceptance.
 

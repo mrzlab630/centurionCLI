@@ -4,6 +4,12 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
+import {
+  commitTransaction,
+  discardStaged,
+  stageDirectory,
+  stageFileContent
+} from '../../lib/transactional-install.mjs';
 
 const KIT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const REPO_ROOT = path.resolve(KIT_ROOT, '..', '..');
@@ -32,29 +38,15 @@ function usage() {
   return `Usage: node installer/install.mjs [options]\n\nOptions:\n  --claude-home <dir>  Claude Code config root. Default: ~/.claude\n  --no-skill-sync     Install plugin only, do not sync canonical skills\n  --dry-run           Print planned changes without writing\n`;
 }
 
-function copyTree(source, destination, dryRun) {
-  if (dryRun) return;
-  fs.mkdirSync(destination, { recursive: true });
-  for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
-    const src = path.join(source, entry.name);
-    const dest = path.join(destination, entry.name);
-    if (entry.isDirectory()) copyTree(src, dest, dryRun);
-    else fs.copyFileSync(src, dest);
-  }
-}
-
-function syncCanonicalSkills(skillsTarget, dryRun) {
+function canonicalSkills(skillsTarget) {
   const copied = [];
   for (const entry of fs.readdirSync(CANONICAL_SKILLS, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
     const source = path.join(CANONICAL_SKILLS, entry.name);
     if (!fs.existsSync(path.join(source, 'SKILL.md'))) continue;
-    const target = path.join(skillsTarget, entry.name);
-    if (!dryRun) fs.rmSync(target, { recursive: true, force: true });
-    copyTree(source, target, dryRun);
-    copied.push(entry.name);
+    copied.push({ name: entry.name, source, target: path.join(skillsTarget, entry.name) });
   }
-  return copied.sort();
+  return copied.sort((left, right) => left.name.localeCompare(right.name));
 }
 
 function validatePlugin(pluginDir) {
@@ -67,15 +59,6 @@ function validatePlugin(pluginDir) {
     status: result.status,
     output: `${result.stdout || ''}${result.stderr || ''}`.trim()
   };
-}
-
-function writeOpenDesignConfig(configTarget, dryRun) {
-  if (dryRun) return;
-  fs.mkdirSync(path.dirname(configTarget), { recursive: true });
-  fs.writeFileSync(configTarget, `${JSON.stringify({
-    configVersion: OPEN_DESIGN_CONFIG_VERSION,
-    bridgeRoot: OPEN_DESIGN_BRIDGE
-  }, null, 2)}\n`);
 }
 
 function main() {
@@ -91,12 +74,29 @@ function main() {
   if (!fs.existsSync(CANONICAL_SKILLS)) throw new Error(`canonical skills not found: ${CANONICAL_SKILLS}`);
   if (!fs.existsSync(path.join(OPEN_DESIGN_BRIDGE, 'bin', 'centurion-design.mjs'))) throw new Error(`Open Design bridge not found: ${OPEN_DESIGN_BRIDGE}`);
 
-  if (!options.dryRun) fs.mkdirSync(skillsTarget, { recursive: true });
-  if (!options.dryRun) fs.rmSync(pluginTarget, { recursive: true, force: true });
-  copyTree(path.join(KIT_ROOT, 'plugin'), pluginTarget, options.dryRun);
-  const syncedSkills = options.syncSkills ? syncCanonicalSkills(skillsTarget, options.dryRun) : [];
-  if (options.syncSkills) writeOpenDesignConfig(openDesignConfigTarget, options.dryRun);
-  const validation = options.dryRun ? { ok: null, skipped: true } : validatePlugin(pluginTarget);
+  const skillEntries = options.syncSkills ? canonicalSkills(skillsTarget) : [];
+  const syncedSkills = skillEntries.map((entry) => entry.name);
+  let validation = { ok: null, skipped: true };
+  if (!options.dryRun) {
+    const operations = [];
+    try {
+      const stagedPlugin = stageDirectory(path.join(KIT_ROOT, 'plugin'), pluginTarget);
+      operations.push(stagedPlugin);
+      for (const entry of skillEntries) operations.push(stageDirectory(entry.source, entry.target));
+      if (options.syncSkills) {
+        operations.push(stageFileContent(`${JSON.stringify({
+          configVersion: OPEN_DESIGN_CONFIG_VERSION,
+          bridgeRoot: OPEN_DESIGN_BRIDGE
+        }, null, 2)}\n`, openDesignConfigTarget, { mode: 0o644 }));
+      }
+      validation = validatePlugin(stagedPlugin.staged);
+      if (!validation.ok) throw new Error(`Claude plugin validation failed: ${validation.output}`);
+      commitTransaction(operations);
+    } catch (error) {
+      discardStaged(operations);
+      throw error;
+    }
+  }
 
   const report = {
     dryRun: options.dryRun,
@@ -109,10 +109,10 @@ function main() {
     openDesignConfigTarget,
     openDesignConfigVersion: OPEN_DESIGN_CONFIG_VERSION,
     openDesignConfigWritten: options.syncSkills && !options.dryRun,
+    openDesignMcpTarget: path.join(pluginTarget, '.mcp.json'),
     validation
   };
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
-  if (validation.ok === false) process.exitCode = 1;
 }
 
 try {

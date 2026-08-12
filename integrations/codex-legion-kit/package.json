@@ -1,11 +1,13 @@
 {
   "name": "codex-legion-kit",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "CENTURION surface audit and synchronization guards for Codex CLI.",
   "type": "module",
   "scripts": {
     "audit:surface": "node ./scripts/codex-surface-audit.mjs",
+    "install:open-design": "node ./installer/install-open-design.mjs",
+    "install:open-design:dry-run": "node ./installer/install-open-design.mjs --dry-run",
     "smoke": "node ./scripts/smoke.mjs",
     "sync:agents": "node ./scripts/sync-agents.mjs"
   },

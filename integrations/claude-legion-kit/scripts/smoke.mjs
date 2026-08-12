@@ -33,6 +33,54 @@ function run(command, args, options = {}) {
   return spawnSync(command, args, { cwd: KIT_ROOT, encoding: 'utf8', ...options });
 }
 
+function snapshotTree(root) {
+  if (!fs.existsSync(root)) return [];
+  const entries = [];
+  const visit = (current) => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
+      const full = path.join(current, entry.name);
+      const relative = path.relative(root, full);
+      const stats = fs.lstatSync(full);
+      if (entry.isDirectory()) {
+        entries.push({ relative, type: 'directory', mode: stats.mode & 0o777 });
+        visit(full);
+      } else {
+        entries.push({ relative, type: 'file', mode: stats.mode & 0o777, content: fs.readFileSync(full).toString('base64') });
+      }
+    }
+  };
+  visit(root);
+  return entries;
+}
+
+function smokeInstallerRollback() {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-legion-rollback-'));
+  const fakeBin = path.join(tempRoot, 'bin');
+  const claudeHome = path.join(tempRoot, 'claude');
+  try {
+    const pluginTarget = path.join(claudeHome, 'skills', 'centurion-legion');
+    const skillTarget = path.join(claudeHome, 'skills', 'pictor');
+    fs.mkdirSync(pluginTarget, { recursive: true });
+    fs.mkdirSync(skillTarget, { recursive: true });
+    fs.writeFileSync(path.join(pluginTarget, 'old.txt'), 'old plugin');
+    fs.writeFileSync(path.join(skillTarget, 'SKILL.md'), 'old pictor');
+    fs.mkdirSync(path.join(claudeHome, 'centurion'), { recursive: true });
+    fs.writeFileSync(path.join(claudeHome, 'centurion', 'open-design-bridge.json'), 'old bridge config');
+    fs.mkdirSync(fakeBin, { recursive: true });
+    const fakeClaude = path.join(fakeBin, 'claude');
+    fs.writeFileSync(fakeClaude, '#!/bin/sh\necho injected validation failure >&2\nexit 42\n', { mode: 0o755 });
+    fs.chmodSync(fakeClaude, 0o755);
+    const before = snapshotTree(claudeHome);
+    const result = run(process.execPath, [path.join(KIT_ROOT, 'installer', 'install.mjs'), '--claude-home', claudeHome], {
+      env: { ...process.env, PATH: `${fakeBin}${path.delimiter}${process.env.PATH}` }
+    });
+    assert(result.status !== 0, 'Claude installer failure injection must fail');
+    assert(JSON.stringify(snapshotTree(claudeHome)) === JSON.stringify(before), 'Claude installer did not preserve the previous home');
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
 function smokeGuard() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-order-guard-'));
   const snapshot = path.join(os.tmpdir(), `claude-order-before-${process.pid}-${Date.now()}.json`);
@@ -187,6 +235,8 @@ function main() {
     assert(report.syncedSkillCount === EXPECTED_SKILLS.length, `installer synced ${report.syncedSkillCount} skills`);
     assert(JSON.stringify(report.sharedCapabilities) === JSON.stringify(SHARED_CAPABILITIES), 'installer shared capability report mismatch');
     assert(fs.existsSync(path.join(tempHome, 'skills', 'centurion-legion', '.claude-plugin', 'plugin.json')), 'installed plugin missing');
+    assert(fs.existsSync(path.join(tempHome, 'skills', 'centurion-legion', '.mcp.json')), 'installed Open Design MCP config missing');
+    assert(fs.existsSync(path.join(tempHome, 'skills', 'centurion-legion', 'scripts', 'open-design-mcp.mjs')), 'installed Open Design MCP launcher missing');
     assert(fs.existsSync(path.join(tempHome, 'skills', 'pictor', 'SKILL.md')), 'installed canonical skill missing');
     assert(fs.existsSync(path.join(tempHome, 'skills', 'open-design-producer', 'scripts', 'open-design.mjs')), 'installed Open Design capability missing');
     const openDesignConfig = readJson(path.join(tempHome, 'centurion', 'open-design-bridge.json'));
@@ -199,6 +249,8 @@ function main() {
     const wrapperResolution = JSON.parse(wrapper.stdout);
     assert(wrapperResolution.source === 'harness-config', 'installed Open Design wrapper did not use Claude harness config');
     assert(wrapperResolution.configPath === path.join(tempHome, 'centurion', 'open-design-bridge.json'), 'installed Open Design wrapper config path mismatch');
+    const mcpConfig = readJson(path.join(tempHome, 'skills', 'centurion-legion', '.mcp.json'));
+    assert(mcpConfig.mcpServers?.['centurion-open-design']?.args?.[0]?.includes('${CLAUDE_PLUGIN_ROOT}'), 'Claude MCP must use plugin-root launcher');
   } finally {
     fs.rmSync(tempHome, { recursive: true, force: true });
   }
@@ -207,6 +259,7 @@ function main() {
   smokeLegionContracts();
   smokeExternalSkillScan();
   smokeFrontendSweepPlan();
+  smokeInstallerRollback();
   process.stdout.write('claude-legion-kit smoke: pass\n');
 }
 

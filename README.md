@@ -5,7 +5,7 @@
 <img src="logo/logo_vexillum.jpg" alt="CENTURION Vexillum" width="300">
 
 ![Name](https://img.shields.io/badge/⚔️-CENTURION-gold)
-![Version](https://img.shields.io/badge/version-COHORS%20SECUNDA%20v2.3-blue)
+![Version](https://img.shields.io/badge/version-COHORS%20SECUNDA%20v2.4-blue)
 ![Legionaries](https://img.shields.io/badge/legionaries-37-red)
 ![MCP](https://img.shields.io/badge/MCP%20servers-7-green)
 ![Status](https://img.shields.io/badge/status-BATTLE%20TESTED-green)
@@ -22,7 +22,7 @@
 
 CENTURION turns a coding agent into a disciplined Roman Legion of specialized
 skills. Each Legionary has a role, activation rules, tools, and proof standards.
-Cohors Secunda v2.3 keeps one canonical active Legion skill surface in
+Cohors Secunda v2.4 keeps one canonical active Legion skill surface in
 `~/.agents/skills` and leaves Codex system skills in `~/.codex/skills/.system` to
 avoid duplicate skill names and context bloat. It also records the current
 sanitized local tooling baseline for Hermes, Codex, Claude Code, and
@@ -43,7 +43,7 @@ Antigravity/`agy` without copying secret-bearing home configs into the repo.
 - **Hermes Legion Kit** — Aquila Team Lead skills, the shared Open Design capability, and lean Hermes bundles under `integrations/hermes-legion-kit`.
 - **Sanitized local tooling baseline** — current Hermes, Codex, Claude, Antigravity/`agy`, and toolchain settings under `docs/LOCAL_TOOLING_BASELINE.md` and `docs/settings-snapshots/`.
 - **Shared Legion JSON contracts** — bounded order/result/review validation under `integrations/legion-contracts`.
-- **Open Design bridge** — proof-first create/revise design production with JSON input, verified HTML, and Chrome screenshots under `integrations/open-design-bridge`.
+- **Open Design production fabric** — curated reference search, proof-first create/revise, async MCP jobs, verified HTML, Chrome screenshots, and cross-client continuation under `integrations/open-design-bridge`.
 
 ---
 
@@ -165,7 +165,7 @@ See [docs/CLAUDE_LEGION_KIT.md](docs/CLAUDE_LEGION_KIT.md) for local audit findi
 
 ## Hermes Integration
 
-`integrations/hermes-legion-kit` preserves the Hermes/Aquila Team Lead additions. It contains five Aquila skills, the shared Open Design capability, four lean skill bundles, an installer, and an offline smoke check. The kit does not edit `SOUL.md`, enable plugins, change MCP servers, or import ECC runtime code.
+`integrations/hermes-legion-kit` preserves the Hermes/Aquila Team Lead additions. It contains five Aquila skills, the shared Open Design capability, its local stdio MCP, four lean skill bundles, an installer, and an offline smoke check. The kit does not edit `SOUL.md`, enable plugins, alter unrelated MCP servers, or import ECC runtime code.
 
 Start here:
 
@@ -187,9 +187,10 @@ briefs and visual acceptance; PICTOR owns create/revise HTML and UI production.
 Domain specialists provide platform, copy, localization, marketing, and SEO
 constraints, while TESTER, REVIEWER, and GUARDIAN own acceptance gates.
 
-The machine-facing contract uses `CENTURION_OD_REQUEST_V1` input and
-`CENTURION_OD_RESULT_V1` output. A successful result returns absolute HTML and
-Chrome screenshot paths:
+The reference phase uses `CENTURION_REFERENCE_REQUEST_V1` and returns a bounded
+manifest from shadcn/ui, Magic UI, HyperUI, Tabler, and Landbook. Production uses
+`CENTURION_OD_REQUEST_V1` and returns `CENTURION_OD_RESULT_V1` with absolute HTML,
+Chrome screenshot, immutable reference evidence, and continuation paths:
 
 ```bash
 node skills/open-design-producer/scripts/open-design.mjs \
@@ -198,8 +199,10 @@ node skills/open-design-producer/scripts/open-design.mjs \
   --pretty
 ```
 
-Claude and Hermes installers write harness-local bridge discovery configs and
-install the same canonical skill. Failed staging is deleted, preserved, or held
+Hermes, Claude, and Codex installers activate the same skill and stdio MCP using
+staged, rollback-safe replacement of their owned targets. A
+job can start in Hermes, be revised in Claude, and continue in Codex through the
+same durable `project.previousResultPath` under the design results root. Failed staging is deleted, preserved, or held
 for user choice according to the request policy. Accepted bundles remain
 immutable, and deleting an Open Design project always requires explicit consent.
 
@@ -306,6 +309,7 @@ centurionCLI/
 | **2.1** | **Cohors Secunda** | **37** | **Canonical `.agents` skill surface, specialized Product/UX Legionaries, mission-prep, skill audit/eval, duplicate-name guard** |
 | **2.2** | **Cohors Secunda** | **37** | **Sanitized Hermes/Codex/Claude/Antigravity local tooling baselines, HTTP local proxy correction, native web_extract, Camofox autostart, current CLI versions** |
 | **2.3** | **Cohors Secunda** | **37** | **Shared Open Design production, JSON bridge, verified HTML/screenshots, Claude and Hermes activation, artifact lifecycle guards** |
+| **2.4** | **Cohors Secunda** | **37** | **Curated reference search, async Open Design MCP, immutable reference evidence, and Hermes/Claude/Codex continuation** |
 
 ---
 

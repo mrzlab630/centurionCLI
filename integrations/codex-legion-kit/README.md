@@ -24,11 +24,16 @@ This kit keeps Codex aligned with the current Legion structure without adding mo
 - `scripts/sync-agents.mjs`: dry-run-first synchronization from repository `skills/` to active `~/.agents/skills`; writes only with `--write`.
 - `scripts/smoke.mjs`: regression proof for audit, sync behavior, shared Legion result-contract validation, and Legion routing evals.
 - `scripts/lib/surface-config.mjs`: the shared canonical skill list and generated-artifact ignore rules used by audit, sync, and smoke checks.
+- `installer/install-open-design.mjs`: installs the shared Open Design skill, bridge discovery config, and local stdio MCP without creating a new Legionary owner.
 - `skills/camofox-browser`: optional explicit Codex skill for bounded Camofox/Camoufox browser snapshots and screenshots when normal browser tooling is blocked.
 
 Codex uses `../legion-contracts` for neutral `LEGION_ORDER_V1`, `LEGION_RESULT_V1`, and `LEGION_REVIEW_V1` validation when a bounded delegation artifact needs machine checking. Normal discussion, research notes, and WAR ROOM reasoning stay in Markdown.
 
-It does not install external GitHub skill packs, rewrite `~/.codex/config.toml`, or create new Legionary owners.
+It does not install external GitHub skill packs or create new Legionary owners.
+The Open Design installer changes only the named `centurion-open-design` MCP
+entry and uses staged replacement with rollback for the installed skill, bridge
+config, and Codex MCP configuration. It uses the native Codex CLI and preserves
+unrelated config.
 
 The Camofox skill is intentionally not an MCP server and has `allow_implicit_invocation: false`; use it explicitly only for public web pages where Playwright or Chrome DevTools are insufficient.
 
@@ -39,6 +44,7 @@ cd integrations/codex-legion-kit
 npm run audit:surface
 npm run smoke
 npm run sync:agents -- --json
+npm run install:open-design:dry-run
 ```
 
 If `audit:surface` reports active skill drift, inspect the report first. To sync all canonical skills intentionally:
@@ -88,7 +94,7 @@ npm run smoke
 Expected green audit on this host:
 
 - repository canonical skills: `37`;
-- active `~/.agents/skills`: `37`;
+- active `~/.agents/skills`: `38` (37 owners plus `open-design-producer`);
 - active skill drift dirs: `0`;
 - Codex model: `gpt-5.6-sol`;
 - Codex custom agents: low or zero unless intentionally configured;

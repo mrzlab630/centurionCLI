@@ -25,6 +25,7 @@ function usableCli(cliPath) {
 function configCandidates() {
   const home = os.homedir();
   const roots = [
+    process.env.CODEX_HOME || path.join(home, '.codex'),
     process.env.CLAUDE_HOME || path.join(home, '.claude'),
     process.env.HERMES_HOME || path.join(home, '.hermes')
   ];

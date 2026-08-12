@@ -15,6 +15,11 @@ It exists to prevent the failure mode where repository Legion skills are updated
 
 Required team rules still belong in `AGENTS.md`, checked-in docs, and skills. Memories are a recall layer, not the source of mandatory behavior.
 
+`open-design-producer` is a shared capability outside the 37 Legionary owners.
+The installer places it under `~/.agents/skills`, writes
+`$CODEX_HOME/centurion/open-design-bridge.json`, and registers the local
+`centurion-open-design` stdio MCP through `codex mcp add`.
+
 ## Current Host Baseline
 
 This 2026-07-09 baseline is sanitized from read-only local checks. Do not copy
@@ -44,6 +49,8 @@ node --check scripts/sync-agents.mjs
 node --check scripts/smoke.mjs
 npm run audit:surface
 npm run smoke
+npm run install:open-design:dry-run
+npm run install:open-design
 ```
 
 Optional Camofox proof:
@@ -70,7 +77,9 @@ ignores generated local artifacts such as `node_modules`, build output,
 coverage output, virtual environments, vendored dependency trees, and runtime
 `reports/` written by helper scripts.
 
-Audit, sync, and smoke share the canonical skill list and generated-artifact
+Audit and sync keep 37 owners canonical while checking the shared Open Design
+capability separately. Smoke installs the capability into temporary Codex and
+Agents homes and verifies its MCP entry. Audit, sync, and smoke share the canonical skill list and generated-artifact
 ignore rules from `scripts/lib/surface-config.mjs`. Skill content still lives in
 `skills/`; when adding or removing a Legion skill, update that shared config in
 the same change.
@@ -107,6 +116,14 @@ The next useful layer is optional and should stay small:
 - repo-local or user-local Codex custom agents only for bounded read-heavy lanes;
 - warning-only hooks for Stop/PostToolUse checks, trusted after review;
 - a Codex plugin wrapper only after the current CLI exposes a reliable local validation/install flow for the target shape.
+
+## Open Design workflow
+
+Use MCP `search_design_references`, select reference IDs, then call
+`start_design`. Poll `get_design` every 30-60 seconds. Inspect the returned HTML,
+screenshot, proof, and accepted reference manifest. For a revision, pass
+the durable `resultPath` from `.results` as `project.previousResultPath`; set `orchestrator.client="codex"`
+and keep the responsible Legionary under `orchestrator.owner`.
 
 ## Optional Camofox Browser
 

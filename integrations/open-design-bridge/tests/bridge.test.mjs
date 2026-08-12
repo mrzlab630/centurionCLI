@@ -81,6 +81,50 @@ test('revise reuses project identity from a previous result', async () => {
   }
 });
 
+test('previous result read fails closed if its parent is replaced after it is opened', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-previous-result-race-'));
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-previous-result-outside-'));
+  try {
+    const receiptDir = path.join(root, 'receipts');
+    const previousPath = path.join(receiptDir, 'previous.json');
+    fs.mkdirSync(receiptDir);
+    fs.writeFileSync(previousPath, JSON.stringify({
+      resultVersion: 'CENTURION_OD_RESULT_V1',
+      status: 'done',
+      projectId: 'trusted-project',
+      artifact: { entry: 'index.html' }
+    }));
+    fs.writeFileSync(path.join(outside, 'previous.json'), JSON.stringify({
+      resultVersion: 'CENTURION_OD_RESULT_V1',
+      status: 'done',
+      projectId: 'attacker-project',
+      artifact: { entry: 'index.html' }
+    }));
+    let raced = false;
+    await assert.rejects(runDesignRequest({
+      requestVersion: 'CENTURION_OD_REQUEST_V1',
+      requestId: 'previous-result-race',
+      action: 'revise',
+      brief: 'Improve the hero.',
+      project: { previousResultPath: previousPath },
+      artifact: { outputDir: path.join(root, 'out') },
+      screenshot: { enabled: false }
+    }, {
+      cwd: root,
+      env: { ...process.env, CENTURION_DESIGN_ROOT: root },
+      storageHook: ({ operation }) => {
+        if (operation !== 'previous-result-read' || raced) return;
+        raced = true;
+        fs.renameSync(receiptDir, `${receiptDir}-trusted`);
+        fs.symlinkSync(outside, receiptDir, 'dir');
+      }
+    }), /changed during the anchored filesystem operation/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
 test('browser proof returns an absolute full-page PNG', { skip: !browserPath }, async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-browser-'));
   try {
@@ -119,7 +163,8 @@ test('unsafe OD file paths fail the result instead of being skipped', async () =
       action: 'create',
       brief: 'Create a mock landing.',
       artifact: { outputDir: path.join(root, 'out') },
-      screenshot: { enabled: false }
+      screenshot: { enabled: false },
+      cleanup: { deleteFailedProject: true }
     }, {
       cwd: root,
       env: {
@@ -137,6 +182,103 @@ test('unsafe OD file paths fail the result instead of being skipped', async () =
     assert(fs.existsSync(path.join(root, 'state', 'project-deleted')));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('failed create preserves its Open Design project without explicit deletion consent', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-failed-project-consent-'));
+  try {
+    const result = await runDesignRequest({
+      requestVersion: 'CENTURION_OD_REQUEST_V1',
+      requestId: 'failed-project-consent',
+      action: 'create',
+      brief: 'Create a mock landing.',
+      artifact: { outputDir: path.join(root, 'out') },
+      screenshot: { enabled: false }
+    }, {
+      cwd: root,
+      env: {
+        ...process.env,
+        MOCK_OD_STATE_DIR: path.join(root, 'state'),
+        CENTURION_DESIGN_ROOT: root,
+        MOCK_OD_UNSAFE_PATH: '1',
+        CENTURION_OD_COMMAND_JSON: JSON.stringify([process.execPath, mockOd])
+      }
+    });
+    assert.equal(result.status, 'failed');
+    assert.equal(result.cleanup.stagingDeleted, true);
+    assert.equal(result.cleanup.failedProjectDeleted, false);
+    assert.equal(fs.existsSync(path.join(root, 'state', 'project-deleted')), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('materialization rejects a symlinked parent created inside staging', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-materialize-parent-link-'));
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-materialize-outside-'));
+  try {
+    const result = await runDesignRequest({
+      requestVersion: 'CENTURION_OD_REQUEST_V1',
+      requestId: 'materialize-parent-link',
+      action: 'create',
+      brief: 'Create a mock landing.',
+      artifact: { outputDir: path.join(root, 'out') },
+      screenshot: { enabled: false }
+    }, {
+      cwd: root,
+      env: {
+        ...process.env,
+        MOCK_OD_STATE_DIR: path.join(root, 'state'),
+        MOCK_OD_MATERIALIZE_SYMLINK_PARENT: '1',
+        MOCK_OD_SYMLINK_OUTSIDE: outside,
+        CENTURION_DESIGN_ROOT: root,
+        CENTURION_OD_COMMAND_JSON: JSON.stringify([process.execPath, mockOd])
+      }
+    });
+    assert.equal(result.status, 'failed');
+    assert(result.errors.some((error) => error.includes('must stay within')));
+    assert.equal(fs.existsSync(path.join(outside, 'index.html')), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('materialization fails closed if its checked parent is replaced before write', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-materialize-race-'));
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-materialize-race-outside-'));
+  try {
+    let raced = false;
+    const result = await runDesignRequest({
+      requestVersion: 'CENTURION_OD_REQUEST_V1',
+      requestId: 'materialize-race',
+      action: 'create',
+      brief: 'Create a mock landing.',
+      artifact: { outputDir: path.join(root, 'out') },
+      screenshot: { enabled: false }
+    }, {
+      cwd: root,
+      env: {
+        ...process.env,
+        MOCK_OD_STATE_DIR: path.join(root, 'state'),
+        CENTURION_DESIGN_ROOT: root,
+        CENTURION_OD_COMMAND_JSON: JSON.stringify([process.execPath, mockOd])
+      },
+      storageHook: ({ operation, absolutePath }) => {
+        if (operation !== 'materialize-write' || raced) return;
+        raced = true;
+        const stagingDir = path.dirname(absolutePath);
+        fs.renameSync(stagingDir, `${stagingDir}-trusted`);
+        fs.symlinkSync(outside, stagingDir, 'dir');
+      }
+    });
+    assert.equal(result.status, 'failed');
+    assert(result.errors.some((error) => error.includes('changed during the anchored filesystem operation')));
+    assert.equal(fs.existsSync(path.join(outside, 'index.html')), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
   }
 });
 
@@ -169,6 +311,32 @@ test('existing artifact targets are immutable and cannot be overwritten', async 
   }
 });
 
+test('create rejects an output path whose in-root parent escapes through a symlink', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-output-parent-link-'));
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-output-parent-outside-'));
+  try {
+    const linkedParent = path.join(root, 'linked-parent');
+    fs.symlinkSync(outside, linkedParent, 'dir');
+    const result = await runDesignRequest({
+      requestVersion: 'CENTURION_OD_REQUEST_V1',
+      requestId: 'output-parent-link',
+      action: 'create',
+      brief: 'Create a mock landing.',
+      artifact: { outputDir: path.join(linkedParent, 'bundle') },
+      screenshot: { enabled: false }
+    }, {
+      cwd: root,
+      env: { ...process.env, CENTURION_DESIGN_ROOT: root }
+    }).catch((error) => ({ status: 'failed', errors: [error.message] }));
+    assert.equal(result.status, 'failed');
+    assert(result.errors.some((error) => error.includes('must stay within')));
+    assert.equal(fs.existsSync(path.join(outside, 'bundle')), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
 test('concurrent creates cannot replace the same output bundle', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-concurrent-'));
   try {
@@ -198,6 +366,80 @@ test('concurrent creates cannot replace the same output bundle', async () => {
     assert(failed[0].errors.some((error) => error.includes('appeared during execution')));
     assert.equal(fs.existsSync(done[0].artifact.absolutePath), true);
     assert.equal(done[0].artifact.sha256, sha256File(done[0].artifact.absolutePath));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('publication fails closed if the output parent is replaced before reservation', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-publish-race-'));
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-publish-race-outside-'));
+  try {
+    const outputParent = path.join(root, 'published');
+    fs.mkdirSync(outputParent);
+    let raced = false;
+    const result = await runDesignRequest({
+      requestVersion: 'CENTURION_OD_REQUEST_V1',
+      requestId: 'publish-race',
+      action: 'create',
+      brief: 'Create a mock landing.',
+      artifact: { outputDir: path.join(outputParent, 'bundle') },
+      screenshot: { enabled: false }
+    }, {
+      cwd: root,
+      env: {
+        ...process.env,
+        MOCK_OD_STATE_DIR: path.join(root, 'state'),
+        CENTURION_DESIGN_ROOT: root,
+        CENTURION_OD_COMMAND_JSON: JSON.stringify([process.execPath, mockOd])
+      },
+      storageHook: ({ operation }) => {
+        if (operation !== 'publish-rename' || raced) return;
+        raced = true;
+        fs.renameSync(outputParent, `${outputParent}-trusted`);
+        fs.symlinkSync(outside, outputParent, 'dir');
+      }
+    });
+    assert.equal(result.status, 'failed');
+    assert(result.errors.some((error) => error.includes('changed during the anchored filesystem operation')));
+    assert.equal(fs.existsSync(path.join(outside, 'bundle')), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('publication atomically refuses a destination created immediately before rename', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-publish-no-replace-'));
+  try {
+    const outputDir = path.join(root, 'out');
+    let raced = false;
+    const result = await runDesignRequest({
+      requestVersion: 'CENTURION_OD_REQUEST_V1',
+      requestId: 'publish-no-replace',
+      action: 'create',
+      brief: 'Create a mock landing.',
+      artifact: { outputDir },
+      screenshot: { enabled: false }
+    }, {
+      cwd: root,
+      env: {
+        ...process.env,
+        MOCK_OD_STATE_DIR: path.join(root, 'state'),
+        CENTURION_DESIGN_ROOT: root,
+        CENTURION_OD_COMMAND_JSON: JSON.stringify([process.execPath, mockOd])
+      },
+      storageHook: ({ operation }) => {
+        if (operation !== 'publish-rename' || raced) return;
+        raced = true;
+        fs.mkdirSync(outputDir);
+        fs.writeFileSync(path.join(outputDir, 'owner-marker.txt'), 'keep');
+      }
+    });
+    assert.equal(result.status, 'failed');
+    assert(result.errors.some((error) => error.includes('appeared during execution')));
+    assert.equal(fs.readFileSync(path.join(outputDir, 'owner-marker.txt'), 'utf8'), 'keep');
+    assert.equal(fs.existsSync(path.join(outputDir, 'index.html')), false);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -519,6 +761,93 @@ test('cleanup rejects a symbolic-link target without touching its destination', 
     assert.equal(fs.readFileSync(path.join(outside, 'marker.txt'), 'utf8'), 'keep');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('cleanup rejects a target whose in-root parent escapes through a symlink', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-cleanup-parent-link-'));
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-cleanup-parent-outside-'));
+  try {
+    const designRoot = path.join(root, 'design');
+    const linkedParent = path.join(designRoot, 'linked-parent');
+    const outsideBundle = path.join(outside, 'bundle');
+    fs.mkdirSync(designRoot, { recursive: true });
+    fs.mkdirSync(outsideBundle, { recursive: true });
+    fs.writeFileSync(path.join(outsideBundle, 'index.html'), '<!doctype html><html><body>keep</body></html>');
+    fs.symlinkSync(outside, linkedParent, 'dir');
+    const resultsRoot = path.join(designRoot, 'results');
+    fs.mkdirSync(resultsRoot, { recursive: true });
+    const previousPath = path.join(resultsRoot, 'result.json');
+    fs.writeFileSync(previousPath, JSON.stringify({
+      resultVersion: 'CENTURION_OD_RESULT_V1',
+      status: 'done',
+      artifact: {
+        entry: 'index.html',
+        outputDir: path.join(linkedParent, 'bundle'),
+        absolutePath: path.join(linkedParent, 'bundle', 'index.html')
+      }
+    }));
+    const result = await runDesignRequest({
+      requestVersion: 'CENTURION_OD_REQUEST_V1',
+      requestId: 'cleanup-parent-link',
+      action: 'cleanup',
+      project: { previousResultPath: previousPath }
+    }, {
+      cwd: root,
+      resultPath: path.join(resultsRoot, 'cleanup.json'),
+      env: { ...process.env, CENTURION_DESIGN_ROOT: designRoot }
+    });
+    assert.equal(result.status, 'failed');
+    assert(result.errors.some((error) => error.includes('must stay within')));
+    assert.equal(fs.readFileSync(path.join(outsideBundle, 'index.html'), 'utf8').includes('keep'), true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('cleanup fails closed if the target parent is replaced before deletion', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-cleanup-race-'));
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-cleanup-race-outside-'));
+  try {
+    const parent = path.join(root, 'accepted');
+    const bundle = path.join(parent, 'bundle');
+    fs.mkdirSync(bundle, { recursive: true });
+    fs.writeFileSync(path.join(bundle, 'index.html'), '<!doctype html><html><body>trusted</body></html>');
+    const outsideBundle = path.join(outside, 'bundle');
+    fs.mkdirSync(outsideBundle);
+    fs.writeFileSync(path.join(outsideBundle, 'index.html'), '<!doctype html><html><body>keep</body></html>');
+    const previousPath = path.join(root, '.results', 'cleanup-race.json');
+    fs.mkdirSync(path.dirname(previousPath));
+    fs.writeFileSync(previousPath, JSON.stringify({
+      resultVersion: 'CENTURION_OD_RESULT_V1',
+      status: 'done',
+      artifact: { entry: 'index.html', outputDir: bundle, absolutePath: path.join(bundle, 'index.html') }
+    }));
+    let raced = false;
+    const result = await runDesignRequest({
+      requestVersion: 'CENTURION_OD_REQUEST_V1',
+      requestId: 'cleanup-race',
+      action: 'cleanup',
+      project: { previousResultPath: previousPath },
+      cleanup: { mode: 'delete' }
+    }, {
+      cwd: root,
+      resultPath: path.join(root, '.results', 'cleanup-race-result.json'),
+      env: { ...process.env, CENTURION_DESIGN_ROOT: root },
+      storageHook: ({ operation }) => {
+        if (operation !== 'cleanup-delete' || raced) return;
+        raced = true;
+        fs.renameSync(parent, `${parent}-trusted`);
+        fs.symlinkSync(outside, parent, 'dir');
+      }
+    });
+    assert.equal(result.status, 'failed');
+    assert(result.errors.some((error) => error.includes('changed during the anchored filesystem operation')));
+    assert.equal(fs.readFileSync(path.join(outsideBundle, 'index.html'), 'utf8').includes('keep'), true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
   }
 });
 

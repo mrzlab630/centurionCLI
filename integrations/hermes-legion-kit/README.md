@@ -1,8 +1,8 @@
 # Hermes Legion Kit
 
-CENTURION/Aquila Team Lead skills and lean skill bundles for Hermes Agent (kit version 0.5.0).
+CENTURION/Aquila Team Lead skills and lean skill bundles for Hermes Agent (kit version 0.6.0).
 
-This kit versions the local Hermes additions that were first installed under `~/.hermes`: five Aquila skills, one shared Open Design capability, four slash-command bundles, and a packaged delegation monitor. It does not import ECC runtime code, enable plugins, change MCP servers, or edit `SOUL.md`.
+This kit versions the local Hermes additions that were first installed under `~/.hermes`: five Aquila skills, one shared Open Design capability, its local stdio MCP, four slash-command bundles, and a packaged delegation monitor. It does not import ECC runtime code, enable plugins, alter unrelated MCP servers, or edit `SOUL.md`.
 
 The reviewed adaptive routing policy is available as the manual note
 `overrides/ADAPTIVE_MODEL_ROUTING_POLICY.md`. It is reference-only: the
@@ -55,7 +55,11 @@ To also apply reviewed optional overrides such as the compact `research-paper-wr
 node ./installer/install.mjs --include-overrides
 ```
 
-`--include-overrides` still does not edit `SOUL.md` or `config.yaml`. The reviewed SOUL notes are `overrides/SOUL_RUNTIME_MODEL_RULE.md` and `overrides/SOUL_CLAUDE_ROLE_RULE.md`; both remain manual and reviewable, and neither is applied automatically by the installer.
+`--include-overrides` still does not edit `SOUL.md`. The installer changes only the named `centurion-open-design` MCP entry in `config.yaml`; other config and MCP entries remain intact. The reviewed SOUL notes are `overrides/SOUL_RUNTIME_MODEL_RULE.md` and `overrides/SOUL_CLAUDE_ROLE_RULE.md`; both remain manual and reviewable, and neither is applied automatically by the installer.
+
+Owned skill, bundle, runtime, bridge-config, and optional override targets are
+staged before replacement. If Hermes MCP registration fails, the installer
+restores those targets and the previous `config.yaml` bytes and modes.
 
 ## Design Rules
 

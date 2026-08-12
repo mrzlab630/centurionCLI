@@ -3,6 +3,16 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+import { spawnSync } from 'node:child_process';
+import {
+  commitTransaction,
+  discardStaged,
+  restoreFile,
+  snapshotFile,
+  stageDirectory,
+  stageFile,
+  stageFileContent
+} from '../../lib/transactional-install.mjs';
 
 const KIT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const REPO_ROOT = path.resolve(KIT_ROOT, '..', '..');
@@ -13,6 +23,7 @@ const OVERRIDES_SOURCE = path.join(KIT_ROOT, 'overrides');
 const OPEN_DESIGN_SKILL_SOURCE = path.join(REPO_ROOT, 'skills', 'open-design-producer');
 const OPEN_DESIGN_BRIDGE = path.join(REPO_ROOT, 'integrations', 'open-design-bridge');
 const OPEN_DESIGN_CONFIG_VERSION = 'CENTURION_OPEN_DESIGN_CONFIG_V1';
+const OPEN_DESIGN_MCP_ENTRY = path.join(OPEN_DESIGN_BRIDGE, 'mcp-server', 'index.mjs');
 
 function parseArgs(argv) {
   const options = {
@@ -35,29 +46,14 @@ function usage() {
   return `Usage: node installer/install.mjs [options]\n\nOptions:\n  --hermes-home <dir>   Hermes config root. Default: ~/.hermes\n  --dry-run            Print planned changes without writing\n  --include-overrides  Also install reviewed optional overrides from overrides/\n`;
 }
 
-function copyFile(source, destination, dryRun) {
-  if (dryRun) return;
-  fs.mkdirSync(path.dirname(destination), { recursive: true });
-  fs.copyFileSync(source, destination);
+function installedMode(source) {
   const normalized = source.split(path.sep).join('/');
   const executable = normalized.includes('/runtime/bin/') || (/\/scripts\/[^/]+\.(?:mjs|py|sh)$/.test(normalized));
-  fs.chmodSync(destination, executable ? 0o755 : 0o644);
+  return executable ? 0o755 : 0o644;
 }
 
 function isTransient(entryName) {
   return entryName === '__pycache__' || entryName === '.DS_Store' || entryName.endsWith('.pyc');
-}
-
-function copyTree(source, destination, dryRun) {
-  if (!fs.existsSync(source)) throw new Error(`missing source directory: ${source}`);
-  if (!dryRun) fs.mkdirSync(destination, { recursive: true });
-  for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
-    if (isTransient(entry.name)) continue;
-    const src = path.join(source, entry.name);
-    const dest = path.join(destination, entry.name);
-    if (entry.isDirectory()) copyTree(src, dest, dryRun);
-    else copyFile(src, dest, dryRun);
-  }
 }
 
 function listFiles(root) {
@@ -75,13 +71,29 @@ function listFiles(root) {
   return files.sort();
 }
 
-function writeOpenDesignConfig(configTarget, dryRun) {
-  if (dryRun) return;
-  fs.mkdirSync(path.dirname(configTarget), { recursive: true });
-  fs.writeFileSync(configTarget, `${JSON.stringify({
-    configVersion: OPEN_DESIGN_CONFIG_VERSION,
-    bridgeRoot: OPEN_DESIGN_BRIDGE
-  }, null, 2)}\n`);
+function registerOpenDesignMcp(options) {
+  if (options.dryRun) return false;
+  const env = { ...process.env, HERMES_HOME: options.hermesHome };
+  const soulPath = path.join(options.hermesHome, 'SOUL.md');
+  const soulExisted = fs.existsSync(soulPath);
+  try {
+    const existing = spawnSync('hermes', ['mcp', 'remove', 'centurion-open-design'], { env, encoding: 'utf8' });
+    if (existing.status !== 0 && !/not found|does not exist|no server/i.test(`${existing.stdout}${existing.stderr}`)) {
+      throw new Error(`failed to replace Hermes MCP: ${existing.stderr || existing.stdout}`);
+    }
+    const added = spawnSync('hermes', [
+      'mcp', 'add', 'centurion-open-design',
+      '--connect-timeout', '10',
+      '--command', process.execPath,
+      '--args', OPEN_DESIGN_MCP_ENTRY
+    ], { env, encoding: 'utf8', input: '\n' });
+    if (added.status !== 0 || !/Saved 'centurion-open-design'/.test(added.stdout)) {
+      throw new Error(`failed to register Hermes MCP: ${added.stderr || added.stdout}`);
+    }
+  } finally {
+    if (!soulExisted && fs.existsSync(soulPath)) fs.rmSync(soulPath, { force: true });
+  }
+  return true;
 }
 
 function install(options) {
@@ -101,14 +113,48 @@ function install(options) {
   if (!fs.existsSync(path.join(OPEN_DESIGN_SKILL_SOURCE, 'SKILL.md'))) throw new Error(`missing Open Design skill: ${OPEN_DESIGN_SKILL_SOURCE}`);
   if (!fs.existsSync(path.join(OPEN_DESIGN_BRIDGE, 'bin', 'centurion-design.mjs'))) throw new Error(`missing Open Design bridge: ${OPEN_DESIGN_BRIDGE}`);
 
-  copyTree(SKILL_SOURCE, skillsTarget, options.dryRun);
-  if (!options.dryRun) fs.rmSync(openDesignSkillTarget, { recursive: true, force: true });
-  copyTree(OPEN_DESIGN_SKILL_SOURCE, openDesignSkillTarget, options.dryRun);
-  copyTree(BUNDLE_SOURCE, bundlesTarget, options.dryRun);
-  copyTree(path.join(RUNTIME_SOURCE, 'bin'), runtimeBinTarget, options.dryRun);
-  writeOpenDesignConfig(openDesignConfigTarget, options.dryRun);
-  if (options.includeOverrides && overrideSkillFiles.length > 0) {
-    copyTree(overrideSkillsSource, overrideSkillsTarget, options.dryRun);
+  let openDesignMcpRegistered = false;
+  if (!options.dryRun) {
+    const operations = [];
+    const hermesConfigSnapshot = snapshotFile(path.join(options.hermesHome, 'config.yaml'));
+    try {
+      for (const relative of skillFiles) {
+        const skillName = relative.split(path.sep).slice(0, 2).join(path.sep);
+        if (!operations.some((operation) => operation.target === path.join(skillsTarget, skillName))) {
+          operations.push(stageDirectory(path.join(SKILL_SOURCE, skillName), path.join(skillsTarget, skillName), {
+            skip: isTransient,
+            mode: installedMode
+          }));
+        }
+      }
+      operations.push(stageDirectory(OPEN_DESIGN_SKILL_SOURCE, openDesignSkillTarget, { skip: isTransient, mode: installedMode }));
+      for (const relative of bundleFiles) {
+        operations.push(stageFile(path.join(BUNDLE_SOURCE, relative), path.join(bundlesTarget, relative), { mode: installedMode(path.join(BUNDLE_SOURCE, relative)) }));
+      }
+      for (const relative of runtimeFiles) {
+        operations.push(stageFile(path.join(RUNTIME_SOURCE, relative), path.join(options.hermesHome, relative), { mode: installedMode(path.join(RUNTIME_SOURCE, relative)) }));
+      }
+      operations.push(stageFileContent(`${JSON.stringify({
+        configVersion: OPEN_DESIGN_CONFIG_VERSION,
+        bridgeRoot: OPEN_DESIGN_BRIDGE
+      }, null, 2)}\n`, openDesignConfigTarget, { mode: 0o644 }));
+      if (options.includeOverrides) {
+        for (const relative of overrideSkillFiles) {
+          const overrideName = relative.split(path.sep).slice(0, 2).join(path.sep);
+          const target = path.join(overrideSkillsTarget, overrideName);
+          if (!operations.some((operation) => operation.target === target)) {
+            operations.push(stageDirectory(path.join(overrideSkillsSource, overrideName), target, { skip: isTransient, mode: installedMode }));
+          }
+        }
+      }
+      commitTransaction(operations, () => {
+        openDesignMcpRegistered = registerOpenDesignMcp(options);
+      });
+    } catch (error) {
+      discardStaged(operations);
+      restoreFile(hermesConfigSnapshot);
+      throw error;
+    }
   }
 
   return {
@@ -122,14 +168,16 @@ function install(options) {
     openDesignConfigTarget,
     openDesignConfigVersion: OPEN_DESIGN_CONFIG_VERSION,
     openDesignConfigWritten: !options.dryRun,
+    openDesignMcpEntry: OPEN_DESIGN_MCP_ENTRY,
+    openDesignMcpRegistered,
     copiedOverrideSkillsTo: options.includeOverrides ? overrideSkillsTarget : null,
     skillFiles,
     openDesignSkillFiles,
     bundleFiles,
     runtimeFiles,
     overrideSkillFiles: options.includeOverrides ? overrideSkillFiles : [],
-    changedSurfaces: options.includeOverrides ? ['skills', 'skill-bundles', 'runtime-bin', 'centurion-config', 'override-skills'] : ['skills', 'skill-bundles', 'runtime-bin', 'centurion-config'],
-    untouchedSurfaces: ['SOUL.md', 'config.yaml', 'plugins', 'hooks', 'mcp_servers']
+    changedSurfaces: options.includeOverrides ? ['skills', 'skill-bundles', 'runtime-bin', 'centurion-config', 'mcp-server', 'override-skills'] : ['skills', 'skill-bundles', 'runtime-bin', 'centurion-config', 'mcp-server'],
+    untouchedSurfaces: ['SOUL.md', 'plugins', 'hooks']
   };
 }
 

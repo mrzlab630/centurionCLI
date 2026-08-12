@@ -80,6 +80,26 @@ function readText(file) {
   return fs.readFileSync(file, 'utf8');
 }
 
+function snapshotTree(root) {
+  if (!fs.existsSync(root)) return [];
+  const entries = [];
+  const visit = (current) => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
+      const full = path.join(current, entry.name);
+      const relative = path.relative(root, full);
+      const stats = fs.lstatSync(full);
+      if (entry.isDirectory()) {
+        entries.push({ relative, type: 'directory', mode: stats.mode & 0o777 });
+        visit(full);
+      } else {
+        entries.push({ relative, type: 'file', mode: stats.mode & 0o777, content: fs.readFileSync(full).toString('base64') });
+      }
+    }
+  };
+  visit(root);
+  return entries;
+}
+
 function hasStaleRoutingClaim(text) {
   return STALE_ROUTING_CLAIM.test(text);
 }
@@ -154,6 +174,7 @@ function runInstallerDryRun() {
   assert(report.changedSurfaces.includes('skill-bundles'), 'installer report missing skill-bundles surface');
   assert(report.changedSurfaces.includes('runtime-bin'), 'installer report missing runtime-bin surface');
   assert(report.changedSurfaces.includes('centurion-config'), 'installer report missing centurion-config surface');
+  assert(report.changedSurfaces.includes('mcp-server'), 'installer report missing MCP surface');
   assert(report.runtimeFiles.includes('bin/monitor-delegation.sh'), 'installer report missing packaged monitor');
   assert(report.openDesignSkillFiles.includes('SKILL.md'), 'installer report missing shared Open Design skill');
   assert(!report.skillFiles.some((file) => file.includes('__pycache__') || file.endsWith('.pyc')), 'installer report includes transient Python artifacts');
@@ -212,6 +233,9 @@ function runIsolatedInstallSmoke() {
     const openDesignConfig = JSON.parse(readText(path.join(tempHome, 'centurion', 'open-design-bridge.json')));
     assert(openDesignConfig.configVersion === OPEN_DESIGN_CONFIG_VERSION, 'installed Open Design config version mismatch');
     assert(openDesignConfig.bridgeRoot === path.join(REPO_ROOT, 'integrations', 'open-design-bridge'), 'installed Open Design bridge root mismatch');
+    assert(result.stdout.includes('"openDesignMcpRegistered": true'), 'installer did not register Open Design MCP');
+    const hermesConfig = readText(path.join(tempHome, 'config.yaml'));
+    assert(/centurion-open-design:/.test(hermesConfig), 'installed Hermes Open Design MCP missing');
     const wrapper = spawnSync(process.execPath, [path.join(tempHome, 'skills', 'autonomous-ai-agents', 'open-design-producer', 'scripts', 'open-design.mjs'), '--print-cli'], {
       encoding: 'utf8',
       env: { ...process.env, HOME: tempHome, CLAUDE_HOME: path.join(tempHome, 'missing-claude'), HERMES_HOME: tempHome }
@@ -225,6 +249,48 @@ function runIsolatedInstallSmoke() {
     runPackagedPythonRegressions(scriptRoot);
   } finally {
     fs.rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
+function runInstallerRollbackSmoke() {
+  const tempRoot = fs.mkdtempSync(path.join(process.env.TMPDIR || '/tmp', 'hermes-legion-kit-rollback-'));
+  const tempHome = path.join(tempRoot, 'hermes');
+  const fakeBin = path.join(tempRoot, 'bin');
+  try {
+    const skillTarget = path.join(tempHome, 'skills', 'autonomous-ai-agents', 'aquila-team-orchestration');
+    fs.mkdirSync(skillTarget, { recursive: true });
+    fs.writeFileSync(path.join(skillTarget, 'old.txt'), 'old skill');
+    fs.mkdirSync(path.join(tempHome, 'skill-bundles'), { recursive: true });
+    fs.writeFileSync(path.join(tempHome, 'skill-bundles', 'aquila-delivery.yaml'), 'old bundle');
+    fs.mkdirSync(path.join(tempHome, 'bin'), { recursive: true });
+    fs.writeFileSync(path.join(tempHome, 'bin', 'monitor-delegation.sh'), 'old monitor');
+    fs.mkdirSync(path.join(tempHome, 'centurion'), { recursive: true });
+    fs.writeFileSync(path.join(tempHome, 'centurion', 'open-design-bridge.json'), 'old bridge config');
+    fs.writeFileSync(path.join(tempHome, 'config.yaml'), 'old hermes config\n');
+    fs.mkdirSync(fakeBin, { recursive: true });
+    const fakeHermes = path.join(fakeBin, 'hermes');
+    fs.writeFileSync(fakeHermes, `#!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
+const args = process.argv.slice(2);
+if (args[0] === 'mcp' && args[1] === 'remove') process.exit(1);
+if (args[0] === 'mcp' && args[1] === 'add') {
+  fs.writeFileSync(path.join(process.env.HERMES_HOME, 'config.yaml'), 'mutated before failure\\n');
+  process.stderr.write('injected add failure\\n');
+  process.exit(42);
+}
+process.exit(2);
+`, { mode: 0o755 });
+    fs.chmodSync(fakeHermes, 0o755);
+    const before = snapshotTree(tempHome);
+    const result = spawnSync(process.execPath, [path.join(KIT_ROOT, 'installer', 'install.mjs'), '--hermes-home', tempHome], {
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${fakeBin}${path.delimiter}${process.env.PATH}` }
+    });
+    assert(result.status !== 0, 'Hermes installer failure injection must fail');
+    assert(JSON.stringify(snapshotTree(tempHome)) === JSON.stringify(before), 'Hermes installer did not restore the previous home');
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 }
 
@@ -307,7 +373,7 @@ function assertOverrides() {
 
 function assertPackageVersion() {
   const manifest = JSON.parse(readText(PACKAGE_MANIFEST));
-  assert(manifest.version === '0.5.0', 'package version must be 0.5.0');
+  assert(manifest.version === '0.6.0', 'package version must be 0.6.0');
 }
 
 function main() {
@@ -324,6 +390,7 @@ function main() {
   runInstallerDryRun();
   runInstallerOverrideDryRun();
   runIsolatedInstallSmoke();
+  runInstallerRollbackSmoke();
   process.stdout.write(JSON.stringify({ ok: true, skills: REQUIRED_SKILLS.length, sharedCapabilities: SHARED_CAPABILITIES.length, bundles: Object.keys(REQUIRED_BUNDLES).length }, null, 2) + '\n');
 }
 
