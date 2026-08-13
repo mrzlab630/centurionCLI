@@ -1,10 +1,10 @@
 # Open Design Integration Review
 
-Review date: 2026-08-12
+Review date: 2026-08-13
 
 Scope: the CENTURION Open Design bridge, reference search, lifecycle controls,
 MCP facade, and Hermes, Claude Code, and Codex installers introduced for Cohors
-Secunda v2.4.
+Secunda v2.5.
 
 ## Review provenance
 
@@ -26,6 +26,15 @@ final review was performed against the resulting diff and test suite.
    duplicate jobs with the same receipt.
 4. TTL cleanup preserves an expired `running` receipt while its recorded PID and
    Linux process start time still identify a live owner.
+5. CLI and MCP JSON input is bounded at 1 MiB; malformed manifests no longer
+   leak directory descriptors.
+6. Reference fetching rejects IPv4-mapped IPv6 and reserved networks, while MCP
+   jobs, project file counts, materialized bytes, and child-process timeouts are
+   explicitly bounded.
+7. The unused recursive copy-publication path was removed so accepted output has
+   one atomic no-replace promotion implementation.
+8. MCP discovery now derives its input contracts from the canonical production
+   and reference schemas, with action-specific create/revise and cleanup shapes.
 
 Regression coverage includes parent replacement, symlink escape, concurrent
 publication, cross-process job claims, live-owner TTL handling, immutable
@@ -34,7 +43,7 @@ Hermes to Claude to Codex continuation.
 
 ## Final proof
 
-- Open Design bridge tests: 54 passed, 0 failed.
+- Open Design bridge tests: 64 passed, 0 failed.
 - Bridge, Hermes, Claude, and Codex smoke checks: passed.
 - Hermes live MCP connection: passed; four tools discovered.
 - Claude skills-dir plugin validation: passed; one Open Design MCP discovered.
@@ -42,6 +51,7 @@ Hermes to Claude to Codex continuation.
 - Bridge and Codex dependency audits: 0 vulnerabilities.
 - JSON schema parsing, Node syntax checks, and `git diff --check`: passed.
 - Installed Open Design skill files match the canonical repository skill.
+- Coverage: 82.62% lines, 72.41% branches, 82.98% functions.
 
 Root `pnpm guard` and `pnpm typecheck` were not run because this repository has
 no root `package.json` and does not define those commands.

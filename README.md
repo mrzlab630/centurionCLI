@@ -5,7 +5,7 @@
 <img src="logo/logo_vexillum.jpg" alt="CENTURION Vexillum" width="300">
 
 ![Name](https://img.shields.io/badge/⚔️-CENTURION-gold)
-![Version](https://img.shields.io/badge/version-COHORS%20SECUNDA%20v2.4-blue)
+![Version](https://img.shields.io/badge/version-COHORS%20SECUNDA%20v2.5-blue)
 ![Legionaries](https://img.shields.io/badge/legionaries-37-red)
 ![MCP](https://img.shields.io/badge/MCP%20servers-7-green)
 ![Status](https://img.shields.io/badge/status-BATTLE%20TESTED-green)
@@ -22,7 +22,7 @@
 
 CENTURION turns a coding agent into a disciplined Roman Legion of specialized
 skills. Each Legionary has a role, activation rules, tools, and proof standards.
-Cohors Secunda v2.4 keeps one canonical active Legion skill surface in
+Cohors Secunda v2.5 keeps one canonical active Legion skill surface in
 `~/.agents/skills` and leaves Codex system skills in `~/.codex/skills/.system` to
 avoid duplicate skill names and context bloat. It also records the current
 sanitized local tooling baseline for Hermes, Codex, Claude Code, and
@@ -310,6 +310,7 @@ centurionCLI/
 | **2.2** | **Cohors Secunda** | **37** | **Sanitized Hermes/Codex/Claude/Antigravity local tooling baselines, HTTP local proxy correction, native web_extract, Camofox autostart, current CLI versions** |
 | **2.3** | **Cohors Secunda** | **37** | **Shared Open Design production, JSON bridge, verified HTML/screenshots, Claude and Hermes activation, artifact lifecycle guards** |
 | **2.4** | **Cohors Secunda** | **37** | **Curated reference search, async Open Design MCP, immutable reference evidence, and Hermes/Claude/Codex continuation** |
+| **2.5** | **Cohors Secunda** | **37** | **Bounded Open Design JSON/MCP input, SSRF hardening, FD leak repair, workload caps, timeout correctness, and dead-code reduction** |
 
 ---
 

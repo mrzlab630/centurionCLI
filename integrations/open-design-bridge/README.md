@@ -14,6 +14,13 @@ paths. Hermes, Claude, and Codex call the same core instead of reimplementing it
 Input uses `CENTURION_OD_REQUEST_V1`. Output uses
 `CENTURION_OD_RESULT_V1`. JSON schemas live in `schemas/`.
 
+CLI request files/stdin and individual MCP JSONL messages are limited to 1 MiB.
+Production requests also bound identifiers, briefs, selected references, active
+MCP jobs, project file count, and total materialized bytes. These limits fail
+before publishing an accepted bundle. Previous-result and manifest JSON files
+are also limited to 1 MiB, reference snippets to 48 KiB, and job receipts to
+4 MiB.
+
 Reference discovery uses `CENTURION_REFERENCE_REQUEST_V1` and
 `CENTURION_REFERENCE_RESULT_V1`. A successful search returns an absolute
 `manifestPath`, SHA-256, source/license policy, attribution URLs, and bounded
@@ -119,7 +126,10 @@ node ./mcp-server/index.mjs
 
 The server keeps job receipts under `CENTURION_OD_JOB_ROOT`, defaulting to
 `CENTURION_DESIGN_ROOT/.jobs`. A different client can continue the same project
-by passing the terminal `resultPath` as `project.previousResultPath`.
+by passing the terminal `resultPath` as `project.previousResultPath`. Each MCP
+server process runs at most four jobs concurrently by default; set
+`CENTURION_OD_MAX_CONCURRENT_JOBS` to an integer from 1 to 32 when a reviewed
+host needs a different per-process bound.
 
 Browser rendering blocks HTTP(S) requests by default so generated artifacts
 cannot add telemetry or depend on remote assets during acceptance. Set
@@ -200,6 +210,8 @@ in-root path whose parent is a symlink to another location is rejected.
 
 Reference downloads are restricted to source-specific HTTPS origins. Redirects
 are revalidated and private, loopback, or link-local DNS results are rejected.
+IPv4-mapped IPv6, documentation, benchmark, multicast, transition, and other
+reserved address ranges are rejected as well.
 Cached snippets and their manifest are SHA-256 verified again immediately before
 Open Design staging and before copying evidence into an accepted bundle.
 

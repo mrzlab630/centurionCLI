@@ -212,54 +212,6 @@ function removeEntry(parentFd, name, state) {
   return true;
 }
 
-function copyFileFd(sourceFd, targetFd) {
-  const buffer = Buffer.allocUnsafe(64 * 1024);
-  let position = 0;
-  while (true) {
-    const bytesRead = fs.readSync(sourceFd, buffer, 0, buffer.length, position);
-    if (bytesRead === 0) break;
-    let written = 0;
-    while (written < bytesRead) {
-      written += fs.writeSync(targetFd, buffer, written, bytesRead - written, position + written);
-    }
-    position += bytesRead;
-  }
-}
-
-function copyDirectoryContents(sourceFd, targetFd) {
-  for (const name of fs.readdirSync(procFdPath(sourceFd))) {
-    if (!safeComponent(name)) throw new Error(`unsafe source entry: ${name}`);
-    const sourcePath = procFdPath(sourceFd, name);
-    const targetPath = procFdPath(targetFd, name);
-    const stats = fs.lstatSync(sourcePath);
-    if (stats.isSymbolicLink()) throw new Error(`refusing to publish symbolic link: ${name}`);
-    if (stats.isDirectory()) {
-      fs.mkdirSync(targetPath, { mode: stats.mode & 0o777 });
-      const sourceChild = fs.openSync(sourcePath, DIRECTORY_FLAGS);
-      const targetChild = fs.openSync(targetPath, DIRECTORY_FLAGS);
-      try {
-        copyDirectoryContents(sourceChild, targetChild);
-      } finally {
-        fs.closeSync(sourceChild);
-        fs.closeSync(targetChild);
-      }
-      continue;
-    }
-    if (!stats.isFile()) throw new Error(`refusing to publish non-regular file: ${name}`);
-    const sourceFile = fs.openSync(sourcePath, READ_FILE_FLAGS);
-    let targetFile;
-    try {
-      assertRegularFile(sourceFile, `source ${name}`);
-      targetFile = fs.openSync(targetPath, WRITE_FILE_FLAGS | fs.constants.O_EXCL, stats.mode & 0o777);
-      copyFileFd(sourceFile, targetFile);
-      fs.fsyncSync(targetFile);
-    } finally {
-      fs.closeSync(sourceFile);
-      if (targetFile !== undefined) fs.closeSync(targetFile);
-    }
-  }
-}
-
 export class AnchoredDirectory {
   constructor(root, fd, relativePath = '') {
     this.root = root;
@@ -403,7 +355,10 @@ export class AnchoredDirectory {
         }
         throw error;
       }
-      assertRegularFile(fileFd, options.label ?? this.resolve(relativePath));
+      const stats = assertRegularFile(fileFd, options.label ?? this.resolve(relativePath));
+      if (options.maxBytes !== undefined && stats.size > options.maxBytes) {
+        throw new Error(`${options.label ?? this.resolve(relativePath)} exceeds ${options.maxBytes} bytes`);
+      }
       return fs.readFileSync(fileFd, options.encoding);
     } finally {
       if (fileFd !== undefined) fs.closeSync(fileFd);
@@ -591,46 +546,6 @@ export class AnchoredDirectory {
     }
   }
 
-  publishCopy(sourceDirectory, destinationRelativePath, options = {}) {
-    sourceDirectory.assertCurrentBinding('staging directory');
-    let destination;
-    try {
-      destination = this.createDirectory(destinationRelativePath, {
-        createParents: true,
-        mode: 0o700,
-        operation: options.operation ?? 'publish-reserve'
-      });
-    } catch (error) {
-      if (error.code === 'EEXIST') {
-        throw new Error(`output bundle appeared during execution; refusing to replace it: ${this.resolve(destinationRelativePath)}`);
-      }
-      throw error;
-    }
-    try {
-      copyDirectoryContents(sourceDirectory.fd, destination.fd);
-      fs.fsyncSync(destination.fd);
-      fs.fchmodSync(destination.fd, options.mode ?? 0o755);
-      destination.assertCurrentBinding('published output directory');
-      return destination;
-    } catch (error) {
-      let destinationStillBound = false;
-      try {
-        destination.assertCurrentBinding('published output directory');
-        destinationStillBound = true;
-      } catch {}
-      destination.close();
-      destination = null;
-      if (destinationStillBound) {
-        try {
-          this.remove(destinationRelativePath, {
-            operation: 'publish-rollback',
-            expectedType: 'directory'
-          });
-        } catch {}
-      }
-      throw error;
-    }
-  }
 }
 
 export class AnchoredRoot extends AnchoredDirectory {

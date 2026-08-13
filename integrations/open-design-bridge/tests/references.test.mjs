@@ -5,6 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import test from 'node:test';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { runDesignRequest } from '../lib/bridge.mjs';
 import {
   normalizeDesignReferences,
@@ -12,6 +14,10 @@ import {
   sweepReferenceCache,
   validateReferenceRequest
 } from '../lib/references.mjs';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const bridgeRoot = path.resolve(here, '..');
+const mockOd = path.join(here, 'fixtures', 'mock-od.mjs');
 
 const fixtures = new Map([
   ['https://fixture/shadcn.json', JSON.stringify({ items: [
@@ -44,7 +50,7 @@ function response(body, status = 200) {
   };
 }
 
-const publicLookup = async () => [{ address: '203.0.113.10', family: 4 }];
+const publicLookup = async () => [{ address: '93.184.216.34', family: 4 }];
 
 function fixtureFetcher(url) {
   const rewritten = String(url)
@@ -69,6 +75,25 @@ test('reference request validation is bounded', () => {
   }
 });
 
+test('reference CLI rejects request files larger than the bounded JSON limit', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-reference-cli-limit-'));
+  try {
+    const requestPath = path.join(root, 'oversized.json');
+    const resultPath = path.join(root, 'result.json');
+    fs.writeFileSync(requestPath, JSON.stringify({
+      requestVersion: 'CENTURION_REFERENCE_REQUEST_V1',
+      query: 'x'.repeat((1024 * 1024) + 1)
+    }));
+    const cli = path.join(bridgeRoot, 'bin', 'centurion-reference.mjs');
+    const run = spawnSync(process.execPath, [cli, '--request', requestPath, '--result', resultPath], { encoding: 'utf8' });
+    assert.equal(run.status, 1);
+    const result = JSON.parse(fs.readFileSync(resultPath, 'utf8'));
+    assert(result.errors.some((error) => error.includes('exceeds 1048576 bytes')));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('reference search returns diverse sources and a temporary manifest', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-reference-search-'));
   try {
@@ -86,7 +111,7 @@ test('reference search returns diverse sources and a temporary manifest', async 
       fetcher: fixtureFetcher,
       lookup: publicLookup
     });
-    assert.equal(result.status, 'done');
+    assert.equal(result.status, 'done', JSON.stringify({ warnings: result.warnings, sources: result.sources, errors: result.errors }));
     assert.equal(result.references.length, 5);
     assert.equal(new Set(result.references.map((item) => item.source)).size, 5);
     assert(fs.existsSync(result.manifestPath));
@@ -367,7 +392,7 @@ test('reference search rejects disallowed redirects and private DNS results', as
       lookup: publicLookup
     });
     assert.equal(redirected.status, 'failed');
-    assert(redirected.warnings.some((warning) => warning.includes('origin is not allowed')));
+    assert(redirected.warnings.some((warning) => /origin is not allowed|private or unavailable/.test(warning)));
 
     const privateDns = await searchDesignReferences({
       requestVersion: 'CENTURION_REFERENCE_REQUEST_V1',
@@ -383,6 +408,39 @@ test('reference search rejects disallowed redirects and private DNS results', as
     });
     assert.equal(privateDns.status, 'failed');
     assert(privateDns.warnings.some((warning) => warning.includes('private or unavailable')));
+
+    for (const address of ['::ffff:7f00:1', '2001:db8::1']) {
+      const reservedIpv6 = await searchDesignReferences({
+        requestVersion: 'CENTURION_REFERENCE_REQUEST_V1',
+        searchId: `dns-${address.replace(/[^a-z0-9]/gi, '-')}`,
+        query: 'dashboard',
+        sources: ['tabler'],
+        limit: 1
+      }, {
+        cwd: root,
+        env: { CENTURION_DESIGN_ROOT: root },
+        fetcher: fixtureFetcher,
+        lookup: async () => [{ address, family: 6 }]
+      });
+      assert.equal(reservedIpv6.status, 'failed');
+      assert(reservedIpv6.warnings.some((warning) => warning.includes('private or unavailable')));
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('malformed reference manifests do not leak anchored directory descriptors', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-reference-fd-'));
+  try {
+    const manifest = path.join(root, 'bad.json');
+    fs.writeFileSync(manifest, '{');
+    const before = fs.readdirSync('/proc/self/fd').length;
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      assert.throws(() => normalizeDesignReferences({ manifestPath: manifest }, { cwd: root, allowedRoots: [root] }), /JSON/);
+    }
+    const after = fs.readdirSync('/proc/self/fd').length;
+    assert(after <= before + 2, `descriptor count grew from ${before} to ${after}`);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

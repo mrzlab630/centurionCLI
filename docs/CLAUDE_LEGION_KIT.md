@@ -2,7 +2,7 @@
 
 `integrations/claude-legion-kit` is the permanent CENTURION integration pack for Claude Code CLI.
 
-Current kit version: `0.4.0`.
+Current kit version: `0.4.1`.
 
 It exists because Claude Code has native extension points that should be used directly instead of relying on prompt text alone: plugins, skills, subagents, session agents, tool allow/deny lists, permission modes, MCP config controls, safe/bare modes, and plugin validation.
 

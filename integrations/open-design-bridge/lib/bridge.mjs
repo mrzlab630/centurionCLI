@@ -6,10 +6,13 @@ import { spawn, spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright-core';
 import { normalizedRequest, RESULT_VERSION } from './contracts.mjs';
+import { MAX_JSON_INPUT_BYTES } from './json-input.mjs';
 import { assertPathWithinRoot, assertPublicOutputPath, isWithinPath, projectedRealPath } from './path-safety.mjs';
 import { AnchoredRoot } from './descriptor-fs.mjs';
 
 const MAX_CAPTURE_BYTES = 24 * 1024 * 1024;
+const MAX_PROJECT_FILES = 512;
+const MAX_MATERIALIZED_BYTES = 128 * 1024 * 1024;
 const TERMINAL_RUN_STATUSES = new Set(['completed', 'succeeded', 'failed', 'cancelled']);
 
 export async function runDesignRequest(rawRequest, options = {}) {
@@ -577,7 +580,8 @@ function verifyReferenceManifest(references) {
   try {
     bytes = storageRoot.readFile(storageRoot.relative(references.manifestPath), {
       operation: 'reference-manifest-read',
-      label: 'reference manifest'
+      label: 'reference manifest',
+      maxBytes: MAX_JSON_INPUT_BYTES
     });
   } finally {
     storageRoot.close();
@@ -600,7 +604,8 @@ function readVerifiedReferenceSnippet(reference, manifestPath) {
   try {
     bytes = storageRoot.readFile(storageRoot.relative(snippetPath), {
       operation: 'reference-snippet-read',
-      label: `reference snippet ${reference.id}`
+      label: `reference snippet ${reference.id}`,
+      maxBytes: 48 * 1024
     });
   } finally {
     storageRoot.close();
@@ -699,12 +704,23 @@ async function ensureDaemon(od, request, env, outputDir, storageRoot) {
 async function materializeProject(od, projectId, request, env, storageRoot) {
   const listing = await odJson(od, ['files', 'list', projectId, '--json'], request, env, 30_000);
   const files = Array.isArray(listing.files) ? listing.files : [];
+  const regularFiles = files.filter((file) => file.type === 'file');
+  if (regularFiles.length > MAX_PROJECT_FILES) {
+    throw new Error(`Open Design project exceeds the ${MAX_PROJECT_FILES} file materialization limit`);
+  }
+  const declaredBytes = regularFiles.reduce((total, file) => {
+    return total + (Number.isSafeInteger(file.size) && file.size > 0 ? file.size : 0);
+  }, 0);
+  if (declaredBytes > MAX_MATERIALIZED_BYTES) {
+    throw new Error(`Open Design project exceeds the ${MAX_MATERIALIZED_BYTES} byte materialization limit`);
+  }
   const entryFile = files.find((file) => file.path === request.artifact.entry)
     ?? files.find((file) => file.kind === 'html' && file.artifactManifest?.status === 'complete')
     ?? files.find((file) => file.kind === 'html');
   if (!entryFile) throw new Error('Open Design project contains no HTML artifact');
 
   const materialized = [];
+  let materializedBytes = 0;
   for (const file of files) {
     if (file.type !== 'file') continue;
     if (!safeProjectPath(file.path)) throw new Error(`unsafe Open Design file path: ${file.path}`);
@@ -712,6 +728,10 @@ async function materializeProject(od, projectId, request, env, storageRoot) {
     const targetRelative = storageRoot.relative(target);
     const read = await odCapture(od, ['files', 'read', projectId, file.path], request, env, 30_000, false);
     if (read.code !== 0) throw new Error(`failed to read Open Design file ${file.path}: ${read.stderr.trim()}`);
+    materializedBytes += read.stdoutBuffer.length;
+    if (materializedBytes > MAX_MATERIALIZED_BYTES) {
+      throw new Error(`Open Design project exceeds the ${MAX_MATERIALIZED_BYTES} byte materialization limit`);
+    }
     storageRoot.writeFile(targetRelative, read.stdoutBuffer, {
       createParents: true,
       operation: 'materialize-write',
@@ -854,22 +874,42 @@ function assertResultPathOutsideBundle(bundlePath, resultPath, label = '--result
 function runCommand(command, args, options) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { env: options.env, stdio: [options.stdin === null ? 'ignore' : 'pipe', 'pipe', 'pipe'] });
-    if (options.stdin !== null) child.stdin.end(options.stdin);
     const stdout = [];
     const stderr = [];
     let captured = 0;
+    let captureExceeded = false;
+    let timedOut = false;
     let settled = false;
     let killTimer = null;
     const timer = setTimeout(() => {
+      timedOut = true;
       child.kill('SIGTERM');
       killTimer = setTimeout(() => child.kill('SIGKILL'), 2_000);
       killTimer.unref();
     }, options.timeoutMs);
 
+    if (options.stdin !== null) {
+      child.stdin.on('error', (error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (killTimer) clearTimeout(killTimer);
+        child.kill('SIGTERM');
+        reject(new Error(`Open Design command stdin failed: ${error.message}`));
+      });
+      child.stdin.end(options.stdin);
+    }
+
     const collect = (target) => (chunk) => {
+      if (captureExceeded) return;
       captured += chunk.length;
       if (captured > MAX_CAPTURE_BYTES) {
+        captureExceeded = true;
         child.kill('SIGTERM');
+        if (!killTimer) {
+          killTimer = setTimeout(() => child.kill('SIGKILL'), 2_000);
+          killTimer.unref();
+        }
         return;
       }
       target.push(chunk);
@@ -888,6 +928,14 @@ function runCommand(command, args, options) {
       settled = true;
       clearTimeout(timer);
       if (killTimer) clearTimeout(killTimer);
+      if (captureExceeded) {
+        reject(new Error(`Open Design command output exceeded ${MAX_CAPTURE_BYTES} bytes`));
+        return;
+      }
+      if (timedOut) {
+        reject(new Error(`Open Design command timed out after ${options.timeoutMs}ms`));
+        return;
+      }
       const stdoutBuffer = Buffer.concat(stdout);
       const stderrBuffer = Buffer.concat(stderr);
       resolve({

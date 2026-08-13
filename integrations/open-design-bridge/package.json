@@ -1,6 +1,6 @@
 {
   "name": "centurion-open-design-bridge",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Proof-first JSON orchestration bridge from CENTURION to Open Design.",
   "type": "module",

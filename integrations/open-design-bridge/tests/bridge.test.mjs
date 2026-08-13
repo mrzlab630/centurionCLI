@@ -185,6 +185,63 @@ test('unsafe OD file paths fail the result instead of being skipped', async () =
   }
 });
 
+test('materialization rejects projects above the bounded file limit', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-file-limit-'));
+  try {
+    const result = await runDesignRequest({
+      requestVersion: 'CENTURION_OD_REQUEST_V1',
+      requestId: 'file-limit',
+      action: 'create',
+      brief: 'Create a mock landing.',
+      artifact: { outputDir: path.join(root, 'out') },
+      screenshot: { enabled: false }
+    }, {
+      cwd: root,
+      env: {
+        ...process.env,
+        MOCK_OD_STATE_DIR: path.join(root, 'state'),
+        MOCK_OD_FILE_COUNT: '513',
+        CENTURION_DESIGN_ROOT: root,
+        CENTURION_OD_COMMAND_JSON: JSON.stringify([process.execPath, mockOd])
+      }
+    });
+    assert.equal(result.status, 'failed');
+    assert(result.errors.some((error) => error.includes('512 file materialization limit')));
+    assert.equal(fs.existsSync(path.join(root, 'out')), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('run watch timeout fails the request even if the child exits cleanly on SIGTERM', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-watch-timeout-'));
+  try {
+    const result = await runDesignRequest({
+      requestVersion: 'CENTURION_OD_REQUEST_V1',
+      requestId: 'watch-timeout',
+      action: 'create',
+      brief: 'Create a mock landing.',
+      executor: { timeoutMs: 1000 },
+      artifact: { outputDir: path.join(root, 'out') },
+      screenshot: { enabled: false }
+    }, {
+      cwd: root,
+      env: {
+        ...process.env,
+        MOCK_OD_STATE_DIR: path.join(root, 'state'),
+        MOCK_OD_WATCH_DELAY_MS: '5000',
+        CENTURION_DESIGN_ROOT: root,
+        CENTURION_OD_COMMAND_JSON: JSON.stringify([process.execPath, mockOd])
+      }
+    });
+    assert.equal(result.status, 'failed');
+    assert(result.errors.some((error) => error.includes('timed out after 1000ms')));
+    assert.equal(fs.existsSync(path.join(root, 'out')), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('failed create preserves its Open Design project without explicit deletion consent', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-failed-project-consent-'));
   try {
@@ -899,6 +956,26 @@ test('CLI writes a structured failure to --result', () => {
     const result = JSON.parse(fs.readFileSync(resultPath, 'utf8'));
     assert.equal(result.status, 'failed');
     assert(result.errors[0].includes('JSON'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('CLI rejects request files larger than the bounded JSON limit', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-cli-limit-'));
+  try {
+    const requestPath = path.join(root, 'oversized.json');
+    const resultPath = path.join(root, 'result.json');
+    fs.writeFileSync(requestPath, JSON.stringify({
+      requestVersion: 'CENTURION_OD_REQUEST_V1',
+      action: 'create',
+      brief: 'x'.repeat((1024 * 1024) + 1)
+    }));
+    const cli = path.join(here, '..', 'bin', 'centurion-design.mjs');
+    const run = spawnSync(process.execPath, [cli, '--request', requestPath, '--result', resultPath], { encoding: 'utf8' });
+    assert.equal(run.status, 1);
+    const result = JSON.parse(fs.readFileSync(resultPath, 'utf8'));
+    assert(result.errors.some((error) => error.includes('exceeds 1048576 bytes')));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

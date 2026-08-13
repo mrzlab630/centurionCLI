@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { runDesignRequest } from '../lib/bridge.mjs';
+import { readJsonInput } from '../lib/json-input.mjs';
 
 class ResultWriteError extends Error {}
 
@@ -32,18 +33,6 @@ Environment:
 `;
 }
 
-async function readStdin() {
-  const chunks = [];
-  for await (const chunk of process.stdin) chunks.push(chunk);
-  return Buffer.concat(chunks).toString('utf8');
-}
-
-async function readRequest(source) {
-  if (!source) throw new Error('--request is required');
-  const text = source === '-' ? await readStdin() : fs.readFileSync(path.resolve(source), 'utf8');
-  return JSON.parse(text);
-}
-
 function writeResult(result, options) {
   const json = `${JSON.stringify(result, null, options.pretty ? 2 : 0)}\n`;
   if (options.result) {
@@ -65,7 +54,7 @@ try {
   if (options.help) {
     process.stdout.write(usage());
   } else {
-    const request = await readRequest(options.request);
+    const request = await readJsonInput(options.request, { label: 'Open Design request' });
     completedResult = await runDesignRequest(request, {
       cwd: process.cwd(),
       env: process.env,

@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { MAX_JSON_INPUT_BYTES } from './json-input.mjs';
 import { normalizeDesignReferences } from './references.mjs';
 import { readFileAnchored } from './descriptor-fs.mjs';
 import { assertPathWithinRoot, assertPublicOutputPath, isWithinPath } from './path-safety.mjs';
@@ -10,6 +11,21 @@ const ACTIONS = new Set(['create', 'revise', 'cleanup']);
 const ALLOWED_CAPABILITIES = new Set(['fs:write', 'prompt:inject']);
 const FAILURE_POLICIES = new Set(['delete', 'keep', 'ask']);
 const CLEANUP_MODES = new Set(['delete', 'trash']);
+const MAX_REQUEST_ID_LENGTH = 128;
+const MAX_BRIEF_LENGTH = 100_000;
+const MAX_SELECTED_REFERENCES = 10;
+const OBJECT_KEYS = Object.freeze({
+  request: new Set(['requestVersion', 'requestId', 'action', 'brief', 'project', 'orchestrator', 'executor', 'artifact', 'references', 'screenshot', 'daemon', 'cleanup']),
+  project: new Set(['name', 'projectId', 'conversationId', 'previousResultPath']),
+  orchestrator: new Set(['client', 'owner']),
+  executor: new Set(['agent', 'model', 'plugin', 'inputs', 'grantCapabilities', 'timeoutMs']),
+  artifact: new Set(['entry', 'outputDir']),
+  references: new Set(['manifestPath', 'selectedIds', 'strategy']),
+  screenshot: new Set(['enabled', 'fullPage', 'allowNetwork', 'waitMs', 'viewport']),
+  viewport: new Set(['width', 'height']),
+  daemon: new Set(['url', 'ensureRunning', 'startupTimeoutMs']),
+  cleanup: new Set(['onFailure', 'mode', 'deleteProject', 'deleteFailedProject', 'stagingMaxAgeHours'])
+});
 
 function isObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -30,9 +46,24 @@ function safeRelativePath(value) {
     && !normalized.includes('\0');
 }
 
+function rejectUnknownKeys(value, label, allowed, failures) {
+  if (!isObject(value)) return;
+  for (const key of Object.keys(value)) {
+    if (!allowed.has(key)) failures.push(`${label}.${key} is not allowed`);
+  }
+}
+
 export function validateRequest(request) {
   const failures = [];
   if (!isObject(request)) return ['request must be a JSON object'];
+  try {
+    if (Buffer.byteLength(JSON.stringify(request)) > MAX_JSON_INPUT_BYTES) {
+      failures.push(`request must not exceed ${MAX_JSON_INPUT_BYTES} bytes`);
+    }
+  } catch {
+    return ['request must be JSON-serializable'];
+  }
+  rejectUnknownKeys(request, 'request', OBJECT_KEYS.request, failures);
   if (request.requestVersion !== REQUEST_VERSION) failures.push(`request.requestVersion must be ${REQUEST_VERSION}`);
   if (!ACTIONS.has(request.action)) failures.push('request.action must be create, revise, or cleanup');
   if (request.action !== 'cleanup' && (typeof request.brief !== 'string' || !request.brief.trim())) {
@@ -43,8 +74,12 @@ export function validateRequest(request) {
     failures.push('request.brief must be a non-empty string when provided');
   }
 
-  if (request.requestId !== undefined && (typeof request.requestId !== 'string' || !request.requestId.trim())) {
-    failures.push('request.requestId must be a non-empty string when provided');
+  if (request.requestId !== undefined
+    && (typeof request.requestId !== 'string' || !request.requestId.trim() || request.requestId.length > MAX_REQUEST_ID_LENGTH)) {
+    failures.push(`request.requestId must be a non-empty string up to ${MAX_REQUEST_ID_LENGTH} characters when provided`);
+  }
+  if (typeof request.brief === 'string' && request.brief.length > MAX_BRIEF_LENGTH) {
+    failures.push(`request.brief must not exceed ${MAX_BRIEF_LENGTH} characters`);
   }
   if (request.project !== undefined && !isObject(request.project)) failures.push('request.project must be an object');
   if (request.executor !== undefined && !isObject(request.executor)) failures.push('request.executor must be an object');
@@ -54,6 +89,20 @@ export function validateRequest(request) {
   if (request.cleanup !== undefined && !isObject(request.cleanup)) failures.push('request.cleanup must be an object');
   if (request.orchestrator !== undefined && !isObject(request.orchestrator)) failures.push('request.orchestrator must be an object');
   if (request.references !== undefined && !isObject(request.references)) failures.push('request.references must be an object');
+
+  rejectUnknownKeys(request.project, 'request.project', OBJECT_KEYS.project, failures);
+  rejectUnknownKeys(request.orchestrator, 'request.orchestrator', OBJECT_KEYS.orchestrator, failures);
+  rejectUnknownKeys(request.executor, 'request.executor', OBJECT_KEYS.executor, failures);
+  rejectUnknownKeys(request.artifact, 'request.artifact', OBJECT_KEYS.artifact, failures);
+  rejectUnknownKeys(request.references, 'request.references', OBJECT_KEYS.references, failures);
+  rejectUnknownKeys(request.screenshot, 'request.screenshot', OBJECT_KEYS.screenshot, failures);
+  rejectUnknownKeys(request.screenshot?.viewport, 'request.screenshot.viewport', OBJECT_KEYS.viewport, failures);
+  rejectUnknownKeys(request.daemon, 'request.daemon', OBJECT_KEYS.daemon, failures);
+  rejectUnknownKeys(request.cleanup, 'request.cleanup', OBJECT_KEYS.cleanup, failures);
+  if (isObject(request.references)
+    && (typeof request.references.manifestPath !== 'string' || !request.references.manifestPath.trim())) {
+    failures.push('request.references.manifestPath must be a non-empty string');
+  }
 
   for (const [value, label, allowNull] of [
     [request.project?.name, 'request.project.name', false],
@@ -102,14 +151,19 @@ export function validateRequest(request) {
     failures.push('request.executor.grantCapabilities must contain only strings');
   } else if (grants?.some((item) => !ALLOWED_CAPABILITIES.has(item))) {
     failures.push(`request.executor.grantCapabilities may only include: ${[...ALLOWED_CAPABILITIES].join(', ')}`);
+  } else if (grants && new Set(grants).size !== grants.length) {
+    failures.push('request.executor.grantCapabilities must not contain duplicates');
   }
   if (request.executor?.inputs !== undefined && !isObject(request.executor.inputs)) {
     failures.push('request.executor.inputs must be an object');
   }
   if (request.references?.selectedIds !== undefined
     && (!Array.isArray(request.references.selectedIds)
+      || request.references.selectedIds.length > MAX_SELECTED_REFERENCES
       || !request.references.selectedIds.every((item) => typeof item === 'string' && item.trim()))) {
-    failures.push('request.references.selectedIds must contain only non-empty strings');
+    failures.push(`request.references.selectedIds must contain at most ${MAX_SELECTED_REFERENCES} non-empty strings`);
+  } else if (request.references?.selectedIds && new Set(request.references.selectedIds).size !== request.references.selectedIds.length) {
+    failures.push('request.references.selectedIds must not contain duplicates');
   }
   if (request.references?.strategy !== undefined && !['compose', 'adapt', 'inspire'].includes(request.references.strategy)) {
     failures.push('request.references.strategy must be compose, adapt, or inspire');
@@ -165,13 +219,15 @@ export function validateRequest(request) {
 export function loadPreviousResult(file, cwd = process.cwd(), options = {}) {
   const absolutePath = path.resolve(cwd, file);
   const bytes = options.storageRoot
-    ? options.storageRoot.readFile(options.storageRoot.relative(absolutePath), {
+      ? options.storageRoot.readFile(options.storageRoot.relative(absolutePath), {
         operation: 'previous-result-read',
-        label: 'request.project.previousResultPath'
+        label: 'request.project.previousResultPath',
+        maxBytes: MAX_JSON_INPUT_BYTES
       })
     : readFileAnchored(path.dirname(absolutePath), absolutePath, {
         operation: 'previous-result-read',
         label: 'request.project.previousResultPath',
+        maxBytes: MAX_JSON_INPUT_BYTES,
         hook: options.storageHook
       });
   const data = JSON.parse(bytes.toString('utf8'));

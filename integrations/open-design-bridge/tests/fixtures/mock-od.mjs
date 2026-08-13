@@ -90,7 +90,13 @@ else if (args[0] === 'run' && args[1] === 'start') {
       if (!fs.existsSync(target)) fs.symlinkSync(outside, target, 'dir');
     }
   }
-  json({ files: [{ name: path.basename(filePath), path: filePath, type: 'file', size: Buffer.byteLength(html), kind: 'html', artifactManifest: { status: 'complete' } }] });
+  const file = { name: path.basename(filePath), path: filePath, type: 'file', size: Buffer.byteLength(html), kind: 'html', artifactManifest: { status: 'complete' } };
+  const count = Number(process.env.MOCK_OD_FILE_COUNT ?? 1);
+  const files = [file];
+  for (let index = 1; index < count; index += 1) {
+    files.push({ name: `asset-${index}.txt`, path: `assets/asset-${index}.txt`, type: 'file', size: html.length, kind: 'text' });
+  }
+  json({ files });
 } else if (args[0] === 'files' && args[1] === 'read') {
   process.stdout.write(currentHtml());
 } else if (args[0] === 'files' && args[1] === 'write') {

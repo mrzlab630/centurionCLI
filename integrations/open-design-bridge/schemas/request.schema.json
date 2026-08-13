@@ -6,9 +6,9 @@
   "required": ["requestVersion", "action"],
   "properties": {
     "requestVersion": { "const": "CENTURION_OD_REQUEST_V1" },
-    "requestId": { "type": "string", "minLength": 1 },
+    "requestId": { "type": "string", "minLength": 1, "maxLength": 128 },
     "action": { "enum": ["create", "revise", "cleanup"] },
-    "brief": { "type": "string", "minLength": 1 },
+    "brief": { "type": "string", "minLength": 1, "maxLength": 100000 },
     "project": {
       "type": "object",
       "properties": {
@@ -38,8 +38,8 @@
           ]
         },
         "plugin": { "type": "string", "minLength": 1, "default": "design-system-creative" },
-        "inputs": { "type": "object" },
-        "grantCapabilities": { "type": "array", "items": { "enum": ["fs:write", "prompt:inject"] } },
+        "inputs": { "type": "object", "additionalProperties": true },
+        "grantCapabilities": { "type": "array", "uniqueItems": true, "items": { "enum": ["fs:write", "prompt:inject"] } },
         "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 3600000 }
       },
       "additionalProperties": false
@@ -57,7 +57,7 @@
       "required": ["manifestPath"],
       "properties": {
         "manifestPath": { "type": "string", "minLength": 1 },
-        "selectedIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "selectedIds": { "type": "array", "maxItems": 10, "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
         "strategy": { "enum": ["compose", "adapt", "inspire"], "default": "compose" }
       },
       "additionalProperties": false

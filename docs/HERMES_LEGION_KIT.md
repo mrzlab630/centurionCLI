@@ -1,6 +1,6 @@
 # Hermes Legion Kit
 
-`integrations/hermes-legion-kit` (version 0.6.0) is the versioned source for the local Hermes/Aquila Team Lead pack.
+`integrations/hermes-legion-kit` (version 0.6.1) is the versioned source for the local Hermes/Aquila Team Lead pack.
 
 ## Purpose
 

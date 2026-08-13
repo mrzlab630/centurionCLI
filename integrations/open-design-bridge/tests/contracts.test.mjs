@@ -119,6 +119,24 @@ test('rejects nested scalar types that disagree with the request schema', () => 
   }
 });
 
+test('rejects oversized and undeclared production request fields', () => {
+  const failures = validateRequest({
+    requestVersion: 'CENTURION_OD_REQUEST_V1',
+    requestId: 'x'.repeat(257),
+    action: 'create',
+    brief: 'x'.repeat(100_001),
+    unexpected: true,
+    project: { name: 'Landing', unexpected: true },
+    references: {
+      manifestPath: '/tmp/reference-manifest.json',
+      selectedIds: Array.from({ length: 11 }, (_, index) => `ref-${index}`)
+    }
+  });
+  for (const marker of ['request.requestId', 'request.brief', 'request.unexpected', 'request.project.unexpected', 'selectedIds']) {
+    assert(failures.some((failure) => failure.includes(marker)), `missing validation for ${marker}`);
+  }
+});
+
 test('result schema rejects undeclared top-level properties', () => {
   const schema = JSON.parse(fs.readFileSync(new URL('../schemas/result.schema.json', import.meta.url), 'utf8'));
   assert.equal(schema.additionalProperties, false);
@@ -143,6 +161,24 @@ test('cleanup rejects previous results with inconsistent artifact paths', () => 
       action: 'cleanup',
       project: { previousResultPath: previousPath }
     }, { cwd: root, outputRoot: root }), /must match/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('previous result loading rejects oversized JSON receipts', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-contract-size-'));
+  try {
+    const previousPath = path.join(root, 'oversized.json');
+    fs.writeFileSync(previousPath, JSON.stringify({
+      resultVersion: 'CENTURION_OD_RESULT_V1',
+      padding: 'x'.repeat((1024 * 1024) + 1)
+    }));
+    assert.throws(() => normalizedRequest({
+      requestVersion: 'CENTURION_OD_REQUEST_V1',
+      action: 'cleanup',
+      project: { previousResultPath: previousPath }
+    }, { cwd: root, outputRoot: root }), /exceeds 1048576 bytes/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

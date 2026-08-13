@@ -2,6 +2,8 @@
 
 `integrations/codex-legion-kit` is the CENTURION maintenance pack for Codex CLI itself.
 
+Current kit version: `0.3.1`.
+
 It exists to prevent the failure mode where repository Legion skills are updated but the active Codex surface in `~/.agents/skills` stays stale.
 
 ## Source Of Truth

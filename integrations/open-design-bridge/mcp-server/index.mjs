@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { runDesignRequest } from '../lib/bridge.mjs';
+import { validateRequest } from '../lib/contracts.mjs';
+import { MAX_JSON_INPUT_BYTES } from '../lib/json-input.mjs';
 import { searchDesignReferences } from '../lib/references.mjs';
 import { assertPathWithinRoot } from '../lib/path-safety.mjs';
 import { AnchoredRoot } from '../lib/descriptor-fs.mjs';
@@ -14,6 +16,13 @@ const resultBase = path.join(designRoot, '.results');
 const jobRoot = path.resolve(process.env.CENTURION_OD_JOB_ROOT ?? jobBase);
 const resultRoot = path.resolve(process.env.CENTURION_OD_RESULT_ROOT ?? resultBase);
 const jobMaxAgeHours = Number(process.env.CENTURION_OD_JOB_MAX_AGE_HOURS ?? 168);
+const maxConcurrentJobs = Number(process.env.CENTURION_OD_MAX_CONCURRENT_JOBS ?? 4);
+const MAX_JOB_RECEIPT_BYTES = 4 * 1024 * 1024;
+const JOB_ID_PATTERN = '^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$';
+const JOB_ID_RE = new RegExp(JOB_ID_PATTERN);
+if (!Number.isInteger(maxConcurrentJobs) || maxConcurrentJobs < 1 || maxConcurrentJobs > 32) {
+  throw new Error('CENTURION_OD_MAX_CONCURRENT_JOBS must be an integer from 1 to 32');
+}
 assertPathWithinRoot(designRoot, jobRoot, { allowRoot: false, label: 'CENTURION_OD_JOB_ROOT', rejectFinalSymlink: true });
 assertPathWithinRoot(designRoot, resultRoot, { allowRoot: false, label: 'CENTURION_OD_RESULT_ROOT', rejectFinalSymlink: true });
 assertPathWithinRoot(jobBase, jobRoot, { label: 'CENTURION_OD_JOB_ROOT', rejectFinalSymlink: true });
@@ -22,36 +31,64 @@ const storageRoot = new AnchoredRoot(designRoot, { create: true });
 const jobRootRelative = storageRoot.relative(jobRoot);
 const resultRootRelative = storageRoot.relative(resultRoot);
 
+function canonicalSchema(file) {
+  const schema = JSON.parse(fs.readFileSync(new URL(`../schemas/${file}`, import.meta.url), 'utf8'));
+  delete schema.$schema;
+  delete schema.$id;
+  delete schema.title;
+  return schema;
+}
+
+function schemaWithoutInjectedProperty(schema, injectedProperty) {
+  delete schema.properties[injectedProperty];
+  schema.required = schema.required.filter((property) => property !== injectedProperty);
+  return schema;
+}
+
+const referenceToolSchema = schemaWithoutInjectedProperty(canonicalSchema('reference-request.schema.json'), 'requestVersion');
+const productionRequestSchema = canonicalSchema('request.schema.json');
+const startRequestSchema = structuredClone(productionRequestSchema);
+startRequestSchema.properties.action = { enum: ['create', 'revise'] };
+const cleanupRequestSchema = structuredClone(productionRequestSchema);
+cleanupRequestSchema.properties.action = { const: 'cleanup' };
+
 const tools = [
   {
     name: 'search_design_references',
     description: 'Search curated web-design references and return a temporary manifest for Open Design production.',
-    inputSchema: {
-      type: 'object',
-      required: ['query'],
-      properties: {
-        query: { type: 'string' },
-        artifactType: { type: 'string' },
-        platform: { type: 'string' },
-        sources: { type: 'array', items: { enum: ['shadcn', 'magicui', 'hyperui', 'tabler', 'landbook'] } },
-        limit: { type: 'integer', minimum: 1, maximum: 10 }
-      }
-    }
+    inputSchema: referenceToolSchema
   },
   {
     name: 'start_design',
     description: 'Start an asynchronous proof-first Open Design create or revise job. Returns immediately with a jobId.',
-    inputSchema: { type: 'object', required: ['request'], properties: { request: { type: 'object' } } }
+    inputSchema: {
+      type: 'object',
+      required: ['request'],
+      properties: { request: startRequestSchema },
+      additionalProperties: false
+    }
   },
   {
     name: 'get_design',
     description: 'Read the current state or final JSON result of an Open Design job.',
-    inputSchema: { type: 'object', required: ['jobId'], properties: { jobId: { type: 'string' } } }
+    inputSchema: {
+      type: 'object',
+      required: ['jobId'],
+      properties: {
+        jobId: { type: 'string', minLength: 1, maxLength: 128, pattern: JOB_ID_PATTERN }
+      },
+      additionalProperties: false
+    }
   },
   {
     name: 'cleanup_design',
     description: 'Run a bounded cleanup request. Open Design project deletion still requires cleanup.deleteProject=true from an explicit user decision.',
-    inputSchema: { type: 'object', required: ['request'], properties: { request: { type: 'object' } } }
+    inputSchema: {
+      type: 'object',
+      required: ['request'],
+      properties: { request: cleanupRequestSchema },
+      additionalProperties: false
+    }
   }
 ];
 
@@ -61,7 +98,8 @@ function isWithin(root, target) {
 }
 
 function jobPath(jobId) {
-  const safe = String(jobId).replace(/[^A-Za-z0-9._-]/g, '-');
+  const safe = String(jobId);
+  if (!JOB_ID_RE.test(safe)) throw new Error('invalid jobId');
   const target = path.join(jobRoot, `${safe}.json`);
   if (!isWithin(jobRoot, target)) throw new Error('invalid jobId');
   return target;
@@ -102,7 +140,8 @@ function sweepJobs() {
       try {
         const receipt = JSON.parse(jobsDirectory.readFile(entry.name, {
           encoding: 'utf8',
-          operation: 'job-ttl-receipt-read'
+          operation: 'job-ttl-receipt-read',
+          maxBytes: MAX_JOB_RECEIPT_BYTES
         }));
         if (receipt.status === 'running' && ownerIsAlive(receipt.ownerProcess)) continue;
       } catch {
@@ -137,7 +176,11 @@ function loadJob(jobId) {
   const file = jobPath(jobId);
   const relative = storageRoot.relative(file);
   if (!storageRoot.exists(relative)) throw new Error(`unknown design job: ${jobId}`);
-  const job = JSON.parse(storageRoot.readFile(relative, { encoding: 'utf8', operation: 'job-receipt-read' }));
+  const job = JSON.parse(storageRoot.readFile(relative, {
+    encoding: 'utf8',
+    operation: 'job-receipt-read',
+    maxBytes: MAX_JOB_RECEIPT_BYTES
+  }));
   if (job.status === 'running') {
     if (ownerIsAlive(job.ownerProcess)) return job;
     job.status = 'failed';
@@ -152,6 +195,11 @@ function jsonContent(value) {
 }
 
 function startJob(request) {
+  const failures = validateRequest(request);
+  if (failures.length) throw new Error(failures.join('; '));
+  if (jobs.size >= maxConcurrentJobs) {
+    throw new Error(`active design job limit reached: ${maxConcurrentJobs}`);
+  }
   const staleJobsRemoved = sweepJobs();
   const jobId = normalizeJobId(request.requestId?.trim() || `design-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
   const normalizedRequest = { ...request, requestId: jobId };
@@ -218,6 +266,10 @@ function send(message) {
 }
 
 async function handle(message) {
+  if (!message || typeof message !== 'object' || Array.isArray(message)) {
+    send({ jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Invalid Request: expected a JSON object' } });
+    return;
+  }
   const { id, method, params } = message;
   if (method === 'initialize') {
     send({
@@ -226,7 +278,7 @@ async function handle(message) {
       result: {
         protocolVersion: params?.protocolVersion || '2024-11-05',
         capabilities: { tools: {} },
-        serverInfo: { name: 'centurion-open-design', version: '0.2.0' },
+        serverInfo: { name: 'centurion-open-design', version: '0.2.1' },
         instructions: 'Use search_design_references before design production when references help. Then call start_design, poll get_design every 30-60 seconds, inspect artifact and screenshot proof, and revise through previousResultPath. Never delete an Open Design project without explicit user consent.'
       }
     });
@@ -237,21 +289,66 @@ async function handle(message) {
 }
 
 let buffer = '';
+let bufferBytes = 0;
+let discardingOversizedLine = false;
+
+function rejectOversizedMessage() {
+  send({
+    jsonrpc: '2.0',
+    id: null,
+    error: { code: -32600, message: `Invalid Request: JSONL message exceeds ${MAX_JSON_INPUT_BYTES} bytes` }
+  });
+}
+
+function processLine(line) {
+  if (!line.trim()) return;
+  let message;
+  try {
+    message = JSON.parse(line);
+  } catch (error) {
+    send({ jsonrpc: '2.0', id: null, error: { code: -32700, message: error.message } });
+    return;
+  }
+  void handle(message).catch((error) => send({
+    jsonrpc: '2.0',
+    id: message?.id ?? null,
+    error: { code: -32000, message: error.message }
+  }));
+}
+
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', (chunk) => {
-  buffer += chunk;
-  while (buffer.includes('\n')) {
-    const index = buffer.indexOf('\n');
-    const line = buffer.slice(0, index).trim();
-    buffer = buffer.slice(index + 1);
-    if (!line) continue;
-    let message;
-    try {
-      message = JSON.parse(line);
-    } catch (error) {
-      send({ jsonrpc: '2.0', id: null, error: { code: -32700, message: error.message } });
+  let remaining = chunk;
+  while (remaining.length > 0) {
+    if (discardingOversizedLine) {
+      const newline = remaining.indexOf('\n');
+      if (newline === -1) return;
+      remaining = remaining.slice(newline + 1);
+      discardingOversizedLine = false;
       continue;
     }
-    void handle(message).catch((error) => send({ jsonrpc: '2.0', id: message.id ?? null, error: { code: -32000, message: error.message } }));
+
+    const newline = remaining.indexOf('\n');
+    const segment = newline === -1 ? remaining : remaining.slice(0, newline);
+    const segmentBytes = Buffer.byteLength(segment);
+    if (bufferBytes + segmentBytes > MAX_JSON_INPUT_BYTES) {
+      buffer = '';
+      bufferBytes = 0;
+      rejectOversizedMessage();
+      if (newline === -1) {
+        discardingOversizedLine = true;
+        return;
+      }
+      remaining = remaining.slice(newline + 1);
+      continue;
+    }
+
+    buffer += segment;
+    bufferBytes += segmentBytes;
+    if (newline === -1) return;
+    processLine(buffer);
+    buffer = '';
+    bufferBytes = 0;
+    remaining = remaining.slice(newline + 1);
   }
 });

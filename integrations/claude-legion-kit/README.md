@@ -2,7 +2,7 @@
 
 Portable CENTURION integration for Claude Code CLI.
 
-Current kit version: `0.4.0`.
+Current kit version: `0.4.1`.
 
 This kit installs a Claude Code plugin with one CENTURION entry skill, 37 Legionary subagents, the shared `open-design-producer` capability, and a `CLAUDE_ORDER v1` guard for bounded implementation work.
 

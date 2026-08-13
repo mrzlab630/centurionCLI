@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { readJsonInput } from '../lib/json-input.mjs';
 import { REFERENCE_RESULT_VERSION, searchDesignReferences } from '../lib/references.mjs';
 
 function parseArgs(argv) {
@@ -15,17 +16,6 @@ function parseArgs(argv) {
     else throw new Error(`unknown argument: ${token}`);
   }
   return options;
-}
-
-async function readStdin() {
-  const chunks = [];
-  for await (const chunk of process.stdin) chunks.push(chunk);
-  return Buffer.concat(chunks).toString('utf8');
-}
-
-async function readRequest(source) {
-  if (!source) throw new Error('--request is required');
-  return JSON.parse(source === '-' ? await readStdin() : fs.readFileSync(path.resolve(source), 'utf8'));
 }
 
 function writeResult(result, options) {
@@ -43,7 +33,8 @@ if (options.help) {
   process.stdout.write('Usage: centurion-reference --request <file|-> [--result <file>] [--pretty]\n');
 } else {
   try {
-    const result = await searchDesignReferences(await readRequest(options.request), { cwd: process.cwd(), env: process.env });
+    const request = await readJsonInput(options.request, { label: 'reference request' });
+    const result = await searchDesignReferences(request, { cwd: process.cwd(), env: process.env });
     writeResult(result, options);
     if (result.status !== 'done') process.exitCode = 1;
   } catch (error) {

@@ -2,11 +2,12 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { isIP } from 'node:net';
+import { BlockList, isIP } from 'node:net';
 import { lookup } from 'node:dns/promises';
 import https from 'node:https';
 import { assertPathWithinRoot, isWithinPath } from './path-safety.mjs';
 import { AnchoredRoot } from './descriptor-fs.mjs';
+import { MAX_JSON_INPUT_BYTES } from './json-input.mjs';
 
 export const REFERENCE_REQUEST_VERSION = 'CENTURION_REFERENCE_REQUEST_V1';
 export const REFERENCE_RESULT_VERSION = 'CENTURION_REFERENCE_RESULT_V1';
@@ -18,6 +19,35 @@ const STRATEGIES = new Set(['compose', 'adapt', 'inspire']);
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 const MAX_SNIPPET_BYTES = 48 * 1024;
 const MAX_REDIRECTS = 5;
+const BLOCKED_NETWORKS = new BlockList();
+for (const [address, prefix, type] of [
+  ['0.0.0.0', 8, 'ipv4'],
+  ['10.0.0.0', 8, 'ipv4'],
+  ['100.64.0.0', 10, 'ipv4'],
+  ['127.0.0.0', 8, 'ipv4'],
+  ['169.254.0.0', 16, 'ipv4'],
+  ['172.16.0.0', 12, 'ipv4'],
+  ['192.0.0.0', 24, 'ipv4'],
+  ['192.0.2.0', 24, 'ipv4'],
+  ['192.88.99.0', 24, 'ipv4'],
+  ['192.168.0.0', 16, 'ipv4'],
+  ['198.18.0.0', 15, 'ipv4'],
+  ['198.51.100.0', 24, 'ipv4'],
+  ['203.0.113.0', 24, 'ipv4'],
+  ['224.0.0.0', 4, 'ipv4'],
+  ['240.0.0.0', 4, 'ipv4'],
+  ['::', 128, 'ipv6'],
+  ['::1', 128, 'ipv6'],
+  ['64:ff9b::', 96, 'ipv6'],
+  ['64:ff9b:1::', 48, 'ipv6'],
+  ['100::', 64, 'ipv6'],
+  ['2001::', 32, 'ipv6'],
+  ['2001:db8::', 32, 'ipv6'],
+  ['2002::', 16, 'ipv6'],
+  ['fc00::', 7, 'ipv6'],
+  ['fe80::', 10, 'ipv6'],
+  ['ff00::', 8, 'ipv6']
+]) BLOCKED_NETWORKS.addSubnet(address, prefix, type);
 const WORD_ALIASES = Object.freeze({
   analytics: ['dashboard', 'chart', 'data', 'stats', 'table', 'metrics'],
   landing: ['hero', 'pricing', 'features', 'testimonial', 'call-to-action', 'marketing'],
@@ -87,18 +117,20 @@ function isObject(value) {
 
 function isPrivateAddress(address) {
   const value = String(address).toLowerCase();
-  if (value === '::1' || value === '::' || value.startsWith('fe80:') || value.startsWith('fc') || value.startsWith('fd')) return true;
-  const mapped = value.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/)?.[1];
-  const ipv4 = mapped || (isIP(value) === 4 ? value : null);
-  if (!ipv4) return false;
-  const [a, b] = ipv4.split('.').map(Number);
-  return a === 0 || a === 10 || a === 127 || a >= 224
-    || (a === 100 && b >= 64 && b <= 127)
-    || (a === 169 && b === 254)
-    || (a === 172 && b >= 16 && b <= 31)
-    || (a === 192 && b === 0)
-    || (a === 192 && b === 168)
-    || (a === 198 && (b === 18 || b === 19));
+  const dottedMapped = value.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/)?.[1];
+  const hexMapped = value.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (dottedMapped || hexMapped) {
+    const ipv4 = dottedMapped ?? [hexMapped[1], hexMapped[2]]
+      .flatMap((part) => {
+        const number = Number.parseInt(part, 16);
+        return [number >> 8, number & 0xff];
+      })
+      .join('.');
+    return BLOCKED_NETWORKS.check(ipv4, 'ipv4');
+  }
+  const family = isIP(value);
+  if (family === 0) return true;
+  return BLOCKED_NETWORKS.check(value, family === 4 ? 'ipv4' : 'ipv6');
 }
 
 function createSearchId() {
@@ -121,7 +153,7 @@ function expandedTokens(request) {
 }
 
 function normalizeId(value) {
-  return String(value).toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+  return String(value).toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 128);
 }
 
 function scoreCandidate(candidate, queryTokens) {
@@ -354,13 +386,22 @@ async function sourceCandidates(source, request, options) {
 export function validateReferenceRequest(request) {
   const failures = [];
   if (!isObject(request)) return ['request must be a JSON object'];
+  const allowedKeys = new Set(['requestVersion', 'searchId', 'query', 'artifactType', 'platform', 'sources', 'limit', 'cacheMaxAgeHours']);
+  for (const key of Object.keys(request)) {
+    if (!allowedKeys.has(key)) failures.push(`request.${key} is not allowed`);
+  }
   if (request.requestVersion !== REFERENCE_REQUEST_VERSION) failures.push(`request.requestVersion must be ${REFERENCE_REQUEST_VERSION}`);
   if (typeof request.query !== 'string' || !request.query.trim() || request.query.length > 1_000) failures.push('request.query must be a non-empty string up to 1000 characters');
   for (const field of ['artifactType', 'platform', 'searchId']) {
-    if (request[field] !== undefined && (typeof request[field] !== 'string' || !request[field].trim())) failures.push(`request.${field} must be a non-empty string when provided`);
+    if (request[field] !== undefined
+      && (typeof request[field] !== 'string' || !request[field].trim() || request[field].length > 256)) {
+      failures.push(`request.${field} must be a non-empty string up to 256 characters when provided`);
+    }
   }
   if (request.sources !== undefined && (!Array.isArray(request.sources) || request.sources.length === 0 || !request.sources.every((source) => SOURCE_SET.has(source)))) {
     failures.push(`request.sources must contain only: ${DEFAULT_SOURCES.join(', ')}`);
+  } else if (request.sources && new Set(request.sources).size !== request.sources.length) {
+    failures.push('request.sources must not contain duplicates');
   }
   if (request.limit !== undefined && (!Number.isInteger(request.limit) || request.limit < 1 || request.limit > 10)) failures.push('request.limit must be an integer from 1 to 10');
   if (request.cacheMaxAgeHours !== undefined && (!Number.isInteger(request.cacheMaxAgeHours) || request.cacheMaxAgeHours < 1 || request.cacheMaxAgeHours > 720)) failures.push('request.cacheMaxAgeHours must be an integer from 1 to 720');
@@ -372,7 +413,7 @@ export function normalizedReferenceRequest(request) {
   if (failures.length) throw new Error(failures.join('; '));
   return {
     requestVersion: REFERENCE_REQUEST_VERSION,
-    searchId: request.searchId?.trim() || createSearchId(),
+    searchId: normalizeId(request.searchId?.trim() || createSearchId()) || createSearchId(),
     query: request.query.trim(),
     artifactType: request.artifactType?.trim() || 'interface',
     platform: request.platform?.trim() || 'web',
@@ -443,60 +484,60 @@ export async function searchDesignReferences(rawRequest, options = {}) {
     throw new Error(`reference cache already exists: ${cacheDir}`);
   }
 
-  const warnings = [];
-  const errors = [];
-  const sourceReports = [];
-  const staleCachesRemoved = sweepReferenceCache(referenceRoot, request.cacheMaxAgeHours, { storageHook: options.storageHook });
-  const fetcher = options.fetcher ?? globalThis.fetch;
-  if (typeof fetcher !== 'function') throw new Error('reference search requires a fetch implementation');
-  const adapterOptions = {
-    fetcher,
-    lookup: options.lookup ?? lookup,
-    pinnedHttps: options.fetcher === undefined,
-    timeoutMs: options.timeoutMs ?? 20_000,
-    warnings
-  };
-  const queryTokens = expandedTokens(request);
-  const candidates = [];
-
-  const settled = await Promise.allSettled(request.sources.map(async (source) => {
-    const items = await sourceCandidates(source, request, {
-      ...adapterOptions,
-      source,
-      allowedOrigins: SOURCE_DEFINITIONS[source].allowedOrigins
-    });
-    return { source, items };
-  }));
-  for (let index = 0; index < settled.length; index += 1) {
-    const source = request.sources[index];
-    const result = settled[index];
-    if (result.status === 'rejected') {
-      warnings.push(`${source}: ${result.reason.message ?? result.reason}`);
-      sourceReports.push({ source, status: 'failed', candidates: 0, error: result.reason.message ?? String(result.reason) });
-      continue;
-    }
-    sourceReports.push({ source, status: 'done', candidates: result.value.items.length, error: null });
-    candidates.push(...result.value.items);
-  }
-
-  const scored = candidates.map((candidate) => scoreCandidate(candidate, queryTokens));
-  let selected = scored.filter((candidate) => candidate.score > 0);
-  if (selected.length === 0) selected = scored;
-  selected = selected.sort((left, right) => right.score - left.score || left.id.localeCompare(right.id));
-  const diverse = [];
-  for (const source of request.sources) {
-    const candidate = selected.find((item) => item.source === source && !diverse.some((chosen) => chosen.id === item.id));
-    if (candidate) diverse.push(candidate);
-    if (diverse.length === request.limit) break;
-  }
-  for (const candidate of selected) {
-    if (diverse.length === request.limit) break;
-    if (!diverse.some((chosen) => chosen.id === candidate.id)) diverse.push(candidate);
-  }
-  selected = diverse;
-
-  if (selected.length === 0) errors.push('no reference candidates were available from the requested sources');
   try {
+    const warnings = [];
+    const errors = [];
+    const sourceReports = [];
+    const staleCachesRemoved = sweepReferenceCache(referenceRoot, request.cacheMaxAgeHours, { storageHook: options.storageHook });
+    const fetcher = options.fetcher ?? globalThis.fetch;
+    if (typeof fetcher !== 'function') throw new Error('reference search requires a fetch implementation');
+    const adapterOptions = {
+      fetcher,
+      lookup: options.lookup ?? lookup,
+      pinnedHttps: options.fetcher === undefined,
+      timeoutMs: options.timeoutMs ?? 20_000,
+      warnings
+    };
+    const queryTokens = expandedTokens(request);
+    const candidates = [];
+
+    const settled = await Promise.allSettled(request.sources.map(async (source) => {
+      const items = await sourceCandidates(source, request, {
+        ...adapterOptions,
+        source,
+        allowedOrigins: SOURCE_DEFINITIONS[source].allowedOrigins
+      });
+      return { source, items };
+    }));
+    for (let index = 0; index < settled.length; index += 1) {
+      const source = request.sources[index];
+      const result = settled[index];
+      if (result.status === 'rejected') {
+        warnings.push(`${source}: ${result.reason.message ?? result.reason}`);
+        sourceReports.push({ source, status: 'failed', candidates: 0, error: result.reason.message ?? String(result.reason) });
+        continue;
+      }
+      sourceReports.push({ source, status: 'done', candidates: result.value.items.length, error: null });
+      candidates.push(...result.value.items);
+    }
+
+    const scored = candidates.map((candidate) => scoreCandidate(candidate, queryTokens));
+    let selected = scored.filter((candidate) => candidate.score > 0);
+    if (selected.length === 0) selected = scored;
+    selected = selected.sort((left, right) => right.score - left.score || left.id.localeCompare(right.id));
+    const diverse = [];
+    for (const source of request.sources) {
+      const candidate = selected.find((item) => item.source === source && !diverse.some((chosen) => chosen.id === item.id));
+      if (candidate) diverse.push(candidate);
+      if (diverse.length === request.limit) break;
+    }
+    for (const candidate of selected) {
+      if (diverse.length === request.limit) break;
+      if (!diverse.some((chosen) => chosen.id === candidate.id)) diverse.push(candidate);
+    }
+    selected = diverse;
+
+    if (selected.length === 0) errors.push('no reference candidates were available from the requested sources');
     const cacheDirectory = referenceStorage.createDirectory(cacheRelative, {
       createParents: true,
       operation: 'reference-cache-create'
@@ -545,22 +586,22 @@ export async function searchDesignReferences(rawRequest, options = {}) {
     });
     const manifestSha256 = crypto.createHash('sha256').update(manifestBytes).digest('hex');
     return {
-    resultVersion: REFERENCE_RESULT_VERSION,
-    searchId: request.searchId,
-    status: errors.length ? 'failed' : 'done',
-    query: request.query,
-    manifestPath,
-    manifestSha256,
-    references,
-    sources: sourceReports,
-    cleanup: {
-      cachePath: cacheDir,
-      staleCachesRemoved,
-      expiresAt: manifest.expiresAt,
-      acceptedBundlesExcludedFromTtl: true
-    },
-    warnings,
-    errors
+      resultVersion: REFERENCE_RESULT_VERSION,
+      searchId: request.searchId,
+      status: errors.length ? 'failed' : 'done',
+      query: request.query,
+      manifestPath,
+      manifestSha256,
+      references,
+      sources: sourceReports,
+      cleanup: {
+        cachePath: cacheDir,
+        staleCachesRemoved,
+        expiresAt: manifest.expiresAt,
+        acceptedBundlesExcludedFromTtl: true
+      },
+      warnings,
+      errors
     };
   } finally {
     referenceStorage.close();
@@ -576,19 +617,20 @@ export function loadReferenceManifest(file, options = {}) {
   }
   const storageRoot = new AnchoredRoot(selectedRoot, { create: false, hook: options.storageHook });
   let bytes;
+  let data;
   try {
     bytes = storageRoot.readFile(storageRoot.relative(absolutePath), {
       operation: 'reference-manifest-load',
-      label: 'reference manifest'
+      label: 'reference manifest',
+      maxBytes: MAX_JSON_INPUT_BYTES
     });
+    data = JSON.parse(bytes.toString('utf8'));
+    if (data.manifestVersion !== REFERENCE_MANIFEST_VERSION || !Array.isArray(data.references)) {
+      throw new Error(`reference manifest must use ${REFERENCE_MANIFEST_VERSION}`);
+    }
   } catch (error) {
     storageRoot.close();
     throw error;
-  }
-  const data = JSON.parse(bytes.toString('utf8'));
-  if (data.manifestVersion !== REFERENCE_MANIFEST_VERSION || !Array.isArray(data.references)) {
-    storageRoot.close();
-    throw new Error(`reference manifest must use ${REFERENCE_MANIFEST_VERSION}`);
   }
   if (!options.keepStorageOpen) storageRoot.close();
   return {
@@ -625,7 +667,8 @@ export function normalizeDesignReferences(input, options = {}) {
       try {
         bytes = manifest.storageRoot.readFile(manifest.storageRoot.relative(snippetPath), {
           operation: 'reference-snippet-load',
-          label: `reference snippet ${reference.id}`
+          label: `reference snippet ${reference.id}`,
+          maxBytes: MAX_SNIPPET_BYTES
         });
       } catch (error) {
         if (error.message.includes('must be a regular file')) {

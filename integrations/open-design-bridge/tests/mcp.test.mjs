@@ -12,6 +12,20 @@ const bridgeRoot = path.resolve(here, '..');
 const server = path.join(bridgeRoot, 'mcp-server', 'index.mjs');
 const mockOd = path.join(here, 'fixtures', 'mock-od.mjs');
 
+function canonicalSchema(file) {
+  const schema = JSON.parse(fs.readFileSync(path.join(bridgeRoot, 'schemas', file), 'utf8'));
+  delete schema.$schema;
+  delete schema.$id;
+  delete schema.title;
+  return schema;
+}
+
+function schemaWithoutInjectedProperty(schema, injectedProperty) {
+  delete schema.properties[injectedProperty];
+  schema.required = schema.required.filter((property) => property !== injectedProperty);
+  return schema;
+}
+
 function createClient(root, options = {}) {
   const child = spawn(process.execPath, [server], {
     cwd: root,
@@ -57,12 +71,36 @@ function createClient(root, options = {}) {
   };
 }
 
+function readJsonLines(stream, count, timeoutMs = 10_000) {
+  return new Promise((resolve, reject) => {
+    const messages = [];
+    let buffer = '';
+    const timer = setTimeout(() => reject(new Error(`timed out waiting for ${count} MCP messages`)), timeoutMs);
+    stream.setEncoding('utf8');
+    stream.on('data', (chunk) => {
+      buffer += chunk;
+      while (buffer.includes('\n')) {
+        const index = buffer.indexOf('\n');
+        const line = buffer.slice(0, index).trim();
+        buffer = buffer.slice(index + 1);
+        if (!line) continue;
+        messages.push(JSON.parse(line));
+        if (messages.length === count) {
+          clearTimeout(timer);
+          resolve(messages);
+        }
+      }
+    });
+  });
+}
+
 test('MCP exposes async design lifecycle and canonical resultPath', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-open-design-mcp-'));
   const client = createClient(root);
   try {
     const initialized = await client.call('initialize', { protocolVersion: '2024-11-05' });
     assert.equal(initialized.result.serverInfo.name, 'centurion-open-design');
+    assert.equal(initialized.result.serverInfo.version, '0.2.1');
     const listed = await client.call('tools/list', {});
     assert.deepEqual(listed.result.tools.map((tool) => tool.name), [
       'search_design_references', 'start_design', 'get_design', 'cleanup_design'
@@ -97,6 +135,45 @@ test('MCP exposes async design lifecycle and canonical resultPath', async () => 
     assert.equal(startPayload.jobId, 'mcp-create');
     assert.equal(job.result.orchestrator.client, 'codex');
     assert.equal(JSON.parse(fs.readFileSync(job.resultPath, 'utf8')).resultVersion, 'CENTURION_OD_RESULT_V1');
+  } finally {
+    client.child.kill('SIGTERM');
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('MCP discovery schemas preserve canonical request constraints', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-open-design-mcp-schemas-'));
+  const client = createClient(root);
+  try {
+    const listed = await client.call('tools/list', {});
+    const schemas = Object.fromEntries(listed.result.tools.map((tool) => [tool.name, tool.inputSchema]));
+    const referenceSchema = schemaWithoutInjectedProperty(canonicalSchema('reference-request.schema.json'), 'requestVersion');
+    const productionSchema = canonicalSchema('request.schema.json');
+
+    assert.deepEqual(schemas.search_design_references, referenceSchema);
+    assert.deepEqual(schemas.start_design.properties.request, {
+      ...productionSchema,
+      properties: {
+        ...productionSchema.properties,
+        action: { enum: ['create', 'revise'] }
+      }
+    });
+    assert.deepEqual(schemas.cleanup_design.properties.request, {
+      ...productionSchema,
+      properties: {
+        ...productionSchema.properties,
+        action: { const: 'cleanup' }
+      }
+    });
+    assert.deepEqual(schemas.get_design.properties.jobId, {
+      type: 'string',
+      minLength: 1,
+      maxLength: 128,
+      pattern: '^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$'
+    });
+    for (const tool of ['start_design', 'get_design', 'cleanup_design']) {
+      assert.equal(schemas[tool].additionalProperties, false);
+    }
   } finally {
     client.child.kill('SIGTERM');
     fs.rmSync(root, { recursive: true, force: true });
@@ -228,6 +305,68 @@ test('job TTL preserves an old receipt owned by a live MCP process', async () =>
   } finally {
     first.child.kill('SIGTERM');
     second.child.kill('SIGTERM');
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('MCP rejects null and oversized JSONL messages without terminating', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-open-design-mcp-input-'));
+  const child = spawn(process.execPath, [server], {
+    cwd: root,
+    env: { ...process.env, CENTURION_DESIGN_ROOT: root },
+    stdio: ['pipe', 'pipe', 'pipe']
+  });
+  try {
+    const messages = readJsonLines(child.stdout, 3);
+    child.stdin.write('null\n');
+    child.stdin.write(`${'x'.repeat((1024 * 1024) + 1)}\n`);
+    child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id: 7, method: 'ping', params: {} })}\n`);
+    const [invalid, oversized, ping] = await messages;
+    assert.equal(invalid.error.code, -32600);
+    assert.equal(oversized.error.code, -32600);
+    assert(oversized.error.message.includes('1048576'));
+    assert.deepEqual(ping, { jsonrpc: '2.0', id: 7, result: {} });
+    assert.equal(child.exitCode, null);
+  } finally {
+    child.kill('SIGTERM');
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('MCP validates requests before claiming jobs and bounds active work', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-open-design-mcp-capacity-'));
+  const client = createClient(root, {
+    stateDir: path.join(root, 'state'),
+    env: { MOCK_OD_WATCH_DELAY_MS: '2000', CENTURION_OD_MAX_CONCURRENT_JOBS: '1' }
+  });
+  try {
+    await client.call('initialize', { protocolVersion: '2024-11-05' });
+    const invalid = await client.call('tools/call', {
+      name: 'start_design',
+      arguments: { request: { requestVersion: 'CENTURION_OD_REQUEST_V1', action: 'create', brief: '' } }
+    });
+    assert(invalid.error?.message.includes('request.brief'));
+    assert.equal(fs.existsSync(path.join(root, '.jobs')), false);
+
+    const request = {
+      requestVersion: 'CENTURION_OD_REQUEST_V1',
+      requestId: 'first-job',
+      action: 'create',
+      brief: 'Create a landing.',
+      artifact: { outputDir: path.join(root, 'out-first') },
+      screenshot: { enabled: false }
+    };
+    const first = await client.call('tools/call', { name: 'start_design', arguments: { request } });
+    assert.equal(first.result.structuredContent.status, 'running');
+    const second = await client.call('tools/call', {
+      name: 'start_design',
+      arguments: { request: { ...request, requestId: 'second-job', artifact: { outputDir: path.join(root, 'out-second') } } }
+    });
+    assert(second.error?.message.includes('active design job limit reached: 1'));
+    const invalidId = await client.call('tools/call', { name: 'get_design', arguments: { jobId: '../first-job' } });
+    assert(invalidId.error?.message.includes('invalid jobId'));
+  } finally {
+    client.child.kill('SIGTERM');
     fs.rmSync(root, { recursive: true, force: true });
   }
 });

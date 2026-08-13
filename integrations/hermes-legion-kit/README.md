@@ -1,6 +1,6 @@
 # Hermes Legion Kit
 
-CENTURION/Aquila Team Lead skills and lean skill bundles for Hermes Agent (kit version 0.6.0).
+CENTURION/Aquila Team Lead skills and lean skill bundles for Hermes Agent (kit version 0.6.1).
 
 This kit versions the local Hermes additions that were first installed under `~/.hermes`: five Aquila skills, one shared Open Design capability, its local stdio MCP, four slash-command bundles, and a packaged delegation monitor. It does not import ECC runtime code, enable plugins, alter unrelated MCP servers, or edit `SOUL.md`.
 
