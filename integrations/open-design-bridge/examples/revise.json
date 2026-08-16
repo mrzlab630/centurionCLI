@@ -1,0 +1,20 @@
+{
+  "requestVersion": "CENTURION_OD_REQUEST_V1",
+  "requestId": "clear-day-revise-1",
+  "action": "revise",
+  "brief": "Make the hero more compact, strengthen the product preview hierarchy, and keep the existing interaction behavior.",
+  "project": {
+    "previousResultPath": "./.centurion/design/clear-day-create/result.json"
+  },
+  "artifact": {
+    "outputDir": "./.centurion/design/clear-day-revise-1"
+  },
+  "screenshot": {
+    "enabled": true,
+    "fullPage": true,
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    }
+  }
+}

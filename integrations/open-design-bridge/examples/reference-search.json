@@ -1,0 +1,9 @@
+{
+  "requestVersion": "CENTURION_REFERENCE_REQUEST_V1",
+  "query": "B2B analytics landing page with clear product metrics and restrained motion",
+  "artifactType": "landing-page",
+  "platform": "web",
+  "sources": ["shadcn", "magicui", "hyperui", "tabler", "landbook"],
+  "limit": 5,
+  "cacheMaxAgeHours": 24
+}

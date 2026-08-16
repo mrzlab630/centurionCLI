@@ -1,18 +1,7 @@
 ---
 name: evocate-ad-opus
-description: |
-  Delegate tasks to external AI models via separate tmux sessions. Use when you need to
-  run specific tasks with a different (cheaper or specialized) model. Launches claude
-  with specified model in tmux, waits for completion, and reports results.
+description: External-model delegation specialist. Use when delegating bounded tasks to external AI models in tmux and collecting results.
 allowed-tools: Bash, Read, Write
-triggers:
-  explicit:
-    - "Evocate, ad opus!"
-    - "/evocate-ad-opus"
-  implicit:
-    - "summon Evocatus"
-    - "call Evocatus"
-    - "delegate to model"
 ---
 
 # EVOCATUS — External Model Delegation
@@ -29,7 +18,7 @@ When this skill is activated:
 4. **MUST** call the evocate.sh script via Bash to launch tmux session
 5. **MUST** report the session ID back to user
 
-This skill is for DELEGATION, not execution. The task will be performed by another Claude instance in a separate tmux session.
+This skill is for DELEGATION, not execution. The task will be performed by another Codex instance in a separate tmux session.
 
 ---
 
@@ -46,7 +35,7 @@ Preparing to delegate task to external model...
 ### Step 1: Parse the Command
 
 Extract from user input:
-- `model`: The model name (e.g., "claude-opus-4-5-latest-paid", "kimi-k2")
+- `model`: The model name (e.g., "Codex-opus-4-5-latest-paid", "kimi-k2")
 - `task`: The task description
 
 ### Step 2: Create Task File
@@ -54,7 +43,7 @@ Extract from user input:
 Use the Write tool to create task file:
 
 ```bash
-# File: ~/.claude/evocate/task-{timestamp}.md
+# File: ~/.Codex/evocate/task-{timestamp}.md
 ```
 
 Task file content template:
@@ -81,7 +70,7 @@ Please complete the task described above and provide a detailed report.
 **MUST** use Bash tool to call:
 
 ```bash
-~/.claude/scripts/evocate.sh launch {model} {task_file_path}
+~/.Codex/scripts/evocate.sh launch {model} {task_file_path}
 ```
 
 ### Step 4: Report to User
@@ -93,26 +82,26 @@ evocate_delegation:
   model: "{model}"
   session_id: "{session_id from script output}"
   monitor_command: "tmux attach -t {session_id}"
-  results_command: "~/.claude/scripts/evocate.sh results {session_id}"
+  results_command: "~/.Codex/scripts/evocate.sh results {session_id}"
 ```
 
 ---
 
 ## Example Execution Flow
 
-**User says:** "summon Evocatus! claude-haiku task: research example.com"
+**User says:** "summon Evocatus! Codex-haiku task: research example.com"
 
 **You MUST do:**
 
 1. Output activation message
 2. Create task file:
 ```bash
-# Use Write tool to create ~/.claude/evocate/task-{timestamp}.md
+# Use Write tool to create ~/.Codex/evocate/task-{timestamp}.md
 ```
 
 3. Launch via script:
 ```bash
-~/.claude/scripts/evocate.sh launch claude-haiku ~/.claude/evocate/task-{timestamp}.md
+~/.Codex/scripts/evocate.sh launch Codex-haiku ~/.Codex/evocate/task-{timestamp}.md
 ```
 
 4. Report session info to user
@@ -137,7 +126,7 @@ call Evocatus <model-name> task: <task-description>
 
 ```
 Evocate, ad opus! kimi-k2 research the authentication module
-summon Evocatus claude-haiku task: write unit tests
+summon Evocatus Codex-haiku task: write unit tests
 call Evocatus deepseek-coder for refactoring utils.ts
 ```
 
@@ -146,26 +135,26 @@ call Evocatus deepseek-coder for refactoring utils.ts
 ## Script Location
 
 ```
-~/.claude/scripts/evocate.sh
+~/.Codex/scripts/evocate.sh
 ```
 
 ### Script Commands
 
 ```bash
 # Launch new session
-~/.claude/scripts/evocate.sh launch <model> <task-file>
+~/.Codex/scripts/evocate.sh launch <model> <task-file>
 
 # Check status
-~/.claude/scripts/evocate.sh status <session-id>
+~/.Codex/scripts/evocate.sh status <session-id>
 
 # Get results
-~/.claude/scripts/evocate.sh results <session-id>
+~/.Codex/scripts/evocate.sh results <session-id>
 
 # List sessions
-~/.claude/scripts/evocate.sh list
+~/.Codex/scripts/evocate.sh list
 
 # Kill session
-~/.claude/scripts/evocate.sh kill <session-id>
+~/.Codex/scripts/evocate.sh kill <session-id>
 ```
 
 ---
@@ -179,16 +168,16 @@ cost_tier_free:
   - kimi-k2
 
 cost_tier_low:
-  - claude-haiku
+  - Codex-haiku
   - gemini-flash
 
 cost_tier_medium:
-  - claude-sonnet
+  - Codex-sonnet
   - antigravity-gemini-3-pro-high
   - kimi-k2-thinking
 
 cost_tier_high:
-  - claude-opus-4-5-latest-paid
+  - Codex-opus-4-5-latest-paid
   - o1-preview
 ```
 
@@ -214,13 +203,13 @@ After successful delegation:
 
 Session Details:
   ID: evocate-1234567890-12345
-  Model: claude-haiku
-  Task File: ~/.claude/evocate/task-1234567890.md
+  Model: Codex-haiku
+  Task File: ~/.Codex/evocate/task-1234567890.md
 
 Commands:
   Monitor:  tmux attach -t evocate-1234567890-12345
-  Status:   ~/.claude/scripts/evocate.sh status evocate-1234567890-12345
-  Results:  ~/.claude/scripts/evocate.sh results evocate-1234567890-12345
+  Status:   ~/.Codex/scripts/evocate.sh status evocate-1234567890-12345
+  Results:  ~/.Codex/scripts/evocate.sh results evocate-1234567890-12345
 
 The auxiliary model is now working on your task.
 ```

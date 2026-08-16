@@ -1,0 +1,9 @@
+# Source this before non-interactive Claude Code proxy runs.
+# Copy to a private shell snippet if your local proxy values differ.
+
+export ANTHROPIC_BASE_URL="${ANTHROPIC_BASE_URL:-http://127.0.0.1:8317}"
+export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-proxy}"
+export ANTHROPIC_DEFAULT_OPUS_MODEL="${ANTHROPIC_DEFAULT_OPUS_MODEL:-claude-opus-5}"
+export ANTHROPIC_DEFAULT_SONNET_MODEL="${ANTHROPIC_DEFAULT_SONNET_MODEL:-claude-sonnet-5}"
+export ANTHROPIC_DEFAULT_HAIKU_MODEL="${ANTHROPIC_DEFAULT_HAIKU_MODEL:-claude-haiku-4-5-20251001}"
+export NO_PROXY="${NO_PROXY:-127.0.0.1,localhost}"

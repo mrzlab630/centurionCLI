@@ -1,0 +1,777 @@
+{
+  "version": 1,
+  "generatedAt": "2026-06-12T20:10:38.638Z",
+  "policy": {
+    "installAllowlist": false,
+    "requiredWorkflow": "frontend-reference-search",
+    "safetyGate": "frontend_source_intake",
+    "blockedDefaults": [
+      "copying visual-gallery pages pixel-for-pixel",
+      "using paid templates without a license",
+      "importing a full starter template into an existing project without architecture review",
+      "copying brand assets, screenshots, or page copy from reference sites",
+      "adding dependencies only because a reference uses them"
+    ]
+  },
+  "searchFields": [
+    "query",
+    "pageType",
+    "stack",
+    "style"
+  ],
+  "sources": [
+    {
+      "id": "shadcn-ui-blocks",
+      "name": "shadcn/ui Blocks",
+      "url": "https://ui.shadcn.com/blocks",
+      "sourceType": "code-blocks",
+      "decision": "adapt-only",
+      "license": "verify exact block and dependency terms before reuse",
+      "stacks": [
+        "react",
+        "nextjs",
+        "tailwind",
+        "shadcn",
+        "radix"
+      ],
+      "pageTypes": [
+        "dashboard",
+        "auth",
+        "settings",
+        "sidebar-app",
+        "forms",
+        "landing"
+      ],
+      "styles": [
+        "clean",
+        "product",
+        "saas",
+        "admin",
+        "neutral"
+      ],
+      "patterns": [
+        "sidebar layout",
+        "login page",
+        "dashboard cards",
+        "data table",
+        "settings forms"
+      ],
+      "bestFor": "Production-like React/Tailwind app pages, dashboards, auth screens, and settings layouts.",
+      "adaptNotes": "Use as structural reference; keep target project tokens, routing, data states, and accessibility constraints."
+    },
+    {
+      "id": "shadcnblocks",
+      "name": "Shadcn Blocks",
+      "url": "https://www.shadcnblocks.com",
+      "sourceType": "code-blocks",
+      "decision": "adapt-only",
+      "license": "varies by block; verify before copying",
+      "stacks": [
+        "react",
+        "nextjs",
+        "tailwind",
+        "shadcn"
+      ],
+      "pageTypes": [
+        "landing",
+        "pricing",
+        "hero",
+        "features",
+        "testimonials",
+        "faq",
+        "contact"
+      ],
+      "styles": [
+        "saas",
+        "startup",
+        "marketing",
+        "clean"
+      ],
+      "patterns": [
+        "hero section",
+        "pricing section",
+        "feature grid",
+        "logos row",
+        "faq accordion"
+      ],
+      "bestFor": "SaaS and product landing sections built around shadcn/Tailwind patterns.",
+      "adaptNotes": "Select sections by conversion purpose; rewrite copy and claims through content-copy-system."
+    },
+    {
+      "id": "flowbite-blocks",
+      "name": "Flowbite Blocks",
+      "url": "https://flowbite.com/blocks",
+      "sourceType": "code-blocks",
+      "decision": "adapt-only",
+      "license": "free/pro split; verify block terms",
+      "stacks": [
+        "html",
+        "tailwind",
+        "flowbite",
+        "react",
+        "vue",
+        "svelte"
+      ],
+      "pageTypes": [
+        "marketing",
+        "application-ui",
+        "dashboard",
+        "ecommerce",
+        "auth",
+        "forms",
+        "pricing"
+      ],
+      "styles": [
+        "business",
+        "saas",
+        "admin",
+        "ecommerce",
+        "neutral"
+      ],
+      "patterns": [
+        "hero",
+        "navbar",
+        "pricing",
+        "checkout",
+        "dashboard",
+        "modal",
+        "form"
+      ],
+      "bestFor": "Broad Tailwind block coverage across marketing, app UI, ecommerce, and dashboard pages.",
+      "adaptNotes": "Good first stop for common page patterns; inspect license tier and component dependencies."
+    },
+    {
+      "id": "preline-examples",
+      "name": "Preline Examples",
+      "url": "https://preline.co/examples.html",
+      "sourceType": "code-examples",
+      "decision": "adapt-only",
+      "license": "verify example and plugin terms",
+      "stacks": [
+        "html",
+        "tailwind",
+        "preline"
+      ],
+      "pageTypes": [
+        "dashboard",
+        "ecommerce",
+        "auth",
+        "marketing",
+        "forms",
+        "admin"
+      ],
+      "styles": [
+        "business",
+        "admin",
+        "clean",
+        "commerce"
+      ],
+      "patterns": [
+        "admin shell",
+        "ecommerce product page",
+        "login",
+        "landing",
+        "charts",
+        "tables"
+      ],
+      "bestFor": "Tailwind page examples with practical app, admin, and commerce layouts.",
+      "adaptNotes": "Use layout patterns without inheriting plugin assumptions unless the target already uses Preline."
+    },
+    {
+      "id": "hyperui",
+      "name": "HyperUI",
+      "url": "https://www.hyperui.dev",
+      "sourceType": "code-blocks",
+      "decision": "adapt-only",
+      "license": "MIT-style project; verify exact source before reuse",
+      "stacks": [
+        "html",
+        "tailwind"
+      ],
+      "pageTypes": [
+        "marketing",
+        "ecommerce",
+        "forms",
+        "cta",
+        "cards",
+        "navigation"
+      ],
+      "styles": [
+        "clean",
+        "simple",
+        "ecommerce",
+        "marketing"
+      ],
+      "patterns": [
+        "product cards",
+        "CTA",
+        "newsletter form",
+        "header",
+        "stats",
+        "testimonial"
+      ],
+      "bestFor": "Simple Tailwind sections and ecommerce/marketing building blocks.",
+      "adaptNotes": "Good for lightweight section structure; add states, accessibility, and product-specific copy."
+    },
+    {
+      "id": "tailwind-ui",
+      "name": "Tailwind UI",
+      "url": "https://tailwindui.com",
+      "sourceType": "paid-code-reference",
+      "decision": "needs-license",
+      "license": "paid commercial product; use only with valid license",
+      "stacks": [
+        "html",
+        "react",
+        "vue",
+        "tailwind",
+        "headlessui"
+      ],
+      "pageTypes": [
+        "marketing",
+        "application-ui",
+        "ecommerce",
+        "dashboard",
+        "auth",
+        "pricing"
+      ],
+      "styles": [
+        "polished",
+        "business",
+        "saas",
+        "enterprise"
+      ],
+      "patterns": [
+        "application shell",
+        "pricing",
+        "checkout",
+        "product page",
+        "dashboard",
+        "settings"
+      ],
+      "bestFor": "High-quality benchmark for Tailwind page composition and component APIs.",
+      "adaptNotes": "Reference interaction and information architecture unless the user has license access."
+    },
+    {
+      "id": "tailwind-awesome",
+      "name": "Tailwind Awesome",
+      "url": "https://www.tailwindawesome.com",
+      "sourceType": "template-directory",
+      "decision": "reference-only",
+      "license": "varies per template",
+      "stacks": [
+        "tailwind",
+        "react",
+        "nextjs",
+        "vue",
+        "astro",
+        "html"
+      ],
+      "pageTypes": [
+        "landing",
+        "dashboard",
+        "portfolio",
+        "blog",
+        "ecommerce",
+        "admin"
+      ],
+      "styles": [
+        "varied",
+        "startup",
+        "portfolio",
+        "business"
+      ],
+      "patterns": [
+        "template discovery",
+        "starter page",
+        "landing page",
+        "dashboard template"
+      ],
+      "bestFor": "Finding full-page Tailwind templates by stack and use case.",
+      "adaptNotes": "Use as discovery; follow each template license and do not import full starters blindly."
+    },
+    {
+      "id": "magic-ui",
+      "name": "Magic UI",
+      "url": "https://magicui.design",
+      "repository": "magicuidesign/magicui",
+      "sourceType": "motion-component-catalog",
+      "decision": "adapt-only",
+      "license": "MIT repository; verify exact component terms",
+      "stacks": [
+        "react",
+        "tailwind",
+        "framer-motion",
+        "shadcn"
+      ],
+      "pageTypes": [
+        "landing",
+        "hero",
+        "features",
+        "interactive-sections",
+        "marketing"
+      ],
+      "styles": [
+        "animated",
+        "saas",
+        "premium",
+        "modern"
+      ],
+      "patterns": [
+        "animated hero",
+        "marquee",
+        "bento grid",
+        "particles",
+        "dock",
+        "shine border"
+      ],
+      "bestFor": "Animated marketing sections and modern motion primitives.",
+      "adaptNotes": "Keep motion purposeful, reduced-motion safe, and outside the LCP-critical path when possible."
+    },
+    {
+      "id": "react-bits",
+      "name": "React Bits",
+      "url": "https://www.reactbits.dev",
+      "repository": "DavidHDev/react-bits",
+      "sourceType": "motion-component-catalog",
+      "decision": "adapt-only",
+      "license": "verify exact component terms",
+      "stacks": [
+        "react",
+        "css",
+        "animation",
+        "webgl"
+      ],
+      "pageTypes": [
+        "hero",
+        "interactive-sections",
+        "portfolio",
+        "marketing"
+      ],
+      "styles": [
+        "animated",
+        "creative",
+        "experimental"
+      ],
+      "patterns": [
+        "text animation",
+        "background effect",
+        "interactive card",
+        "scroll effect"
+      ],
+      "bestFor": "Creative React interactions and animated sections.",
+      "adaptNotes": "Use selectively; verify performance, accessibility, and mobile behavior before shipping."
+    },
+    {
+      "id": "origin-ui",
+      "name": "Origin UI",
+      "url": "https://originui.com",
+      "repository": "origin-space/originui",
+      "sourceType": "component-catalog",
+      "decision": "adapt-only",
+      "license": "verify exact component terms",
+      "stacks": [
+        "react",
+        "tailwind",
+        "shadcn"
+      ],
+      "pageTypes": [
+        "forms",
+        "navigation",
+        "settings",
+        "dashboard",
+        "application-ui"
+      ],
+      "styles": [
+        "clean",
+        "product",
+        "admin"
+      ],
+      "patterns": [
+        "input groups",
+        "menus",
+        "filters",
+        "settings",
+        "app controls"
+      ],
+      "bestFor": "Modern shadcn-compatible controls and app UI details.",
+      "adaptNotes": "Use for component-level references; preserve target project design tokens and states."
+    },
+    {
+      "id": "tremor",
+      "name": "Tremor",
+      "url": "https://www.tremor.so",
+      "repository": "tremorlabs/tremor",
+      "sourceType": "dashboard-component-catalog",
+      "decision": "adapt-only",
+      "license": "Apache-2.0 repository; verify exact current terms",
+      "stacks": [
+        "react",
+        "tailwind",
+        "charts",
+        "dashboard"
+      ],
+      "pageTypes": [
+        "dashboard",
+        "analytics",
+        "reports",
+        "admin",
+        "metrics"
+      ],
+      "styles": [
+        "data-heavy",
+        "business",
+        "admin",
+        "clean"
+      ],
+      "patterns": [
+        "KPI cards",
+        "charts",
+        "tables",
+        "filters",
+        "analytics layout"
+      ],
+      "bestFor": "Data dashboards, analytics pages, KPI panels, and report-like app surfaces.",
+      "adaptNotes": "Match chart semantics and loading/error states to real data contracts."
+    },
+    {
+      "id": "daisyui",
+      "name": "daisyUI Components",
+      "url": "https://daisyui.com/components/",
+      "repository": "saadeghi/daisyui",
+      "sourceType": "component-catalog",
+      "decision": "adapt-only",
+      "license": "MIT repository; verify exact current terms",
+      "stacks": [
+        "html",
+        "tailwind",
+        "daisyui"
+      ],
+      "pageTypes": [
+        "application-ui",
+        "forms",
+        "dashboard",
+        "admin",
+        "prototype"
+      ],
+      "styles": [
+        "themeable",
+        "rapid-prototype",
+        "utility"
+      ],
+      "patterns": [
+        "buttons",
+        "cards",
+        "tabs",
+        "modal",
+        "drawer",
+        "toast",
+        "steps"
+      ],
+      "bestFor": "Fast component references and state variants when a project can accept daisyUI conventions.",
+      "adaptNotes": "Do not introduce daisyUI dependency unless it fits the existing stack."
+    },
+    {
+      "id": "landingfolio",
+      "name": "Landingfolio",
+      "url": "https://www.landingfolio.com",
+      "sourceType": "visual-gallery",
+      "decision": "visual-reference-only",
+      "license": "visual inspiration only; source sites have their own rights",
+      "stacks": [
+        "visual-reference"
+      ],
+      "pageTypes": [
+        "landing",
+        "hero",
+        "pricing",
+        "features",
+        "testimonials",
+        "saas"
+      ],
+      "styles": [
+        "saas",
+        "startup",
+        "marketing",
+        "premium"
+      ],
+      "patterns": [
+        "hero",
+        "CTA",
+        "feature section",
+        "pricing",
+        "social proof"
+      ],
+      "bestFor": "Finding polished landing-page structures and section sequencing.",
+      "adaptNotes": "Rebuild from scratch; use for layout strategy, not copying assets or copy."
+    },
+    {
+      "id": "lapa-ninja",
+      "name": "Lapa Ninja",
+      "url": "https://www.lapa.ninja",
+      "sourceType": "visual-gallery",
+      "decision": "visual-reference-only",
+      "license": "visual inspiration only; source sites have their own rights",
+      "stacks": [
+        "visual-reference"
+      ],
+      "pageTypes": [
+        "landing",
+        "portfolio",
+        "product",
+        "startup",
+        "app"
+      ],
+      "styles": [
+        "varied",
+        "editorial",
+        "startup",
+        "creative"
+      ],
+      "patterns": [
+        "landing gallery",
+        "hero composition",
+        "case-study layout",
+        "product page"
+      ],
+      "bestFor": "Broad landing-page inspiration across product categories.",
+      "adaptNotes": "Use to identify patterns; do not reuse screenshots, brand assets, or copy."
+    },
+    {
+      "id": "saas-landing-page",
+      "name": "SaaS Landing Page",
+      "url": "https://saaslandingpage.com",
+      "sourceType": "visual-gallery",
+      "decision": "visual-reference-only",
+      "license": "visual inspiration only; source sites have their own rights",
+      "stacks": [
+        "visual-reference"
+      ],
+      "pageTypes": [
+        "saas",
+        "landing",
+        "pricing",
+        "features",
+        "integrations"
+      ],
+      "styles": [
+        "saas",
+        "b2b",
+        "clean",
+        "conversion"
+      ],
+      "patterns": [
+        "SaaS hero",
+        "pricing",
+        "feature matrix",
+        "integration grid",
+        "trust logos"
+      ],
+      "bestFor": "SaaS-specific page flow, offer framing, and conversion section order.",
+      "adaptNotes": "Pair with content-copy-system for claims, proof, and CTA adaptation."
+    },
+    {
+      "id": "mobbin",
+      "name": "Mobbin",
+      "url": "https://mobbin.com",
+      "sourceType": "product-flow-gallery",
+      "decision": "visual-reference-only",
+      "license": "visual inspiration only; source apps have their own rights",
+      "stacks": [
+        "visual-reference"
+      ],
+      "pageTypes": [
+        "mobile-app",
+        "web-app",
+        "onboarding",
+        "auth",
+        "checkout",
+        "settings",
+        "subscription"
+      ],
+      "styles": [
+        "product",
+        "mobile",
+        "app-flow",
+        "consumer"
+      ],
+      "patterns": [
+        "onboarding flow",
+        "paywall",
+        "settings flow",
+        "checkout",
+        "profile"
+      ],
+      "bestFor": "Real product flows and screen sequences for mobile/web apps.",
+      "adaptNotes": "Use for flow structure; rebuild screens in the current design system."
+    },
+    {
+      "id": "pageflows",
+      "name": "Pageflows",
+      "url": "https://pageflows.com",
+      "sourceType": "product-flow-gallery",
+      "decision": "visual-reference-only",
+      "license": "visual inspiration only; source apps have their own rights",
+      "stacks": [
+        "visual-reference"
+      ],
+      "pageTypes": [
+        "onboarding",
+        "upgrade",
+        "checkout",
+        "account",
+        "settings",
+        "activation"
+      ],
+      "styles": [
+        "product",
+        "flow",
+        "conversion"
+      ],
+      "patterns": [
+        "activation path",
+        "upgrade flow",
+        "trial signup",
+        "account settings",
+        "subscription"
+      ],
+      "bestFor": "User journey references for conversion and onboarding workflows.",
+      "adaptNotes": "Extract flow steps and decisions, not pixel/copy clones."
+    },
+    {
+      "id": "godly",
+      "name": "Godly",
+      "url": "https://godly.website",
+      "sourceType": "visual-gallery",
+      "decision": "visual-reference-only",
+      "license": "visual inspiration only; source sites have their own rights",
+      "stacks": [
+        "visual-reference"
+      ],
+      "pageTypes": [
+        "landing",
+        "portfolio",
+        "product",
+        "agency",
+        "creative"
+      ],
+      "styles": [
+        "premium",
+        "creative",
+        "editorial",
+        "animated"
+      ],
+      "patterns": [
+        "high-end hero",
+        "editorial layout",
+        "visual rhythm",
+        "motion direction"
+      ],
+      "bestFor": "Premium and creative visual direction references.",
+      "adaptNotes": "Use carefully for visual language; keep target product usability and performance first."
+    },
+    {
+      "id": "awwwards",
+      "name": "Awwwards Websites",
+      "url": "https://www.awwwards.com/websites",
+      "sourceType": "visual-gallery",
+      "decision": "visual-reference-only",
+      "license": "visual inspiration only; source sites have their own rights",
+      "stacks": [
+        "visual-reference"
+      ],
+      "pageTypes": [
+        "landing",
+        "portfolio",
+        "brand",
+        "campaign",
+        "creative"
+      ],
+      "styles": [
+        "experimental",
+        "premium",
+        "animated",
+        "brand"
+      ],
+      "patterns": [
+        "immersive hero",
+        "scroll narrative",
+        "brand page",
+        "interactive visual"
+      ],
+      "bestFor": "High-end creative direction and memorable interactions.",
+      "adaptNotes": "Translate intent, not heavy animation or inaccessible interaction patterns."
+    },
+    {
+      "id": "cruip-templates",
+      "name": "Cruip Templates",
+      "url": "https://cruip.com/templates/",
+      "repository": "cruip/tailwind-landing-page-template",
+      "sourceType": "template-directory",
+      "decision": "reference-only",
+      "license": "free/pro split; verify template terms",
+      "stacks": [
+        "react",
+        "nextjs",
+        "tailwind",
+        "html"
+      ],
+      "pageTypes": [
+        "landing",
+        "saas",
+        "startup",
+        "waitlist",
+        "pricing"
+      ],
+      "styles": [
+        "saas",
+        "startup",
+        "dark",
+        "marketing"
+      ],
+      "patterns": [
+        "landing template",
+        "waitlist page",
+        "pricing section",
+        "feature grid"
+      ],
+      "bestFor": "SaaS/startup landing templates and full-page marketing references.",
+      "adaptNotes": "Use structure and section order; rewrite copy and verify license before code reuse."
+    },
+    {
+      "id": "proweb-tg-casino-ui",
+      "name": "TG Casino UI React",
+      "url": "https://github.com/Prowebtechnologies/TG-Casino-UI-React",
+      "repository": "Prowebtechnologies/TG-Casino-UI-React",
+      "sourceType": "domain-reference",
+      "decision": "reference-only",
+      "license": "MIT observed previously; verify exact current terms",
+      "stacks": [
+        "react",
+        "mui",
+        "telegram",
+        "mobile"
+      ],
+      "pageTypes": [
+        "igaming",
+        "casino",
+        "telegram-mini-app",
+        "mobile-app"
+      ],
+      "styles": [
+        "casino",
+        "mobile",
+        "game",
+        "telegram"
+      ],
+      "patterns": [
+        "casino lobby",
+        "game card grid",
+        "mobile navigation",
+        "balance panel"
+      ],
+      "bestFor": "Telegram casino/mobile game UI references.",
+      "adaptNotes": "Do not reuse wallet, deposit, bonus, or gambling mechanics without GUARDIAN/ALEATOR review."
+    }
+  ]
+}

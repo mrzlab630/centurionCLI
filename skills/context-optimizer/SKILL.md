@@ -1,9 +1,6 @@
 ---
 name: context-optimizer
-description: |
-  Expert context and token optimization skill. Use when managing context window,
-  reducing token usage, optimizing skills structure, or implementing progressive
-  disclosure patterns. Achieves 70-80% token reduction through smart loading.
+description: Context optimization specialist. Use when reducing token load, auditing skill surface, managing context, or applying progressive disclosure.
 allowed-tools: Read, Glob, Grep, Edit
 ---
 
@@ -36,6 +33,11 @@ Load context on demand, not in advance.
 
 ### 3. PROGRESSIVE DISCLOSURE
 From general to specific. Core → Details → Implementation.
+
+### 4. MEASURE BEFORE EXPANDING
+Before adding skills, MCPs, agents, or long rules, inventory the current surface.
+Expansion is justified only when it improves mission success more than it costs
+in trigger noise and context load.
 
 ---
 
@@ -100,7 +102,7 @@ From general to specific. Core → Details → Implementation.
 E_explore:
   purpose: "Understand context without writing code"
   actions:
-    - Read CLAUDE.md
+    - Read AGENTS.md
     - Grep for key patterns
     - Glob for structure
   output: "Brief summary of current state"
@@ -192,74 +194,53 @@ keep_in_skill:
 
 ## Context Monitoring Protocol
 
+### Surface Audit Drill
+
+Use the bundled audit script when skills or instructions feel crowded:
+
+```bash
+node /home/mrz/.agents/skills/context-optimizer/scripts/skill-surface-audit.mjs
+```
+
+For duplicate names, inspect intentional drift instead of auto-merging:
+
+```bash
+node /home/mrz/.agents/skills/context-optimizer/scripts/skill-drift-report.mjs
+```
+
+Report only the top findings: heaviest skills, long descriptions, duplicate
+names across `.agents` and `.codex`, and the next 3 reductions. Do not paste the
+full inventory unless requested.
+
+Review buckets:
+- **Always needed:** core Legion routing, safety, memory, current project type.
+- **On demand:** domain/framework skills and rare workflows.
+- **Candidate merge/retire:** duplicate, stale, thin, or superseded skills.
+
+For context-budget or config-GC decisions, load
+`references/context-budget.md` before recommending expansion or cleanup.
+
 ### Health Indicators
 
-```yaml
-context_levels:
-  green:
-    usage: "<30%"
-    action: "Continue normally"
+| Usage | Status | Action |
+|-------|--------|--------|
+| `<30%` | green | Continue normally |
+| `30-50%` | yellow | Summarize verbose outputs and unload dormant context |
+| `50-70%` | orange | Dump progress, narrow scope, keep only current phase |
+| `>70%` | red | Dump immediately, prepare compaction, reload minimal files |
 
-  yellow:
-    usage: "30-50%"
-    action: "Consider optimization"
-    steps:
-      - Review loaded context
-      - Unload unused skills
-      - Summarize verbose outputs
-
-  orange:
-    usage: "50-70%"
-    action: "Active optimization required"
-    steps:
-      - Dump progress to file
-      - Clear non-essential context
-      - Focus on current task only
-
-  red:
-    usage: ">70%"
-    action: "Critical - prepare for compaction"
-    steps:
-      - Immediate progress dump
-      - /compact or /clear
-      - Reload minimal context
-```
-
-### Progress Dump Format
-
-```markdown
-# Progress: [project] - [date]
-
-## Completed
-- [x] Task 1
-- [x] Task 2
-
-## Current State
-- Working on: [description]
-- Files modified: [list]
-- Tests status: [pass/fail]
-
-## Next Steps
-- [ ] Pending task 1
-- [ ] Pending task 2
-
-## Context to Restore
-```bash
-# Commands to restore context
-cat CLAUDE.md
-# Read specific files...
-```
-
-## Git Commands (manual execution)
-```bash
-git add .
-git commit -m "..."
-```
-```
+For detailed dump/restoration templates, load `REFERENCE.md` on demand.
 
 ---
 
 ## Smart Context Loading
+
+### Opus 5 Dossier Mode
+
+When Claude Opus 5 could accept a very large context, still load
+`references/opus-dossier.md` first and build a compact dossier. Use the large
+window as a reserve for exact source excerpts, not as permission to paste an
+entire repo or every reference into the prompt.
 
 ### Relevance Analysis
 
@@ -305,99 +286,18 @@ cleanup_actions:
 
 ---
 
-## Skill Optimization Checklist
+## Skill Optimization Drill
 
-### For Existing Skills
+1. Measure: run the surface audit and identify heavy skills, duplicate names,
+   long descriptions, and large examples.
+2. Extract: move verbose examples, troubleshooting, and provider details into
+   `REFERENCE.md`, `references/`, or scripts.
+3. Keep: identity, routing rules, commands, and trigger conditions in `SKILL.md`.
+4. Validate: rerun audit/evals and confirm the skill still tells the Legionary
+   when to load extra material.
 
-```yaml
-audit_checklist:
-  structure:
-    - [ ] SKILL.md < 500 lines?
-    - [ ] REFERENCE.md exists for details?
-    - [ ] scripts/ for executable code?
-
-  content:
-    - [ ] No duplicate information?
-    - [ ] Examples minimal but sufficient?
-    - [ ] Verbose sections extracted?
-
-  loading:
-    - [ ] Clear trigger conditions?
-    - [ ] Progressive disclosure implemented?
-    - [ ] Lazy loading for heavy content?
-```
-
-### Optimization Workflow
-
-```yaml
-step_1_measure:
-  - Count total lines
-  - Identify sections >50 lines
-  - List all code blocks
-
-step_2_extract:
-  - Move API docs → references/api.md
-  - Move patterns → references/patterns.md
-  - Move troubleshooting → references/troubleshooting.md
-  - Move code → scripts/
-
-step_3_refactor:
-  - SKILL.md: core workflow + quick reference
-  - Add "See references/X for details"
-  - Implement lazy loading markers
-
-step_4_validate:
-  - Test skill activation
-  - Verify reference loading
-  - Measure token reduction
-```
-
----
-
-## Memory Optimization
-
-### CLAUDE.md Refactoring
-
-```yaml
-when_to_refactor:
-  - CLAUDE.md > 50 lines
-  - Slow session startup
-  - Monolithic instructions
-
-refactoring_approach:
-  extract:
-    - Path-specific rules → .claude/rules/
-    - Skills → .claude/skills/
-    - Commands → separate skill files
-    - Agents → agent definitions
-
-  keep_in_claude_md:
-    - Project identity (2-3 lines)
-    - Critical constraints
-    - Quick start commands
-    - Links to detailed docs
-```
-
-### Auto-Managed Sections
-
-```yaml
-format: |
-  <!-- AUTO-MANAGED: section-name -->
-  Auto-updated content
-  <!-- END AUTO-MANAGED -->
-
-sections:
-  - project-description
-  - build-commands
-  - architecture-overview
-  - conventions
-  - dependencies
-
-manual_sections:
-  - Custom rules
-  - Team preferences
-  - Project-specific notes
-```
+For AGENTS/CLAUDE refactoring, auto-managed sections, and full checklists, load
+`REFERENCE.md` only when doing that specific cleanup.
 
 ---
 

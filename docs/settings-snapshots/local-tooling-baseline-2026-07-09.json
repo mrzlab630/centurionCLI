@@ -1,0 +1,221 @@
+{
+  "schemaVersion": "LOCAL_TOOLING_BASELINE_V1",
+  "snapshotDate": "2026-07-09",
+  "productVersion": "Cohors Secunda v2.2",
+  "sanitization": {
+    "source": "read-only local checks summarized by controller-provided sanitized baseline",
+    "rawHomeConfigsCopied": false,
+    "excluded": [
+      "api keys",
+      "tokens",
+      "authorization headers",
+      "cookies",
+      "OAuth state",
+      "machine identifiers",
+      "personal identifiers",
+      "private connection strings",
+      "raw permissions allowlists",
+      "trusted project lists",
+      "project history",
+      "memory contents",
+      "raw home config dumps"
+    ]
+  },
+  "hermes": {
+    "version": "Hermes Agent v0.18.2 (2026.7.7.2)",
+    "installDir": "/home/mrz/.hermes/hermes-agent",
+    "revisions": {
+      "upstream": "8e734810",
+      "local": "08058889",
+      "carriedCommits": 1
+    },
+    "runtime": {
+      "python": "3.11.15",
+      "openaiSdk": "2.24.0"
+    },
+    "model": {
+      "default": "gpt-5.6-sol",
+      "provider": "custom:cliproxyapi",
+      "base_url": "http://127.0.0.1:8317/v1",
+      "api_mode": "codex_responses",
+      "context_length": 256000
+    },
+    "auxiliaryRoutes": {
+      "summary": "vision, web_extract, compression, skills_hub, approval, mcp, title_generation, tts_audio_tags, triage_specifier, kanban_decomposer, profile_describer, curator, and monitor use the same sanitized gpt-5.6-sol local proxy pattern where configured",
+      "redactedKeyRoutes": ["background_review"]
+    },
+    "browser": {
+      "camofox": {
+        "auto_start": true,
+        "managed_persistence": false,
+        "adopt_existing_tab": false,
+        "rewrite_loopback_urls": false,
+        "loopback_host_alias": "host.docker.internal"
+      }
+    },
+    "web": {
+      "backend": "brave-free",
+      "extract_backend": "native"
+    },
+    "pluginsEnabled": ["image_gen/cliproxy", "video_gen/cliproxy"],
+    "builtInToolsets": {
+      "enabled": [
+        "web",
+        "browser",
+        "terminal",
+        "file",
+        "code_execution",
+        "vision",
+        "image_gen",
+        "video_gen",
+        "tts",
+        "skills",
+        "todo",
+        "memory",
+        "session_search",
+        "clarify",
+        "delegation",
+        "cronjob"
+      ],
+      "disabled": [
+        "video_analysis",
+        "x_search",
+        "context_engine",
+        "homeassistant",
+        "spotify",
+        "yuanbao",
+        "computer_use"
+      ]
+    },
+    "mcpServers": {
+      "enabled": [
+        "brave-search",
+        "github",
+        "playwright",
+        "context7",
+        "perplexity",
+        "memory",
+        "markitdown",
+        "pal"
+      ],
+      "configDisabled": ["sequential-thinking", "deepwiki"]
+    }
+  },
+  "codex": {
+    "version": "codex-cli 0.146.0",
+    "model": "gpt-5.6-sol",
+    "modelProvider": "cliproxyapi",
+    "modelReasoningEffort": "xhigh",
+    "personality": "pragmatic",
+    "provider": {
+      "base_url": "http://127.0.0.1:8317/v1",
+      "wire_api": "responses"
+    },
+    "features": {
+      "memories": true,
+      "multi_agent_v2": {
+        "enabled": true,
+        "hide_spawn_agent_metadata": true
+      }
+    },
+    "agentsDir": "absent",
+    "hooksJson": "absent",
+    "skillsEntriesObserved": [".system", "camofox-browser", "migrate-to-codex"],
+    "memoriesCopied": false
+  },
+  "claude": {
+    "version": "2.1.204 (Claude Code)",
+    "defaultModel": "claude-opus-5",
+    "settingsSummary": {
+      "effortLevelPresent": true,
+      "skipDangerousModePermissionPromptPresent": true,
+      "envContainsRedactedValues": ["GitHub", "TinyNotepad"]
+    },
+    "mcpServersObserved": [
+      "solanaMcp",
+      "brave-search",
+      "context7",
+      "playwright",
+      "sequential-thinking",
+      "memoria",
+      "github",
+      "serena"
+    ],
+    "skillsEntriesObserved": {
+      "centurionLegion": true,
+      "legionaryCount": 37,
+      "legionaries": [
+        "aedilis",
+        "aleator",
+        "architect",
+        "artifex",
+        "augur",
+        "capabilities",
+        "censor",
+        "coder",
+        "context-optimizer",
+        "documenter",
+        "error-handler",
+        "evocate-ad-opus",
+        "git-master",
+        "glossator",
+        "haruspex",
+        "indagator",
+        "ludifex",
+        "mercator",
+        "nomenclator",
+        "orator",
+        "orchestrator",
+        "pictor",
+        "planner",
+        "pontifex",
+        "praeco",
+        "praemonitor",
+        "prompt-engineer",
+        "quaestor",
+        "refactorer",
+        "researcher",
+        "reviewer",
+        "security",
+        "sicarius",
+        "skill-quartermaster",
+        "tabularius",
+        "tester",
+        "velites"
+      ]
+    },
+    "pluginsDir": "exists with installed_plugins.json",
+    "agentsDir": "absent",
+    "nonInteractiveProxyEnvExample": {
+      "ANTHROPIC_BASE_URL": "http://127.0.0.1:8317",
+      "ANTHROPIC_API_KEY": "placeholder proxy",
+      "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-5",
+      "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-5",
+      "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5-20251001",
+      "NO_PROXY": "127.0.0.1,localhost"
+    }
+  },
+  "agy": {
+    "version": "1.1.0",
+    "antigravityIdeAgentRoot": "~/.gemini/antigravity/agent exists with rules, skills, workflows",
+    "cliPluginsObserved": ["centurion-legion", "google-genmedia-extension"],
+    "repositoryPluginMcpConfig": {
+      "centurionLegionServer": "/home/mrz/projects/al/centurionCLI/cohors-prima/integrations/antigravity-legion-kit/mcp-server/index.mjs",
+      "CENTURION_AGENT_ROOT": "/home/mrz/projects/al/centurionCLI/cohors-prima/integrations/antigravity-legion-kit/agent"
+    },
+    "installedConfigDrift": {
+      "present": true,
+      "liveCenturionLegionServer": "/home/mrz/tmp/antigravity-legion-kit/mcp-server/index.mjs",
+      "liveCENTURION_AGENT_ROOT": "/home/mrz/tmp/antigravity-legion-kit/agent",
+      "recommendedAction": "reinstall from this repository to refresh installed MCP paths",
+      "homeConfigEditedByThisRefresh": false
+    }
+  },
+  "toolchain": {
+    "node": "v26.2.0",
+    "npm": "11.13.0",
+    "python3": "3.13.7",
+    "ripgrep": "14.1.1",
+    "pm2": "6.0.13"
+  }
+}

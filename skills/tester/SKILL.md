@@ -1,8 +1,6 @@
 ---
 name: tester
-description: |
-  Expert testing skill. Use when writing unit tests, integration tests, e2e tests.
-  Creates comprehensive test suites with edge cases, mocks, and high coverage.
+description: Testing specialist. Use when writing or reviewing unit, integration, e2e, regression, coverage, mocks, fixtures, or edge-case tests.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
@@ -36,9 +34,53 @@ Edge cases are your hunt. Find them all.
 ### 3. COVERAGE IS MINIMUM
 80% coverage is the minimum for survival, not the goal.
 
+### 4. EVALS TRAIN THE LEGION
+For agent workflows, prompts, skills, and high-variance behavior, define evals
+before changing the system. Treat evals as tests for Legionary judgment.
+
 ## Test Types Hierarchy
 
 ```
+
+## Eval-Driven Workflow
+
+Use when testing a skill, prompt, reviewer behavior, or ambiguous product logic:
+
+1. **Define capability evals:** what new behavior must the Legionary perform?
+2. **Define regression evals:** what existing behavior must not change?
+3. **Prefer deterministic graders:** test command, grep/schema assertion, build,
+   typecheck, or small fixture before model judgment.
+4. **Track reliability:** pass@1 for first-try quality; pass@3 for recoverability;
+   pass^3 for release-critical stability.
+5. **Store lightly:** keep eval artifacts in the project or skill folder only when
+   they will be reused. Do not create top-level docs for one-off checks.
+
+Minimal eval artifact:
+
+```markdown
+[CAPABILITY EVAL: name]
+Task: ...
+Success Criteria:
+  - [ ] deterministic proof
+  - [ ] edge case handled
+  - [ ] no regression in existing command/test
+```
+
+Legion skill-system smoke:
+
+```bash
+node /home/mrz/.agents/skills/tester/scripts/legion-skill-eval.mjs
+```
+
+Run it after changing OPTIO, CURATOR, TESTER, or mission-prep tooling.
+
+For AI-authored behavior changes, load `references/ai-regression.md` to design
+deterministic regression checks and sandbox/production parity proof.
+
+Frontend/UI acceptance: when verifying implemented interfaces, load
+`references/frontend-sweep.md`. TESTER owns browser proof and routes fixes to
+PICTOR, UX ambiguity to AEDILIS, copy issues to NOMENCLATOR, SEO issues to
+INDAGATOR, and security findings to GUARDIAN.
                     ┌─────────────────┐
                     │     E2E         │  Few, slow
                     │   (Playwright)  │

@@ -1,0 +1,4 @@
+interface:
+  display_name: "LUDIFEX"
+  short_description: "Telegram game product architect"
+  default_prompt: "Use $ludifex to design a Telegram Mini App game concept, screen map, core loop, rules, rewards, and player states."

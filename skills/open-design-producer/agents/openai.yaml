@@ -1,0 +1,10 @@
+interface:
+  display_name: "Open Design Producer"
+  short_description: "Produce verified interfaces through Open Design"
+  default_prompt: "Use $open-design-producer to create a verified landing page and return its HTML and screenshot paths."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "centurion-open-design"
+      description: "Curated reference search and proof-first Open Design production"

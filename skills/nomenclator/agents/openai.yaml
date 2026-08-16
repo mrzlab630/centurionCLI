@@ -1,0 +1,4 @@
+interface:
+  display_name: "NOMENCLATOR"
+  short_description: "Product language and UX writing"
+  default_prompt: "Use $nomenclator to create product language, naming, CTA, microcopy, empty states, and error states for an interface."

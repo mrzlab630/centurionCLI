@@ -1,0 +1,30 @@
+{
+  "mcpServers": {
+    "centurion-legion": {
+      "command": "node",
+      "args": [
+        "/home/mrz/projects/al/centurionCLI/cohors-prima/integrations/antigravity-legion-kit/mcp-server/index.mjs"
+      ],
+      "env": {
+        "CENTURION_AGENT_ROOT": "/home/mrz/projects/al/centurionCLI/cohors-prima/integrations/antigravity-legion-kit/agent",
+        "CENTURION_SKILL_ROOT": "/home/mrz/.agents/skills"
+      }
+    },
+    "serena": {
+      "command": "uvx",
+      "args": [
+        "-p",
+        "3.13",
+        "serena-agent",
+        "start-mcp-server",
+        "--project-from-cwd",
+        "--context",
+        "codex",
+        "--enable-web-dashboard",
+        "false",
+        "--open-web-dashboard",
+        "false"
+      ]
+    }
+  }
+}

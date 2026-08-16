@@ -1,0 +1,1198 @@
+{
+  "version": 1,
+  "generatedAt": "2026-06-12T20:40:23.255Z",
+  "policy": {
+    "installAllowlist": false,
+    "defaultDecision": "adapt-only",
+    "requiredWorkflow": "frontend-landing-igaming",
+    "safetyGate": "external-skill-audit",
+    "blockedDefaults": [
+      "running external UI templates before audit",
+      "bulk-copying component catalogs into a product",
+      "copying unlicensed landing sections",
+      "reusing gambling, wallet, deposit, withdrawal, bonus, or KYC flows without GUARDIAN review",
+      "shipping iGaming pages without responsible-gaming and age-appropriateness checks"
+    ]
+  },
+  "categories": {
+    "agent-skill": "Frontend-specific AI-agent skills and prompt packs.",
+    "landing-template": "Landing-page and SaaS/product-page implementation references.",
+    "motion-catalog": "Animation and motion component references.",
+    "component-catalog": "Reusable UI component discovery/reference sources.",
+    "igaming-reference": "Casino, betting, slot, jackpot, and gambling-awareness UI references."
+  },
+  "entries": [
+    {
+      "repository": "Nyx-abu/awwwards-ui-skill",
+      "url": "https://github.com/Nyx-abu/awwwards-ui-skill",
+      "description": "A skill that raises the design quality of AI-generated UIs. Teaches Antigravity, Claude Code and Codex to build with real design intent — motion, typography, color, accessibility — instead of generic slop.",
+      "category": "agent-skill",
+      "decision": "adapt-only",
+      "stars": 7,
+      "forks": 0,
+      "openIssues": 1,
+      "pushedAt": "2026-06-03T13:55:33Z",
+      "archived": false,
+      "license": "MIT",
+      "metadataError": "",
+      "useful": "Antigravity/Claude/Codex UI skill for design intent, motion, typography, color, accessibility",
+      "notes": "Strong frontend taste source; adapt guidance into local workflows rather than installing wholesale.",
+      "markers": {
+        "skillFiles": 1,
+        "packageManifests": 1,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 0,
+        "animationFiles": 0
+      },
+      "intake": {
+        "action": "adapt selected patterns into the local frontend workflow; do not run external code",
+        "blockers": [
+          "dependency manifests present; dependency and postinstall review required"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "AEDILIS",
+            "trigger": "source ideas must become a UI architecture decision"
+          },
+          {
+            "name": "PICTOR",
+            "trigger": "source ideas must become frontend code"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> design-system-audit -> quality-gate"
+      }
+    },
+    {
+      "repository": "BekhruzTursunboev/Bexa-professional-frontend-design-skills-for-ai-agents",
+      "url": "https://github.com/BekhruzTursunboev/Bexa-professional-frontend-design-skills-for-ai-agents",
+      "description": "SKILL.md files that turn AI coding agents into Senior Design Engineers. Non-generic, professional, animated frontends. Works with Cursor, Claude, Windsurf, Copilot, Antigravity, Cursor ......",
+      "category": "agent-skill",
+      "decision": "adapt-only",
+      "stars": 6,
+      "forks": 2,
+      "openIssues": 0,
+      "pushedAt": "2026-04-28T13:20:56Z",
+      "archived": false,
+      "license": "MIT",
+      "metadataError": "",
+      "useful": "Senior design-engineering and animated frontend skill prompts for AI agents",
+      "notes": "Useful for phrasing PICTOR/AEDILIS briefs; audit exact SKILL.md files before copying.",
+      "markers": {
+        "skillFiles": 6,
+        "packageManifests": 0,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 0,
+        "animationFiles": 2
+      },
+      "intake": {
+        "action": "adapt selected patterns into the local frontend workflow; do not run external code",
+        "blockers": [
+          "no hard blocker from metadata; still audit exact files before use"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "AEDILIS",
+            "trigger": "source ideas must become a UI architecture decision"
+          },
+          {
+            "name": "PICTOR",
+            "trigger": "source ideas must become frontend code"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> design-system-audit -> quality-gate"
+      }
+    },
+    {
+      "repository": "crehativos/antigravity-frontend-skills",
+      "url": "https://github.com/crehativos/antigravity-frontend-skills",
+      "description": "Skills, rules e instruções para direcionar IAs (Antigravity, Claude, Cursor) a gerar FrontEnd profissional e sem cara de IA",
+      "category": "agent-skill",
+      "decision": "reference-only",
+      "stars": 0,
+      "forks": 0,
+      "openIssues": 0,
+      "pushedAt": "2026-05-22T00:47:26Z",
+      "archived": false,
+      "license": "no GitHub license signal observed",
+      "metadataError": "",
+      "useful": "Portuguese frontend instructions for Antigravity-style agents",
+      "notes": "No license signal was observed during discovery; treat as reference only.",
+      "markers": {
+        "skillFiles": 0,
+        "packageManifests": 0,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 0,
+        "animationFiles": 0
+      },
+      "intake": {
+        "action": "read for inspiration and taxonomy; do not copy code or install packages",
+        "blockers": [
+          "reference-only: do not copy code without a separate license and file audit",
+          "license compatibility not established"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "AEDILIS",
+            "trigger": "source ideas must become a UI architecture decision"
+          },
+          {
+            "name": "PICTOR",
+            "trigger": "source ideas must become frontend code"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> design-system-audit -> quality-gate"
+      }
+    },
+    {
+      "repository": "MauroProto/mis-skills",
+      "url": "https://github.com/MauroProto/mis-skills",
+      "description": "Skills personales de diseño frontend (taste, brutalist, minimalist, soft, etc.) + cross-agent sync para Claude Code, Codex, Cursor, Continue, Antigravity. SKILL.md compatible.",
+      "category": "agent-skill",
+      "decision": "adapt-only",
+      "stars": 0,
+      "forks": 0,
+      "openIssues": 0,
+      "pushedAt": "2026-05-24T06:18:54Z",
+      "archived": false,
+      "license": "MIT",
+      "metadataError": "",
+      "useful": "Cross-agent frontend design skills for Claude, Codex, Cursor, Continue, and Antigravity",
+      "notes": "Contains scripts and multi-agent surfaces; audit before any import.",
+      "markers": {
+        "skillFiles": 139,
+        "packageManifests": 1,
+        "installers": 1,
+        "mcpFiles": 14,
+        "walletOrPaymentFiles": 0,
+        "animationFiles": 3
+      },
+      "intake": {
+        "action": "adapt selected patterns into the local frontend workflow; do not run external code",
+        "blockers": [
+          "installer/bootstrap scripts present; do not run before audit",
+          "dependency manifests present; dependency and postinstall review required",
+          "MCP/tooling files present; permission surface review required",
+          "large pack/token-load risk; selective intake only"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "AEDILIS",
+            "trigger": "source ideas must become a UI architecture decision"
+          },
+          {
+            "name": "PICTOR",
+            "trigger": "source ideas must become frontend code"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> design-system-audit -> quality-gate"
+      }
+    },
+    {
+      "repository": "lucaspmarie-a11y/claude-skills-vault",
+      "url": "https://github.com/lucaspmarie-a11y/claude-skills-vault",
+      "description": "1,326+ Claude Code skills from Antigravity Awesome Skills (and others) - Security, Frontend, Backend, DevOps, AI/ML, Cloud and more",
+      "category": "agent-skill",
+      "decision": "reference-only",
+      "stars": 4,
+      "forks": 0,
+      "openIssues": 0,
+      "pushedAt": "2026-06-06T16:54:37Z",
+      "archived": false,
+      "license": "MIT",
+      "metadataError": "",
+      "useful": "Large accessibility-heavy skill vault with many frontend-related entries",
+      "notes": "Huge pack risk; use only to discover a specific missing skill, never bulk-install.",
+      "markers": {
+        "skillFiles": 5097,
+        "packageManifests": 26,
+        "installers": 3,
+        "mcpFiles": 89,
+        "walletOrPaymentFiles": 73,
+        "animationFiles": 187
+      },
+      "intake": {
+        "action": "read for inspiration and taxonomy; do not copy code or install packages",
+        "blockers": [
+          "reference-only: do not copy code without a separate license and file audit",
+          "installer/bootstrap scripts present; do not run before audit",
+          "dependency manifests present; dependency and postinstall review required",
+          "MCP/tooling files present; permission surface review required",
+          "large pack/token-load risk; selective intake only",
+          "wallet/payment/deposit/KYC files detected; GUARDIAN review required"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "AEDILIS",
+            "trigger": "source ideas must become a UI architecture decision"
+          },
+          {
+            "name": "PICTOR",
+            "trigger": "source ideas must become frontend code"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> design-system-audit -> quality-gate"
+      }
+    },
+    {
+      "repository": "ixartz/SaaS-Boilerplate",
+      "url": "https://github.com/ixartz/SaaS-Boilerplate",
+      "description": "🚀🎉📚 SaaS Boilerplate built with Next.js + Tailwind CSS + Shadcn UI + TypeScript. ⚡️ Full-stack React application with Auth, Multi-tenancy, Roles & Permissions, i18n, Landing Page, DB, Logging, Testing",
+      "category": "landing-template",
+      "decision": "reference-only",
+      "stars": 7187,
+      "forks": 1317,
+      "openIssues": 3,
+      "pushedAt": "2026-06-01T23:01:53Z",
+      "archived": false,
+      "license": "MIT",
+      "metadataError": "",
+      "useful": "Next.js, Tailwind, shadcn, auth, i18n, SaaS landing and app structure",
+      "notes": "Full application boilerplate; use as architecture reference, not a drop-in landing import.",
+      "markers": {
+        "skillFiles": 0,
+        "packageManifests": 2,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 0,
+        "animationFiles": 0
+      },
+      "intake": {
+        "action": "read for inspiration and taxonomy; do not copy code or install packages",
+        "blockers": [
+          "reference-only: do not copy code without a separate license and file audit",
+          "dependency manifests present; dependency and postinstall review required"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "PICTOR",
+            "trigger": "the audited landing pattern must be implemented"
+          },
+          {
+            "name": "AEDILIS",
+            "trigger": "layout, component-system fit, or accessibility needs design judgment"
+          },
+          {
+            "name": "INDAGATOR",
+            "trigger": "public-page SEO, schema, metadata, or Core Web Vitals matter"
+          },
+          {
+            "name": "MERCATOR",
+            "trigger": "offer, funnel, or conversion hypothesis is unresolved"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> ui-design-pass -> browser-qa"
+      }
+    },
+    {
+      "repository": "cruip/tailwind-landing-page-template",
+      "url": "https://github.com/cruip/tailwind-landing-page-template",
+      "description": "Simple Light is a free landing page template built on top of TailwindCSS and fully coded in React / Next.js. Made by ",
+      "category": "landing-template",
+      "decision": "reference-only",
+      "stars": 4456,
+      "forks": 1701,
+      "openIssues": 4,
+      "pushedAt": "2025-12-12T08:54:32Z",
+      "archived": false,
+      "license": "no GitHub license signal observed",
+      "metadataError": "",
+      "useful": "Popular Tailwind/React/Next landing template patterns",
+      "notes": "License and template terms must be checked before reuse.",
+      "markers": {
+        "skillFiles": 0,
+        "packageManifests": 2,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 2,
+        "animationFiles": 0
+      },
+      "intake": {
+        "action": "read for inspiration and taxonomy; do not copy code or install packages",
+        "blockers": [
+          "reference-only: do not copy code without a separate license and file audit",
+          "license compatibility not established",
+          "dependency manifests present; dependency and postinstall review required",
+          "wallet/payment/deposit/KYC files detected; GUARDIAN review required"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "PICTOR",
+            "trigger": "the audited landing pattern must be implemented"
+          },
+          {
+            "name": "AEDILIS",
+            "trigger": "layout, component-system fit, or accessibility needs design judgment"
+          },
+          {
+            "name": "INDAGATOR",
+            "trigger": "public-page SEO, schema, metadata, or Core Web Vitals matter"
+          },
+          {
+            "name": "MERCATOR",
+            "trigger": "offer, funnel, or conversion hypothesis is unresolved"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> ui-design-pass -> browser-qa"
+      }
+    },
+    {
+      "repository": "leoMirandaa/shadcn-landing-page",
+      "url": "https://github.com/leoMirandaa/shadcn-landing-page",
+      "description": "Free Landing page template using Shadcn, React, Typescript and Tailwind",
+      "category": "landing-template",
+      "decision": "adapt-only",
+      "stars": 1921,
+      "forks": 415,
+      "openIssues": 6,
+      "pushedAt": "2024-10-09T06:25:39Z",
+      "archived": false,
+      "license": "MIT",
+      "metadataError": "",
+      "useful": "Shadcn, React, TypeScript, Tailwind landing-page sections",
+      "notes": "Good section-pattern reference; copy only license-compatible audited fragments.",
+      "markers": {
+        "skillFiles": 0,
+        "packageManifests": 2,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 0,
+        "animationFiles": 0
+      },
+      "intake": {
+        "action": "adapt selected patterns into the local frontend workflow; do not run external code",
+        "blockers": [
+          "dependency manifests present; dependency and postinstall review required"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "PICTOR",
+            "trigger": "the audited landing pattern must be implemented"
+          },
+          {
+            "name": "AEDILIS",
+            "trigger": "layout, component-system fit, or accessibility needs design judgment"
+          },
+          {
+            "name": "INDAGATOR",
+            "trigger": "public-page SEO, schema, metadata, or Core Web Vitals matter"
+          },
+          {
+            "name": "MERCATOR",
+            "trigger": "offer, funnel, or conversion hypothesis is unresolved"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> ui-design-pass -> browser-qa"
+      }
+    },
+    {
+      "repository": "MekuHQ/convertly",
+      "url": "https://github.com/MekuHQ/convertly",
+      "description": "Free SaaS landing page template for startups and SaaS tools. Built with Meku, React, Tailwind CSS, and Vite to launch fast, modern websites.",
+      "category": "landing-template",
+      "decision": "adapt-only",
+      "stars": 16,
+      "forks": 6,
+      "openIssues": 0,
+      "pushedAt": "2025-09-07T06:18:17Z",
+      "archived": false,
+      "license": "MIT",
+      "metadataError": "",
+      "useful": "React, Tailwind, Vite SaaS landing template",
+      "notes": "Small enough to inspect; still adapt ideas into the target project style.",
+      "markers": {
+        "skillFiles": 0,
+        "packageManifests": 1,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 0,
+        "animationFiles": 0
+      },
+      "intake": {
+        "action": "adapt selected patterns into the local frontend workflow; do not run external code",
+        "blockers": [
+          "dependency manifests present; dependency and postinstall review required"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "PICTOR",
+            "trigger": "the audited landing pattern must be implemented"
+          },
+          {
+            "name": "AEDILIS",
+            "trigger": "layout, component-system fit, or accessibility needs design judgment"
+          },
+          {
+            "name": "INDAGATOR",
+            "trigger": "public-page SEO, schema, metadata, or Core Web Vitals matter"
+          },
+          {
+            "name": "MERCATOR",
+            "trigger": "offer, funnel, or conversion hypothesis is unresolved"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> ui-design-pass -> browser-qa"
+      }
+    },
+    {
+      "repository": "darkmage208/business-landing-page-template",
+      "url": "https://github.com/darkmage208/business-landing-page-template",
+      "description": "A modern, responsive landing page template built with React, TailwindCSS, and TypeScript, designed to help businesses and startups quickly create a professional online presence.",
+      "category": "landing-template",
+      "decision": "reference-only",
+      "stars": 13,
+      "forks": 1,
+      "openIssues": 0,
+      "pushedAt": "2025-08-12T13:42:45Z",
+      "archived": false,
+      "license": "no GitHub license signal observed",
+      "metadataError": "",
+      "useful": "React, Tailwind, TypeScript business landing sections",
+      "notes": "No license signal was observed during discovery; use as visual reference only.",
+      "markers": {
+        "skillFiles": 0,
+        "packageManifests": 3,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 2,
+        "animationFiles": 0
+      },
+      "intake": {
+        "action": "read for inspiration and taxonomy; do not copy code or install packages",
+        "blockers": [
+          "reference-only: do not copy code without a separate license and file audit",
+          "license compatibility not established",
+          "dependency manifests present; dependency and postinstall review required",
+          "wallet/payment/deposit/KYC files detected; GUARDIAN review required"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "PICTOR",
+            "trigger": "the audited landing pattern must be implemented"
+          },
+          {
+            "name": "AEDILIS",
+            "trigger": "layout, component-system fit, or accessibility needs design judgment"
+          },
+          {
+            "name": "INDAGATOR",
+            "trigger": "public-page SEO, schema, metadata, or Core Web Vitals matter"
+          },
+          {
+            "name": "MERCATOR",
+            "trigger": "offer, funnel, or conversion hypothesis is unresolved"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> ui-design-pass -> browser-qa"
+      }
+    },
+    {
+      "repository": "magicuidesign/magicui",
+      "url": "https://github.com/magicuidesign/magicui",
+      "description": "UI Library for Design Engineers. Animated components and effects you can copy and paste into your apps. Free. Open Source.",
+      "category": "motion-catalog",
+      "decision": "adapt-only",
+      "stars": 21234,
+      "forks": 1030,
+      "openIssues": 5,
+      "pushedAt": "2026-06-03T13:09:00Z",
+      "archived": false,
+      "license": "MIT",
+      "metadataError": "",
+      "useful": "Animated React/shadcn/Tailwind component catalog with Framer Motion patterns",
+      "notes": "Strong motion-component source; avoid bulk-copying a design system into existing apps.",
+      "markers": {
+        "skillFiles": 1,
+        "packageManifests": 3,
+        "installers": 0,
+        "mcpFiles": 3,
+        "walletOrPaymentFiles": 11,
+        "animationFiles": 1
+      },
+      "intake": {
+        "action": "adapt selected patterns into the local frontend workflow; do not run external code",
+        "blockers": [
+          "dependency manifests present; dependency and postinstall review required",
+          "MCP/tooling files present; permission surface review required",
+          "wallet/payment/deposit/KYC files detected; GUARDIAN review required"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "PICTOR",
+            "trigger": "the audited motion pattern must be implemented"
+          },
+          {
+            "name": "AEDILIS",
+            "trigger": "motion affects hierarchy, accessibility, or interaction meaning"
+          },
+          {
+            "name": "TESTER",
+            "trigger": "reduced-motion, browser, or performance proof is needed"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> interface-polish-pass -> performance-budget-audit"
+      }
+    },
+    {
+      "repository": "SyntaxUI/syntaxui",
+      "url": "https://github.com/SyntaxUI/syntaxui",
+      "description": "Get free access to pre-built, Tailwind CSS-powered components, animations and effects - brought to life using Framer Motion. Just copy, paste and you're ready to go!",
+      "category": "motion-catalog",
+      "decision": "adapt-only",
+      "stars": 982,
+      "forks": 53,
+      "openIssues": 1,
+      "pushedAt": "2026-05-18T05:46:35Z",
+      "archived": false,
+      "license": "MIT",
+      "metadataError": "GitHub API 403 for /repos/SyntaxUI/syntaxui/git/trees/HEAD?recursive=1: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)",
+      "useful": "Tailwind, Framer Motion, effects, and animation component patterns",
+      "notes": "Good animation reference; inspect component dependencies and license before reuse.",
+      "markers": {
+        "skillFiles": 0,
+        "packageManifests": 0,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 0,
+        "animationFiles": 0
+      },
+      "intake": {
+        "action": "adapt selected patterns into the local frontend workflow; do not run external code",
+        "blockers": [
+          "GitHub metadata/tree inspection failed: GitHub API 403 for /repos/SyntaxUI/syntaxui/git/trees/HEAD?recursive=1: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "PICTOR",
+            "trigger": "the audited motion pattern must be implemented"
+          },
+          {
+            "name": "AEDILIS",
+            "trigger": "motion affects hierarchy, accessibility, or interaction meaning"
+          },
+          {
+            "name": "TESTER",
+            "trigger": "reduced-motion, browser, or performance proof is needed"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> interface-polish-pass -> performance-budget-audit"
+      }
+    },
+    {
+      "repository": "educlopez/smoothui",
+      "url": "https://github.com/educlopez/smoothui",
+      "description": "",
+      "category": "motion-catalog",
+      "decision": "adapt-only",
+      "stars": 0,
+      "forks": 0,
+      "openIssues": 0,
+      "pushedAt": "unknown",
+      "archived": false,
+      "license": "no GitHub license signal observed",
+      "metadataError": "GitHub API 403 for /repos/educlopez/smoothui: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)",
+      "useful": "React, Tailwind, shadcn, and Motion animated UI components",
+      "notes": "Useful for microinteractions; preserve reduced-motion and performance constraints.",
+      "markers": {
+        "skillFiles": 0,
+        "packageManifests": 0,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 0,
+        "animationFiles": 0
+      },
+      "intake": {
+        "action": "adapt selected patterns into the local frontend workflow; do not run external code",
+        "blockers": [
+          "license compatibility not established",
+          "GitHub metadata/tree inspection failed: GitHub API 403 for /repos/educlopez/smoothui: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "PICTOR",
+            "trigger": "the audited motion pattern must be implemented"
+          },
+          {
+            "name": "AEDILIS",
+            "trigger": "motion affects hierarchy, accessibility, or interaction meaning"
+          },
+          {
+            "name": "TESTER",
+            "trigger": "reduced-motion, browser, or performance proof is needed"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> interface-polish-pass -> performance-budget-audit"
+      }
+    },
+    {
+      "repository": "anl331/goey-toast",
+      "url": "https://github.com/anl331/goey-toast",
+      "description": "",
+      "category": "motion-catalog",
+      "decision": "adapt-only",
+      "stars": 0,
+      "forks": 0,
+      "openIssues": 0,
+      "pushedAt": "unknown",
+      "archived": false,
+      "license": "no GitHub license signal observed",
+      "metadataError": "GitHub API 403 for /repos/anl331/goey-toast: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)",
+      "useful": "Focused Framer Motion toast interaction reference",
+      "notes": "Narrow component reference; audit dependency and bundle impact.",
+      "markers": {
+        "skillFiles": 0,
+        "packageManifests": 0,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 0,
+        "animationFiles": 0
+      },
+      "intake": {
+        "action": "adapt selected patterns into the local frontend workflow; do not run external code",
+        "blockers": [
+          "license compatibility not established",
+          "GitHub metadata/tree inspection failed: GitHub API 403 for /repos/anl331/goey-toast: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "PICTOR",
+            "trigger": "the audited motion pattern must be implemented"
+          },
+          {
+            "name": "AEDILIS",
+            "trigger": "motion affects hierarchy, accessibility, or interaction meaning"
+          },
+          {
+            "name": "TESTER",
+            "trigger": "reduced-motion, browser, or performance proof is needed"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> interface-polish-pass -> performance-budget-audit"
+      }
+    },
+    {
+      "repository": "apix-js/shadix-ui",
+      "url": "https://github.com/apix-js/shadix-ui",
+      "description": "",
+      "category": "component-catalog",
+      "decision": "adapt-only",
+      "stars": 0,
+      "forks": 0,
+      "openIssues": 0,
+      "pushedAt": "unknown",
+      "archived": false,
+      "license": "no GitHub license signal observed",
+      "metadataError": "GitHub API 403 for /repos/apix-js/shadix-ui: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)",
+      "useful": "Shadcn-based animated React component catalog",
+      "notes": "Use as component inspiration; keep target project tokens and accessibility patterns.",
+      "markers": {
+        "skillFiles": 0,
+        "packageManifests": 0,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 0,
+        "animationFiles": 0
+      },
+      "intake": {
+        "action": "adapt selected patterns into the local frontend workflow; do not run external code",
+        "blockers": [
+          "license compatibility not established",
+          "GitHub metadata/tree inspection failed: GitHub API 403 for /repos/apix-js/shadix-ui: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "AEDILIS",
+            "trigger": "component API, state model, or design-system fit must be decided"
+          },
+          {
+            "name": "PICTOR",
+            "trigger": "the audited component pattern must be implemented"
+          },
+          {
+            "name": "TESTER",
+            "trigger": "component states or interaction proof is needed"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> design-system-audit -> quality-gate"
+      }
+    },
+    {
+      "repository": "itsjwill/motion-primitives-website",
+      "url": "https://github.com/itsjwill/motion-primitives-website",
+      "description": "",
+      "category": "motion-catalog",
+      "decision": "reference-only",
+      "stars": 0,
+      "forks": 0,
+      "openIssues": 0,
+      "pushedAt": "unknown",
+      "archived": false,
+      "license": "no GitHub license signal observed",
+      "metadataError": "GitHub API 403 for /repos/itsjwill/motion-primitives-website: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)",
+      "useful": "Website for motion primitives and animated React component examples",
+      "notes": "License signal must be verified before code reuse.",
+      "markers": {
+        "skillFiles": 0,
+        "packageManifests": 0,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 0,
+        "animationFiles": 0
+      },
+      "intake": {
+        "action": "read for inspiration and taxonomy; do not copy code or install packages",
+        "blockers": [
+          "reference-only: do not copy code without a separate license and file audit",
+          "license compatibility not established",
+          "GitHub metadata/tree inspection failed: GitHub API 403 for /repos/itsjwill/motion-primitives-website: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "PICTOR",
+            "trigger": "the audited motion pattern must be implemented"
+          },
+          {
+            "name": "AEDILIS",
+            "trigger": "motion affects hierarchy, accessibility, or interaction meaning"
+          },
+          {
+            "name": "TESTER",
+            "trigger": "reduced-motion, browser, or performance proof is needed"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> interface-polish-pass -> performance-budget-audit"
+      }
+    },
+    {
+      "repository": "nyxb-ui/ui",
+      "url": "https://github.com/nyxb-ui/ui",
+      "description": "",
+      "category": "component-catalog",
+      "decision": "reference-only",
+      "stars": 0,
+      "forks": 0,
+      "openIssues": 0,
+      "pushedAt": "unknown",
+      "archived": false,
+      "license": "no GitHub license signal observed",
+      "metadataError": "GitHub API 403 for /repos/nyxb-ui/ui: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)",
+      "useful": "Archived UI component catalog with animated patterns",
+      "notes": "Archived source; do not depend on it for production components.",
+      "markers": {
+        "skillFiles": 0,
+        "packageManifests": 0,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 0,
+        "animationFiles": 0
+      },
+      "intake": {
+        "action": "read for inspiration and taxonomy; do not copy code or install packages",
+        "blockers": [
+          "reference-only: do not copy code without a separate license and file audit",
+          "license compatibility not established",
+          "GitHub metadata/tree inspection failed: GitHub API 403 for /repos/nyxb-ui/ui: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "AEDILIS",
+            "trigger": "component API, state model, or design-system fit must be decided"
+          },
+          {
+            "name": "PICTOR",
+            "trigger": "the audited component pattern must be implemented"
+          },
+          {
+            "name": "TESTER",
+            "trigger": "component states or interaction proof is needed"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> design-system-audit -> quality-gate"
+      }
+    },
+    {
+      "repository": "ishansh1200/StackD",
+      "url": "https://github.com/ishansh1200/StackD",
+      "description": "",
+      "category": "component-catalog",
+      "decision": "reference-only",
+      "stars": 0,
+      "forks": 0,
+      "openIssues": 0,
+      "pushedAt": "unknown",
+      "archived": false,
+      "license": "no GitHub license signal observed",
+      "metadataError": "GitHub API 403 for /repos/ishansh1200/StackD: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)",
+      "useful": "Component discovery engine across Aceternity, ReactBits, Magic UI, and shadcn-style sources",
+      "notes": "Discovery catalog only; follow links back to audited upstream sources.",
+      "markers": {
+        "skillFiles": 0,
+        "packageManifests": 0,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 0,
+        "animationFiles": 0
+      },
+      "intake": {
+        "action": "read for inspiration and taxonomy; do not copy code or install packages",
+        "blockers": [
+          "reference-only: do not copy code without a separate license and file audit",
+          "license compatibility not established",
+          "GitHub metadata/tree inspection failed: GitHub API 403 for /repos/ishansh1200/StackD: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "AEDILIS",
+            "trigger": "component API, state model, or design-system fit must be decided"
+          },
+          {
+            "name": "PICTOR",
+            "trigger": "the audited component pattern must be implemented"
+          },
+          {
+            "name": "TESTER",
+            "trigger": "component states or interaction proof is needed"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> design-system-audit -> quality-gate"
+      }
+    },
+    {
+      "repository": "Prowebtechnologies/TG-Casino-UI-React",
+      "url": "https://github.com/Prowebtechnologies/TG-Casino-UI-React",
+      "description": "",
+      "category": "igaming-reference",
+      "decision": "reference-only",
+      "stars": 0,
+      "forks": 0,
+      "openIssues": 0,
+      "pushedAt": "unknown",
+      "archived": false,
+      "license": "no GitHub license signal observed",
+      "metadataError": "GitHub API 403 for /repos/Prowebtechnologies/TG-Casino-UI-React: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)",
+      "useful": "Telegram casino mobile UI patterns in React/MUI",
+      "notes": "Domain-risk reference; do not reuse deposit, wallet, or bonus mechanics without safety review.",
+      "markers": {
+        "skillFiles": 0,
+        "packageManifests": 0,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 0,
+        "animationFiles": 0
+      },
+      "intake": {
+        "action": "read for inspiration and taxonomy; do not copy code or install packages",
+        "blockers": [
+          "reference-only: do not copy code without a separate license and file audit",
+          "license compatibility not established",
+          "GitHub metadata/tree inspection failed: GitHub API 403 for /repos/Prowebtechnologies/TG-Casino-UI-React: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)",
+          "gambling or money-like domain; responsible-gaming and regulatory review required"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "ALEATOR",
+            "trigger": "responsible-gaming, reward, odds, or dark-pattern risk must be judged"
+          },
+          {
+            "name": "PICTOR",
+            "trigger": "approved iGaming UI patterns must be implemented"
+          },
+          {
+            "name": "AEDILIS",
+            "trigger": "mobile flow, hierarchy, or accessibility needs design judgment"
+          },
+          {
+            "name": "INDAGATOR",
+            "trigger": "public game-promo page SEO or metadata matters"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> external-skill-audit -> quality-gate"
+      }
+    },
+    {
+      "repository": "QI-D/mini-casino-frontend",
+      "url": "https://github.com/QI-D/mini-casino-frontend",
+      "description": "",
+      "category": "igaming-reference",
+      "decision": "needs-approval",
+      "stars": 0,
+      "forks": 0,
+      "openIssues": 0,
+      "pushedAt": "unknown",
+      "archived": false,
+      "license": "no GitHub license signal observed",
+      "metadataError": "GitHub API 403 for /repos/QI-D/mini-casino-frontend: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)",
+      "useful": "Casino frontend with deposit and bet-flow examples",
+      "notes": "Money-like flows plus no clear license signal during discovery; approval and audit required.",
+      "markers": {
+        "skillFiles": 0,
+        "packageManifests": 0,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 0,
+        "animationFiles": 0
+      },
+      "intake": {
+        "action": "hold until user approval, license review, dependency audit, and domain safety review",
+        "blockers": [
+          "explicit user approval required before import, install, or code reuse",
+          "license compatibility not established",
+          "GitHub metadata/tree inspection failed: GitHub API 403 for /repos/QI-D/mini-casino-frontend: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)",
+          "gambling or money-like domain; responsible-gaming and regulatory review required"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "ALEATOR",
+            "trigger": "responsible-gaming, reward, odds, or dark-pattern risk must be judged"
+          },
+          {
+            "name": "PICTOR",
+            "trigger": "approved iGaming UI patterns must be implemented"
+          },
+          {
+            "name": "AEDILIS",
+            "trigger": "mobile flow, hierarchy, or accessibility needs design judgment"
+          },
+          {
+            "name": "INDAGATOR",
+            "trigger": "public game-promo page SEO or metadata matters"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> external-skill-audit -> quality-gate"
+      }
+    },
+    {
+      "repository": "mooncitydev/jackpot-game-web3-onchain",
+      "url": "https://github.com/mooncitydev/jackpot-game-web3-onchain",
+      "description": "",
+      "category": "igaming-reference",
+      "decision": "needs-approval",
+      "stars": 0,
+      "forks": 0,
+      "openIssues": 0,
+      "pushedAt": "unknown",
+      "archived": false,
+      "license": "no GitHub license signal observed",
+      "metadataError": "GitHub API 403 for /repos/mooncitydev/jackpot-game-web3-onchain: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)",
+      "useful": "Solana jackpot app patterns with Next.js and Anchor surfaces",
+      "notes": "On-chain gambling and wallet flow risk; security, legal, and responsible-gaming review required.",
+      "markers": {
+        "skillFiles": 0,
+        "packageManifests": 0,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 0,
+        "animationFiles": 0
+      },
+      "intake": {
+        "action": "hold until user approval, license review, dependency audit, and domain safety review",
+        "blockers": [
+          "explicit user approval required before import, install, or code reuse",
+          "license compatibility not established",
+          "GitHub metadata/tree inspection failed: GitHub API 403 for /repos/mooncitydev/jackpot-game-web3-onchain: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)",
+          "gambling or money-like domain; responsible-gaming and regulatory review required"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "ALEATOR",
+            "trigger": "responsible-gaming, reward, odds, or dark-pattern risk must be judged"
+          },
+          {
+            "name": "PICTOR",
+            "trigger": "approved iGaming UI patterns must be implemented"
+          },
+          {
+            "name": "AEDILIS",
+            "trigger": "mobile flow, hierarchy, or accessibility needs design judgment"
+          },
+          {
+            "name": "INDAGATOR",
+            "trigger": "public game-promo page SEO or metadata matters"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> external-skill-audit -> quality-gate"
+      }
+    },
+    {
+      "repository": "marianapatcosta/js-slots-cra",
+      "url": "https://github.com/marianapatcosta/js-slots-cra",
+      "description": "",
+      "category": "igaming-reference",
+      "decision": "reference-only",
+      "stars": 0,
+      "forks": 0,
+      "openIssues": 0,
+      "pushedAt": "unknown",
+      "archived": false,
+      "license": "no GitHub license signal observed",
+      "metadataError": "GitHub API 403 for /repos/marianapatcosta/js-slots-cra: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)",
+      "useful": "Slot-machine PWA patterns with React, TypeScript, i18n, and GSAP",
+      "notes": "Useful animation/UI reference; license signal must be verified before code reuse.",
+      "markers": {
+        "skillFiles": 0,
+        "packageManifests": 0,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 0,
+        "animationFiles": 0
+      },
+      "intake": {
+        "action": "read for inspiration and taxonomy; do not copy code or install packages",
+        "blockers": [
+          "reference-only: do not copy code without a separate license and file audit",
+          "license compatibility not established",
+          "GitHub metadata/tree inspection failed: GitHub API 403 for /repos/marianapatcosta/js-slots-cra: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)",
+          "gambling or money-like domain; responsible-gaming and regulatory review required"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "ALEATOR",
+            "trigger": "responsible-gaming, reward, odds, or dark-pattern risk must be judged"
+          },
+          {
+            "name": "PICTOR",
+            "trigger": "approved iGaming UI patterns must be implemented"
+          },
+          {
+            "name": "AEDILIS",
+            "trigger": "mobile flow, hierarchy, or accessibility needs design judgment"
+          },
+          {
+            "name": "INDAGATOR",
+            "trigger": "public game-promo page SEO or metadata matters"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> external-skill-audit -> quality-gate"
+      }
+    },
+    {
+      "repository": "PrzemoProgrammer/Slot-Machine",
+      "url": "https://github.com/PrzemoProgrammer/Slot-Machine",
+      "description": "",
+      "category": "igaming-reference",
+      "decision": "needs-approval",
+      "stars": 0,
+      "forks": 0,
+      "openIssues": 0,
+      "pushedAt": "unknown",
+      "archived": false,
+      "license": "no GitHub license signal observed",
+      "metadataError": "GitHub API 403 for /repos/PrzemoProgrammer/Slot-Machine: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)",
+      "useful": "Slot-machine UI with GSAP, PixiJS, Howler, PayPal, and socket.io surfaces",
+      "notes": "Payment and real-time dependencies require audit before any reuse.",
+      "markers": {
+        "skillFiles": 0,
+        "packageManifests": 0,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 0,
+        "animationFiles": 0
+      },
+      "intake": {
+        "action": "hold until user approval, license review, dependency audit, and domain safety review",
+        "blockers": [
+          "explicit user approval required before import, install, or code reuse",
+          "license compatibility not established",
+          "GitHub metadata/tree inspection failed: GitHub API 403 for /repos/PrzemoProgrammer/Slot-Machine: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)",
+          "gambling or money-like domain; responsible-gaming and regulatory review required"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "ALEATOR",
+            "trigger": "responsible-gaming, reward, odds, or dark-pattern risk must be judged"
+          },
+          {
+            "name": "PICTOR",
+            "trigger": "approved iGaming UI patterns must be implemented"
+          },
+          {
+            "name": "AEDILIS",
+            "trigger": "mobile flow, hierarchy, or accessibility needs design judgment"
+          },
+          {
+            "name": "INDAGATOR",
+            "trigger": "public game-promo page SEO or metadata matters"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> external-skill-audit -> quality-gate"
+      }
+    },
+    {
+      "repository": "dannycahyo/judol-demo",
+      "url": "https://github.com/dannycahyo/judol-demo",
+      "description": "",
+      "category": "igaming-reference",
+      "decision": "adapt-only",
+      "stars": 0,
+      "forks": 0,
+      "openIssues": 0,
+      "pushedAt": "unknown",
+      "archived": false,
+      "license": "no GitHub license signal observed",
+      "metadataError": "GitHub API 403 for /repos/dannycahyo/judol-demo: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)",
+      "useful": "Educational gambling-awareness slot simulator",
+      "notes": "Best fit for ethical iGaming examples; preserve anti-gambling and responsible-design framing.",
+      "markers": {
+        "skillFiles": 0,
+        "packageManifests": 0,
+        "installers": 0,
+        "mcpFiles": 0,
+        "walletOrPaymentFiles": 0,
+        "animationFiles": 0
+      },
+      "intake": {
+        "action": "adapt UI/education patterns only; keep responsible-gaming guardrails and avoid money-flow reuse",
+        "blockers": [
+          "license compatibility not established",
+          "GitHub metadata/tree inspection failed: GitHub API 403 for /repos/dannycahyo/judol-demo: API rate limit exceeded for 89.252.191.50. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)",
+          "gambling or money-like domain; responsible-gaming and regulatory review required"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "ALEATOR",
+            "trigger": "responsible-gaming, reward, odds, or dark-pattern risk must be judged"
+          },
+          {
+            "name": "PICTOR",
+            "trigger": "approved iGaming UI patterns must be implemented"
+          },
+          {
+            "name": "AEDILIS",
+            "trigger": "mobile flow, hierarchy, or accessibility needs design judgment"
+          },
+          {
+            "name": "INDAGATOR",
+            "trigger": "public game-promo page SEO or metadata matters"
+          }
+        ],
+        "nextWorkflow": "frontend-landing-igaming -> external-skill-audit -> quality-gate"
+      }
+    }
+  ]
+}

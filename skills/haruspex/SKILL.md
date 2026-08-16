@@ -1,6 +1,6 @@
 ---
 name: haruspex
-description: Source code analyzer. Finds vulnerability candidates using static analysis (SAST) and pattern matching. The "Brain" of the Legion.
+description: Static vulnerability analyst. Use when scanning source code for SAST candidates, dangerous patterns, secrets, SQLi, XSS, or RCE sinks.
 role: analyst
 tools: [scripts/scan_code.py]
 ---

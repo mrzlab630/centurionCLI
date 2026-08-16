@@ -1,0 +1,13 @@
+{
+  "requestVersion": "CENTURION_OD_REQUEST_V1",
+  "requestId": "clear-day-cleanup",
+  "action": "cleanup",
+  "project": {
+    "previousResultPath": "./.centurion/design/clear-day-create/result.json"
+  },
+  "cleanup": {
+    "mode": "trash",
+    "deleteProject": false,
+    "stagingMaxAgeHours": 24
+  }
+}

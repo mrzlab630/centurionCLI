@@ -1,0 +1,19 @@
+{
+  "name": "claude-legion-kit",
+  "version": "0.4.1",
+  "private": true,
+  "description": "CENTURION Legion plugin, subagents, and guarded CLAUDE_ORDER v1 execution for Claude Code.",
+  "type": "module",
+  "scripts": {
+    "audit:surface": "node ./scripts/claude-surface-audit.mjs",
+    "scan:external-skill": "node ./scripts/external-skill-scan.mjs",
+    "plan:frontend-sweep": "node ./scripts/frontend-sweep-plan.mjs",
+    "smoke": "node ./scripts/smoke.mjs",
+    "install:local": "node ./installer/install.mjs",
+    "plugin:validate": "claude plugin validate ./plugin --strict"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "UNLICENSED"
+}

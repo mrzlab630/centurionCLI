@@ -1,0 +1,11 @@
+name: aquila-delivery
+skills:
+- aquila-team-orchestration
+- delegated-cli-executor-orchestration
+- delegating-code-to-executors
+description: Lean Aquila delivery mode for delegated implementation, executor launch
+  discipline, and artifact-based acceptance.
+instruction: Use this bundle when Aquila must lead delivery through real executors.
+  Keep one owner per task, issue bounded orders, require result artifacts, rerun proof
+  commands, and load codex, claude-code, kanban-orchestrator, requesting-code-review,
+  or test-driven-development only when the current task specifically needs that detail.

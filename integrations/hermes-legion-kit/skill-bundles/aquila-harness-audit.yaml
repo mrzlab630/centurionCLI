@@ -1,0 +1,11 @@
+name: aquila-harness-audit
+skills:
+- aquila-harness-audit
+- aquila-self-debug
+- hermes-agent-skill-authoring
+description: Lean Aquila audit mode for Hermes skills, bundles, plugins, MCP, contracts,
+  context, and executor safety.
+instruction: Use this bundle before adding agent capabilities or when Hermes behavior
+  drifts. Prefer read-only inventory first, classify pass/warn/blocker, and load hermes-agent,
+  systematic-debugging, or requesting-code-review only if the audit exposes a need
+  for that deeper reference.

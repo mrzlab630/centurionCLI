@@ -53,13 +53,22 @@ All tools are built on `libs/legion_core.py`, ensuring:
 2.  **State Management:** `MissionState` tracks progress in `.missions/`, allowing resume after failure.
 3.  **Error Handling:** Automatic traceback capture and structured error reporting.
 
-### Workflow Orchestration (Optio)
-```bash
-# Start a mission
-python3 skills/orchestrator/scripts/mission_control.py --mission audit --target https://example.com
+### Workflow Orchestration (OPTIO)
 
-# Resume a mission
-python3 skills/orchestrator/scripts/mission_control.py --resume mission_12345
+Use mission preparation to route Ferrata work to the right Legionaries and proof
+gates. The active implementation uses lightweight `mission-prep.mjs`; the
+Ferrata tools remain independently executable.
+
+```bash
+CENTURION_SKILLS_ROOT="${CENTURION_SKILLS_ROOT:-$PWD/skills}"
+node "$CENTURION_SKILLS_ROOT/orchestrator/scripts/mission-prep.mjs" \
+  "security audit target https://example.com with recon, sast, dast proof"
+```
+
+Typical Ferrata chain:
+
+```text
+OPTIO -> VELITES -> HARUSPEX -> SICARIUS -> REVIEWER/GUARDIAN
 ```
 
 ---

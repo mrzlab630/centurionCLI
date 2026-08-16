@@ -1,0 +1,15 @@
+{
+  "name": "centurion-researcher",
+  "version": "1.0.0",
+  "description": "Explorator Web Surfing Tools",
+  "main": "scripts/browse.js",
+  "scripts": {
+    "browse": "node scripts/browse.js",
+    "deep-search": "node scripts/deep-search.js"
+  },
+  "dependencies": {
+    "playwright-core": "^1.55.0"
+  },
+  "author": "Centurion",
+  "license": "ISC"
+}

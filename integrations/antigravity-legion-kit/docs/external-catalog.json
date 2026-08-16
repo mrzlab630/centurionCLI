@@ -1,0 +1,496 @@
+{
+  "version": 1,
+  "generatedAt": "2026-06-12T20:39:58.712Z",
+  "policy": {
+    "installAllowlist": false,
+    "defaultDecision": "adapt-only",
+    "requiredWorkflow": "external-skill-audit",
+    "blockedDefaults": [
+      "bulk install-all for large packs",
+      "running external installers before audit",
+      "copying credential-bearing helper scripts",
+      "adopting unverified directory layouts"
+    ]
+  },
+  "entries": [
+    {
+      "repository": "rmyndharis/antigravity-skills",
+      "url": "https://github.com/rmyndharis/antigravity-skills",
+      "description": "A curated collection of Agent Skills for Google Antigravity",
+      "stars": 834,
+      "forks": 157,
+      "openIssues": 5,
+      "pushedAt": "2026-05-02T03:24:46Z",
+      "license": "MIT",
+      "type": "skill-library",
+      "useful": "`catalog.json`, `bundles.json`, 300+ `skills/*/SKILL.md`",
+      "decision": "adapt-only",
+      "notes": "Strong discovery catalog and token-efficiency warning; do not install all skills.",
+      "markers": {
+        "dotAgent": 0,
+        "skillFiles": 305,
+        "workflows": 0,
+        "rules": 0,
+        "scripts": 8
+      },
+      "intake": {
+        "action": "adapt selected ideas into local rules/workflows; do not run repository code",
+        "blockers": [
+          "dependency manifests present: package-lock.json, package.json",
+          "large skill pack; selective import only"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "ARMARIUS",
+            "trigger": "a missing capability requires more external skill discovery"
+          },
+          {
+            "name": "ARTIFEX",
+            "trigger": "an accepted asset must be migrated into a local rule, workflow, skill, or MCP surface"
+          },
+          {
+            "name": "CENSOR",
+            "trigger": "the safety decision or assumptions need adversarial verification"
+          },
+          {
+            "name": "OPTIO",
+            "trigger": "the intake changes Legion routing or task ownership"
+          }
+        ],
+        "nextWorkflow": "external-skill-audit -> skill-migrator -> smoke"
+      }
+    },
+    {
+      "repository": "rominirani/antigravity-skills",
+      "url": "https://github.com/rominirani/antigravity-skills",
+      "description": "Sample Google Antigravity Skills",
+      "stars": 263,
+      "forks": 56,
+      "openIssues": 0,
+      "pushedAt": "2026-06-12T06:28:08Z",
+      "license": "no GitHub license signal observed",
+      "type": "skill-library",
+      "useful": "`skills_tutorial/*/SKILL.md`",
+      "decision": "adapt-only",
+      "notes": "Good examples for basic routing, assets, few-shot examples, deterministic scripts.",
+      "markers": {
+        "dotAgent": 0,
+        "skillFiles": 5,
+        "workflows": 0,
+        "rules": 0,
+        "scripts": 2
+      },
+      "intake": {
+        "action": "adapt selected ideas into local rules/workflows; do not run repository code",
+        "blockers": [
+          "license compatibility not established"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "ARMARIUS",
+            "trigger": "a missing capability requires more external skill discovery"
+          },
+          {
+            "name": "ARTIFEX",
+            "trigger": "an accepted asset must be migrated into a local rule, workflow, skill, or MCP surface"
+          },
+          {
+            "name": "CENSOR",
+            "trigger": "the safety decision or assumptions need adversarial verification"
+          },
+          {
+            "name": "OPTIO",
+            "trigger": "the intake changes Legion routing or task ownership"
+          }
+        ],
+        "nextWorkflow": "external-skill-audit -> skill-migrator -> smoke"
+      }
+    },
+    {
+      "repository": "google-antigravity/antigravity-sdk-python",
+      "url": "https://github.com/google-antigravity/antigravity-sdk-python",
+      "description": "A Python library for building AI agents that leverage the full power of Google Antigravity.",
+      "stars": 1666,
+      "forks": 509,
+      "openIssues": 6,
+      "pushedAt": "2026-06-11T20:15:49Z",
+      "license": "Apache-2.0",
+      "type": "mcp-or-sdk",
+      "useful": "`skills/google-antigravity-sdk/SKILL.md`, SDK references/examples",
+      "decision": "reference-only",
+      "notes": "Future path for programmatic agents; PyPI package install needs separate approval.",
+      "markers": {
+        "dotAgent": 0,
+        "skillFiles": 1,
+        "workflows": 0,
+        "rules": 0,
+        "scripts": 71
+      },
+      "intake": {
+        "action": "use as documentation for a future SDK/MCP track; require dependency and permission review first",
+        "blockers": [
+          "dependency manifests present: pyproject.toml",
+          "MCP/SDK runtime permissions require separate review",
+          "programmatic SDK path; keep separate from static .agent pack"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "ARMARIUS",
+            "trigger": "a missing capability requires more external skill discovery"
+          },
+          {
+            "name": "ARTIFEX",
+            "trigger": "an accepted asset must be migrated into a local rule, workflow, skill, or MCP surface"
+          },
+          {
+            "name": "CENSOR",
+            "trigger": "the safety decision or assumptions need adversarial verification"
+          },
+          {
+            "name": "OPTIO",
+            "trigger": "the intake changes Legion routing or task ownership"
+          }
+        ],
+        "nextWorkflow": "external-skill-audit -> skill-migrator -> smoke"
+      }
+    },
+    {
+      "repository": "bonnguyenitc/antigravity-superpowers",
+      "url": "https://github.com/bonnguyenitc/antigravity-superpowers",
+      "description": "Superpowers for Google Antigravity — composable skills, smart workflows, and always-on rules that turn your AI agent into a senior engineer.",
+      "stars": 16,
+      "forks": 2,
+      "openIssues": 0,
+      "pushedAt": "2026-05-08T05:08:36Z",
+      "license": "MIT",
+      "type": "native-agent-pack",
+      "useful": "`.agent/rules`, `.agent/workflows`, focused planning/review/verification skills",
+      "decision": "adapt-only",
+      "notes": "Useful development loop patterns; contains scripts and npm init path, so do not run installer blindly.",
+      "markers": {
+        "dotAgent": 371,
+        "skillFiles": 23,
+        "workflows": 9,
+        "rules": 8,
+        "scripts": 16
+      },
+      "intake": {
+        "action": "adapt selected ideas into local rules/workflows; do not run repository code",
+        "blockers": [
+          "dependency manifests present: package.json"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "ARMARIUS",
+            "trigger": "a missing capability requires more external skill discovery"
+          },
+          {
+            "name": "ARTIFEX",
+            "trigger": "an accepted asset must be migrated into a local rule, workflow, skill, or MCP surface"
+          },
+          {
+            "name": "CENSOR",
+            "trigger": "the safety decision or assumptions need adversarial verification"
+          },
+          {
+            "name": "OPTIO",
+            "trigger": "the intake changes Legion routing or task ownership"
+          }
+        ],
+        "nextWorkflow": "external-skill-audit -> skill-migrator -> smoke"
+      }
+    },
+    {
+      "repository": "anhtester/antigravity-testing-kit",
+      "url": "https://github.com/anhtester/antigravity-testing-kit",
+      "description": "Đây là bộ SKILL, WORKFLOW, RULE do Anh Tester xây dựng dành riêng cho cộng đồng Tester để thiết lập AI Agent trên Antigravity hỗ trợ kiểm thử phần mềm.",
+      "stars": 110,
+      "forks": 41,
+      "openIssues": 0,
+      "pushedAt": "2026-05-20T20:05:22Z",
+      "license": "MIT",
+      "type": "native-agent-pack",
+      "useful": "QA rules, flaky-test workflow, automation/testing skills",
+      "decision": "adapt-only",
+      "notes": "Strong QA patterns; scripts include Jira/Google Sheets integrations requiring credentials.",
+      "markers": {
+        "dotAgent": 48,
+        "skillFiles": 10,
+        "workflows": 16,
+        "rules": 5,
+        "scripts": 9
+      },
+      "intake": {
+        "action": "adapt selected ideas into local rules/workflows; do not run repository code",
+        "blockers": [
+          "dependency manifests present: scripts/convert_excel/package-lock.json, scripts/convert_excel/package.json, scripts/integrations/google_sheet/package-lock.json"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "ARMARIUS",
+            "trigger": "a missing capability requires more external skill discovery"
+          },
+          {
+            "name": "ARTIFEX",
+            "trigger": "an accepted asset must be migrated into a local rule, workflow, skill, or MCP surface"
+          },
+          {
+            "name": "CENSOR",
+            "trigger": "the safety decision or assumptions need adversarial verification"
+          },
+          {
+            "name": "OPTIO",
+            "trigger": "the intake changes Legion routing or task ownership"
+          }
+        ],
+        "nextWorkflow": "external-skill-audit -> skill-migrator -> smoke"
+      }
+    },
+    {
+      "repository": "tknvstp/antigravity-skills",
+      "url": "https://github.com/tknvstp/antigravity-skills",
+      "description": "将 Claude Skills 转化为符合Antigravity的 rule 文件或者 workflow",
+      "stars": 54,
+      "forks": 4,
+      "openIssues": 2,
+      "pushedAt": "2025-12-29T07:57:18Z",
+      "license": "NOASSERTION",
+      "type": "native-agent-pack",
+      "useful": "`.agent/workflows/skill-creator.md`, `.agent/workflows/skill-migrator.md`",
+      "decision": "adapt-only",
+      "notes": "Useful Antigravity migration decision trees; language is Chinese.",
+      "markers": {
+        "dotAgent": 21,
+        "skillFiles": 0,
+        "workflows": 2,
+        "rules": 0,
+        "scripts": 0
+      },
+      "intake": {
+        "action": "adapt selected ideas into local rules/workflows; do not run repository code",
+        "blockers": [
+          "license compatibility not established"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "ARMARIUS",
+            "trigger": "a missing capability requires more external skill discovery"
+          },
+          {
+            "name": "ARTIFEX",
+            "trigger": "an accepted asset must be migrated into a local rule, workflow, skill, or MCP surface"
+          },
+          {
+            "name": "CENSOR",
+            "trigger": "the safety decision or assumptions need adversarial verification"
+          },
+          {
+            "name": "OPTIO",
+            "trigger": "the intake changes Legion routing or task ownership"
+          }
+        ],
+        "nextWorkflow": "external-skill-audit -> skill-migrator -> smoke"
+      }
+    },
+    {
+      "repository": "WilkoMarketing/antigravity-n8n-skills",
+      "url": "https://github.com/WilkoMarketing/antigravity-n8n-skills",
+      "description": "A collection of Google Antigravity skills for expert n8n workflow automation, node configuration, and validation. Ported from n8n-skills for Claude.",
+      "stars": 87,
+      "forks": 26,
+      "openIssues": 0,
+      "pushedAt": "2026-06-01T16:19:03Z",
+      "license": "no GitHub license signal observed",
+      "type": "skill-library",
+      "useful": "seven `SKILL.md` files for n8n",
+      "decision": "needs-approval",
+      "notes": "Domain-specific; likely useful only for n8n projects with MCP/tooling.",
+      "markers": {
+        "dotAgent": 0,
+        "skillFiles": 7,
+        "workflows": 0,
+        "rules": 0,
+        "scripts": 0
+      },
+      "intake": {
+        "action": "hold until explicit user approval and a file-by-file safety audit",
+        "blockers": [
+          "explicit approval required before import or install",
+          "license compatibility not established"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "ARMARIUS",
+            "trigger": "a missing capability requires more external skill discovery"
+          },
+          {
+            "name": "ARTIFEX",
+            "trigger": "an accepted asset must be migrated into a local rule, workflow, skill, or MCP surface"
+          },
+          {
+            "name": "CENSOR",
+            "trigger": "the safety decision or assumptions need adversarial verification"
+          },
+          {
+            "name": "OPTIO",
+            "trigger": "the intake changes Legion routing or task ownership"
+          }
+        ],
+        "nextWorkflow": "external-skill-audit -> skill-migrator -> smoke"
+      }
+    },
+    {
+      "repository": "sabahattink/antigravity-fullstack-hq",
+      "url": "https://github.com/sabahattink/antigravity-fullstack-hq",
+      "description": "Permission-first CLAUDE.md + agent stack for Claude Code and Google Antigravity — 10 agents, 28 skills, one-command install",
+      "stars": 27,
+      "forks": 9,
+      "openIssues": 0,
+      "pushedAt": "2026-05-15T09:18:52Z",
+      "license": "MIT",
+      "type": "skill-library",
+      "useful": "skills/workflows/agents",
+      "decision": "needs-approval",
+      "notes": "Installer writes global `.gemini` and `.claude`; overlaps with local Legion.",
+      "markers": {
+        "dotAgent": 0,
+        "skillFiles": 28,
+        "workflows": 0,
+        "rules": 0,
+        "scripts": 2
+      },
+      "intake": {
+        "action": "hold until explicit user approval and a file-by-file safety audit",
+        "blockers": [
+          "explicit approval required before import or install",
+          "installer scripts present: install.ps1, install.sh"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "ARMARIUS",
+            "trigger": "a missing capability requires more external skill discovery"
+          },
+          {
+            "name": "ARTIFEX",
+            "trigger": "an accepted asset must be migrated into a local rule, workflow, skill, or MCP surface"
+          },
+          {
+            "name": "CENSOR",
+            "trigger": "the safety decision or assumptions need adversarial verification"
+          },
+          {
+            "name": "OPTIO",
+            "trigger": "the intake changes Legion routing or task ownership"
+          }
+        ],
+        "nextWorkflow": "external-skill-audit -> skill-migrator -> smoke"
+      }
+    },
+    {
+      "repository": "krishnakanthb13/everything-antigravity",
+      "url": "https://github.com/krishnakanthb13/everything-antigravity",
+      "description": "Welcome to the central repository for the **Antigravity** ecosystem. This project houses a collection of AI Agents, Task Skills, and Coding Rules designed to enhance autonomous coding workflows.",
+      "stars": 80,
+      "forks": 17,
+      "openIssues": 0,
+      "pushedAt": "2026-02-09T05:45:37Z",
+      "license": "NOASSERTION",
+      "type": "native-agent-pack",
+      "useful": "`.agent/workflows`, `skills`, rules docs",
+      "decision": "needs-approval",
+      "notes": "Installer writes global directories and includes many workflows; sample selectively only.",
+      "markers": {
+        "dotAgent": 75,
+        "skillFiles": 30,
+        "workflows": 74,
+        "rules": 24,
+        "scripts": 12
+      },
+      "intake": {
+        "action": "hold until explicit user approval and a file-by-file safety audit",
+        "blockers": [
+          "explicit approval required before import or install",
+          "license compatibility not established",
+          "installer scripts present: docs/rules/install.ps1, docs/rules/install.py, docs/rules/install.sh"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "ARMARIUS",
+            "trigger": "a missing capability requires more external skill discovery"
+          },
+          {
+            "name": "ARTIFEX",
+            "trigger": "an accepted asset must be migrated into a local rule, workflow, skill, or MCP surface"
+          },
+          {
+            "name": "CENSOR",
+            "trigger": "the safety decision or assumptions need adversarial verification"
+          },
+          {
+            "name": "OPTIO",
+            "trigger": "the intake changes Legion routing or task ownership"
+          }
+        ],
+        "nextWorkflow": "external-skill-audit -> skill-migrator -> smoke"
+      }
+    },
+    {
+      "repository": "adamreger/ecc-antigravity",
+      "url": "https://github.com/adamreger/ecc-antigravity",
+      "description": "The missing playbook for Antigravity IDE — a system of workflows, skills, and rules for high-quality agentic development.",
+      "stars": 2,
+      "forks": 1,
+      "openIssues": 0,
+      "pushedAt": "2026-02-27T01:07:23Z",
+      "license": "MIT",
+      "type": "mcp-or-sdk",
+      "useful": "workflows, skills, rules, MCP configs",
+      "decision": "adapt-only",
+      "notes": "Marked pre-production; uses `.antigravity` paths that do not match this host's observed `.agent` selectors.",
+      "markers": {
+        "dotAgent": 0,
+        "skillFiles": 50,
+        "workflows": 0,
+        "rules": 0,
+        "scripts": 27
+      },
+      "intake": {
+        "action": "adapt selected ideas into local rules/workflows; do not run repository code",
+        "blockers": [
+          "installer scripts present: install.sh",
+          "dependency manifests present: package-lock.json, package.json",
+          "MCP/SDK runtime permissions require separate review"
+        ],
+        "owner": "GUARDIAN",
+        "handoffs": [
+          {
+            "name": "ARMARIUS",
+            "trigger": "a missing capability requires more external skill discovery"
+          },
+          {
+            "name": "ARTIFEX",
+            "trigger": "an accepted asset must be migrated into a local rule, workflow, skill, or MCP surface"
+          },
+          {
+            "name": "CENSOR",
+            "trigger": "the safety decision or assumptions need adversarial verification"
+          },
+          {
+            "name": "OPTIO",
+            "trigger": "the intake changes Legion routing or task ownership"
+          }
+        ],
+        "nextWorkflow": "external-skill-audit -> skill-migrator -> smoke"
+      }
+    }
+  ]
+}

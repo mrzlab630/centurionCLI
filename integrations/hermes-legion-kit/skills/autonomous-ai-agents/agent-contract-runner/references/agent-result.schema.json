@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.hermes/contracts/agent-result.schema.json",
+  "title": "AGENT_RESULT_JSON_V1",
+  "type": "object",
+  "required": [
+    "resultVersion",
+    "orderId",
+    "executor",
+    "status",
+    "summary",
+    "filesChanged",
+    "artifacts",
+    "proof",
+    "selfReview",
+    "scopeDeviations",
+    "forbiddenPatternHits",
+    "remainingRisks",
+    "questions",
+    "errors",
+    "stdoutSummary",
+    "stderrSummary"
+  ],
+  "properties": {
+    "resultVersion": {
+      "const": "AGENT_RESULT_JSON_V1"
+    },
+    "orderId": {
+      "type": "string",
+      "minLength": 8
+    },
+    "executor": {
+      "enum": ["codex", "claude", "claudeFable", "agy", "hermes_delegate_task", "other"]
+    },
+    "status": {
+      "enum": ["done", "blocked", "failed"]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "filesChanged": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "action"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "action": {
+            "enum": ["added", "modified", "deleted", "renamed", "none"]
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "exists", "type", "note"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "exists": {
+            "type": "boolean"
+          },
+          "type": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "proof": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["command", "cwd", "status", "exitCode", "summary"],
+        "properties": {
+          "command": {
+            "type": "string",
+            "minLength": 1
+          },
+          "cwd": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "enum": ["pass", "fail", "not_run"]
+          },
+          "exitCode": {
+            "type": ["integer", "null"]
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "selfReview": {
+      "type": "object",
+      "required": ["performed", "findings", "fixesApplied"],
+      "properties": {
+        "performed": {
+          "type": "boolean"
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fixesApplied": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "executorExtensions": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "scopeDeviations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "forbiddenPatternHits": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "remainingRisks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "stdoutSummary": {
+      "type": "string"
+    },
+    "stderrSummary": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

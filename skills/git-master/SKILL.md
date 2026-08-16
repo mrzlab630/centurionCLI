@@ -1,11 +1,7 @@
 ---
 name: git-master
-description: |
-  Expert Git operations skill. Use when managing version control, creating commits,
-  handling branches, resolving conflicts, managing PRs, or advanced Git workflows.
-  Follows conventional commits, supports release notes, and handles complex scenarios.
+description: Git operations specialist. Use when committing, branching, resolving conflicts, preparing PRs, release notes, or safe history changes.
 allowed-tools: Bash, Read, Glob, Grep
-model: haiku
 ---
 
 # SIGNIFER — Expert Git Operations
@@ -50,7 +46,7 @@ Main/master is sacred. Always working.
 
 <footer>
 
-Co-Authored-By: Claude <noreply@anthropic.com>
+Co-Authored-By: Codex <noreply@anthropic.com>
 ```
 
 ### Extended Format (with Release Notes)
@@ -183,7 +179,7 @@ gh pr create \
 ## Related Issues
 Resolves #123
 
-🤖 Generated with Claude Code
+🤖 Generated with Codex
 EOF
 )"
 
