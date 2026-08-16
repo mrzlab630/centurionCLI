@@ -40,7 +40,7 @@ Antigravity/`agy` without copying secret-bearing home configs into the repo.
 - **Antigravity Legion Kit** — portable Google Antigravity IDE and `agy` CLI integration under `integrations/antigravity-legion-kit`.
 - **Claude Legion Kit** — native Claude Code plugin, 37 subagents, and `CLAUDE_ORDER v1` guard under `integrations/claude-legion-kit`.
 - **Codex Legion Kit** — Codex CLI surface audit and canonical skill sync under `integrations/codex-legion-kit`.
-- **Hermes Legion Kit** — Aquila Team Lead skills, the shared Open Design capability, and lean Hermes bundles under `integrations/hermes-legion-kit`.
+- **Hermes Legion Kit** — five Aquila skills, the SOLARIUS Solana program engineering skill, the shared Open Design capability, and lean Hermes bundles under `integrations/hermes-legion-kit`.
 - **Sanitized local tooling baseline** — current Hermes, Codex, Claude, Antigravity/`agy`, and toolchain settings under `docs/LOCAL_TOOLING_BASELINE.md` and `docs/settings-snapshots/`.
 - **Shared Legion JSON contracts** — bounded order/result/review validation under `integrations/legion-contracts`.
 - **Open Design production fabric** — curated reference search, proof-first create/revise, async MCP jobs, verified HTML, Chrome screenshots, and cross-client continuation under `integrations/open-design-bridge`.
@@ -165,7 +165,7 @@ See [docs/CLAUDE_LEGION_KIT.md](docs/CLAUDE_LEGION_KIT.md) for local audit findi
 
 ## Hermes Integration
 
-`integrations/hermes-legion-kit` preserves the Hermes/Aquila Team Lead additions. It contains five Aquila skills, the shared Open Design capability, its local stdio MCP, four lean skill bundles, an installer, and an offline smoke check. The kit does not edit `SOUL.md`, enable plugins, alter unrelated MCP servers, or import ECC runtime code.
+`integrations/hermes-legion-kit` preserves the Hermes/Aquila Team Lead additions. It contains five Aquila skills, the SOLARIUS `solana-program-engineering` skill, the shared Open Design capability, its local stdio MCP, four lean skill bundles, an installer, and an offline smoke check. SOLARIUS remains Aquila-routed and never self-approves implementation, audit findings, or release readiness. The kit does not edit `SOUL.md`, enable plugins, alter unrelated MCP servers, or import ECC runtime code.
 
 Start here:
 

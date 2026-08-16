@@ -41,11 +41,12 @@ const STALE_ROUTING_SURFACES = [
   ['Aquila orchestration skill', path.join(KIT_ROOT, 'skills', 'autonomous-ai-agents', 'aquila-team-orchestration', 'SKILL.md')]
 ];
 const REQUIRED_SKILLS = [
-  'aquila-team-orchestration',
-  'agent-contract-runner',
-  'aquila-harness-audit',
-  'aquila-executor-eval',
-  'aquila-self-debug'
+  { category: 'autonomous-ai-agents', name: 'aquila-team-orchestration' },
+  { category: 'autonomous-ai-agents', name: 'agent-contract-runner' },
+  { category: 'autonomous-ai-agents', name: 'aquila-harness-audit' },
+  { category: 'autonomous-ai-agents', name: 'aquila-executor-eval' },
+  { category: 'autonomous-ai-agents', name: 'aquila-self-debug' },
+  { category: 'software-development', name: 'solana-program-engineering' }
 ];
 const SHARED_CAPABILITIES = ['open-design-producer'];
 const OPEN_DESIGN_CONFIG_VERSION = 'CENTURION_OPEN_DESIGN_CONFIG_V1';
@@ -104,35 +105,36 @@ function hasStaleRoutingClaim(text) {
   return STALE_ROUTING_CLAIM.test(text);
 }
 
-function assertSkill(skill) {
-  const file = path.join(KIT_ROOT, 'skills', 'autonomous-ai-agents', skill, 'SKILL.md');
-  assert(fs.existsSync(file), `missing skill: ${skill}`);
+function assertSkill({ category, name }) {
+  const file = path.join(KIT_ROOT, 'skills', category, name, 'SKILL.md');
+  const label = `${category}/${name}`;
+  assert(fs.existsSync(file), `missing skill: ${label}`);
   const text = readText(file);
-  assert(text.startsWith('---\n'), `${skill} missing frontmatter`);
-  assert(new RegExp(`^name:\\s*${skill}$`, 'm').test(text), `${skill} name mismatch`);
-  assert(/^description:\s+.+Use when /m.test(text), `${skill} description lacks trigger`);
-  assert(!/\/home\/mrz\/tmp\/ecc-review/.test(text), `${skill} leaks ECC clone path`);
-  assert(!/(?:curl|wget)[^\n]*(?:\|\s*(?:sh|bash)|sh\s*-c)/.test(text), `${skill} contains remote shell execution`);
-  assert(!/base64\s+-d\s*\|\s*(?:sh|bash)/.test(text), `${skill} contains decoded shell execution`);
-  if (skill === 'aquila-harness-audit') {
-    assert(/runtime model evidence overrides stale profile summaries/i.test(text), `${skill} missing runtime model precedence rule`);
-    assert(/enabled `npx -y` MCP/i.test(text), `${skill} missing npx MCP audit rule`);
-    assert(/hermes security audit/.test(text), `${skill} missing security audit command`);
-    assert(/harness-audit\.mjs/.test(text), `${skill} missing deterministic audit script reference`);
+  assert(text.startsWith('---\n'), `${label} missing frontmatter`);
+  assert(new RegExp(`^name:\\s*${name}$`, 'm').test(text), `${label} name mismatch`);
+  assert(/^description:\s+.*Use when /m.test(text), `${label} description lacks trigger`);
+  assert(!/\/home\/mrz\/tmp\/ecc-review/.test(text), `${label} leaks ECC clone path`);
+  assert(!/(?:curl|wget)[^\n]*(?:\|\s*(?:sh|bash)|sh\s*-c)/.test(text), `${label} contains remote shell execution`);
+  assert(!/base64\s+-d\s*\|\s*(?:sh|bash)/.test(text), `${label} contains decoded shell execution`);
+  if (name === 'aquila-harness-audit') {
+    assert(/runtime model evidence overrides stale profile summaries/i.test(text), `${label} missing runtime model precedence rule`);
+    assert(/enabled `npx -y` MCP/i.test(text), `${label} missing npx MCP audit rule`);
+    assert(/hermes security audit/.test(text), `${label} missing security audit command`);
+    assert(/harness-audit\.mjs/.test(text), `${label} missing deterministic audit script reference`);
   }
-  if (skill === 'aquila-team-orchestration') {
-    assert(/^version:\s*1\.1\.0$/m.test(text), `${skill} version must be 1.1.0`);
-    assert(/^## Adaptive Model and Effort Routing$/m.test(text), `${skill} missing adaptive model and effort routing section`);
-    assert(text.includes('`none|low|medium|high|xhigh|max`'), `${skill} missing exact effort enum`);
-    assert(text.includes('overrides/ADAPTIVE_MODEL_ROUTING_POLICY.md'), `${skill} missing adaptive policy manual reference`);
-    assert(text.includes('AQUILA_ROUTING_JSON_V1'), `${skill} missing deterministic routing metadata`);
-    assert(text.includes('review-routing-ladder-and-cost-control.md'), `${skill} missing routing policy reference`);
-    assert(text.includes('V0'), `${skill} missing V0-V3 matrix`);
+  if (name === 'aquila-team-orchestration') {
+    assert(/^version:\s*1\.1\.0$/m.test(text), `${label} version must be 1.1.0`);
+    assert(/^## Adaptive Model and Effort Routing$/m.test(text), `${label} missing adaptive model and effort routing section`);
+    assert(text.includes('`none|low|medium|high|xhigh|max`'), `${label} missing exact effort enum`);
+    assert(text.includes('overrides/ADAPTIVE_MODEL_ROUTING_POLICY.md'), `${label} missing adaptive policy manual reference`);
+    assert(text.includes('AQUILA_ROUTING_JSON_V1'), `${label} missing deterministic routing metadata`);
+    assert(text.includes('review-routing-ladder-and-cost-control.md'), `${label} missing routing policy reference`);
+    assert(text.includes('V0'), `${label} missing V0-V3 matrix`);
   }
-  if (skill === 'agent-contract-runner') {
-    assert(/^version:\s*0\.4\.0$/m.test(text), `${skill} version must be 0.4.0`);
+  if (name === 'agent-contract-runner') {
+    assert(/^version:\s*0\.4\.0$/m.test(text), `${label} version must be 0.4.0`);
     for (const marker of ['2026-08-03T11:00:42Z', 'AQUILA_ROUTING_JSON_V1', 'V0', 'V1', 'V2', 'V3', 'strict_json.py', 'attempt_ledger.py', 'review_ladder.py', 'agent_result_builder.py', 'internal canonicalization', 'result_gateway.py', 'validate_order', 'routingSha256', 'monitor-delegation.sh', '--start-receipt', 'terminal closure', 'routing intent', 'backup', 'rollback', 'terminal']) {
-      assert(text.includes(marker), `${skill} missing marker: ${marker}`);
+      assert(text.includes(marker), `${label} missing marker: ${marker}`);
     }
   }
 }
@@ -221,6 +223,8 @@ function runIsolatedInstallSmoke() {
       path.join(tempHome, 'skills', 'autonomous-ai-agents', 'aquila-team-orchestration', 'references', 'review-routing-ladder-and-cost-control.md'),
       path.join(tempHome, 'skills', 'autonomous-ai-agents', 'open-design-producer', 'SKILL.md'),
       path.join(tempHome, 'skills', 'autonomous-ai-agents', 'open-design-producer', 'scripts', 'open-design.mjs'),
+      path.join(tempHome, 'skills', 'software-development', 'solana-program-engineering', 'SKILL.md'),
+      ...['rust-solana-foundations.md', 'security-audit-checklist.md', 'testing-and-release.md', 'sources.md'].map((file) => path.join(tempHome, 'skills', 'software-development', 'solana-program-engineering', 'references', file)),
       path.join(tempHome, 'centurion', 'open-design-bridge.json'),
       path.join(tempHome, 'bin', 'monitor-delegation.sh'),
       ...['strict_json.py', 'agent_contract_runner.py', 'regression_agent_contract_runner.py', 'agent_result_builder.py', 'regression_agent_result_builder.py', 'result_gateway.py', 'regression_result_gateway.py', 'attempt_ledger.py', 'review_ladder.py', 'regression_review_ladder.py'].map((file) => path.join(scriptRoot, file))
@@ -373,7 +377,7 @@ function assertOverrides() {
 
 function assertPackageVersion() {
   const manifest = JSON.parse(readText(PACKAGE_MANIFEST));
-  assert(manifest.version === '0.6.1', 'package version must be 0.6.1');
+  assert(manifest.version === '0.7.0', 'package version must be 0.7.0');
 }
 
 function main() {

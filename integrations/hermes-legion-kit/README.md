@@ -1,8 +1,8 @@
 # Hermes Legion Kit
 
-CENTURION/Aquila Team Lead skills and lean skill bundles for Hermes Agent (kit version 0.6.1).
+CENTURION/Aquila Team Lead skills and lean skill bundles for Hermes Agent (kit version 0.7.0).
 
-This kit versions the local Hermes additions that were first installed under `~/.hermes`: five Aquila skills, one shared Open Design capability, its local stdio MCP, four slash-command bundles, and a packaged delegation monitor. It does not import ECC runtime code, enable plugins, alter unrelated MCP servers, or edit `SOUL.md`.
+This kit versions the local Hermes additions that were first installed under `~/.hermes`: five Aquila skills, the SOLARIUS `solana-program-engineering` skill, one shared Open Design capability, its local stdio MCP, four slash-command bundles, and a packaged delegation monitor. SOLARIUS remains Aquila-routed and never self-approves implementation, audit findings, or release readiness. It does not import ECC runtime code, enable plugins, alter unrelated MCP servers, or edit `SOUL.md`.
 
 The reviewed adaptive routing policy is available as the manual note
 `overrides/ADAPTIVE_MODEL_ROUTING_POLICY.md`. It is reference-only: the
@@ -20,6 +20,7 @@ and MCP policy files.
 - `skills/autonomous-ai-agents/aquila-executor-eval`: repeatable executor evals for codex, claude, agy, and `delegate_task` using deterministic proof.
 - `skills/autonomous-ai-agents/aquila-self-debug`: contained recovery workflow for executor failures, adapter noise, missing artifacts, and loops.
 - `skills/autonomous-ai-agents/open-design-producer`: shared JSON-driven Open Design production used by AEDILIS and PICTOR; it returns verified HTML and Chrome screenshot paths.
+- `skills/software-development/solana-program-engineering`: SOLARIUS guidance for Solana program engineering, testing, release, and security auditing; it remains under Aquila scope and independent-review gates.
 - `skill-bundles/aquila-delivery.yaml`: lean `/aquila-delivery` entrypoint.
 - `skill-bundles/aquila-harness-audit.yaml`: lean `/aquila-harness-audit` entrypoint.
 - `skill-bundles/aquila-executor-eval.yaml`: lean `/aquila-executor-eval` entrypoint.
@@ -39,6 +40,7 @@ npm run install:dry-run
 npm run install
 hermes skills list | rg aquila
 hermes skills list | rg open-design-producer
+hermes skills list | rg solana-program-engineering
 hermes bundles reload
 hermes bundles list
 ```
@@ -105,7 +107,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 regression_agent_result_builder.py
 PYTHONDONTWRITEBYTECODE=1 python3 regression_result_gateway.py
 ```
 
-The smoke check verifies all five Aquila skills, the shared Open Design capability, all four lean bundles, trigger-bearing descriptions, absence of direct ECC clone references, no remote-shell install pattern, JavaScript syntax, deterministic audit script syntax, and installer dry-run behavior. It also installs into an isolated temporary HOME, checks the Open Design config and executable wrapper, `strict_json.py`, `result_gateway.py`, `regression_result_gateway.py`, `runtime/bin/monitor-delegation.sh`, the packaged routing reference and runner scripts, preserves the Opus 5 routing assertions, and runs all four packaged Python regressions without touching the live Hermes home.
+The smoke check verifies all five Aquila skills, SOLARIUS, the shared Open Design capability, all four lean bundles, trigger-bearing descriptions, absence of direct ECC clone references, no remote-shell install pattern, JavaScript syntax, deterministic audit script syntax, and installer dry-run behavior. It also installs into an isolated temporary HOME, checks the SOLARIUS `SKILL.md` plus all four references under `skills/software-development/solana-program-engineering`, the Open Design config and executable wrapper, `strict_json.py`, `result_gateway.py`, `regression_result_gateway.py`, `runtime/bin/monitor-delegation.sh`, the packaged routing reference and runner scripts, preserves the Opus 5 routing assertions, and runs all four packaged Python regressions without touching the live Hermes home.
 
 The packaged contract-runner Python scripts require the existing Python `jsonschema` runtime. The kit does not install or declare that dependency in its JavaScript package manifests. Result-schema lookup uses an explicit `--schema`/library argument first, then `AQUILA_AGENT_RESULT_SCHEMA`, the packaged `references/agent-result.schema.json`, `HERMES_HOME/contracts/agent-result.schema.json`, and finally `~/.hermes/contracts/agent-result.schema.json`.
 

@@ -1,12 +1,12 @@
 # Hermes Legion Kit
 
-`integrations/hermes-legion-kit` (version 0.6.1) is the versioned source for the local Hermes/Aquila Team Lead pack.
+`integrations/hermes-legion-kit` (version 0.7.0) is the versioned source for the local Hermes/Aquila Team Lead pack.
 
 ## Purpose
 
 Hermes already has the Team Lead identity in `/home/mrz/.hermes/SOUL.md`. This kit keeps the reusable operating procedures outside the always-loaded soul and exposes them through on-demand Hermes skills and lean bundles.
 
-The pack is designed for Aquila managing `codex`, `claude`, `agy`, Hermes `delegate_task`, and Hermes Kanban without losing the one-owner-per-task rule.
+The pack contains five Aquila skills plus the SOLARIUS `solana-program-engineering` skill, the shared Open Design capability, and lean bundles. SOLARIUS remains Aquila-routed and never self-approves implementation, audit findings, or release readiness. It is designed for Aquila managing `codex`, `claude`, `agy`, Hermes `delegate_task`, and Hermes Kanban without losing the one-owner-per-task rule.
 
 ## Installed Surface
 
@@ -25,6 +25,7 @@ The pack is designed for Aquila managing `codex`, `claude`, `agy`, Hermes `deleg
 - `aquila-executor-eval`: repeatable executor benchmarks with pass@1/pass@3, scope, proof, time, and correction metrics.
 - `aquila-self-debug`: recovery loop for executor failures, adapter noise, missing artifacts, and repeated retry loops.
 - `open-design-producer`: shared Open Design production capability. AEDILIS owns UX briefs and visual acceptance; PICTOR owns create/revise HTML/UI work.
+- `software-development/solana-program-engineering`: SOLARIUS guidance for Solana program engineering, testing, release, and security auditing.
 - `/aquila-delivery`: lean delivery bundle.
 - `/aquila-harness-audit`: lean harness-audit bundle.
 - `/aquila-executor-eval`: lean executor-eval bundle.
@@ -114,7 +115,7 @@ Apply optional skill overrides explicitly:
 node ./installer/install.mjs --include-overrides
 ```
 
-The default installer writes Aquila content under `$HERMES_HOME/skills` and `$HERMES_HOME/skill-bundles`, copies the canonical Open Design skill to `$HERMES_HOME/skills/autonomous-ai-agents/open-design-producer`, writes its bridge discovery config under `$HERMES_HOME/centurion`, registers only the local `centurion-open-design` MCP through `hermes mcp add`, and writes the packaged monitor to `$HERMES_HOME/bin/monitor-delegation.sh`. It does not edit `SOUL.md`, plugins, hooks, or unrelated MCP entries. `--include-overrides` can additionally update reviewed builtin skill overrides. Installation stages every owned target, snapshots the Hermes MCP config, swaps only after staging succeeds, and restores every touched target when registration fails. Keep an external backup for operator recovery before changing a live home. The reviewed `SOUL_RUNTIME_MODEL_RULE.md` and `SOUL_CLAUDE_ROLE_RULE.md` notes are manual and reviewable; neither is automatically applied by the installer.
+The default installer writes the five Aquila skills under `$HERMES_HOME/skills/autonomous-ai-agents`, SOLARIUS under `$HERMES_HOME/skills/software-development`, and the lean bundles under `$HERMES_HOME/skill-bundles`; it also copies the canonical Open Design skill to `$HERMES_HOME/skills/autonomous-ai-agents/open-design-producer`, writes its bridge discovery config under `$HERMES_HOME/centurion`, registers only the local `centurion-open-design` MCP through `hermes mcp add`, and writes the packaged monitor to `$HERMES_HOME/bin/monitor-delegation.sh`. It does not edit `SOUL.md`, plugins, hooks, or unrelated MCP entries. `--include-overrides` can additionally update reviewed builtin skill overrides. Installation stages every owned target, snapshots the Hermes MCP config, swaps only after staging succeeds, and restores every touched target when registration fails. Keep an external backup for operator recovery before changing a live home. The reviewed `SOUL_RUNTIME_MODEL_RULE.md` and `SOUL_CLAUDE_ROLE_RULE.md` notes are manual and reviewable; neither is automatically applied by the installer.
 
 For production, Aquila calls `search_design_references`, chooses references with
 AEDILIS/PICTOR, starts the design, and polls until terminal. A result can then be
@@ -153,6 +154,7 @@ Live Hermes proof after install:
 ```bash
 hermes skills list | rg aquila
 hermes skills list | rg open-design-producer
+hermes skills list | rg solana-program-engineering
 hermes bundles reload
 hermes bundles show aquila-delivery
 hermes bundles show aquila-harness-audit
