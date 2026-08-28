@@ -68,7 +68,8 @@ Controller must provide:
 - `Non-goals`: explicit exclusions.
 - `Forbidden content patterns`: regex/text patterns that must not appear.
 - `Proof commands`: commands to run or explain why unavailable.
-- `Result file`: `CLAUDE_RESULT.json`.
+- `Order ID`: one safe path component used for the control namespace.
+- `Result file`: `<workspace>/.centurion/agents_results/<orderId>/CLAUDE_RESULT.json`.
 
 Hard-stop rules:
 
@@ -82,29 +83,45 @@ Required result shape:
 
 ```json
 {
-  "orderVersion": "CLAUDE_ORDER_V1",
-  "owner": "PICTOR",
+  "resultVersion": "AGENT_RESULT_JSON_V1",
+  "orderId": "<orderId>",
+  "executor": "claude",
   "status": "done",
-  "filesChanged": ["relative/path", "CLAUDE_RESULT.json"],
-  "proof": [{ "command": "npm test", "result": "passed", "summary": "..." }],
-  "selfReviewFixed": "yes",
-  "scopeViolations": [],
+  "summary": "Completed the bounded order.",
+  "filesChanged": [{ "path": "relative/product-path", "action": "modified" }],
+  "artifacts": [],
+  "proof": [{ "command": "npm test", "cwd": "<workspace>", "status": "pass", "exitCode": 0, "summary": "..." }],
+  "selfReview": { "performed": true, "findings": [], "fixesApplied": [] },
+  "scopeDeviations": [],
   "forbiddenPatternHits": [],
-  "remainingRisks": []
+  "remainingRisks": [],
+  "questions": [],
+  "errors": [],
+  "stdoutSummary": "",
+  "stderrSummary": ""
 }
 ```
 
-Result typing is part of the contract: `filesChanged`, `proof`, `scopeViolations`, `forbiddenPatternHits`, and `remainingRisks` must be JSON arrays. Use an empty array (`[]`) for no findings; never use strings such as `"none"`. `filesChanged` must match the actual changed files, including `CLAUDE_RESULT.json`. For `status=done`, every `proof[].result` must be `"passed"`; use `status=blocked` if proof was not run or did not pass.
+Result typing is part of the contract. Canonical `filesChanged` contains objects and must match product-file changes only; the snapshot and result control files are excluded. For `status=done`, proof must be non-empty, every `proof[].status` must be `"pass"`, `selfReview.performed` must be `true`, and scope/forbidden arrays must be empty.
 
 Final stdout for print-mode orders should contain only:
 
 ```text
-CLAUDE_RESULT_FILE=CLAUDE_RESULT.json
+CLAUDE_RESULT_FILE=.centurion/agents_results/<orderId>/CLAUDE_RESULT.json
 STATUS=<done|blocked>
-SELF_REVIEW_FIXED=<yes|no>
 ```
 
-The controller must verify with `scripts/claude-order-guard.mjs`, rerun owner proof, and inspect the diff/artifact directly before accepting.
+Before snapshot or verify, resolve the installed kit root:
+
+```sh
+CENTURION_CLAUDE_KIT="${CLAUDE_HOME:-$HOME/.claude}/skills/centurion-legion"
+```
+
+For an installation created with a custom `--claude-home`, set `CENTURION_CLAUDE_KIT` to that exact `<claude-home>/skills/centurion-legion` root. The controller must invoke the bundled guard as `node "$CENTURION_CLAUDE_KIT/scripts/claude-order-guard.mjs"`, rerun owner proof, and inspect the diff/artifact directly before accepting.
+
+### Legacy compatibility
+
+The former `CLAUDE_ORDER_V1` result shape is accepted only by an explicit `verify --allow-legacy` invocation. It keeps string `filesChanged` entries, including the result control file, and legacy `proof[].result`/`selfReviewFixed` semantics. Do not emit it for new orders.
 
 ## WAR ROOM
 

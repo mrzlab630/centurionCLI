@@ -16,6 +16,12 @@ from pathlib import Path
 from typing import Any
 
 from attempt_ledger import LedgerError, load_attempt_history
+from agent_artifact_namespace import (
+    ArtifactNamespaceError,
+    artifact_namespace,
+    require_control_path,
+    require_no_symlink_components,
+)
 from review_ladder import RoutingError, validate_order_routing
 from strict_json import StrictJSONError, strict_json_load_path
 
@@ -126,10 +132,15 @@ class LoopStateLock:
 class PathPolicy:
     """Resolve order paths and enforce exact / trailing-** path rules."""
 
-    def __init__(self, repo_path: Path, allowed_paths: list[Any], forbidden_paths: list[Any]) -> None:
+    def __init__(self, repo_path: Path, allowed_paths: list[Any], forbidden_paths: list[Any], order_id: str) -> None:
         self.repo_path = repo_path.expanduser().resolve()
         if not self.repo_path.is_dir():
             raise RunnerError(f"workspace.repoPath must be an existing directory: {self.repo_path}")
+        try:
+            self.control_namespace = artifact_namespace(self.repo_path, order_id)
+            require_no_symlink_components(self.control_namespace)
+        except ArtifactNamespaceError as exc:
+            raise RunnerError(str(exc)) from exc
         self.allowed = self._compile_patterns(allowed_paths, "allowedPaths")
         self.forbidden = self._compile_patterns(forbidden_paths, "forbiddenPaths")
 
@@ -175,6 +186,20 @@ class PathPolicy:
 
     def cli_path(self, value: str | Path, label: str) -> Path:
         return self.require_allowed(self.resolve_cli_path(value), label)
+
+    def control_path(self, value: str | Path, label: str) -> Path:
+        path = self.require_allowed(self.resolve_under_repo(value), label)
+        try:
+            return require_control_path(path, self.control_namespace, label)
+        except ArtifactNamespaceError as exc:
+            raise RunnerError(str(exc)) from exc
+
+    def control_cli_path(self, value: str | Path, label: str) -> Path:
+        path = self.require_allowed(self.resolve_cli_path(value), label)
+        try:
+            return require_control_path(path, self.control_namespace, label)
+        except ArtifactNamespaceError as exc:
+            raise RunnerError(str(exc)) from exc
 
 
 def utc_now() -> str:
@@ -318,6 +343,23 @@ def validate_proof(items: list[Any]) -> None:
         require_string_value(proof_obj, "summary", f"proof[{index}].summary")
 
 
+def validate_done_semantics(result: dict[str, Any]) -> None:
+    """Require terminal done results to carry complete, successful acceptance evidence."""
+    if result.get("status") != "done":
+        return
+    proof = result.get("proof")
+    if not isinstance(proof, list) or not proof:
+        raise RunnerError("done result requires at least one proof entry")
+    if any(not isinstance(item, dict) or item.get("status") != "pass" for item in proof):
+        raise RunnerError("done result requires every proof[].status to be pass")
+    self_review = result.get("selfReview")
+    if not isinstance(self_review, dict) or self_review.get("performed") is not True:
+        raise RunnerError("done result requires selfReview.performed=true")
+    for field in ("scopeDeviations", "forbiddenPatternHits"):
+        if result.get(field):
+            raise RunnerError(f"done result must not include {field}")
+
+
 def require_order_lists(order: dict[str, Any]) -> None:
     for key in [
         "context",
@@ -350,6 +392,12 @@ def validate_order(order: dict[str, Any]) -> tuple[list[str], PathPolicy]:
     if order["riskLevel"] not in {"low", "medium", "high"}:
         raise RunnerError("riskLevel must be low, medium, or high")
 
+    try:
+        from agent_artifact_namespace import validate_order_id
+        validate_order_id(order["orderId"])
+    except ArtifactNamespaceError as exc:
+        raise RunnerError(str(exc)) from exc
+
     for key in ["orderId", "createdAt", "roleForTask", "objective"]:
         require_nonempty_string(order, key)
     require_order_lists(order)
@@ -357,25 +405,25 @@ def validate_order(order: dict[str, Any]) -> tuple[list[str], PathPolicy]:
     workspace = require_object(order["workspace"], "workspace")
     for key in ["repoPath", "branchOrWorktree", "projectName"]:
         require_nonempty_string(workspace, key, f"workspace.{key}")
-    policy = PathPolicy(Path(workspace["repoPath"]), order["allowedPaths"], order["forbiddenPaths"])
+    policy = PathPolicy(Path(workspace["repoPath"]), order["allowedPaths"], order["forbiddenPaths"], order["orderId"])
 
     launch = require_object(order["launch"], "launch")
     for key in ["surface", "command", "resultJsonPath"]:
         require_nonempty_string(launch, key, f"launch.{key}")
     if not isinstance(launch.get("timeoutSeconds"), int) or launch["timeoutSeconds"] < 1:
         raise RunnerError("launch.timeoutSeconds must be a positive integer")
-    policy.order_path(launch["resultJsonPath"], "launch.resultJsonPath")
+    policy.control_path(launch["resultJsonPath"], "launch.resultJsonPath")
     for key in ["stdoutPath", "stderrPath"]:
         if key in launch:
             if not isinstance(launch.get(key), str) or not launch[key].strip():
                 raise RunnerError(f"launch.{key} must be a non-empty string when present")
-            policy.order_path(launch[key], f"launch.{key}")
+            policy.control_path(launch[key], f"launch.{key}")
 
     output_contract = require_object(order["outputContract"], "outputContract")
     if output_contract.get("resultVersion") != RESULT_VERSION:
         raise RunnerError(f"outputContract.resultVersion must be {RESULT_VERSION}")
     require_nonempty_string(output_contract, "resultPath", "outputContract.resultPath")
-    policy.order_path(output_contract["resultPath"], "outputContract.resultPath")
+    policy.control_path(output_contract["resultPath"], "outputContract.resultPath")
     if not isinstance(output_contract.get("stdoutAllowed"), bool):
         raise RunnerError("outputContract.stdoutAllowed must be boolean")
     if "proseAllowedAfterJson" not in output_contract:
@@ -701,10 +749,10 @@ def block_loop_state_after_dispatch_failure(
 
 
 def validate_runtime_paths(order: dict[str, Any], policy: PathPolicy, result_arg: Path, events_arg: Path) -> tuple[Path, Path]:
-    result_path = policy.cli_path(result_arg, "CLI --result")
-    events_path = policy.cli_path(events_arg, "CLI --events")
-    launch_result = policy.order_path(order["launch"]["resultJsonPath"], "launch.resultJsonPath")
-    contract_result = policy.order_path(order["outputContract"]["resultPath"], "outputContract.resultPath")
+    result_path = policy.control_cli_path(result_arg, "CLI --result")
+    events_path = policy.control_cli_path(events_arg, "CLI --events")
+    launch_result = policy.control_path(order["launch"]["resultJsonPath"], "launch.resultJsonPath")
+    contract_result = policy.control_path(order["outputContract"]["resultPath"], "outputContract.resultPath")
     if not paths_equal(result_path, launch_result) or not paths_equal(result_path, contract_result):
         raise RunnerError("CLI --result, launch.resultJsonPath, and outputContract.resultPath must resolve to the same path")
     return result_path, events_path
@@ -756,7 +804,7 @@ def write_captured_streams(order: dict[str, Any], completed: subprocess.Complete
             continue
         if not isinstance(stream_path, str) or not stream_path.strip():
             raise RunnerError(f"launch.{key} must be a non-empty string when present")
-        path = policy.order_path(stream_path, f"launch.{key}")
+        path = policy.control_path(stream_path, f"launch.{key}")
         captured = normalize_stream(content)
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -906,6 +954,7 @@ def verify_result(result_path: Path, order: dict[str, Any], policy: PathPolicy) 
         raise RunnerError("stdoutSummary must be a string")
     if not isinstance(result.get("stderrSummary"), str):
         raise RunnerError("stderrSummary must be a string")
+    validate_done_semantics(result)
     return result, artifact_paths
 
 
@@ -942,11 +991,13 @@ def main() -> int:
     events_path = args.events
     loop_lock: LoopStateLock | None = None
     executor_ran = False
+    event_sink_ready = False
     try:
         order = require_object(load_json(args.order), "order")
         notes, policy = validate_order(order)
         result_path, events_path = validate_runtime_paths(order, policy, args.result, args.events)
         append_event(events_path, "order_loaded", orderId=order.get("orderId"), executor=order.get("executor"), path=str(args.order))
+        event_sink_ready = True
         append_event(events_path, "order_validated", orderId=order["orderId"], executor=order["executor"], notes=notes)
 
         if loop_contract(order) is not None:
@@ -1027,7 +1078,8 @@ def main() -> int:
                 if executor_ran and loop_lock is not None and "policy" in locals():
                     block_loop_state_after_dispatch_failure(order, policy, events_path, exc)
         finally:
-            append_event(events_path, "verification_failed", orderId=order_id, executor=executor, error=str(exc))
+            if event_sink_ready:
+                append_event(events_path, "verification_failed", orderId=order_id, executor=executor, error=str(exc))
         print(f"error: {exc}", file=sys.stderr)
         return 1
     finally:

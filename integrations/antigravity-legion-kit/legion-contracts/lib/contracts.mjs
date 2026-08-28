@@ -2,7 +2,7 @@ export const LEGION_ORDER_VERSION = 'LEGION_ORDER_V1';
 export const LEGION_RESULT_VERSION = 'LEGION_RESULT_V1';
 export const LEGION_REVIEW_VERSION = 'LEGION_REVIEW_V1';
 export const AGENT_RESULT_VERSION = 'AGENT_RESULT_JSON_V1';
-export const SAFE_ORDER_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{7,127}$/;
+const SAFE_ORDER_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{7,127}$/;
 
 function strictJsonParser(text, label) {
   let index = 0;

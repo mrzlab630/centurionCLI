@@ -27,6 +27,15 @@ Surface-specific protocols remain valid where they already exist:
 - Antigravity and `agy` keep using `AGY_ORDER_V1` plus `AGY_RESULT.json`.
 - Claude Code keeps using `CLAUDE_ORDER_V1` plus `CLAUDE_RESULT.json`.
 
+For new executor orders, controller-owned result/candidate/receipt/stream/event
+and evidence files belong under
+`<repo>/.centurion/agents_results/<orderId>/`, derived from the resolved
+workspace repository and a fresh safe `orderId`. Explicit product/application
+artifacts stay in their declared paths. Existing root files are not relocated;
+cleanup is a separate operation.
+
+Pre-execution snapshots for AGY and Claude are separate controller-custody inputs: guards require an absolute path outside the workspace plus a detached digest. A detached digest catches ordinary tampering; it is not independent authentication against a same-UID writer that can rewrite both custody files, so an external controller account or OS boundary is still required for that threat.
+
 The shared validator accepts those legacy result payloads only when a surface guard explicitly opts in with `acceptedOrderVersions`.
 
 ## Ownership Rule
@@ -68,12 +77,13 @@ node ./scripts/legion-contract.mjs validate-review --file /path/to/LEGION_REVIEW
 Legacy result validation examples:
 
 ```bash
+CONTROL_DIR="$PWD/.centurion/agents_results/<orderId>"
 node integrations/legion-contracts/scripts/legion-contract.mjs validate-result \
-  --file /path/to/AGY_RESULT.json \
+  --file "$CONTROL_DIR/AGY_RESULT.json" \
   --accept-order-version AGY_ORDER_V1
 
 node integrations/legion-contracts/scripts/legion-contract.mjs validate-result \
-  --file /path/to/CLAUDE_RESULT.json \
+  --file "$CONTROL_DIR/CLAUDE_RESULT.json" \
   --accept-order-version CLAUDE_ORDER_V1
 ```
 

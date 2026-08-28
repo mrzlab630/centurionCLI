@@ -14,6 +14,7 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 from strict_json import StrictJSONError, strict_json_load_bytes, strict_json_load_path
+from agent_artifact_namespace import ArtifactNamespaceError, validate_order_id
 
 
 RESULT_VERSION = "AGENT_RESULT_JSON_V1"
@@ -68,6 +69,17 @@ def validate_candidate(candidate: Any, order: dict[str, Any], validator: Draft20
         errors.append("orderId: must match the declared order")
     if candidate.get("executor") != order.get("executor"):
         errors.append("executor: must match the declared order")
+    if candidate.get("status") == "done":
+        proof = candidate.get("proof")
+        if not isinstance(proof, list) or not proof:
+            errors.append("done result requires at least one proof entry")
+        elif any(not isinstance(item, dict) or item.get("status") != "pass" for item in proof):
+            errors.append("done result requires every proof[].status to be pass")
+        self_review = candidate.get("selfReview")
+        if not isinstance(self_review, dict) or self_review.get("performed") is not True:
+            errors.append("done result requires selfReview.performed=true")
+        for field in ("scopeDeviations", "forbiddenPatternHits"):
+            if candidate.get(field): errors.append(f"done result must not include {field}")
     return sorted(set(errors))
 
 
@@ -156,6 +168,22 @@ def failed_result(order: dict[str, Any], evidence_path: Path, errors: list[str])
     }
 
 
+def _canonical_result_path(order: dict[str, Any], declared_path: str, result_path: Path) -> Path:
+    workspace = order.get("workspace")
+    repo_value = workspace.get("repoPath") if isinstance(workspace, dict) else None
+    if not isinstance(repo_value, str) or not repo_value.strip():
+        return result_path
+
+    repo_path = Path(repo_value).expanduser().resolve(strict=False)
+    declared = Path(declared_path).expanduser()
+    if not declared.is_absolute():
+        declared = repo_path / declared
+        declared = declared.resolve(strict=False)
+        if repo_path not in declared.parents:
+            raise BuilderError("result path must remain under workspace.repoPath")
+    return declared.resolve(strict=False)
+
+
 def build_result(
     order_path: Path,
     candidate_path: Path,
@@ -172,8 +200,15 @@ def build_result(
     for key in ("orderId", "executor"):
         if not isinstance(order.get(key), str) or not order[key].strip():
             raise BuilderError(f"order.{key} must be a non-empty string")
+    try:
+        validate_order_id(order["orderId"])
+    except ArtifactNamespaceError as exc:
+        raise BuilderError(str(exc)) from exc
     output_contract = order.get("outputContract")
-    if not isinstance(output_contract, dict) or output_contract.get("resultPath") != str(result_path):
+    declared_result_path = output_contract.get("resultPath") if isinstance(output_contract, dict) else None
+    if not isinstance(declared_result_path, str):
+        raise BuilderError("result path must exactly match order.outputContract.resultPath")
+    if _canonical_result_path(order, declared_result_path, result_path) != result_path.expanduser().resolve(strict=False):
         raise BuilderError("result path must exactly match order.outputContract.resultPath")
 
     _, validator = _load_schema(resolve_schema_path(schema_path))

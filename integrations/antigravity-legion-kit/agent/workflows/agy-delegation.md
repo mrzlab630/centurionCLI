@@ -35,10 +35,13 @@ Keep work local to the owner when it involves:
 
 ## Delegation Prompt
 
-Use `centurion-legion.agy_delegation_brief` first when the delegation is non-trivial. For implementation work, create a pre-snapshot before calling `agy`:
+Use `centurion-legion.agy_delegation_brief` first when the delegation is non-trivial. Supply a fresh safe `orderId`; all controller artifacts belong to that exact order namespace. For implementation work, create a pre-snapshot before calling `agy`:
 
 ```bash
-node /home/mrz/projects/al/centurionCLI/cohors-prima/integrations/antigravity-legion-kit/scripts/agy-order-guard.mjs snapshot --workspace <path> --out /tmp/agy-before.json
+node integrations/antigravity-legion-kit/scripts/agy-order-guard.mjs snapshot \
+  --workspace <path> \
+  --order-id <orderId> \
+  --out .centurion/agents_results/<orderId>/AGY_SNAPSHOT.json
 ```
 
 Then send `agy` a bounded `AGY_ORDER v1` shaped like this:
@@ -48,6 +51,7 @@ You are AUXILIUM AGY working for <OWNER>.
 Controller: CENTURION. Authority: obey this AGY_ORDER exactly.
 Task: <bounded task>.
 Workspace: <path>.
+Order ID: <orderId>.
 Scope: <files/directories allowed>.
 Non-goals: <explicit exclusions>.
 Forbidden content patterns: <regex/text patterns that must not appear>.
@@ -64,24 +68,35 @@ First complete the task. Then run a self-review pass:
 2. Fix every confirmed defect you find.
 3. Rerun proof.
 
-Write `AGY_RESULT.json` as JSON:
+Write `.centurion/agents_results/<orderId>/AGY_RESULT.json` as JSON:
 {
-  "orderVersion": "AGY_ORDER_V1",
-  "owner": "<OWNER>",
-  "status": "done|blocked",
-  "filesChanged": ["relative/path"],
-  "proof": [{"command":"...","result":"passed|failed|not_run","summary":"..."}],
-  "selfReviewFixed": "yes|no",
-  "scopeViolations": [],
+  "resultVersion": "AGENT_RESULT_JSON_V1",
+  "orderId": "<orderId>",
+  "executor": "agy",
+  "status": "done|blocked|failed",
+  "summary": "...",
+  "filesChanged": [{"path":"relative/path","action":"added|modified|deleted|renamed|none"}],
+  "artifacts": [{"path":"relative/path","exists":true,"type":"...","note":"..."}],
+  "proof": [{"command":"...","cwd":"<path>","status":"pass|fail|not_run","exitCode":0,"summary":"..."}],
+  "selfReview": {"performed":true,"findings":[],"fixesApplied":[]},
+  "scopeDeviations": [],
   "forbiddenPatternHits": [],
-  "remainingRisks": ["..."]
+  "remainingRisks": [],
+  "questions": [],
+  "errors": [],
+  "stdoutSummary": "",
+  "stderrSummary": ""
 }
 
 Final stdout must contain only:
-AGY_RESULT_FILE=AGY_RESULT.json
-STATUS=<done|blocked>
-SELF_REVIEW_FIXED=<yes|no>
+AGY_RESULT_FILE=.centurion/agents_results/<orderId>/AGY_RESULT.json
+STATUS=<done|blocked|failed>
+SELF_REVIEW_PERFORMED=<true|false>
 ```
+
+### `--allow-legacy` Compatibility
+
+The previous `AGY_ORDER_V1` result payload is accepted only when the owner adds `--allow-legacy` to the `verify` command. Without that flag, legacy-only and hybrid results are rejected. Compatibility mode keeps the existing legacy self-review, reported-scope, forbidden-pattern, snapshot, and allowed-path checks; use it only for an executor that has not migrated to `AGENT_RESULT_JSON_V1`.
 
 ## Acceptance Gate
 
@@ -90,8 +105,8 @@ The owner must not accept `agy` output from prose alone.
 Required owner checks:
 
 - Inspect changed files, diff, generated artifact, or cited evidence directly.
-- Validate the `AGY_RESULT.json` shape and changed-file scope with `agy-order-guard` before reading the prose result.
-- Confirm `SELF_REVIEW_FIXED=yes` or a clear explanation of why no fix was needed.
+- Validate the namespaced `AGY_RESULT.json` shape and changed-file scope with `agy-order-guard` before reading the prose result. Root-level result and snapshot paths are invalid.
+- Confirm canonical `selfReview.performed=true` for a done result.
 - Rerun the smallest relevant proof locally.
 - Call TESTER for failing, flaky, or missing proof.
 - Call REVIEWER for risky diffs or behavior-preserving claims.
@@ -103,10 +118,11 @@ Final reports must state: primary owner, whether AUXILIUM AGY was used, `agy` pr
 Example scope verification:
 
 ```bash
-node /home/mrz/projects/al/centurionCLI/cohors-prima/integrations/antigravity-legion-kit/scripts/agy-order-guard.mjs verify \
+node integrations/antigravity-legion-kit/scripts/agy-order-guard.mjs verify \
   --workspace <path> \
-  --before /tmp/agy-before.json \
-  --allowed index.html,AGY_RESULT.json \
-  --result AGY_RESULT.json \
+  --order-id <orderId> \
+  --before .centurion/agents_results/<orderId>/AGY_SNAPSHOT.json \
+  --allowed index.html \
+  --result .centurion/agents_results/<orderId>/AGY_RESULT.json \
   --forbidden 'fonts\\.googleapis,font-size\\s*:[^;]*vw,letter-spacing\\s*:'
 ```

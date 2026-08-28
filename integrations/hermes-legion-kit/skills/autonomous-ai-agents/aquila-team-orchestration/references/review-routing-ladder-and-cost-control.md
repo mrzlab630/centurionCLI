@@ -12,6 +12,13 @@ AQUILA_ROUTING_JSON_V1:{"objectiveId":"stable-id","attempt":1,"taskClass":"routi
 
 The runner rejects missing, duplicate, malformed, non-compact, unknown, or semantically incompatible metadata before dispatch. Orders created before the cutover retain their original contract and do not require this entry.
 
+New order control artifacts use the deterministic namespace
+`<repo>/.centurion/agents_results/<orderId>/`, where `repo` is the resolved
+`workspace.repoPath` and `orderId` is a fresh safe single path component.
+Canonical results, candidates, receipts, streams, events, and evidence must be
+under that directory. Declared product/application artifacts remain in their
+own allowed paths; root-noise cleanup is a separate operation.
+
 V0 additionally carries all canonical `trustPredicates` as exact `true` booleans. V3 additionally carries `specialistGate:{"required":true,"approved":true,"approver":"..."}`. A terminal reviewer order uses `executionProfile:"terminal_review"`, `terminalGate:true`, and `reviewer:"none"`; it cannot appoint another reviewer.
 
 ## V0-V3 matrix

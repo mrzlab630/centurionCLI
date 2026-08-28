@@ -16,6 +16,10 @@ const REPO_ROOT = path.resolve(KIT_ROOT, '..', '..');
 const CANONICAL_SKILLS = path.join(REPO_ROOT, 'skills');
 const OPEN_DESIGN_BRIDGE = path.join(REPO_ROOT, 'integrations', 'open-design-bridge');
 const OPEN_DESIGN_CONFIG_VERSION = 'CENTURION_OPEN_DESIGN_CONFIG_V1';
+const STANDALONE_GUARD_FILES = [
+  ['scripts', 'claude-order-guard.mjs'],
+  ['lib', 'claude-result-validator.mjs']
+];
 
 function parseArgs(argv) {
   const options = {
@@ -61,6 +65,15 @@ function validatePlugin(pluginDir) {
   };
 }
 
+function bundleStandaloneGuard(pluginDir) {
+  for (const components of STANDALONE_GUARD_FILES) {
+    const source = path.join(KIT_ROOT, ...components);
+    const target = path.join(pluginDir, ...components);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.copyFileSync(source, target);
+  }
+}
+
 function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
@@ -82,6 +95,7 @@ function main() {
     try {
       const stagedPlugin = stageDirectory(path.join(KIT_ROOT, 'plugin'), pluginTarget);
       operations.push(stagedPlugin);
+      bundleStandaloneGuard(stagedPlugin.staged);
       for (const entry of skillEntries) operations.push(stageDirectory(entry.source, entry.target));
       if (options.syncSkills) {
         operations.push(stageFileContent(`${JSON.stringify({

@@ -40,17 +40,41 @@ All packaged Python control-plane reads use `scripts/strict_json.py`. Orders, ca
 
 Run the dispatcher or validator with `scripts/agent_contract_runner.py`. All external Codex or Claude candidate finalization goes through `scripts/result_gateway.py`; `scripts/agent_result_builder.py` is an internal canonicalization stage used by the gateway after strict order/routing preflight and launcher closure. It never invents proof, promotes malformed/blocked/failed input to `done`, or overwrites the result path.
 
+## Control artifact namespace
+
+For every new `AGENT_ORDER_JSON_V1`, derive the controller-owned namespace from
+the resolved `workspace.repoPath` and the fresh, safe single-component
+`orderId`:
+
+```text
+<repo>/.centurion/agents_results/<orderId>/
+```
+
+Canonical results, raw candidates, launcher start/closure receipts, executor
+stdout/stderr captures, gateway events, and gateway evidence must be strict
+descendants of that directory. The runner and gateway derive this path rather
+than trusting a caller-supplied project namespace, and reject traversal,
+separators, root-level names, and other escapes before launch or custody
+creation. `expectedArtifacts`, `filesChanged`, and result-reported product or
+application artifacts remain governed by declared `allowedPaths`; they are not
+automatically forced into the control namespace.
+
+Each successor attempt uses a fresh `orderId` and create-only control paths.
+Existing root-level legacy files are not moved by validation; cleanup or
+migration is a separate, explicitly reviewed operation.
+
 For direct Codex or Claude launches, invoke `scripts/result_gateway.py` instead of launching the executor in the background yourself. Keep the executor transport output in a raw candidate path that is distinct from the canonical result, stdout, stderr, event log, and closure receipt:
 
 ```bash
+CONTROL_DIR="$PWD/.centurion/agents_results/<orderId>"
 python3 scripts/result_gateway.py \
   --order /path/to/order.json \
-  --candidate /path/to/raw-candidate.json \
+  --candidate "$CONTROL_DIR/raw-candidate.json" \
   --candidate-source file \
-  --start-receipt /path/to/launcher-start.json \
-  --closure /path/to/launcher-closure.json \
-  --evidence-dir /path/to/evidence \
-  --events /path/to/result-gateway.events.jsonl
+  --start-receipt "$CONTROL_DIR/launcher-start.json" \
+  --closure "$CONTROL_DIR/launcher-closure.json" \
+  --evidence-dir "$CONTROL_DIR/evidence" \
+  --events "$CONTROL_DIR/result-gateway.events.jsonl"
 ```
 
 Use `--candidate-source file` for Codex file candidates. For Claude commands that emit the canonical result only on stdout, use `--candidate-source stdout`; the gateway captures raw stdout, waits for launcher closure, and materializes the candidate path only when the entire stdout stream is one strict unfenced schema-valid identity-matching `AGENT_RESULT_JSON_V1` object. Duplicate keys, non-finite numbers, prose, envelopes, multiple objects, and partial output remain digest-bound raw evidence and fail closed. The evidence directory and every output parent must already exist as writable directories, and result, candidate, start receipt, closure, stream, event, and evidence namespaces must not alias.
@@ -64,9 +88,9 @@ After gateway closure, the installed controller monitor verifies terminal closur
 ```bash
 monitor-delegation.sh \
   --order /path/to/order.json \
-  --result /path/to/AGENT_RESULT.json \
-  --start-receipt /path/to/launcher-start.json \
-  --closure /path/to/launcher-closure.json
+  --result "$CONTROL_DIR/AGENT_RESULT.json" \
+  --start-receipt "$CONTROL_DIR/launcher-start.json" \
+  --closure "$CONTROL_DIR/launcher-closure.json"
 ```
 
 The monitor recomputes the canonical route from the strict order, verifies its deterministic digest, and requires exact routing equality across the order, start receipt, and closure before reporting `terminal-closure-verified`. Monitor exit 0 means the requested attempt has a verified terminal closure. It does not mean semantic success: inspect the separately reported result status and all proof before acceptance. Receipts are controller custody evidence, not a signature against a malicious same-uid writer. A requested model string is routing intent only and must never be reported as an observed runtime model; Aquila/controller must validate independent provider runtime-model evidence before task acceptance.

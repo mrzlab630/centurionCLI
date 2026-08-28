@@ -67,7 +67,7 @@ Prompt text is advisory. Enforcement comes from combining:
 - exact tools: `--allowedTools`, `--disallowedTools`, or `--tools`;
 - permission mode: `plan`, `default`, or `acceptEdits`, never defaulting to bypass;
 - MCP minimization: `--mcp-config` plus `--strict-mcp-config`;
-- structured result: `CLAUDE_RESULT.json` or `--json-schema` for print-mode pure output tasks;
+- structured result: `<workspace>/.centurion/agents_results/<orderId>/CLAUDE_RESULT.json` or `--json-schema` for print-mode pure output tasks;
 - filesystem guard: `scripts/claude-order-guard.mjs` snapshot and verify;
 - owner review: direct diff/artifact inspection plus rerun proof.
 
@@ -75,7 +75,9 @@ For long print-mode orders, pass the prompt through stdin. `--allowedTools` and 
 
 The repository includes `integrations/claude-legion-kit/scripts/proxy-env.sh.example` with the current proxy defaults for non-interactive tests.
 
-`CLAUDE_ORDER v1` remains the Claude Code protocol. Its `CLAUDE_RESULT.json` shape is also validated through the shared Legion contract layer as a legacy result payload; see [LEGION_CONTRACTS.md](LEGION_CONTRACTS.md). The shared validator does not replace `claude-order-guard.mjs`, because the guard owns workspace snapshots, changed-file policy, forbidden-pattern checks, and Claude-specific strictness.
+`CLAUDE_ORDER v1` remains the Claude Code protocol. Its namespaced result defaults to canonical `AGENT_RESULT_JSON_V1` (`executor="claude"`, exact `orderId`) and is validated by the kit-local standalone validator. Canonical `filesChanged` entries are objects reconciled against product-file changes; snapshot and result control artifacts are excluded. The former `CLAUDE_ORDER_V1` shape is compatibility-only behind explicit `verify --allow-legacy`. The local validator does not replace `claude-order-guard.mjs`, because the guard owns workspace snapshots, changed-file policy, forbidden-pattern checks, and Claude-specific strictness.
+
+Snapshots are controller-custody inputs, not executor artifacts. The guard requires an explicit absolute snapshot path outside the workspace and a detached `.sha256` digest beside it; in-workspace snapshot paths are rejected. This detects ordinary tampering, but a same-UID process that can rewrite both custody files remains outside the repository's OS boundary and is not cryptographically authenticated by a self-hash.
 
 ## Maintenance
 

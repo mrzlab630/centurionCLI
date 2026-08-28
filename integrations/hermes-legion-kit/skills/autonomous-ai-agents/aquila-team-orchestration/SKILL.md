@@ -31,9 +31,9 @@ One task has one accountable owner. If the owner lacks a needed capability, they
 
 | Need | Primary owner | Notes |
 | --- | --- | --- |
-| Production code, repo edits, tests, refactors | codex | Default implementation executor. Require `CODEX_RESULT.json` or equivalent AGENT_RESULT_JSON_V1. |
+| Production code, repo edits, tests, refactors | codex | Default implementation executor. Require a namespaced `CODEX_RESULT.json` or equivalent AGENT_RESULT_JSON_V1. |
 | Independent review, architecture critique, hard debugging | claude | Use for second-pass verification and complex reasoning. Do not let it self-approve its own implementation. |
-| UI alternatives, UX/content drafts, fast frontend prototypes | agy | Narrow scope, exact paths, browser/layout proof for UI, mandatory `AGY_RESULT.json`. |
+| UI alternatives, UX/content drafts, fast frontend prototypes | agy | Narrow scope, exact paths, browser/layout proof for UI, mandatory namespaced `AGY_RESULT.json`. |
 | Small isolated parallel reasoning | Hermes `delegate_task` | Good for bounded research/review. Require structured final output mappable to AGENT_RESULT_JSON_V1. |
 | Durable multi-step work, restart-safe handoffs, human interjection | Hermes Kanban | Use explicit board/card state and owner. |
 
@@ -61,6 +61,18 @@ For orders created at or after `2026-08-03T11:00:42Z`, add exactly one compact `
 | V3 | `claude-opus-5` plus specialist/Boss gate | Security, auth, secrets, money, production, dependencies, public endpoints, or infrastructure. |
 
 The terminal review never delegates a review of itself. After its model gate, Aquila performs only deterministic identity, schema, hash, path, artifact, and proof closure. Record escaped V0 defects and Sol misses in the append-only attempt ledger; the history promotions in the policy elevate future task-class routes without retrospective review of unrelated objectives. See `references/review-routing-ladder-and-cost-control.md` and the installed `agent-contract-runner` skill for the enforceable runner and regressions.
+
+### Executor artifact boundary
+
+Every new order derives one controller namespace from its resolved repository
+and fresh safe `orderId`: `<repo>/.centurion/agents_results/<orderId>/`.
+Canonical results, raw candidates, launcher receipts, executor stream captures,
+gateway events, and gateway evidence stay below that directory. Product or
+application artifacts explicitly declared in `expectedArtifacts`,
+`filesChanged`, or the result may remain in their declared `allowedPaths`; the
+namespace rule must not relocate them. Never reuse an `orderId` or overwrite a
+create-only custody path. Legacy root files are left in place; migration and
+cleanup require a separate order.
 
 ## Board/Card Contract
 

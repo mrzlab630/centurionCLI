@@ -77,7 +77,7 @@ npm run legion:eval
 agy plugin validate ./agy-plugin
 ```
 
-`npm run smoke` verifies required rules, workflows, plugin shape, MCP round trips, catalog JSON, owner routing coverage, installer behavior, `AGY_ORDER v1` guard behavior, and shared Legion result-contract compatibility.
+`npm run smoke` verifies required rules, workflows, plugin shape, MCP round trips, catalog JSON, owner routing coverage, installer behavior, canonical `AGENT_RESULT_JSON_V1` guard behavior, and shared Legion result-contract compatibility.
 
 ## AUXILIUM AGY Contract
 
@@ -86,21 +86,57 @@ agy plugin validate ./agy-plugin
 For implementation delegation, always use `AGY_ORDER v1`:
 
 ```bash
+SNAPSHOT="/controller/custody/<orderId>/AGY_SNAPSHOT.json"
 node integrations/antigravity-legion-kit/scripts/agy-order-guard.mjs snapshot \
   --workspace <dir> \
-  --out /tmp/agy-before.json
+  --order-id <orderId> \
+  --out "$SNAPSHOT"
 
 node integrations/antigravity-legion-kit/scripts/agy-order-guard.mjs verify \
   --workspace <dir> \
-  --before /tmp/agy-before.json \
+  --order-id <orderId> \
+  --before "$SNAPSHOT" \
   --allowed <paths> \
-  --result AGY_RESULT.json \
+  --result ".centurion/agents_results/<orderId>/AGY_RESULT.json" \
   --forbidden <patterns>
 ```
 
 Never accept `agy` stdout, narration, or self-report alone. Accept only after guard verification, owner proof, and direct diff or artifact inspection.
 
-`AGY_ORDER v1` remains the Antigravity/`agy` protocol. Its `AGY_RESULT.json` shape is also validated through the shared Legion contract layer as a legacy result payload; see [LEGION_CONTRACTS.md](LEGION_CONTRACTS.md). The shared validator does not replace `agy-order-guard.mjs`, because the guard owns workspace snapshots, allowed-path enforcement, and forbidden-pattern checks.
+Snapshots are controller-custody inputs, not executor artifacts. The guard requires an explicit absolute snapshot path outside the workspace and a detached `.sha256` digest beside it; in-workspace snapshot paths are rejected. This detects ordinary tampering, but a same-UID process that can rewrite both custody files remains outside the repository's OS boundary and is not cryptographically authenticated by a self-hash.
+
+`AGY_ORDER v1` remains the Antigravity/`agy` input protocol. Its `AGY_RESULT.json` output is canonical `AGENT_RESULT_JSON_V1` by default and must bind the matching `orderId` and `executor=agy`; the bundled shared validator does not replace `agy-order-guard.mjs`, because the guard owns workspace snapshots, allowed-path enforcement, reported-scope enforcement, and forbidden-pattern checks.
+
+```json
+{
+  "resultVersion": "AGENT_RESULT_JSON_V1",
+  "orderId": "<orderId>",
+  "executor": "agy",
+  "status": "done",
+  "summary": "...",
+  "filesChanged": [{ "path": "relative/path", "action": "modified" }],
+  "artifacts": [{ "path": "relative/path", "exists": true, "type": "...", "note": "..." }],
+  "proof": [{ "command": "...", "cwd": "<workspace>", "status": "pass", "exitCode": 0, "summary": "..." }],
+  "selfReview": { "performed": true, "findings": [], "fixesApplied": [] },
+  "scopeDeviations": [],
+  "forbiddenPatternHits": [],
+  "remainingRisks": [],
+  "questions": [],
+  "errors": [],
+  "stdoutSummary": "",
+  "stderrSummary": ""
+}
+```
+
+### `--allow-legacy` Compatibility
+
+The previous `AGY_ORDER_V1` result payload is accepted only when `--allow-legacy` is added to the `verify` command. Legacy-only and hybrid results fail default verification. Compatibility mode preserves the previous self-review semantics and does not bypass snapshot, allowed-path, reported-scope, or forbidden-pattern checks.
+
+The result path above is controller custody data, not a product artifact:
+new executor control files are derived under
+`<repo>/.centurion/agents_results/<orderId>/` using a fresh safe `orderId` (snapshots are the external custody exception).
+Product/application outputs remain in their explicitly declared paths, and
+legacy root cleanup is a separate operation.
 
 Do not delegate secrets, credentials, production deploys, destructive commands, wallet/payment/KYC flows, exploit execution, or final architecture/security/legal/product-risk judgment to `agy`.
 

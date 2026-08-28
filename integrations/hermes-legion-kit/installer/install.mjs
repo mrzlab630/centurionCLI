@@ -75,9 +75,10 @@ function registerOpenDesignMcp(options) {
   if (options.dryRun) return false;
   const env = { ...process.env, HERMES_HOME: options.hermesHome };
   const soulPath = path.join(options.hermesHome, 'SOUL.md');
-  const soulExisted = fs.existsSync(soulPath);
+  const soulSnapshot = snapshotFile(soulPath);
+  const configSnapshot = snapshotFile(path.join(options.hermesHome, 'config.yaml'));
   try {
-    const existing = spawnSync('hermes', ['mcp', 'remove', 'centurion-open-design'], { env, encoding: 'utf8' });
+    const existing = spawnSync('hermes', ['mcp', 'remove', 'centurion-open-design'], { env, encoding: 'utf8', input: 'y\n' });
     if (existing.status !== 0 && !/not found|does not exist|no server/i.test(`${existing.stdout}${existing.stderr}`)) {
       throw new Error(`failed to replace Hermes MCP: ${existing.stderr || existing.stdout}`);
     }
@@ -86,12 +87,16 @@ function registerOpenDesignMcp(options) {
       '--connect-timeout', '10',
       '--command', process.execPath,
       '--args', OPEN_DESIGN_MCP_ENTRY
-    ], { env, encoding: 'utf8', input: '\n' });
+    ], { env, encoding: 'utf8', input: 'n\n' });
     if (added.status !== 0 || !/Saved 'centurion-open-design'/.test(added.stdout)) {
       throw new Error(`failed to register Hermes MCP: ${added.stderr || added.stdout}`);
     }
+  } catch (error) {
+    restoreFile(configSnapshot);
+    restoreFile(soulSnapshot);
+    throw error;
   } finally {
-    if (!soulExisted && fs.existsSync(soulPath)) fs.rmSync(soulPath, { force: true });
+    if (!soulSnapshot.existed && fs.existsSync(soulPath)) fs.rmSync(soulPath, { force: true });
   }
   return true;
 }

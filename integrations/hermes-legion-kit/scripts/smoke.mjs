@@ -213,8 +213,28 @@ function runPackagedPythonRegressions(scriptRoot) {
 
 function runIsolatedInstallSmoke() {
   const tempHome = fs.mkdtempSync(path.join(process.env.TMPDIR || '/tmp', 'hermes-legion-kit-smoke-'));
+  const fakeBin = path.join(tempHome, 'fake-bin');
   try {
-    const result = spawnSync(process.execPath, [path.join(KIT_ROOT, 'installer', 'install.mjs'), '--hermes-home', tempHome], { encoding: 'utf8' });
+    fs.mkdirSync(fakeBin, { recursive: true });
+    const fakeHermes = path.join(fakeBin, 'hermes');
+    fs.writeFileSync(fakeHermes, `#!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
+const args = process.argv.slice(2);
+if (args[0] === 'mcp' && args[1] === 'remove') { process.stderr.write('Server not found\\n'); process.exit(1); }
+if (args[0] === 'mcp' && args[1] === 'add') {
+  fs.mkdirSync(process.env.HERMES_HOME, { recursive: true });
+  fs.writeFileSync(path.join(process.env.HERMES_HOME, 'config.yaml'), 'mcpServers:\\n  centurion-open-design:\\n    command: node\\n');
+  process.stdout.write(\"Saved 'centurion-open-design'\\n\");
+  process.exit(0);
+}
+process.exit(2);
+`, { mode: 0o755 });
+    fs.chmodSync(fakeHermes, 0o755);
+    const result = spawnSync(process.execPath, [path.join(KIT_ROOT, 'installer', 'install.mjs'), '--hermes-home', tempHome], {
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${fakeBin}${path.delimiter}${process.env.PATH}` }
+    });
     assert(result.status === 0, `isolated installer failed: ${result.stderr || result.stdout}`);
     const scriptRoot = path.join(tempHome, 'skills', 'autonomous-ai-agents', 'agent-contract-runner', 'scripts');
     const requiredFiles = [
@@ -240,6 +260,7 @@ function runIsolatedInstallSmoke() {
     assert(result.stdout.includes('"openDesignMcpRegistered": true'), 'installer did not register Open Design MCP');
     const hermesConfig = readText(path.join(tempHome, 'config.yaml'));
     assert(/centurion-open-design:/.test(hermesConfig), 'installed Hermes Open Design MCP missing');
+    assert(!result.stdout.includes('Save config anyway') && !result.stderr.includes('Save config anyway'), 'installer success must not prompt for MCP save');
     const wrapper = spawnSync(process.execPath, [path.join(tempHome, 'skills', 'autonomous-ai-agents', 'open-design-producer', 'scripts', 'open-design.mjs'), '--print-cli'], {
       encoding: 'utf8',
       env: { ...process.env, HOME: tempHome, CLAUDE_HOME: path.join(tempHome, 'missing-claude'), HERMES_HOME: tempHome }
@@ -277,7 +298,7 @@ function runInstallerRollbackSmoke() {
 import fs from 'node:fs';
 import path from 'node:path';
 const args = process.argv.slice(2);
-if (args[0] === 'mcp' && args[1] === 'remove') process.exit(1);
+if (args[0] === 'mcp' && args[1] === 'remove') { process.stderr.write('Server not found\\n'); process.exit(1); }
 if (args[0] === 'mcp' && args[1] === 'add') {
   fs.writeFileSync(path.join(process.env.HERMES_HOME, 'config.yaml'), 'mutated before failure\\n');
   process.stderr.write('injected add failure\\n');
@@ -377,7 +398,7 @@ function assertOverrides() {
 
 function assertPackageVersion() {
   const manifest = JSON.parse(readText(PACKAGE_MANIFEST));
-  assert(manifest.version === '0.7.0', 'package version must be 0.7.0');
+  assert(manifest.version === '0.7.1', 'package version must be 0.7.1');
 }
 
 function main() {

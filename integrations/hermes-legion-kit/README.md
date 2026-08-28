@@ -1,6 +1,6 @@
 # Hermes Legion Kit
 
-CENTURION/Aquila Team Lead skills and lean skill bundles for Hermes Agent (kit version 0.7.0).
+CENTURION/Aquila Team Lead skills and lean skill bundles for Hermes Agent (kit version 0.7.1).
 
 This kit versions the local Hermes additions that were first installed under `~/.hermes`: five Aquila skills, the SOLARIUS `solana-program-engineering` skill, one shared Open Design capability, its local stdio MCP, four slash-command bundles, and a packaged delegation monitor. SOLARIUS remains Aquila-routed and never self-approves implementation, audit findings, or release readiness. It does not import ECC runtime code, enable plugins, alter unrelated MCP servers, or edit `SOUL.md`.
 
@@ -75,6 +75,7 @@ restores those targets and the previous `config.yaml` bytes and modes.
 - Keep optional overrides explicit. Builtin skill overrides are installed only with `--include-overrides`; SOUL/config changes stay manual and reviewable.
 - Route every external Codex or Claude candidate through `result_gateway.py`. The gateway must complete full canonical order validation, including ledger-aware routing, before creating receipts or launching the child; `agent_result_builder.py` remains an internal canonicalization stage.
 - Treat `strict_json.py` semantics as the package boundary for Python control-plane input. Duplicate keys, `NaN`, `Infinity`, `-Infinity`, and overflowed literals such as `1e999` fail closed; the installed monitor enforces equivalent parsing and exact `routingSha256` receipt binding.
+- Keep new executor control artifacts under `<repo>/.centurion/agents_results/<orderId>/`, derived from the resolved repository and a fresh safe `orderId`. Product/application artifacts remain in their declared paths; root-artifact cleanup is a separate migration operation.
 
 ## Local Baseline
 
