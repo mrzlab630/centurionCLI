@@ -217,6 +217,25 @@ function compareTrees(leftRoot, rightRoot) {
   return mismatches;
 }
 
+function compareInstalledPluginTree(pluginTarget) {
+  const expected = treeHashes(PLUGIN_ROOT);
+  for (const [directory, filename] of [['scripts', 'claude-order-guard.mjs'], ['lib', 'claude-result-validator.mjs']]) {
+    const relative = `${directory}/${filename}`;
+    expected.set(relative, crypto.createHash('sha256')
+      .update(fs.readFileSync(path.join(KIT_ROOT, directory, filename)))
+      .digest('hex'));
+  }
+  const installed = treeHashes(pluginTarget);
+  const files = sortedUnique([...expected.keys(), ...installed.keys()]);
+  const mismatches = [];
+  for (const file of files) {
+    if (!expected.has(file)) mismatches.push({ file, reason: 'extra-installed' });
+    else if (!installed.has(file)) mismatches.push({ file, reason: 'missing-installed' });
+    else if (expected.get(file) !== installed.get(file)) mismatches.push({ file, reason: 'hash-mismatch' });
+  }
+  return mismatches;
+}
+
 function tokens(text) {
   return new Set(String(text).toLowerCase().match(/[a-z0-9-]{4,}/g)?.filter((word) => !STOPWORDS.has(word)) || []);
 }
@@ -390,7 +409,7 @@ function auditInstalled(options, report) {
   if (missingInstalled.length) addFailure(report, 'installed standalone canonical skills missing', { missingInstalled });
   if (extraLegionSlugs.length) addWarning(report, 'extra installed skill dirs are present outside canonical Legion surface', { extraLegionSlugs });
 
-  const pluginMismatches = compareTrees(PLUGIN_ROOT, pluginTarget);
+  const pluginMismatches = compareInstalledPluginTree(pluginTarget);
   report.installed.pluginTreeMismatches = pluginMismatches;
   if (pluginMismatches.length) addFailure(report, 'installed plugin differs from repository plugin', { mismatches: pluginMismatches.slice(0, 20), total: pluginMismatches.length });
 

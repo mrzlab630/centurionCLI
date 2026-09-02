@@ -397,6 +397,9 @@ function main() {
     assert(fs.existsSync(installedValidator), 'installed standalone validator missing');
     assert(fs.readFileSync(installedGuard).equals(fs.readFileSync(path.join(KIT_ROOT, 'scripts', 'claude-order-guard.mjs'))), 'installed guard differs from source bytes');
     assert(fs.readFileSync(installedValidator).equals(fs.readFileSync(path.join(KIT_ROOT, 'lib', 'claude-result-validator.mjs'))), 'installed validator differs from source bytes');
+    const installedAudit = run(process.execPath, [path.join(KIT_ROOT, 'scripts', 'claude-surface-audit.mjs'), '--claude-home', tempHome, '--no-plugin-list']);
+    assert(installedAudit.status === 0, `installed surface audit failed: ${installedAudit.stderr || installedAudit.stdout}`);
+    assert(installedAudit.stdout.includes('claude-surface-audit: pass'), 'installed surface audit did not report pass');
     const standaloneWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-installed-guard-'));
     try {
       const standaloneOrderId = 'installed-order';
