@@ -44,7 +44,7 @@ Delegation acceptance contract:
 1. The primary owner states exact scope, non-goals, proof commands, and acceptance criteria.
 2. `agy` receives an `AGY_ORDER v1` with a fresh safe `orderId`, not an open-ended request. It must treat scope, non-goals, forbidden patterns, and proof commands as controlling instructions.
 3. If the task requires anything outside scope or conflicts with a non-goal, `agy` must stop and write `status=blocked`; it must not reinterpret the order.
-4. Before execution, the owner writes the pre-snapshot to `.centurion/agents_results/<orderId>/AGY_SNAPSHOT.json`.
+4. Before execution, the owner writes the pre-snapshot to an absolute path outside the workspace (for example, `/tmp/centurion-agy-snapshots/<orderId>/AGY_SNAPSHOT.json`).
 5. `agy` completes the bounded task, then runs a self-review pass, fixes confirmed defects, reruns proof, and writes `AGY_RESULT.json` only to `.centurion/agents_results/<orderId>/AGY_RESULT.json` as `AGENT_RESULT_JSON_V1`. The canonical object must bind `orderId` and `executor=agy` and include object-shaped `filesChanged`, `artifacts`, `proof`, and `selfReview`, plus `scopeDeviations`, `forbiddenPatternHits`, `remainingRisks`, `questions`, `errors`, `stdoutSummary`, and `stderrSummary`.
 6. CENTURION or the owner validates the namespaced `AGY_RESULT.json` against the matching namespaced snapshot with `agy-order-guard`, inspects the diff/artifact directly, and reruns proof before accepting.
 7. Root-level `AGY_RESULT.json` and snapshot files are invalid; controller artifacts must stay inside the exact safe `orderId` namespace.

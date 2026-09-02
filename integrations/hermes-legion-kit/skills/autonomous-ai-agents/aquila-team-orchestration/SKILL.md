@@ -27,6 +27,27 @@ Load this when:
 
 One task has one accountable owner. If the owner lacks a needed capability, they request or depend on another owner; they do not silently widen scope.
 
+### Scope, attempt, and step gates
+
+The user order and frozen plan are the hard scope ceiling. A new function,
+behavior, file, test, test class, refactor, dependency, or plan change requires
+explicit direct Boss approval in the current task; executor inference,
+reviewer suggestions, and test failures are not approval. Execute one initial
+implementation attempt plus at most one finding-mapped correction for the same
+objective. A correction changes only the finding-mapped behavior and minimum
+proof. After the second product attempt, return `blocked` and wait for a fresh
+Boss order/objective; never widen scope to make a new test green.
+
+Before execution, every plan step freezes its acceptance criteria, allowed
+paths, expected artifacts, and proof commands. Aquila/controller inspects
+changed paths, artifact identity, proof results, and scope deviation after
+each step; the next step cannot start until that gate passes. Passing required
+proof closes the step and forbids speculative continuation. Tests are allowed
+only when mapped to an acceptance criterion, focused regression risk, or a
+required risk gate. An out-of-scope failure is reported as `blocked`, not fixed.
+Any scope expansion requires unchanged-byte proof for the accepted step and a
+fresh order; it cannot be inferred from a failure.
+
 ## Executor Routing
 
 | Need | Primary owner | Notes |

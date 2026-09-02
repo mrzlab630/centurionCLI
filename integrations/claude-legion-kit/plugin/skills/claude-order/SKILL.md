@@ -17,8 +17,8 @@ For an installation created with a custom `--claude-home`, set `CENTURION_CLAUDE
 
 ## Controller Checklist
 
-1. Choose a safe single-component `<orderId>` and create the control namespace:
-   `node "$CENTURION_CLAUDE_KIT/scripts/claude-order-guard.mjs" snapshot --workspace <dir> --order-id <orderId>`
+1. Choose a safe single-component `<orderId>`, set an external snapshot path, and create the control snapshot:
+   `CLAUDE_SNAPSHOT="/tmp/centurion-claude-snapshots/<orderId>/CLAUDE_SNAPSHOT.json"; node "$CENTURION_CLAUDE_KIT/scripts/claude-order-guard.mjs" snapshot --workspace <dir> --order-id <orderId> --out "$CLAUDE_SNAPSHOT"`
 2. Send a `CLAUDE_ORDER v1` containing owner, workspace, order ID, allowed paths, non-goals, forbidden patterns, proof commands, and the namespaced result requirement.
 3. Prefer CLI constraints when using print mode:
    - `--agent <owner-slug>` for one owner.
@@ -27,8 +27,8 @@ For an installation created with a custom `--claude-home`, set `CENTURION_CLAUDE
    - `--allowedTools` and `--disallowedTools` for tool gating.
    - `--strict-mcp-config` with a minimal `--mcp-config` when MCP access is needed.
    - `--json-schema` for pure structured output tasks.
-4. Verify after execution:
-   `node "$CENTURION_CLAUDE_KIT/scripts/claude-order-guard.mjs" verify --workspace <dir> --order-id <orderId> --allowed <paths> --forbidden <patterns>`
+4. Verify after execution, binding the external snapshot and namespaced result:
+   `node "$CENTURION_CLAUDE_KIT/scripts/claude-order-guard.mjs" verify --workspace <dir> --order-id <orderId> --before "$CLAUDE_SNAPSHOT" --allowed <paths> --forbidden <patterns> --result <dir>/.centurion/agents_results/<orderId>/CLAUDE_RESULT.json`
 5. Rerun proof and inspect the diff/artifact directly.
 
 ## Result Contract

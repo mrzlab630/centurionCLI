@@ -23,7 +23,7 @@ Behavior:
 - identify assumptions and validation gates
 - produce a concrete implementation path, not generic advice
 
-## Gemini 3.5 Flash
+## Gemini 3.7 Flash
 
 Use for:
 

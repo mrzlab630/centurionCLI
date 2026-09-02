@@ -72,64 +72,67 @@ def setup_args(parser):
 
 @legion_tool("Mission Control", setup_args)
 def main(args):
+    target = args.target
+    if not target:
+        raise ValueError("Target required")
+
     # Initialize Mission State
     mission_id = args.resume or f"mission_{uuid.uuid4().hex[:8]}"
-    state = MissionState(mission_id)
+    state = MissionState(mission_id, target=target)
     
     LegionIO.log(f"Mission ID: {mission_id}")
     if args.resume:
         LegionIO.log(f"Resuming mission...")
 
-    target = args.target
-    if not target:
-        raise ValueError("Target required")
+    if state.data.get("status") != "complete":
+        state.update_status("running")
 
-    # 1. Recon (Velites)
-    step_recon = state.get_step("recon")
-    if not step_recon or step_recon["status"] != "done":
-        try:
-            # We call recon.py with just the target. It handles --json implicitly via decorator if we passed it?
-            # Actually, run_agent passes args directly. legion_tool adds --json flag.
-            # But run_agent doesn't add --json automatically. Let's rely on standard args.
-            # Wait, our scripts expect arguments.
-            
-            res = run_agent("velites", "recon.py", [target])
-            
-            if res.get("status") == "success":
-                state.update_step("recon", "done", res["data"])
-                LegionIO.log("✅ Recon complete")
-            else:
-                raise RuntimeError(res.get("error"))
-        except Exception as e:
-            state.update_step("recon", "failed", str(e))
-            raise e
-    else:
-        LegionIO.log("⏭️ Skipping Recon (Already done)")
-
-    # 2. Analyze (Haruspex)
-    # Mock logic: check if target is a path
-    if os.path.exists(target):
-        step_analyze = state.get_step("analyze")
-        if not step_analyze or step_analyze["status"] != "done":
+    try:
+        # 1. Recon (Velites)
+        step_recon = state.get_step("recon")
+        if not step_recon or step_recon["status"] != "done":
             try:
-                res = run_agent("haruspex", "scan_code.py", [target])
+                res = run_agent("velites", "recon.py", [target])
                 if res.get("status") == "success":
-                    state.update_step("analyze", "done", res["data"])
-                    LegionIO.log("✅ Analysis complete")
+                    state.update_step("recon", "done", res["data"])
+                    LegionIO.log("✅ Recon complete")
                 else:
                     raise RuntimeError(res.get("error"))
             except Exception as e:
-                state.update_step("analyze", "failed", str(e))
-                raise e
-    else:
-        if not state.get_step("analyze"):
+                state.update_step("recon", "failed", str(e))
+                raise
+        else:
+            LegionIO.log("⏭️ Skipping Recon (Already done)")
+
+        # 2. Analyze (Haruspex)
+        if os.path.exists(target):
+            step_analyze = state.get_step("analyze")
+            if not step_analyze or step_analyze["status"] != "done":
+                try:
+                    res = run_agent("haruspex", "scan_code.py", [target])
+                    if res.get("status") == "success":
+                        state.update_step("analyze", "done", res["data"])
+                        LegionIO.log("✅ Analysis complete")
+                    else:
+                        raise RuntimeError(res.get("error"))
+                except Exception as e:
+                    state.update_step("analyze", "failed", str(e))
+                    raise
+        elif not state.get_step("analyze"):
             state.update_step("analyze", "skipped", "Target is remote URL")
 
-    return {
-        "mission_id": mission_id,
-        "status": "complete",
-        "results": state.data
-    }
+        state.mark_complete()
+        return {
+            "mission_id": mission_id,
+            "status": state.data["status"],
+            "results": state.data
+        }
+    except Exception as exc:
+        try:
+            state.mark_failed(str(exc))
+        except ValueError:
+            pass
+        raise
 
 if __name__ == "__main__":
     main()

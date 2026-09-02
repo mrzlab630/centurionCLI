@@ -15,6 +15,26 @@ metadata:
 
 Use this portable skill for bounded `AGENT_ORDER_JSON_V1` dispatch and result acceptance. It ships the runner, controller-owned Result Gateway, builder, fail-closed monitor, ledger, review ladder, and their offline regressions.
 
+## Hard scope and lifecycle controls
+
+The user order and frozen plan are the scope ceiling. Adding a function,
+behavior, file, test, test class, refactor, dependency, or plan step requires
+explicit direct Boss approval in the current task; executor inference,
+reviewer suggestions, and test failures never grant approval. The objective is
+limited to one initial implementation attempt and at most one
+finding-mapped correction. The correction may touch only the finding-mapped
+behavior and its minimum proof. After the second product attempt, return
+`blocked` and wait for a fresh Boss order/objective rather than widening scope.
+
+Every plan step freezes acceptance criteria, allowed paths, expected artifacts,
+and proof commands before execution. After each step, Aquila/controller checks
+changed paths, artifact identity, proof results, and scope deviation; no next
+step starts until the gate passes. Required proof closes the step and forbids
+speculative continuation. Tests are permitted only for an acceptance
+criterion, focused regression risk, or required risk gate. A failure outside
+the frozen scope is a reported blocker, not authorization to repair that area.
+Scope expansion requires unchanged-byte proof plus a fresh order.
+
 ## Cutover and routing metadata
 
 For orders created at or after `2026-08-03T11:00:42Z`, provide exactly one compact `AQUILA_ROUTING_JSON_V1:` item in `notesForExecutor`. It identifies the objective and attempt; task class; complexity, risk, ambiguity, reversibility, and evidence need; executor, model, and reasoning effort; execution and verification profiles; reviewer; confidence; and reasons. Missing, duplicate, malformed, unknown, or incompatible metadata fails closed before dispatch.

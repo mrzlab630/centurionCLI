@@ -38,10 +38,11 @@ Keep work local to the owner when it involves:
 Use `centurion-legion.agy_delegation_brief` first when the delegation is non-trivial. Supply a fresh safe `orderId`; all controller artifacts belong to that exact order namespace. For implementation work, create a pre-snapshot before calling `agy`:
 
 ```bash
+AGY_SNAPSHOT="/tmp/centurion-agy-snapshots/<orderId>/AGY_SNAPSHOT.json"
 node integrations/antigravity-legion-kit/scripts/agy-order-guard.mjs snapshot \
   --workspace <path> \
   --order-id <orderId> \
-  --out .centurion/agents_results/<orderId>/AGY_SNAPSHOT.json
+  --out "$AGY_SNAPSHOT"
 ```
 
 Then send `agy` a bounded `AGY_ORDER v1` shaped like this:
@@ -121,7 +122,7 @@ Example scope verification:
 node integrations/antigravity-legion-kit/scripts/agy-order-guard.mjs verify \
   --workspace <path> \
   --order-id <orderId> \
-  --before .centurion/agents_results/<orderId>/AGY_SNAPSHOT.json \
+  --before "$AGY_SNAPSHOT" \
   --allowed index.html \
   --result .centurion/agents_results/<orderId>/AGY_RESULT.json \
   --forbidden 'fonts\\.googleapis,font-size\\s*:[^;]*vw,letter-spacing\\s*:'
