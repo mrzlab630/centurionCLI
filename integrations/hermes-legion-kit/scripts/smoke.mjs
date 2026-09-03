@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
@@ -42,6 +43,7 @@ const STALE_ROUTING_SURFACES = [
 ];
 const REQUIRED_SKILLS = [
   { category: 'autonomous-ai-agents', name: 'aquila-team-orchestration' },
+  { category: 'autonomous-ai-agents', name: 'aquila-execution-state' },
   { category: 'autonomous-ai-agents', name: 'agent-contract-runner' },
   { category: 'autonomous-ai-agents', name: 'aquila-harness-audit' },
   { category: 'autonomous-ai-agents', name: 'aquila-executor-eval' },
@@ -79,6 +81,10 @@ function assert(condition, message) {
 
 function readText(file) {
   return fs.readFileSync(file, 'utf8');
+}
+
+function sha256File(file) {
+  return createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 }
 
 function snapshotTree(root) {
@@ -134,6 +140,11 @@ function assertSkill({ category, name }) {
   if (name === 'agent-contract-runner') {
     assert(/^version:\s*0\.4\.0$/m.test(text), `${label} version must be 0.4.0`);
     for (const marker of ['2026-08-03T11:00:42Z', 'AQUILA_ROUTING_JSON_V1', 'V0', 'V1', 'V2', 'V3', 'strict_json.py', 'attempt_ledger.py', 'review_ladder.py', 'agent_result_builder.py', 'internal canonicalization', 'result_gateway.py', 'validate_order', 'routingSha256', 'monitor-delegation.sh', '--start-receipt', 'terminal closure', 'routing intent', 'backup', 'rollback', 'terminal']) {
+      assert(text.includes(marker), `${label} missing marker: ${marker}`);
+    }
+  }
+  if (name === 'aquila-execution-state') {
+    for (const marker of ['AQUILA_EXECUTION_STATE_V1', 'read-only-derived', 'legacy-terminal-compat', 'summaryOmitted', 'default-off', 'execution_state.py', '16 KiB']) {
       assert(text.includes(marker), `${label} missing marker: ${marker}`);
     }
   }
@@ -196,7 +207,7 @@ function runInstallerOverrideDryRun() {
 
 function runPackagedPythonRegressions(scriptRoot) {
   assert(!process.env.PYTHONOPTIMIZE, 'PYTHONOPTIMIZE must be unset so packaged regression assertions cannot be stripped');
-  const scripts = ['regression_review_ladder.py', 'regression_agent_contract_runner.py', 'regression_agent_result_builder.py', 'regression_result_gateway.py'];
+  const scripts = ['regression_review_ladder.py', 'regression_agent_contract_runner.py', 'regression_agent_result_builder.py', 'regression_result_gateway.py', 'regression_execution_state.py'];
   const isolatedEnvironment = {
     ...process.env,
     HOME: path.join(path.dirname(scriptRoot), 'nonexistent-home'),
@@ -240,6 +251,7 @@ process.exit(2);
     const requiredFiles = [
       path.join(tempHome, 'skills', 'autonomous-ai-agents', 'agent-contract-runner', 'SKILL.md'),
       path.join(tempHome, 'skills', 'autonomous-ai-agents', 'agent-contract-runner', 'references', 'agent-result.schema.json'),
+      path.join(tempHome, 'skills', 'autonomous-ai-agents', 'agent-contract-runner', 'references', 'execution-state.schema.json'),
       path.join(tempHome, 'skills', 'autonomous-ai-agents', 'aquila-team-orchestration', 'references', 'review-routing-ladder-and-cost-control.md'),
       path.join(tempHome, 'skills', 'autonomous-ai-agents', 'open-design-producer', 'SKILL.md'),
       path.join(tempHome, 'skills', 'autonomous-ai-agents', 'open-design-producer', 'scripts', 'open-design.mjs'),
@@ -247,9 +259,16 @@ process.exit(2);
       ...['rust-solana-foundations.md', 'security-audit-checklist.md', 'testing-and-release.md', 'sources.md'].map((file) => path.join(tempHome, 'skills', 'software-development', 'solana-program-engineering', 'references', file)),
       path.join(tempHome, 'centurion', 'open-design-bridge.json'),
       path.join(tempHome, 'bin', 'monitor-delegation.sh'),
-      ...['strict_json.py', 'agent_contract_runner.py', 'regression_agent_contract_runner.py', 'agent_result_builder.py', 'regression_agent_result_builder.py', 'result_gateway.py', 'regression_result_gateway.py', 'attempt_ledger.py', 'review_ladder.py', 'regression_review_ladder.py'].map((file) => path.join(scriptRoot, file))
+      ...['strict_json.py', 'agent_contract_runner.py', 'regression_agent_contract_runner.py', 'agent_result_builder.py', 'regression_agent_result_builder.py', 'result_gateway.py', 'regression_result_gateway.py', 'attempt_ledger.py', 'review_ladder.py', 'regression_review_ladder.py', 'execution_state.py', 'regression_execution_state.py'].map((file) => path.join(scriptRoot, file)),
+      path.join(tempHome, 'skills', 'autonomous-ai-agents', 'aquila-execution-state', 'SKILL.md')
     ];
     for (const file of requiredFiles) assert(fs.existsSync(file), `isolated install missing: ${file}`);
+    const executionStateSource = path.join(KIT_ROOT, 'skills', 'autonomous-ai-agents', 'aquila-execution-state', 'SKILL.md');
+    const executionStateInstalled = path.join(tempHome, 'skills', 'autonomous-ai-agents', 'aquila-execution-state', 'SKILL.md');
+    const installedExecutionStateText = readText(executionStateInstalled);
+    assert(installedExecutionStateText.startsWith('---\n'), 'installed aquila-execution-state missing frontmatter');
+    assert(/^name:\s*aquila-execution-state$/m.test(installedExecutionStateText), 'installed aquila-execution-state name mismatch');
+    assert(sha256File(executionStateSource) === sha256File(executionStateInstalled), 'installed aquila-execution-state hash mismatch');
     for (const file of [path.join(tempHome, 'bin', 'monitor-delegation.sh'), path.join(scriptRoot, 'result_gateway.py')]) {
       assert((fs.statSync(file).mode & 0o777) === 0o755, `isolated install executable mode mismatch: ${file}`);
     }
@@ -398,7 +417,7 @@ function assertOverrides() {
 
 function assertPackageVersion() {
   const manifest = JSON.parse(readText(PACKAGE_MANIFEST));
-  assert(manifest.version === '0.7.1', 'package version must be 0.7.1');
+  assert(manifest.version === '0.7.2', 'package version must be 0.7.2');
 }
 
 function main() {

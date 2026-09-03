@@ -1,16 +1,17 @@
 # Hermes Legion Kit
 
-`integrations/hermes-legion-kit` (version 0.7.1) is the versioned source for the local Hermes/Aquila Team Lead pack.
+`integrations/hermes-legion-kit` (version 0.7.2) is the versioned source for the local Hermes/Aquila Team Lead pack.
 
 ## Purpose
 
 Hermes already has the Team Lead identity in `/home/mrz/.hermes/SOUL.md`. This kit keeps the reusable operating procedures outside the always-loaded soul and exposes them through on-demand Hermes skills and lean bundles.
 
-The pack contains five Aquila skills plus the SOLARIUS `solana-program-engineering` skill, the shared Open Design capability, and lean bundles. SOLARIUS remains Aquila-routed and never self-approves implementation, audit findings, or release readiness. It is designed for Aquila managing `codex`, `claude`, `agy`, Hermes `delegate_task`, and Hermes Kanban without losing the one-owner-per-task rule.
+The pack contains six Aquila skills plus the SOLARIUS `solana-program-engineering` skill, the shared Open Design capability, and lean bundles. SOLARIUS remains Aquila-routed and never self-approves implementation, audit findings, or release readiness. It is designed for Aquila managing `codex`, `claude`, `agy`, Hermes `delegate_task`, and Hermes Kanban without losing the one-owner-per-task rule.
 
 ## Installed Surface
 
 - `aquila-team-orchestration`: routing, one owner per task, merge gates, result artifacts, proof acceptance.
+- `aquila-execution-state`: opt-in, read-only `AQUILA_EXECUTION_STATE_V1` projection with strict scope, revision, provenance, and bounded evidence references.
 - `agent-contract-runner`: portable contract validation, shared strict JSON semantics, V0-V3 review routing, append-only attempt-ledger handling, controller-owned Result Gateway, internal canonical result builder, and offline regressions.
 - `agent-contract-runner/scripts/strict_json.py`: duplicate-key and non-finite rejection for packaged Python orders, results, schemas, ledger rows, loop state, and routing metadata.
 - `agent-contract-runner/scripts/result_gateway.py`: mandatory direct Codex/Claude launch and candidate-finalization boundary.
@@ -115,7 +116,7 @@ Apply optional skill overrides explicitly:
 node ./installer/install.mjs --include-overrides
 ```
 
-The default installer writes the five Aquila skills under `$HERMES_HOME/skills/autonomous-ai-agents`, SOLARIUS under `$HERMES_HOME/skills/software-development`, and the lean bundles under `$HERMES_HOME/skill-bundles`; it also copies the canonical Open Design skill to `$HERMES_HOME/skills/autonomous-ai-agents/open-design-producer`, writes its bridge discovery config under `$HERMES_HOME/centurion`, registers only the local `centurion-open-design` MCP through `hermes mcp add`, and writes the packaged monitor to `$HERMES_HOME/bin/monitor-delegation.sh`. It does not edit `SOUL.md`, plugins, hooks, or unrelated MCP entries. `--include-overrides` can additionally update reviewed builtin skill overrides. Installation stages every owned target, snapshots the Hermes MCP config, swaps only after staging succeeds, and restores every touched target when registration fails. Keep an external backup for operator recovery before changing a live home. The reviewed `SOUL_RUNTIME_MODEL_RULE.md` and `SOUL_CLAUDE_ROLE_RULE.md` notes are manual and reviewable; neither is automatically applied by the installer.
+The default installer writes the six Aquila skills under `$HERMES_HOME/skills/autonomous-ai-agents`, SOLARIUS under `$HERMES_HOME/skills/software-development`, and the lean bundles under `$HERMES_HOME/skill-bundles`; it also copies the canonical Open Design skill to `$HERMES_HOME/skills/autonomous-ai-agents/open-design-producer`, writes its bridge discovery config under `$HERMES_HOME/centurion`, registers only the local `centurion-open-design` MCP through `hermes mcp add`, and writes the packaged monitor to `$HERMES_HOME/bin/monitor-delegation.sh`. It does not edit `SOUL.md`, plugins, hooks, or unrelated MCP entries. `--include-overrides` can additionally update reviewed builtin skill overrides. Installation stages every owned target, snapshots the Hermes MCP config, swaps only after staging succeeds, and restores every touched target when registration fails. Keep an external backup for operator recovery before changing a live home. The reviewed `SOUL_RUNTIME_MODEL_RULE.md` and `SOUL_CLAUDE_ROLE_RULE.md` notes are manual and reviewable; neither is automatically applied by the installer.
 
 For production, Aquila calls `search_design_references`, chooses references with
 AEDILIS/PICTOR, starts the design, and polls until terminal. A result can then be
@@ -147,6 +148,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 regression_review_ladder.py
 PYTHONDONTWRITEBYTECODE=1 python3 regression_agent_contract_runner.py
 PYTHONDONTWRITEBYTECODE=1 python3 regression_agent_result_builder.py
 PYTHONDONTWRITEBYTECODE=1 python3 regression_result_gateway.py
+PYTHONDONTWRITEBYTECODE=1 python3 regression_execution_state.py
 ```
 
 Live Hermes proof after install:
