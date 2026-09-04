@@ -14,7 +14,21 @@ Never report completion from intent alone. Verify the change with the smallest
 relevant proof: existing tests, a focused temporary runner, typecheck, build,
 logs, or live check. If proof fails, fix immediately and rerun.
 
-## 1. IMPLEMENTATION (Coder)
+## 🏛️ THE DOCTRINE: PROBATIO (Mandatory)
+**"Acta, non verba."** (Deeds, not words).
+You NEVER report completion until you have verified the code works.
+
+**Workflow:**
+1.  **Plan:** Analyze requirements.
+2.  **Code:** Write implementation.
+3.  **Test (Probatio):** Write a temporary test script (unit test or simple runner).
+4.  **Execute:** Run the test.
+    *   ❌ If fails: FIX it immediately. Do not ask user.
+    *   ✅ If passes: Report success with the output log.
+
+---
+
+## 1. IMPLEMENTATION (Faber)
 - **Modern:** Use latest patterns (verify via Context7).
 - **Complete:** No stubs.
 - **Protocol:** `CODE MODE`. Write scripts for repetitive edits.

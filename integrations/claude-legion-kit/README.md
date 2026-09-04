@@ -2,9 +2,11 @@
 
 Portable CENTURION integration for Claude Code CLI.
 
-This kit installs a Claude Code plugin with one CENTURION entry skill, 37 Legionary subagents generated from the canonical repository skill surface, and a `CLAUDE_ORDER v1` guard for bounded implementation work.
+Current kit version: `0.4.1`.
 
-`CLAUDE_RESULT.json` is also checked through the shared Legion result-contract validator as a legacy `CLAUDE_ORDER_V1` payload. The shared contract lives in `../legion-contracts`; it standardizes result shape while `claude-order-guard.mjs` still owns snapshot, changed-file, and forbidden-pattern enforcement.
+This kit installs a Claude Code plugin with one CENTURION entry skill, 37 Legionary subagents, the shared `open-design-producer` capability, and a `CLAUDE_ORDER v1` guard for bounded implementation work.
+
+The namespaced `CLAUDE_RESULT.json` uses canonical `AGENT_RESULT_JSON_V1` by default and is checked by the kit-local standalone validator. The guard owns snapshot, changed-file, and forbidden-pattern enforcement; no sibling kit is required at runtime.
 
 ## Observed Local Baseline
 
@@ -22,11 +24,17 @@ This kit installs a Claude Code plugin with one CENTURION entry skill, 37 Legion
 
 Secrets were not copied into this kit. The installer does not edit `~/.claude/settings.json`, `~/.claude/settings.local.json`, or `~/.claude.json`.
 
+The installer writes `~/.claude/centurion/open-design-bridge.json` with the
+absolute repository bridge path. Plugin and skill trees are staged and validated
+before atomic replacement; a failed validation leaves the previous trees intact.
+The skill wrapper uses that file without changing Claude permissions.
+
 ## What It Installs
 
 - `plugin/.claude-plugin/plugin.json`: Claude Code plugin manifest.
 - `plugin/SKILL.md`: CENTURION entrypoint skill for routing and proof discipline.
 - `plugin/agents/*.md`: 37 Claude Code subagents, one per Legionary owner.
+- `skills/open-design-producer`: shared JSON-driven Open Design production with verified HTML and Chrome screenshot paths; no additional owner is created.
 - `plugin/skills/claude-order/SKILL.md`: `CLAUDE_ORDER v1` protocol.
 - `plugin/output-styles/centurion-legion.md`: proof-first output style for plugin sessions.
 - `scripts/claude-order-guard.mjs`: snapshot and verify guard for bounded Claude execution.
@@ -60,12 +68,12 @@ node ./installer/install.mjs --no-skill-sync
 
 ## CLAUDE_ORDER v1
 
-Use `CLAUDE_ORDER v1` when Claude Code is delegated a bounded implementation slice.
+Use `CLAUDE_ORDER v1` when Claude Code is delegated a bounded implementation slice. Its default result contract is canonical `AGENT_RESULT_JSON_V1` with `executor="claude"` and the exact controller `orderId`.
 
 ```bash
 node integrations/claude-legion-kit/scripts/claude-order-guard.mjs snapshot \
   --workspace <dir> \
-  --out /tmp/claude-before.json
+  --order-id <orderId>
 ```
 
 Then run Claude with the smallest practical tool surface. On this workstation, print-mode live tests should use the local Claude proxy environment instead of the OAuth login path:
@@ -87,7 +95,7 @@ claude -p \
   < /tmp/claude-order-prompt.txt
 ```
 
-Include `Write` whenever the order requires `CLAUDE_RESULT.json` or any newly created file. If the tool surface omits `Write`, Claude may edit existing files but fail to produce the required result artifact.
+Include `Write` whenever the order requires `<workspace>/.centurion/agents_results/<orderId>/CLAUDE_RESULT.json` or any newly created file. If the tool surface omits `Write`, Claude may edit existing files but fail to produce the required result artifact.
 
 For planning-only work:
 
@@ -104,15 +112,18 @@ Verify before accepting:
 ```bash
 node integrations/claude-legion-kit/scripts/claude-order-guard.mjs verify \
   --workspace <dir> \
-  --before /tmp/claude-before.json \
+  --order-id <orderId> \
   --allowed <paths> \
-  --result CLAUDE_RESULT.json \
   --forbidden <patterns>
 ```
 
+By default the guard reads and writes only `<workspace>/.centurion/agents_results/<orderId>/CLAUDE_SNAPSHOT.json` and `<workspace>/.centurion/agents_results/<orderId>/CLAUDE_RESULT.json`. Use `--before`, `--out`, or `--result` only for another file below that exact namespace; product files stay in their declared paths.
+
+Canonical `filesChanged` entries are `{ "path": "...", "action": "..." }` objects and list only actual product-file changes; snapshot and result control artifacts are excluded from that comparison. The previous `CLAUDE_ORDER_V1` result shape is compatibility-only and is accepted only when verify is invoked with `--allow-legacy`.
+
 Never accept Claude stdout, narration, or confidence alone. Accept only after guard verification, owner proof, and direct diff or artifact inspection.
 
-Live proxy testing showed that short bounded orders can pass end to end, while longer print-mode orders may edit files and then hit the controller timeout before clean stdout. Treat timeout, missing result files, `proof` values other than `passed`, or partial artifacts as rejection conditions. Retry with a smaller order instead of accepting partial work.
+Live proxy testing showed that short bounded orders can pass end to end, while longer print-mode orders may edit files and then hit the controller timeout before clean stdout. Treat timeout, missing result files, canonical `proof[].status` values other than `pass`, or partial artifacts as rejection conditions. Retry with a smaller order instead of accepting partial work.
 
 ## Surface Audit
 
@@ -122,7 +133,7 @@ Run the Claude surface audit after changing Legion skills, plugin agents, instal
 npm run audit:surface
 ```
 
-The audit verifies that every canonical Legion skill has exactly one Claude plugin agent, every agent points back to its canonical source, one-owner and handoff guardrails are present, routing evals cover all 37 Legionaries, high-overlap role descriptions are absent, the installed `~/.claude/skills/centurion-legion` tree matches the repository plugin, standalone installed Legion skills match the canonical repository skills, and Claude reports the plugin as loaded.
+The audit verifies 37 Legionary owners and agents separately from the shared Open Design capability, checks every agent's canonical source, enforces one-owner and handoff guardrails, covers all 37 Legionaries in routing evals, checks installed skill/config drift, and validates the loaded plugin.
 
 For repository-only validation, use:
 
@@ -170,4 +181,4 @@ npm run audit:surface
 npm run smoke
 ```
 
-The smoke check validates the plugin manifest, root skill, `claude-order` skill, output style, 37 generated subagents, canonical skill surface, installer dry target, `CLAUDE_ORDER v1` guard pass/fail behavior, shared Legion result-contract compatibility, external skill scanner behavior, and frontend sweep planner ownership.
+The smoke check validates the plugin manifest, root skill, `claude-order` skill, output style, 37 generated subagents, 38 canonical skills including the shared Open Design capability, installer config, canonical-default and explicit legacy guard behavior, installed standalone guard bytes/execution, external skill scanner behavior, and frontend sweep planner ownership.

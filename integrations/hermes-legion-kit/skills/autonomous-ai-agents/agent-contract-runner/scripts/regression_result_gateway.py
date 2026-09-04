@@ -17,6 +17,8 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from agent_artifact_namespace import ArtifactNamespaceError, artifact_namespace
+
 
 SCRIPT_ROOT = Path(__file__).resolve().parent
 GATEWAY = SCRIPT_ROOT / "result_gateway.py"
@@ -251,25 +253,27 @@ def make_case(
 ) -> dict[str, Path | dict[str, str]]:
     case = ROOT / name
     case.mkdir(parents=True)
-    candidate = case / "candidate.json"
-    result = case / "result.json"
-    start_receipt = case / "start.json"
-    closure = case / "closure.json"
-    evidence = case / "evidence"
-    events = case / "events.jsonl"
-    stdout = case / "stdout.log"
-    stderr = case / "stderr.log"
+    order_id = f"gateway-{name}"
+    control_dir = artifact_namespace(ROOT, order_id)
+    control_dir.mkdir(parents=True, exist_ok=True)
+    candidate = control_dir / "candidate.json"
+    result = control_dir / "result.json"
+    start_receipt = control_dir / "start.json"
+    closure = control_dir / "closure.json"
+    evidence = control_dir / "evidence"
+    events = control_dir / "events.jsonl"
+    stdout = control_dir / "stdout.log"
+    stderr = control_dir / "stderr.log"
     if bad_stdout_parent:
-        blocker = case / "not-a-directory"
+        blocker = control_dir / "not-a-directory"
         blocker.write_text("blocker\n", encoding="utf-8")
         stdout = blocker / "stdout.log"
     if separate_stdout_parent:
-        capture = case / "capture"
+        capture = control_dir / "capture"
         capture.mkdir()
         stdout = capture / "stdout.log"
     evidence.mkdir()
     side_effect_path = case / "side-effect.txt" if side_effect else Path("NONE")
-    order_id = f"gateway-{name}"
     command = [executor, mode, str(candidate), order_id, executor, status, str(side_effect_path), str(sleep_seconds), str(exit_code)]
     order = {
         "orderVersion": "AGENT_ORDER_JSON_V1",
@@ -453,6 +457,49 @@ def main() -> int:
         return 1
     install_fake_executors()
 
+    root_noise_cases = {
+        "candidate": "AGENT_RESULT.json",
+        "result": "GRID_REMOVAL_RESULT.json",
+        "stdout": "CLAUDE_AUTH_REVIEW.stdout.json",
+        "stderr": "CLAUDE_AUTH_REVIEW.stderr.log",
+        "start_receipt": "launcher-start.json",
+        "closure": "launcher-closure.json",
+        "evidence": "gateway-evidence",
+        "events": "result-gateway.events.jsonl",
+    }
+    for key, filename in root_noise_cases.items():
+        case = make_case(f"root-noise-{key}", "valid")
+        root_path = ROOT / filename
+        if key in {"result", "stdout", "stderr"}:
+            order = read_json(Path(case["order"]))
+            if key == "result":
+                order["launch"]["resultJsonPath"] = str(root_path)
+                order["outputContract"]["resultPath"] = str(root_path)
+            else:
+                order["launch"][f"{key}Path"] = str(root_path)
+            write_json(Path(case["order"]), order)
+        else:
+            case[key] = root_path
+        before = launch_count()
+        completed = run_gateway(case)
+        assert completed.returncode != 0
+        assert launch_count() == before
+        assert "expected control artifact namespace" in completed.stderr
+        assert not root_path.exists()
+        for control_key in ("candidate", "result", "start_receipt", "closure", "stdout", "stderr", "events"):
+            if control_key != key or key in {"result", "stdout", "stderr"}:
+                assert not Path(case[control_key]).exists()
+    print("PASS gateway rejects root-level control names before child launch or partial custody artifacts")
+
+    product_case = make_case("product-artifact-outside-control-namespace", "valid", side_effect=True)
+    product_order = read_json(Path(product_case["order"]))
+    product_path = Path(product_case["side_effect"])
+    assert product_path.parent == Path(product_case["case"])
+    completed = run_gateway(product_case)
+    assert completed.returncode == 0, completed.stderr or completed.stdout
+    assert product_path.exists(), "explicit product artifact must remain outside control namespace"
+    print("PASS explicitly declared product artifact paths remain outside the control namespace")
+
     missing = make_case("exit-zero-missing", "missing")
     completed = run_gateway(missing)
     assert completed.returncode != 0
@@ -493,7 +540,7 @@ def main() -> int:
         completed = run_gateway(case)
         assert completed.returncode != 0
         assert load_valid_result(case["result"])["status"] == status
-        assert Path(case["candidate"]).read_bytes() == Path(case["case"], "stdout.log").read_bytes()
+        assert Path(case["candidate"]).read_bytes() == Path(case["stdout"]).read_bytes()
         closure = json.loads(Path(case["closure"]).read_text(encoding="utf-8"))
         assert closure["candidate"]["source"] == "stdout"
         assert closure["candidate"]["sha256"] == closure["stdout"]["sha256"]
@@ -682,17 +729,17 @@ def main() -> int:
     print("PASS every create-only candidate, stream, result, start, and closure path collision rejects before launch")
 
     missing_parent = make_case("missing-output-parent", "valid")
-    missing_parent["candidate"] = Path(missing_parent["case"]) / "missing-parent" / "candidate.json"
+    missing_parent["candidate"] = Path(missing_parent["candidate"]).parent / "missing-parent" / "candidate.json"
     assert "does not exist" in assert_preflight_rejection(missing_parent).stderr
 
     nondirectory_parent = make_case("nondirectory-output-parent", "valid")
-    blocker = Path(nondirectory_parent["case"]) / "parent-blocker"
+    blocker = Path(nondirectory_parent["candidate"]).parent / "parent-blocker"
     blocker.write_text("blocker\n", encoding="utf-8")
     nondirectory_parent["candidate"] = blocker / "candidate.json"
     assert "not a directory" in assert_preflight_rejection(nondirectory_parent).stderr
 
     unwritable_parent = make_case("unwritable-output-parent", "valid")
-    locked = Path(unwritable_parent["case"]) / "locked"
+    locked = Path(unwritable_parent["candidate"]).parent / "locked"
     locked.mkdir()
     locked.chmod(0o500)
     unwritable_parent["candidate"] = locked / "candidate.json"
@@ -716,8 +763,8 @@ def main() -> int:
     assert "not writable" in completed.stderr
 
     symlink_alias = make_case("symlink-alias", "valid")
-    alias_root = Path(symlink_alias["case"]) / "alias-root"
-    alias_root.symlink_to(Path(symlink_alias["case"]), target_is_directory=True)
+    alias_root = Path(symlink_alias["candidate"]).parent / "alias-root"
+    alias_root.symlink_to(Path(symlink_alias["candidate"]).parent, target_is_directory=True)
     symlink_alias["candidate"] = alias_root / "result.json"
     assert "must be distinct" in assert_preflight_rejection(symlink_alias).stderr
 

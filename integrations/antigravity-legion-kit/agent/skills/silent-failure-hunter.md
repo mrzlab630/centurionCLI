@@ -26,4 +26,3 @@ For each finding, report:
 - issue
 - impact
 - concrete fix
-

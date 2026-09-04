@@ -8,9 +8,7 @@
     "deep-search": "node scripts/deep-search.js"
   },
   "dependencies": {
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "puppeteer": "^22.0.0"
+    "playwright-core": "^1.55.0"
   },
   "author": "Centurion",
   "license": "ISC"

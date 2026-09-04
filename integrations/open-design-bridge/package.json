@@ -1,0 +1,23 @@
+{
+  "name": "centurion-open-design-bridge",
+  "version": "0.2.1",
+  "private": true,
+  "description": "Proof-first JSON orchestration bridge from CENTURION to Open Design.",
+  "type": "module",
+  "bin": {
+    "centurion-design": "./bin/centurion-design.mjs",
+    "centurion-reference": "./bin/centurion-reference.mjs",
+    "centurion-open-design-mcp": "./mcp-server/index.mjs"
+  },
+  "scripts": {
+    "test": "node --test ./tests/*.test.mjs",
+    "smoke": "node ./scripts/smoke.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "playwright-core": "^1.55.0"
+  },
+  "license": "UNLICENSED"
+}

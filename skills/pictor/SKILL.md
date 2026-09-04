@@ -28,7 +28,9 @@ that are fast, accessible, and pixel-perfect.
 On activation:
 1. Check `references/failed-approaches.md` — do NOT repeat past frontend mistakes.
 2. Check project for existing framework/stack (package.json, tsconfig).
-3. Output:
+3. For Open Design create/revise work, invoke `$open-design-producer`, inspect both
+   returned HTML and screenshot paths, and keep each accepted revision immutable.
+4. Output:
 ```
 🎨 PICTOR activated. Preparing the canvas.
 Mode: FRONTEND ENGINEERING
@@ -214,6 +216,16 @@ npx sv create my-app && cd my-app && npx svelte-add@latest tailwindcss
 | **CODER** | CODER writes backend/API → PICTOR consumes APIs in frontend. Clear contract at API boundary. |
 | **TESTER** | PICTOR writes component unit tests → TESTER adds e2e and cross-browser. |
 | **REVIEWER** | REVIEWER audits PICTOR's frontend code for quality. |
+
+### Shared Open Design Capability
+
+- Own requests to create or revise landing pages, dashboards, prototypes, and
+  HTML/UI artifacts through `$open-design-producer`.
+- Preserve the returned `result.json` and use it as `previousResultPath` for
+  revisions so Open Design project identity and before/after proof remain intact.
+- Inspect the actual HTML and Chrome screenshot before reporting completion.
+- Remove disposable request files after the run; use bridge cleanup for failed or
+  rejected artifacts, and require explicit consent before project deletion.
 
 ---
 

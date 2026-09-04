@@ -10,4 +10,3 @@ description: Review Prisma/PostgreSQL schema, migrations, queries, indexes, and 
 4. Check PostgreSQL behavior: indexes, constraints, FK indexing, pagination, status/time filters, soft-delete filters.
 5. Run repo-specific validation: migration status, Prisma generate/validate, typecheck/tests.
 6. Report findings first, then commands and residual risk.
-

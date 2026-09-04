@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -7,6 +8,7 @@ import { spawn, spawnSync } from 'node:child_process';
 
 const KIT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const REPORT = process.argv.includes('--report');
+const CONTRACT_ONLY = process.argv.includes('--contract-only');
 const REQUIRED_RULES = ['00-centurion-base.md', '05-single-owner-routing.md', '10-antigravity-model-routing.md', '70-external-skill-safety.md'];
 const REQUIRED_WORKFLOWS = ['war-room.md', 'quality-gate.md', 'external-skill-audit.md', 'skill-migrator.md', 'frontend-landing-igaming.md', 'frontend-reference-search.md', 'content-copy-system.md', 'agy-delegation.md'];
 const REQUIRED_SKILLS = ['product-language-copy.md'];
@@ -276,57 +278,288 @@ function smokeInstaller() {
 
 function smokeAgyOrderGuard() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-order-guard-'));
+  const symlinkTarget = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-order-guard-symlink-'));
+  const orderId = 'smoke-agy-order-20260825';
+  const snapshotPath = path.join(os.tmpdir(), `${orderId}-snapshot.json`);
+  const snapshotRelative = `.centurion/agents_results/${orderId}/AGY_SNAPSHOT.json`;
+  const resultRelative = `.centurion/agents_results/${orderId}/AGY_RESULT.json`;
+  const productArtifact = 'product/report.html';
   try {
     fs.writeFileSync(path.join(tempRoot, 'index.html'), '<main>before</main>\n');
     fs.writeFileSync(path.join(tempRoot, 'package.json'), '{"type":"module"}\n');
-    const snapshot = path.join(os.tmpdir(), `agy-order-guard-before-${process.pid}-${Date.now()}.json`);
     const guard = path.join(KIT_ROOT, 'scripts', 'agy-order-guard.mjs');
-    const snap = spawnSync(process.execPath, [guard, 'snapshot', '--workspace', tempRoot, '--out', snapshot], { encoding: 'utf8' });
-    assert(snap.status === 0, `agy-order-guard snapshot failed: ${snap.stderr || snap.stdout}`);
-    fs.writeFileSync(path.join(tempRoot, 'index.html'), '<main>after</main>\n');
-    fs.writeFileSync(path.join(tempRoot, 'AGY_RESULT.json'), JSON.stringify({
+    const verifyArgs = ['verify', '--workspace', tempRoot, '--order-id', orderId, '--before', snapshotPath, '--allowed', `index.html,${productArtifact}`, '--result', resultRelative];
+    const verify = (...extra) => spawnSync(process.execPath, [guard, ...verifyArgs, ...extra], { encoding: 'utf8' });
+    const writeResult = (result) => fs.writeFileSync(path.join(tempRoot, resultRelative), `${JSON.stringify(result, null, 2)}\n`);
+    const canonical = (overrides = {}) => ({
+      resultVersion: 'AGENT_RESULT_JSON_V1',
+      orderId,
+      executor: 'agy',
+      status: 'done',
+      summary: 'Canonical AGY smoke result.',
+      filesChanged: [
+        { path: 'index.html', action: 'modified' },
+        { path: productArtifact, action: 'added' }
+      ],
+      artifacts: [{ path: productArtifact, exists: true, type: 'html', note: 'Product artifact stays outside the controller namespace.' }],
+      proof: [{ command: 'synthetic smoke', cwd: tempRoot, status: 'pass', exitCode: 0, summary: 'passed' }],
+      selfReview: { performed: true, findings: [], fixesApplied: [] },
+      scopeDeviations: [],
+      forbiddenPatternHits: [],
+      remainingRisks: [],
+      questions: [],
+      errors: [],
+      stdoutSummary: '',
+      stderrSummary: '',
+      ...overrides
+    });
+    const legacy = {
       orderVersion: 'AGY_ORDER_V1',
       owner: 'PICTOR',
       status: 'done',
-      filesChanged: ['index.html'],
-      proof: [{ command: 'node --check noop', result: 'passed', summary: 'synthetic smoke' }],
+      filesChanged: ['index.html', productArtifact],
+      proof: [{ command: 'synthetic smoke', result: 'passed', summary: 'passed' }],
       selfReviewFixed: 'yes',
       scopeViolations: [],
       forbiddenPatternHits: [],
       remainingRisks: []
-    }, null, 2));
-    const ok = spawnSync(process.execPath, [guard, 'verify', '--workspace', tempRoot, '--before', snapshot, '--allowed', 'index.html,AGY_RESULT.json', '--result', 'AGY_RESULT.json', '--forbidden', 'fonts\\.googleapis,font-size\\s*:[^;]*vw'], { encoding: 'utf8' });
-    assert(ok.status === 0, `agy-order-guard verify should pass: ${ok.stderr || ok.stdout}`);
+    };
+
+    const snap = spawnSync(process.execPath, [guard, 'snapshot', '--workspace', tempRoot, '--order-id', orderId, '--out', snapshotPath], { encoding: 'utf8' });
+    assert(snap.status === 0, `agy-order-guard snapshot failed: ${snap.stderr || snap.stdout}`);
+    assert(fs.existsSync(snapshotPath), 'namespaced AGY snapshot was not created');
+    const originalSnapshot = fs.readFileSync(snapshotPath);
+    const originalDigest = fs.readFileSync(`${snapshotPath}.sha256`);
+    const repeatedSnapshot = spawnSync(process.execPath, [guard, 'snapshot', '--workspace', tempRoot, '--order-id', orderId, '--out', snapshotPath], { encoding: 'utf8' });
+    assert(repeatedSnapshot.status !== 0, 'repeated AGY snapshot must fail');
+    assert(fs.readFileSync(snapshotPath).equals(originalSnapshot), 'repeated AGY snapshot must preserve the original bytes');
+    assert(fs.readFileSync(`${snapshotPath}.sha256`).equals(originalDigest), 'repeated AGY snapshot must preserve custody digest');
+    fs.writeFileSync(path.join(tempRoot, 'index.html'), '<main>after</main>\n');
+    fs.mkdirSync(path.join(tempRoot, 'product'), { recursive: true });
+    fs.writeFileSync(path.join(tempRoot, productArtifact), '<main>product artifact</main>\n');
+    fs.mkdirSync(path.dirname(path.join(tempRoot, resultRelative)), { recursive: true });
+
+    writeResult(canonical());
+    const ok = verify('--forbidden', 'fonts\\.googleapis,font-size\\s*:[^;]*vw');
+    assert(ok.status === 0, `canonical AGY result should pass by default: ${ok.stderr || ok.stdout}`);
+
+    writeResult(legacy);
+    const legacyDefault = verify();
+    assert(legacyDefault.status !== 0, 'legacy AGY_ORDER_V1 result must fail without --allow-legacy');
+    assert((legacyDefault.stdout || '').includes('result.resultVersion'), 'default legacy rejection should identify the missing canonical result version');
+    const legacyAllowed = verify('--allow-legacy');
+    assert(legacyAllowed.status === 0, `legacy result should pass only with --allow-legacy: ${legacyAllowed.stderr || legacyAllowed.stdout}`);
+
+    writeResult({ ...canonical(), orderVersion: 'AGY_ORDER_V1' });
+    const hybrid = verify();
+    assert(hybrid.status !== 0 && (hybrid.stdout || '').includes('legacy fields'), 'canonical/legacy hybrid result must fail in default mode');
+    writeResult(canonical({ orderId: 'smoke-agy-wrong-order-20260825' }));
+    const wrongOrder = verify();
+    assert(wrongOrder.status !== 0 && (wrongOrder.stdout || '').includes('orderId'), 'wrong canonical orderId must fail');
+    writeResult(canonical({ executor: 'codex' }));
+    const wrongExecutor = verify();
+    assert(wrongExecutor.status !== 0 && (wrongExecutor.stdout || '').includes('executor'), 'wrong canonical executor must fail');
+    writeResult(canonical({ filesChanged: ['index.html'], selfReview: [] }));
+    const malformedNested = verify();
+    assert(malformedNested.status !== 0, 'malformed canonical nested shapes must fail');
+    assert((malformedNested.stdout || '').includes('filesChanged[0]') && (malformedNested.stdout || '').includes('selfReview'), 'nested-shape rejection should report filesChanged and selfReview');
+    writeResult(canonical({ selfReview: { performed: false, findings: [], fixesApplied: [] } }));
+    const missingSelfReview = verify();
+    assert(missingSelfReview.status !== 0 && (missingSelfReview.stdout || '').includes('selfReview.performed=true'), 'done canonical result must report performed self-review');
+    writeResult(canonical({ scopeDeviations: ['outside scope'] }));
+    const reportedScopeDeviation = verify();
+    assert(reportedScopeDeviation.status !== 0 && (reportedScopeDeviation.stdout || '').includes('scope deviations'), 'reported canonical scope deviations must block done acceptance');
+    writeResult(canonical({ forbiddenPatternHits: ['forbidden'] }));
+    const reportedForbiddenHit = verify();
+    assert(reportedForbiddenHit.status !== 0 && (reportedForbiddenHit.stdout || '').includes('forbidden'), 'reported canonical forbidden hits must block done acceptance');
+    writeResult(canonical({ proof: [] }));
+    const emptyProof = verify();
+    assert(emptyProof.status !== 0 && (emptyProof.stdout || '').includes('at least one proof'), 'done canonical result with empty proof must fail');
+    writeResult(canonical({ proof: [{ command: 'synthetic smoke', cwd: tempRoot, status: 'fail', exitCode: 1, summary: 'failed' }] }));
+    const failedProof = verify();
+    assert(failedProof.status !== 0 && (failedProof.stdout || '').includes('every proof[].status'), 'done canonical result with failed proof must fail');
+    writeResult(canonical({ filesChanged: [{ path: 'index.html', action: 'modified' }] }));
+    const underReported = verify();
+    assert(underReported.status !== 0 && (underReported.stdout || '').includes('filesChanged[].path mismatch'), 'canonical filesChanged under-reporting must fail');
+    writeResult(canonical({ filesChanged: [...canonical().filesChanged, { path: 'product/absent.html', action: 'added' }] }));
+    const overReported = verify();
+    assert(overReported.status !== 0 && (overReported.stdout || '').includes('filesChanged[].path mismatch'), 'canonical filesChanged over-reporting must fail');
+
+    writeResult(canonical());
+    fs.writeFileSync(path.join(tempRoot, 'AGY_RESULT.json'), '{ malformed legacy root result');
+    const legacyRoot = spawnSync(process.execPath, [guard, 'verify', '--workspace', tempRoot, '--order-id', orderId, '--before', snapshotRelative, '--allowed', 'index.html', '--result', 'AGY_RESULT.json'], { encoding: 'utf8' });
+    assert(legacyRoot.status !== 0, 'agy-order-guard must reject a legacy root result path');
+    assert((legacyRoot.stderr || '').includes('result path must be namespaced'), 'root result rejection should happen before result parsing');
+    assert(fs.existsSync(path.join(tempRoot, 'AGY_RESULT.json')), 'legacy root result should remain untouched by guard');
+    fs.rmSync(path.join(tempRoot, 'AGY_RESULT.json'), { force: true });
+    const traversalResult = `.centurion/agents_results/${orderId}/../${orderId}/AGY_RESULT.json`;
+    const traversal = spawnSync(process.execPath, [guard, ...verifyArgs.slice(0, -1), traversalResult], { encoding: 'utf8' });
+    assert(traversal.status !== 0 && (traversal.stderr || '').includes("'..'"), 'control-artifact traversal must fail before result access');
+    const unsafeId = spawnSync(process.execPath, [guard, 'snapshot', '--workspace', tempRoot, '--order-id', '../unsafe-order', '--out', snapshotPath], { encoding: 'utf8' });
+    assert(unsafeId.status !== 0 && (unsafeId.stderr || '').includes('unsafe'), 'unsafe orderId must fail');
+    const inWorkspaceSnapshot = spawnSync(process.execPath, [guard, 'verify', '--workspace', tempRoot, '--order-id', orderId, '--before', `.centurion/agents_results/${orderId}/AGY_SNAPSHOT.json`, '--allowed', 'index.html', '--result', resultRelative], { encoding: 'utf8' });
+    assert(inWorkspaceSnapshot.status !== 0 && (inWorkspaceSnapshot.stderr || '').includes('outside the workspace'), 'in-workspace snapshot custody path must fail');
+
+    fs.writeFileSync(snapshotPath, Buffer.from('{"tampered":true}\n'));
+    const tampered = verify();
+    assert(tampered.status !== 0 && (tampered.stderr || '').includes('raw snapshot evidence'), 'tampered snapshot must be rejected with raw evidence');
+    const rejectedEvidence = fs.readdirSync(path.dirname(snapshotPath)).find((name) => name.endsWith('.rejected.bin'));
+    assert(rejectedEvidence && fs.readFileSync(path.join(path.dirname(snapshotPath), rejectedEvidence)).equals(Buffer.from('{"tampered":true}\n')), 'tampered snapshot raw bytes must be preserved');
+    fs.writeFileSync(snapshotPath, originalSnapshot);
+    fs.writeFileSync(`${snapshotPath}.sha256`, originalDigest);
+
+    const parseRejectedBytes = Buffer.from('{ invalid snapshot json\n');
+    fs.writeFileSync(snapshotPath, parseRejectedBytes);
+    fs.writeFileSync(`${snapshotPath}.sha256`, `${crypto.createHash('sha256').update(parseRejectedBytes).digest('hex')}\n`);
+    const parseRejected = verify();
+    assert(parseRejected.status !== 0 && (parseRejected.stderr || '').includes('raw snapshot evidence'), 'AGY invalid JSON snapshot must preserve raw evidence after digest verification');
+    const parseEvidence = fs.readdirSync(path.dirname(snapshotPath)).find((name) => name.endsWith('.rejected.bin') && fs.readFileSync(path.join(path.dirname(snapshotPath), name)).equals(parseRejectedBytes));
+    assert(parseEvidence, 'AGY invalid JSON snapshot evidence must preserve exact raw bytes');
+
+    fs.writeFileSync(snapshotPath, originalSnapshot);
+    const invalidDigestBytes = Buffer.from('invalid digest content\n');
+    fs.writeFileSync(`${snapshotPath}.sha256`, invalidDigestBytes);
+    const invalidDigest = verify();
+    assert(invalidDigest.status !== 0 && (invalidDigest.stderr || '').includes('digest') && (invalidDigest.stderr || '').includes('raw snapshot evidence'), 'AGY invalid digest content must be rejected with raw snapshot evidence');
+    const invalidDigestEvidence = fs.readdirSync(path.dirname(snapshotPath)).find((name) => name.endsWith('.rejected.bin') && fs.readFileSync(path.join(path.dirname(snapshotPath), name)).equals(originalSnapshot));
+    assert(invalidDigestEvidence, 'AGY invalid digest evidence must preserve exact raw snapshot bytes');
+
+    fs.writeFileSync(snapshotPath, originalSnapshot);
+    fs.rmSync(`${snapshotPath}.sha256`, { force: true });
+    const missingDigest = verify();
+    assert(missingDigest.status !== 0 && (missingDigest.stderr || '').includes('raw snapshot evidence'), 'AGY missing digest must preserve raw snapshot evidence');
+    const missingDigestEvidence = fs.readdirSync(path.dirname(snapshotPath)).find((name) => name.endsWith('.rejected.bin') && fs.readFileSync(path.join(path.dirname(snapshotPath), name)).equals(originalSnapshot));
+    assert(missingDigestEvidence, 'AGY missing digest evidence must preserve exact raw bytes');
+    fs.writeFileSync(`${snapshotPath}.sha256`, originalDigest);
+
+    const snapshotSymlinkTarget = path.join(symlinkTarget, 'AGY_SNAPSHOT.json');
+    fs.writeFileSync(snapshotSymlinkTarget, originalSnapshot);
+    fs.rmSync(snapshotPath, { force: true });
+    fs.symlinkSync(snapshotSymlinkTarget, snapshotPath, 'file');
+    const symlinkedSnapshot = verify();
+    assert(symlinkedSnapshot.status !== 0 && (symlinkedSnapshot.stderr || '').includes('symlink'), 'AGY snapshot symlink must be rejected before reading bytes');
+    fs.rmSync(snapshotPath, { force: true });
+    fs.writeFileSync(snapshotPath, originalSnapshot);
+
+    const digestSymlinkTarget = path.join(symlinkTarget, 'AGY_SNAPSHOT.sha256');
+    fs.writeFileSync(digestSymlinkTarget, originalDigest);
+    fs.rmSync(`${snapshotPath}.sha256`, { force: true });
+    fs.symlinkSync(digestSymlinkTarget, `${snapshotPath}.sha256`, 'file');
+    const symlinkedDigest = verify();
+    assert(symlinkedDigest.status !== 0 && (symlinkedDigest.stderr || '').includes('symlink component rejected'), 'AGY companion digest symlink must be rejected before reading bytes');
+    fs.rmSync(`${snapshotPath}.sha256`, { force: true });
+    fs.writeFileSync(`${snapshotPath}.sha256`, originalDigest);
+
     fs.writeFileSync(path.join(tempRoot, 'package.json'), '{"type":"module","mutated":true}\n');
-    const bad = spawnSync(process.execPath, [guard, 'verify', '--workspace', tempRoot, '--before', snapshot, '--allowed', 'index.html,AGY_RESULT.json', '--result', 'AGY_RESULT.json'], { encoding: 'utf8' });
+    const bad = verify();
     assert(bad.status !== 0, 'agy-order-guard verify should fail on scope drift');
     assert((bad.stdout || '').includes('package.json'), 'agy-order-guard scope failure should mention package.json');
+
+    fs.writeFileSync(path.join(symlinkTarget, 'AGY_SNAPSHOT.json'), fs.readFileSync(snapshotPath));
+    fs.writeFileSync(path.join(symlinkTarget, 'AGY_RESULT.json'), JSON.stringify(canonical()));
+    const namespacePath = path.dirname(path.join(tempRoot, snapshotRelative));
+    fs.rmSync(namespacePath, { recursive: true, force: true });
+    fs.symlinkSync(symlinkTarget, namespacePath, 'dir');
+    const symlinked = verify();
+    assert(symlinked.status !== 0 && (symlinked.stderr || '').includes('symlink alias'), 'symlinked control namespace must fail');
   } finally {
-    for (const file of fs.readdirSync(os.tmpdir()).filter((name) => name.startsWith(`agy-order-guard-before-${process.pid}-`))) {
-      fs.rmSync(path.join(os.tmpdir(), file), { force: true });
-    }
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+    fs.rmSync(snapshotPath, { force: true });
+    fs.rmSync(`${snapshotPath}.sha256`, { force: true });
+    fs.rmSync(symlinkTarget, { recursive: true, force: true });
+  }
+}
+
+function smokeAgyWorkspaceSymlink() {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-order-guard-product-symlink-'));
+  const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-order-guard-product-outside-'));
+  const orderId = 'smoke-agy-product-symlink-20260825';
+  const snapshotPath = path.join(os.tmpdir(), `${orderId}-snapshot.json`);
+  const resultRelative = `.centurion/agents_results/${orderId}/AGY_RESULT.json`;
+  const productArtifact = 'product/report.html';
+  const outsideTarget = path.join(outsideRoot, 'outside.html');
+  const outsideArtifact = path.join(outsideRoot, 'rejected-artifact.json');
+  const rejectedSnapshotPath = path.join(os.tmpdir(), `${orderId}-symlink-${process.pid}.json`);
+  try {
+    const guard = path.join(KIT_ROOT, 'scripts', 'agy-order-guard.mjs');
+    fs.writeFileSync(path.join(tempRoot, 'index.html'), '<main>before</main>\n');
+    fs.writeFileSync(path.join(tempRoot, 'package.json'), '{"type":"module"}\n');
+    const initialSnapshot = spawnSync(process.execPath, [guard, 'snapshot', '--workspace', tempRoot, '--order-id', orderId, '--out', snapshotPath], { encoding: 'utf8' });
+    assert(initialSnapshot.status === 0, `initial AGY symlink fixture snapshot failed: ${initialSnapshot.stderr || initialSnapshot.stdout}`);
+
+    fs.mkdirSync(path.join(tempRoot, 'product'), { recursive: true });
+    fs.writeFileSync(outsideTarget, '<main>outside secret</main>\n');
+    const outsideBytes = fs.readFileSync(outsideTarget);
+    fs.symlinkSync(outsideTarget, path.join(tempRoot, productArtifact), 'file');
+
+    const rejectedSnapshot = spawnSync(process.execPath, [guard, 'snapshot', '--workspace', tempRoot, '--order-id', orderId, '--out', rejectedSnapshotPath], { encoding: 'utf8' });
+    assert(rejectedSnapshot.status !== 0, 'AGY snapshot must reject a product-file symlink');
+    assert((rejectedSnapshot.stderr || '').includes('symlink component rejected'), 'AGY snapshot symlink rejection should be explicit');
+    assert(fs.readFileSync(outsideTarget).equals(outsideBytes), 'AGY snapshot symlink rejection must not alter the outside target');
+    assert(!fs.existsSync(outsideArtifact), 'AGY snapshot symlink rejection created an outside artifact');
+
+    fs.mkdirSync(path.dirname(path.join(tempRoot, resultRelative)), { recursive: true });
+    fs.writeFileSync(path.join(tempRoot, resultRelative), `${JSON.stringify({ resultVersion: 'AGENT_RESULT_JSON_V1' })}\n`);
+    const rejectedVerify = spawnSync(process.execPath, [guard, 'verify', '--workspace', tempRoot, '--order-id', orderId, '--before', snapshotPath, '--allowed', `index.html,${productArtifact}`, '--result', resultRelative], { encoding: 'utf8' });
+    assert(rejectedVerify.status !== 0, 'AGY verify must reject a product-file symlink');
+    assert((rejectedVerify.stderr || '').includes('symlink component rejected'), 'AGY verify symlink rejection should be explicit');
+    assert(fs.readFileSync(outsideTarget).equals(outsideBytes), 'AGY verify symlink rejection must not alter the outside target');
+    assert(!fs.existsSync(outsideArtifact), 'AGY verify symlink rejection created an outside artifact');
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+    fs.rmSync(snapshotPath, { force: true });
+    fs.rmSync(`${snapshotPath}.sha256`, { force: true });
+    fs.rmSync(rejectedSnapshotPath, { force: true });
+    fs.rmSync(`${rejectedSnapshotPath}.sha256`, { force: true });
+    fs.rmSync(outsideRoot, { recursive: true, force: true });
+  }
+}
+
+function smokeStandaloneKitImport() {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'antigravity-legion-standalone-'));
+  const standaloneKit = path.join(tempRoot, 'kit');
+  const orderId = 'smoke-standalone-import-20260825';
+  try {
+    fs.cpSync(KIT_ROOT, standaloneKit, { recursive: true });
+    const guard = path.join(standaloneKit, 'scripts', 'agy-order-guard.mjs');
+    const snapshotPath = path.join(tempRoot, `${orderId}-snapshot.json`);
+    const result = spawnSync(process.execPath, [guard, 'snapshot', '--workspace', standaloneKit, '--order-id', orderId, '--out', snapshotPath], {
+      cwd: standaloneKit,
+      encoding: 'utf8'
+    });
+    assert(result.status === 0, `standalone kit guard import failed: ${result.stderr || result.stdout}`);
+    assert(fs.existsSync(snapshotPath) && fs.existsSync(`${snapshotPath}.sha256`), 'standalone kit did not create controller custody snapshot');
+  } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 }
 
 function smokeLegionContracts() {
-  const validator = path.resolve(KIT_ROOT, '..', 'legion-contracts', 'scripts', 'legion-contract.mjs');
+  const validator = path.join(KIT_ROOT, 'legion-contracts', 'scripts', 'legion-contract.mjs');
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-legion-contract-'));
   try {
-    const resultFile = path.join(tempRoot, 'AGY_RESULT.json');
+    const resultFile = path.join(tempRoot, '.centurion', 'agents_results', 'smoke-agy-contract-20260825', 'AGY_RESULT.json');
+    fs.mkdirSync(path.dirname(resultFile), { recursive: true });
     fs.writeFileSync(resultFile, JSON.stringify({
-      orderVersion: 'AGY_ORDER_V1',
-      owner: 'PICTOR',
+      resultVersion: 'AGENT_RESULT_JSON_V1',
+      orderId: 'smoke-agy-contract-20260825',
+      executor: 'agy',
       status: 'done',
-      filesChanged: ['index.html'],
-      proof: [{ command: 'synthetic', result: 'passed', summary: 'legacy accepted' }],
-      selfReviewFixed: 'yes',
-      scopeViolations: [],
+      summary: 'Canonical bundled contract accepted.',
+      filesChanged: [{ path: 'index.html', action: 'modified' }],
+      artifacts: [],
+      proof: [{ command: 'synthetic', cwd: tempRoot, status: 'pass', exitCode: 0, summary: 'passed' }],
+      selfReview: { performed: true, findings: [], fixesApplied: [] },
+      scopeDeviations: [],
       forbiddenPatternHits: [],
-      remainingRisks: []
+      remainingRisks: [],
+      questions: [],
+      errors: [],
+      stdoutSummary: '',
+      stderrSummary: ''
     }, null, 2));
-    const ok = spawnSync(process.execPath, [validator, 'validate-result', '--file', resultFile, '--accept-order-version', 'AGY_ORDER_V1'], { encoding: 'utf8' });
-    assert(ok.status === 0, `AGY legacy result should pass shared contract: ${ok.stderr || ok.stdout}`);
+    const ok = spawnSync(process.execPath, [validator, 'validate-agent-result', '--file', resultFile, '--order-id', 'smoke-agy-contract-20260825', '--executor', 'agy'], { encoding: 'utf8' });
+    assert(ok.status === 0, `canonical AGY result should pass bundled shared contract: ${ok.stderr || ok.stdout}`);
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
@@ -334,6 +567,10 @@ function smokeLegionContracts() {
 
 function send(child, payload) {
   child.stdin.write(`${JSON.stringify(payload)}\n`);
+}
+
+function sendRaw(child, line) {
+  child.stdin.write(`${line}\n`);
 }
 
 async function smokeMcp() {
@@ -368,8 +605,9 @@ async function smokeMcp() {
   send(child, { jsonrpc: '2.0', id: 12, method: 'tools/call', params: { name: 'select_legionary', arguments: { task: 'найди github skill для antigravity и проверь' } } });
   send(child, { jsonrpc: '2.0', id: 13, method: 'tools/call', params: { name: 'select_legionary', arguments: { task: 'создай iGaming casino lobby UI' } } });
   send(child, { jsonrpc: '2.0', id: 14, method: 'tools/call', params: { name: 'select_legionary', arguments: { task: 'design system architecture for dashboard components' } } });
-  send(child, { jsonrpc: '2.0', id: 15, method: 'tools/call', params: { name: 'agy_delegation_brief', arguments: { task: 'создай responsive React landing hero animation', owner: 'PICTOR', workspace: '/tmp/example-ui', changeType: 'frontend' } } });
-  send(child, { jsonrpc: '2.0', id: 16, method: 'tools/call', params: { name: 'agy_delegation_brief', arguments: { task: 'deploy production wallet payment flow with private key rotation', owner: 'GUARDIAN', workspace: '/tmp/example-risk', changeType: 'security' } } });
+  send(child, { jsonrpc: '2.0', id: 15, method: 'tools/call', params: { name: 'agy_delegation_brief', arguments: { task: 'создай responsive React landing hero animation', owner: 'PICTOR', workspace: '/tmp/example-ui', orderId: 'smoke-agy-brief-20260825', changeType: 'frontend' } } });
+  send(child, { jsonrpc: '2.0', id: 16, method: 'tools/call', params: { name: 'agy_delegation_brief', arguments: { task: 'deploy production wallet payment flow with private key rotation', owner: 'GUARDIAN', workspace: '/tmp/example-risk', orderId: 'smoke-agy-risk-20260825', changeType: 'security' } } });
+  sendRaw(child, '{"jsonrpc":"2.0","id":17,"id":1700,"method":"ping"}');
   for (let index = 0; index < ROUTING_MATRIX.length; index += 1) {
     send(child, { jsonrpc: '2.0', id: 100 + index, method: 'tools/call', params: { name: 'select_legionary', arguments: { task: ROUTING_MATRIX[index][1] } } });
   }
@@ -439,8 +677,19 @@ async function smokeMcp() {
   assert(agyText.includes('Legion owner remains: PICTOR'), 'agy_delegation_brief did not preserve primary owner');
   assert(agyText.includes('AGY_ORDER v1 prompt shape'), 'agy_delegation_brief missing AGY_ORDER prompt shape');
   assert(agyText.includes('AGY_RESULT.json'), 'agy_delegation_brief missing structured result file');
-  assert(agyText.includes('"selfReviewFixed": "yes|no"'), 'agy_delegation_brief missing structured self-review field');
-  assert(agyText.includes('SELF_REVIEW_FIXED=<yes|no>'), 'agy_delegation_brief missing final self-review marker');
+  assert(agyText.includes('AGY orderId: smoke-agy-brief-20260825'), 'agy_delegation_brief missing exact order identity');
+  assert(agyText.includes('Control namespace: .centurion/agents_results/smoke-agy-brief-20260825'), 'agy_delegation_brief missing control namespace');
+  assert(agyText.includes('--order-id smoke-agy-brief-20260825'), 'agy_delegation_brief missing namespaced order-id commands');
+  assert(agyText.includes('--result .centurion/agents_results/smoke-agy-brief-20260825/AGY_RESULT.json'), 'agy_delegation_brief missing namespaced result command');
+  assert(!agyText.includes('--result AGY_RESULT.json'), 'agy_delegation_brief must not advertise a root result path');
+  assert(agyText.includes('"resultVersion": "AGENT_RESULT_JSON_V1"'), 'agy_delegation_brief missing canonical result version');
+  assert(agyText.includes('"orderId": "smoke-agy-brief-20260825"'), 'agy_delegation_brief missing canonical order identity');
+  assert(agyText.includes('"executor": "agy"'), 'agy_delegation_brief missing canonical executor identity');
+  assert(agyText.includes('"filesChanged": [{"path":"relative/path","action":'), 'agy_delegation_brief missing object-shaped filesChanged field');
+  assert(agyText.includes('"selfReview": {"performed":true'), 'agy_delegation_brief missing canonical self-review object');
+  assert(agyText.includes('Legacy compatibility only (--allow-legacy; not the default):'), 'agy_delegation_brief missing labeled legacy compatibility section');
+  assert(agyText.includes('--allow-legacy'), 'agy_delegation_brief missing explicit legacy compatibility flag');
+  assert(agyText.includes('SELF_REVIEW_PERFORMED=<true|false>'), 'agy_delegation_brief missing canonical final self-review marker');
   assert(agyText.includes('agy-order-guard.mjs'), 'agy_delegation_brief missing owner-side guard command');
   assert(agyText.includes('Do not delegate to agy when:'), 'agy_delegation_brief missing blocked delegation guidance');
   const blockedAgyBrief = responses.find((response) => response.id === 16);
@@ -448,6 +697,10 @@ async function smokeMcp() {
   assert(blockedAgyText.includes('Legion owner remains: GUARDIAN'), 'high-risk agy_delegation_brief did not preserve GUARDIAN owner');
   assert(blockedAgyText.includes('Delegation verdict: owner-only'), 'high-risk agy_delegation_brief did not block delegation');
   assert(blockedAgyText.includes('high-risk secrets, production, payment, wallet, exploit, or destructive surface'), 'high-risk agy_delegation_brief missing risk reason');
+  const duplicateIdResponses = responses.filter((response) => response.id === 17 || response.id === 1700);
+  assert(duplicateIdResponses.length === 0, 'duplicate JSON-RPC id request must not be accepted with either id value');
+  const duplicateIdError = responses.find((response) => response.error?.code === -32700 && response.error.message.includes('duplicate key'));
+  assert(duplicateIdError, 'duplicate JSON-RPC id request must return a parse error');
 
   const routingFailures = [];
   const routingPasses = [];
@@ -484,6 +737,15 @@ async function smokeMcp() {
 }
 
 async function main() {
+  if (CONTRACT_ONLY) {
+    await smokeMcp();
+    smokeAgyOrderGuard();
+    smokeAgyWorkspaceSymlink();
+    smokeStandaloneKitImport();
+    smokeLegionContracts();
+    process.stdout.write('antigravity-legion-kit contract smoke: pass\n');
+    return;
+  }
   assertFiles(path.join(KIT_ROOT, 'agent', 'rules'), REQUIRED_RULES);
   assertFiles(path.join(KIT_ROOT, 'agent', 'workflows'), REQUIRED_WORKFLOWS);
   assertFiles(path.join(KIT_ROOT, 'agent', 'skills'), REQUIRED_SKILLS);
@@ -533,6 +795,8 @@ async function main() {
   await smokeMcp();
   smokeInstaller();
   smokeAgyOrderGuard();
+  smokeAgyWorkspaceSymlink();
+  smokeStandaloneKitImport();
   smokeLegionContracts();
   process.stdout.write('antigravity-legion-kit smoke: pass\n');
 }

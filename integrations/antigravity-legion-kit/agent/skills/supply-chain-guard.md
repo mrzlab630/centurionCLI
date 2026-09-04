@@ -22,4 +22,3 @@ Use when adding/updating dependencies, running external install commands, changi
 2. Inspect manifest, lockfile diff, install scripts, and permissions.
 3. Run the repository's dependency audit command where available.
 4. Report risk, recommendation, and safer alternative if blocked.
-

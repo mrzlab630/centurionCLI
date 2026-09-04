@@ -29,4 +29,3 @@ Use this skill when the user reports a visible UI bug or the task changes routin
 ## Completion Standard
 
 Do not say a visible UI issue is fixed without either browser proof or a clear explanation of why browser proof was not feasible.
-

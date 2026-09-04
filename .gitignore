@@ -14,6 +14,9 @@ mcp-servers/*/data/
 skills/*/memory/
 skills/*/reports/
 
+# Controller-owned executor artifacts; product/application files remain elsewhere
+.centurion/agents_results/
+
 # Cache and temporary files
 cache/
 telemetry/

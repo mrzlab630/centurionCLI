@@ -27,7 +27,7 @@
     },
     "orderId": {
       "type": "string",
-      "minLength": 8
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{7,127}$"
     },
     "executor": {
       "enum": ["codex", "claude", "claudeFable", "agy", "hermes_delegate_task", "other"]
@@ -168,5 +168,45 @@
       "type": "string"
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "required": ["status"],
+        "properties": {
+          "status": {
+            "const": "done"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "proof": {
+            "minItems": 1,
+            "items": {
+              "required": ["status"],
+              "properties": {
+                "status": {
+                  "const": "pass"
+                }
+              }
+            }
+          },
+          "selfReview": {
+            "properties": {
+              "performed": {
+                "const": true
+              }
+            }
+          },
+          "scopeDeviations": {
+            "maxItems": 0
+          },
+          "forbiddenPatternHits": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ],
   "additionalProperties": true
 }

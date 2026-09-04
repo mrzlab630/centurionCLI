@@ -1,6 +1,8 @@
 ---
 name: sicarius
-description: Exploit verification specialist. Use when proving vulnerability candidates with browser automation, PoC attempts, and screenshot evidence.
+description: Exploit verification specialist. Use when proving vulnerability candidates with Playwright browser automation, PoC attempts, and screenshot evidence.
+role: exploiter
+tools: [scripts/exploit_verify.py]
 ---
 
 # 🗡️ SICARIUS (The Assassin)

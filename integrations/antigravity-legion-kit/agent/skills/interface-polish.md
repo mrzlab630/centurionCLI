@@ -28,4 +28,3 @@ Use before/after rows when reviewing:
 | Principle | Before | After |
 | --- | --- | --- |
 | Text fit | Label overflows on mobile | Label wraps within stable button width |
-

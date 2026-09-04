@@ -29,6 +29,8 @@ Use this reference when routing Claude Code work to Opus 5.
 ## Rejection Conditions
 
 - Timeout with partial edits.
-- Missing or malformed `CLAUDE_RESULT.json`.
-- `status=done` without `proof[].result=passed`.
+- Missing or malformed `<workspace>/.centurion/agents_results/<orderId>/CLAUDE_RESULT.json`.
+- Canonical `status=done` without non-empty `proof[].status=pass`, `selfReview.performed=true`, and empty scope/forbidden arrays.
 - Any scope drift, extra files, or missing owner handoff.
+
+The default result is canonical `AGENT_RESULT_JSON_V1` with `executor="claude"` and the exact order ID. The former `CLAUDE_ORDER_V1` shape is compatibility-only and requires an explicit `verify --allow-legacy` mode.

@@ -35,4 +35,3 @@ Report:
 - accessibility checks
 - responsive/browser proof
 - remaining design risks or follow-up polish
-

@@ -27,4 +27,3 @@ Use when the user reports downtime, broken runtime, bad deploy, suspicious logs,
 - fix applied
 - proof of recovery
 - follow-up prevention
-

@@ -12,4 +12,3 @@ description: Incrementally fix build, type, lint, and test failures with minimal
 6. Stop and report if the same error survives three attempts or the fix requires changing architecture/scope.
 
 Report fixed errors, remaining errors, commands run, and any command skipped with reason.
-

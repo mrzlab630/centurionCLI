@@ -10,4 +10,3 @@ description: Analyze whether tests cover changed behavior, branches, and failure
 4. Prefer behavior-focused assertions over snapshots or no-throw tests.
 5. Run focused tests first, then the broader repo gate when feasible.
 6. Report critical gaps separately from nice-to-have coverage improvements.
-

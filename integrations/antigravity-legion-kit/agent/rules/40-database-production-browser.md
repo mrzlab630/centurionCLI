@@ -37,4 +37,3 @@ These rules adapt the useful ECC skills for React/Vite/TypeScript projects under
 - Use Playwright or an existing smoke/e2e command for routing, auth, layout, Mini App shell, forms, and flows that unit tests cannot prove.
 - UI fixes are not complete until text fits containers, controls have stable dimensions, and interactive states do not shift layout unexpectedly.
 - Prefer evidence from the server-owned read model for visible state bugs before blaming local React state.
-

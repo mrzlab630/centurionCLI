@@ -9,4 +9,3 @@ description: Audit UI consistency, design tokens, component duplication, accessi
 3. Audit visual consistency, responsive behavior, state coverage, dark mode, and accessibility.
 4. Flag AI-slop patterns: generic gradients, decorative blobs, needless glass, card-heavy layout, vague copy, one-note palette.
 5. Produce a prioritized fix list with exact files and smallest useful changes.
-

@@ -7,11 +7,19 @@ description: Use when running or reviewing CLAUDE_ORDER v1 bounded execution wit
 
 This skill defines strict bounded execution for Claude Code.
 
+Resolve the bundled guard from the installed skill root before using the checklist:
+
+```sh
+CENTURION_CLAUDE_KIT="${CLAUDE_HOME:-$HOME/.claude}/skills/centurion-legion"
+```
+
+For an installation created with a custom `--claude-home`, set `CENTURION_CLAUDE_KIT` to that exact `<claude-home>/skills/centurion-legion` root.
+
 ## Controller Checklist
 
-1. Create a snapshot before delegation:
-   `node integrations/claude-legion-kit/scripts/claude-order-guard.mjs snapshot --workspace <dir> --out /tmp/claude-before.json`
-2. Send a `CLAUDE_ORDER v1` containing owner, workspace, allowed paths, non-goals, forbidden patterns, proof commands, and `CLAUDE_RESULT.json` requirement.
+1. Choose a safe single-component `<orderId>`, set an external snapshot path, and create the control snapshot:
+   `CLAUDE_SNAPSHOT="/tmp/centurion-claude-snapshots/<orderId>/CLAUDE_SNAPSHOT.json"; node "$CENTURION_CLAUDE_KIT/scripts/claude-order-guard.mjs" snapshot --workspace <dir> --order-id <orderId> --out "$CLAUDE_SNAPSHOT"`
+2. Send a `CLAUDE_ORDER v1` containing owner, workspace, order ID, allowed paths, non-goals, forbidden patterns, proof commands, and the namespaced result requirement.
 3. Prefer CLI constraints when using print mode:
    - `--agent <owner-slug>` for one owner.
    - `--permission-mode plan` for planning only.
@@ -19,29 +27,38 @@ This skill defines strict bounded execution for Claude Code.
    - `--allowedTools` and `--disallowedTools` for tool gating.
    - `--strict-mcp-config` with a minimal `--mcp-config` when MCP access is needed.
    - `--json-schema` for pure structured output tasks.
-4. Verify after execution:
-   `node integrations/claude-legion-kit/scripts/claude-order-guard.mjs verify --workspace <dir> --before /tmp/claude-before.json --allowed <paths> --result CLAUDE_RESULT.json --forbidden <patterns>`
+4. Verify after execution, binding the external snapshot and namespaced result:
+   `node "$CENTURION_CLAUDE_KIT/scripts/claude-order-guard.mjs" verify --workspace <dir> --order-id <orderId> --before "$CLAUDE_SNAPSHOT" --allowed <paths> --forbidden <patterns> --result <dir>/.centurion/agents_results/<orderId>/CLAUDE_RESULT.json`
 5. Rerun proof and inspect the diff/artifact directly.
 
 ## Result Contract
 
-`CLAUDE_RESULT.json` must use this exact shape:
+`<workspace>/.centurion/agents_results/<orderId>/CLAUDE_RESULT.json` must use canonical `AGENT_RESULT_JSON_V1`:
 
 ```json
 {
-  "orderVersion": "CLAUDE_ORDER_V1",
-  "owner": "PICTOR",
+  "resultVersion": "AGENT_RESULT_JSON_V1",
+  "orderId": "<orderId>",
+  "executor": "claude",
   "status": "done",
-  "filesChanged": ["relative/path", "CLAUDE_RESULT.json"],
-  "proof": [{ "command": "npm test", "result": "passed", "summary": "..." }],
-  "selfReviewFixed": "yes",
-  "scopeViolations": [],
+  "summary": "Completed the bounded order.",
+  "filesChanged": [{ "path": "relative/product-path", "action": "modified" }],
+  "artifacts": [],
+  "proof": [{ "command": "npm test", "cwd": "<workspace>", "status": "pass", "exitCode": 0, "summary": "..." }],
+  "selfReview": { "performed": true, "findings": [], "fixesApplied": [] },
+  "scopeDeviations": [],
   "forbiddenPatternHits": [],
-  "remainingRisks": []
+  "remainingRisks": [],
+  "questions": [],
+  "errors": [],
+  "stdoutSummary": "",
+  "stderrSummary": ""
 }
 ```
 
-`filesChanged`, `proof`, `scopeViolations`, `forbiddenPatternHits`, and `remainingRisks` are arrays. Use `[]` for no findings; never use strings such as `"none"`. `filesChanged` must match the actual changed files, including `CLAUDE_RESULT.json`. For `status=done`, every `proof[].result` must be `"passed"`; use `status=blocked` if proof was not run or did not pass.
+Canonical `filesChanged` entries are objects and reconcile only product-file changes; snapshot and result control artifacts are excluded. For `status=done`, proof must be non-empty, every `proof[].status` must be `"pass"`, `selfReview.performed` must be `true`, and scope/forbidden arrays must be empty. Use `status=blocked` or `failed` if proof was not run or did not pass.
+
+For explicit compatibility checks only, add `--allow-legacy` to verify. That mode accepts the former `CLAUDE_ORDER_V1` shape; canonical mode never accepts legacy or hybrid payloads.
 
 ## Acceptance Rule
 

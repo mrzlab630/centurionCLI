@@ -2,7 +2,7 @@
 
 # CENTURION Installation Script
 # Version: COHORS SECUNDA (v2.1)
-# Installs: 37 Legionaries + MEMORIA MCP + 7 MCP Servers + Pipeline Templates
+# Installs: 37 Legionaries + MEMORIA MCP + 6 MCP Servers + Pipeline Templates
 
 set -e
 
@@ -22,13 +22,13 @@ SKILLS_DIR="$AGENTS_DIR/skills"
 
 echo ""
 echo -e "${BOLD}⚔️  CENTURION — COHORS SECUNDA${NC}"
-echo -e "${CYAN}   37 Legionaries | canonical ~/.agents/skills | 7 MCP Servers | MEMORIA v1.2.0${NC}"
+echo -e "${CYAN}   37 Legionaries | canonical ~/.agents/skills | 6 MCP Servers | MEMORIA v1.2.0${NC}"
 echo "=================================================="
 echo ""
 
 # ─── PHASE 1: Prerequisites ───
 
-echo -e "${BOLD}[1/7] Checking prerequisites...${NC}"
+echo -e "${BOLD}[1/8] Checking prerequisites...${NC}"
 
 # Check Claude Code CLI
 if ! command -v claude &> /dev/null; then
@@ -68,7 +68,7 @@ echo ""
 
 # ─── PHASE 2: Backup ───
 
-echo -e "${BOLD}[2/7] Backup...${NC}"
+echo -e "${BOLD}[2/8] Backup...${NC}"
 
 if [ -d "$CLAUDE_DIR" ]; then
     BACKUP_DIR="${CLAUDE_DIR}.backup.$(date +%Y%m%d_%H%M%S)"
@@ -83,7 +83,7 @@ echo ""
 
 # ─── PHASE 3: Core Config ───
 
-echo -e "${BOLD}[3/7] Installing core configuration...${NC}"
+echo -e "${BOLD}[3/8] Installing core configuration...${NC}"
 
 mkdir -p "$CLAUDE_DIR"
 mkdir -p "$SKILLS_DIR"
@@ -128,7 +128,7 @@ echo ""
 
 # ─── PHASE 4: Skills (37 Legionaries) ───
 
-echo -e "${BOLD}[4/7] Deploying 37 Legionaries to canonical skill root...${NC}"
+echo -e "${BOLD}[4/8] Deploying 37 Legionaries to canonical skill root...${NC}"
 
 SKILL_COUNT=0
 for skill_dir in "$SCRIPT_DIR/skills/"*/; do
@@ -169,6 +169,15 @@ for skill_dir in "$SCRIPT_DIR/skills/"*/; do
     SKILL_COUNT=$((SKILL_COUNT + 1))
 done
 
+# Preserve the Playwright-based researcher runtime from main. The package lock
+# remains the dependency source; installation failure is reported without
+# preventing the rest of the skill surface from being installed.
+if [ -f "$SKILLS_DIR/researcher/package.json" ] && command -v npm &> /dev/null; then
+    echo -e "${YELLOW}  -> Installing researcher Playwright dependencies...${NC}"
+    npm --prefix "$SKILLS_DIR/researcher" install --omit=dev --silent 2>/dev/null || \
+        echo -e "${YELLOW}  ! Researcher dependencies unavailable; run npm install in $SKILLS_DIR/researcher${NC}"
+fi
+
 echo -e "${GREEN}  ✓${NC} $SKILL_COUNT legionaries deployed"
 echo -e "${CYAN}    Core 8:    OPTIO CODER DEBUGGER EXPLORATOR PONTIFEX TESTER GUARDIAN LIBRARIUS${NC}"
 echo -e "${CYAN}    Command:   CAPABILITIES SKILL-QUARTERMASTER PRAEMONITOR${NC}"
@@ -190,7 +199,7 @@ echo ""
 
 # ─── PHASE 5: MEMORIA MCP Server ───
 
-echo -e "${BOLD}[5/7] Building MEMORIA MCP Server v1.2.0...${NC}"
+echo -e "${BOLD}[5/8] Building MEMORIA MCP Server v1.2.0...${NC}"
 
 if [ -d "$SCRIPT_DIR/mcp-servers/memoria" ]; then
     mkdir -p "$MEMORIA_DIR"
@@ -246,11 +255,6 @@ claude mcp add -s user playwright -- npx -y @playwright/mcp 2>/dev/null && \
 claude mcp add -s user sequential-thinking -- npx -y @modelcontextprotocol/server-sequential-thinking 2>/dev/null && \
     echo -e "${GREEN}  ✓${NC} sequential-thinking (chain of thought)" || \
     echo -e "${YELLOW}  ! sequential-thinking already registered or error${NC}"
-
-# Solana MCP (remote, no keys needed)
-claude mcp add -s user solanaMcp -- npx mcp-remote https://mcp.solana.com/mcp 2>/dev/null && \
-    echo -e "${GREEN}  ✓${NC} solanaMcp (Solana SDK)" || \
-    echo -e "${YELLOW}  ! solanaMcp already registered or error${NC}"
 
 # Brave Search (needs API key)
 if [ -n "$BRAVE_API_KEY" ]; then

@@ -25,4 +25,3 @@ Use when performance is a feature, when a change risks latency/bundle regression
 4. Fix the bottleneck, not the nearest code smell.
 5. Re-measure or run a focused proxy check.
 6. Report before/after evidence and remaining risk.
-

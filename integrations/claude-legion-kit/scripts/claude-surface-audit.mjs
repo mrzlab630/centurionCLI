@@ -10,9 +10,11 @@ const KIT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '
 const REPO_ROOT = path.resolve(KIT_ROOT, '..', '..');
 const CANONICAL_SKILLS = path.join(REPO_ROOT, 'skills');
 const PLUGIN_ROOT = path.join(KIT_ROOT, 'plugin');
-const EXPECTED = [
+const LEGIONARY_OWNERS = [
   'aedilis','aleator','architect','artifex','augur','capabilities','censor','coder','context-optimizer','documenter','error-handler','evocate-ad-opus','git-master','glossator','haruspex','indagator','ludifex','mercator','nomenclator','orator','orchestrator','pictor','planner','pontifex','praeco','praemonitor','prompt-engineer','quaestor','refactorer','researcher','reviewer','security','sicarius','skill-quartermaster','tabularius','tester','velites'
 ];
+const SHARED_CAPABILITIES = ['open-design-producer'];
+const EXPECTED_SKILLS = [...LEGIONARY_OWNERS, ...SHARED_CAPABILITIES].sort();
 
 const REQUIRED_AGENT_PHRASES = [
   'Own only tasks explicitly routed',
@@ -30,7 +32,9 @@ const REQUIRED_PROTOCOL_FILES = [
   '../../skills/tester/references/frontend-sweep.md',
   '../../skills/reviewer/references/completion-verification.md',
   '../../skills/security/references/external-skill-security.md',
-  '../../skills/context-optimizer/references/opus-dossier.md'
+  '../../skills/context-optimizer/references/opus-dossier.md',
+  '../../skills/open-design-producer/scripts/open-design.mjs',
+  '../../skills/open-design-producer/references/role-routing.md'
 ];
 
 const REQUIRED_PROTOCOL_LINKS = [
@@ -39,6 +43,9 @@ const REQUIRED_PROTOCOL_LINKS = [
   { file: '../../skills/security/SKILL.md', phrase: 'external-skill-scan.mjs' },
   { file: '../../skills/skill-quartermaster/SKILL.md', phrase: 'external-skill-scan.mjs' },
   { file: '../../skills/context-optimizer/SKILL.md', phrase: 'references/opus-dossier.md' },
+  { file: '../../skills/aedilis/SKILL.md', phrase: '$open-design-producer' },
+  { file: '../../skills/pictor/SKILL.md', phrase: '$open-design-producer' },
+  { file: '../../skills/orchestrator/SKILL.md', phrase: '$open-design-producer' },
   { file: 'plugin/SKILL.md', phrase: 'references/opus-5-profile.md' }
 ];
 
@@ -210,6 +217,25 @@ function compareTrees(leftRoot, rightRoot) {
   return mismatches;
 }
 
+function compareInstalledPluginTree(pluginTarget) {
+  const expected = treeHashes(PLUGIN_ROOT);
+  for (const [directory, filename] of [['scripts', 'claude-order-guard.mjs'], ['lib', 'claude-result-validator.mjs']]) {
+    const relative = `${directory}/${filename}`;
+    expected.set(relative, crypto.createHash('sha256')
+      .update(fs.readFileSync(path.join(KIT_ROOT, directory, filename)))
+      .digest('hex'));
+  }
+  const installed = treeHashes(pluginTarget);
+  const files = sortedUnique([...expected.keys(), ...installed.keys()]);
+  const mismatches = [];
+  for (const file of files) {
+    if (!expected.has(file)) mismatches.push({ file, reason: 'extra-installed' });
+    else if (!installed.has(file)) mismatches.push({ file, reason: 'missing-installed' });
+    else if (expected.get(file) !== installed.get(file)) mismatches.push({ file, reason: 'hash-mismatch' });
+  }
+  return mismatches;
+}
+
 function tokens(text) {
   return new Set(String(text).toLowerCase().match(/[a-z0-9-]{4,}/g)?.filter((word) => !STOPWORDS.has(word)) || []);
 }
@@ -275,16 +301,18 @@ function auditRepo(options, report) {
   const agents = listAgentSlugs(agentsDir);
   report.repo.canonicalSkillCount = canonical.length;
   report.repo.agentCount = agents.length;
+  report.repo.legionaryOwnerCount = LEGIONARY_OWNERS.length;
+  report.repo.sharedCapabilities = SHARED_CAPABILITIES;
   report.repo.routingEvalCount = ROUTING_EVALS.length;
 
-  if (!sameList(canonical, EXPECTED)) addFailure(report, 'canonical skill surface drift', { expected: EXPECTED, actual: canonical });
-  if (!sameList(agents, canonical)) addFailure(report, 'plugin agents must be one-to-one with canonical skills', { canonical, agents });
+  if (!sameList(canonical, EXPECTED_SKILLS)) addFailure(report, 'canonical skill surface drift', { expected: EXPECTED_SKILLS, actual: canonical });
+  if (!sameList(agents, LEGIONARY_OWNERS)) addFailure(report, 'plugin agents must match Legionary owners only', { owners: LEGIONARY_OWNERS, agents });
 
   const names = [];
   const ownerAliases = [];
   const descriptions = new Map();
 
-  for (const slug of canonical) {
+  for (const slug of LEGIONARY_OWNERS) {
     const canonicalFile = path.join(CANONICAL_SKILLS, slug, 'SKILL.md');
     const agentFile = path.join(agentsDir, `${slug}.md`);
     if (!fs.existsSync(agentFile)) {
@@ -332,15 +360,15 @@ function auditRepo(options, report) {
   for (const hit of overlapHits) addFailure(report, 'agent descriptions are too similar; possible role overlap', hit);
 
   for (const item of ROUTING_EVALS) {
-    if (!canonical.includes(item.owner)) addFailure(report, 'routing eval owner missing from canonical skills', item);
+    if (!LEGIONARY_OWNERS.includes(item.owner)) addFailure(report, 'routing eval owner missing from Legionary owners', item);
     if (item.handoffs.includes(item.owner)) addFailure(report, 'routing eval handoff includes primary owner', item);
     for (const handoff of item.handoffs) {
-      if (!canonical.includes(handoff)) addFailure(report, 'routing eval handoff missing from canonical skills', { id: item.id, owner: item.owner, handoff });
+      if (!LEGIONARY_OWNERS.includes(handoff)) addFailure(report, 'routing eval handoff missing from Legionary owners', { id: item.id, owner: item.owner, handoff });
     }
   }
   const evalOwners = sortedUnique(ROUTING_EVALS.map((item) => item.owner));
-  const missingEvalOwners = canonical.filter((slug) => !evalOwners.includes(slug));
-  if (missingEvalOwners.length) addFailure(report, 'canonical skills missing from routing eval matrix', { missingEvalOwners });
+  const missingEvalOwners = LEGIONARY_OWNERS.filter((slug) => !evalOwners.includes(slug));
+  if (missingEvalOwners.length) addFailure(report, 'Legionary owners missing from routing eval matrix', { missingEvalOwners });
 
   if (fs.existsSync(rootSkill)) {
     const text = readText(rootSkill);
@@ -359,8 +387,10 @@ function auditRepo(options, report) {
 function auditInstalled(options, report) {
   const skillsRoot = path.join(options.claudeHome, 'skills');
   const pluginTarget = path.join(skillsRoot, 'centurion-legion');
+  const openDesignConfigTarget = path.join(options.claudeHome, 'centurion', 'open-design-bridge.json');
   report.installed.claudeHome = options.claudeHome;
   report.installed.pluginTarget = pluginTarget;
+  report.installed.openDesignConfigTarget = openDesignConfigTarget;
 
   if (!fs.existsSync(skillsRoot)) {
     addFailure(report, 'Claude skills directory missing', { skillsRoot });
@@ -372,19 +402,19 @@ function auditInstalled(options, report) {
   }
 
   const installedSlugs = listSkillSlugs(skillsRoot).filter((slug) => slug !== 'centurion-legion');
-  const extraLegionSlugs = installedSlugs.filter((slug) => !EXPECTED.includes(slug));
-  const missingInstalled = EXPECTED.filter((slug) => !installedSlugs.includes(slug));
+  const extraLegionSlugs = installedSlugs.filter((slug) => !EXPECTED_SKILLS.includes(slug));
+  const missingInstalled = EXPECTED_SKILLS.filter((slug) => !installedSlugs.includes(slug));
   report.installed.standaloneSkillCount = installedSlugs.length;
   report.installed.extraSkillDirs = extraLegionSlugs;
   if (missingInstalled.length) addFailure(report, 'installed standalone canonical skills missing', { missingInstalled });
   if (extraLegionSlugs.length) addWarning(report, 'extra installed skill dirs are present outside canonical Legion surface', { extraLegionSlugs });
 
-  const pluginMismatches = compareTrees(PLUGIN_ROOT, pluginTarget);
+  const pluginMismatches = compareInstalledPluginTree(pluginTarget);
   report.installed.pluginTreeMismatches = pluginMismatches;
   if (pluginMismatches.length) addFailure(report, 'installed plugin differs from repository plugin', { mismatches: pluginMismatches.slice(0, 20), total: pluginMismatches.length });
 
   const skillDrift = [];
-  for (const slug of EXPECTED) {
+  for (const slug of EXPECTED_SKILLS) {
     const source = path.join(CANONICAL_SKILLS, slug);
     const target = path.join(skillsRoot, slug);
     if (!fs.existsSync(target)) continue;
@@ -393,6 +423,15 @@ function auditInstalled(options, report) {
   }
   report.installed.skillTreeDrift = skillDrift;
   if (skillDrift.length) addFailure(report, 'installed standalone skills differ from repository canonical skills', { skillDrift });
+
+  if (!fs.existsSync(openDesignConfigTarget)) {
+    addFailure(report, 'installed Open Design bridge config missing', { openDesignConfigTarget });
+  } else {
+    const config = readJson(openDesignConfigTarget);
+    if (config.configVersion !== 'CENTURION_OPEN_DESIGN_CONFIG_V1') addFailure(report, 'installed Open Design config version mismatch', { actual: config.configVersion });
+    const expectedBridgeRoot = path.join(REPO_ROOT, 'integrations', 'open-design-bridge');
+    if (config.bridgeRoot !== expectedBridgeRoot) addFailure(report, 'installed Open Design bridge root mismatch', { expected: expectedBridgeRoot, actual: config.bridgeRoot });
+  }
 
   if (options.pluginValidate) {
     const validation = run('claude', ['plugin', 'validate', pluginTarget, '--strict']);

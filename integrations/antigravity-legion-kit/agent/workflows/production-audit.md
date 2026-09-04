@@ -29,4 +29,3 @@ Then inspect scripts, CI/deploy docs, Docker/PM2 configs, env examples, migratio
 ## Output
 
 Return a short ship/block recommendation, top risks by severity, proof collected, and exact next fixes.
-

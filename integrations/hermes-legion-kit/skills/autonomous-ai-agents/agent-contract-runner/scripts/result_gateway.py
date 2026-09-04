@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from agent_contract_runner import PathPolicy, RunnerError, validate_order
+from agent_artifact_namespace import ArtifactNamespaceError, require_control_path
 from agent_result_builder import BuilderError, _load_schema, build_result, resolve_schema_path, validate_candidate
 from review_ladder import RoutingError, validate_order_routing
 from strict_json import StrictJSONError, strict_json_load_bytes
@@ -258,16 +259,16 @@ def parse_order_paths(
         if launch.get(key) is not None and not isinstance(launch[key], str):
             raise GatewayError(f"launch.{key} must be a string when provided")
     try:
-        result_path = policy.order_path(result_value, "outputContract.resultPath")
-        launch_result_path = policy.order_path(launch_result_value, "launch.resultJsonPath")
-        candidate_path = policy.cli_path(candidate_arg, "CLI --candidate")
-        start_receipt_path = policy.cli_path(start_receipt_arg, "CLI --start-receipt")
-        closure_path = policy.cli_path(closure_arg, "CLI --closure")
-        evidence_dir = policy.cli_path(evidence_arg, "CLI --evidence-dir")
-        events_path = policy.cli_path(events_arg, "CLI --events") if events_arg is not None else None
-        stdout_path = policy.order_path(launch["stdoutPath"], "launch.stdoutPath") if launch.get("stdoutPath") else None
-        stderr_path = policy.order_path(launch["stderrPath"], "launch.stderrPath") if launch.get("stderrPath") else None
-    except RunnerError as exc:
+        result_path = policy.control_path(result_value, "outputContract.resultPath")
+        launch_result_path = policy.control_path(launch_result_value, "launch.resultJsonPath")
+        candidate_path = policy.control_cli_path(candidate_arg, "CLI --candidate")
+        start_receipt_path = policy.control_cli_path(start_receipt_arg, "CLI --start-receipt")
+        closure_path = policy.control_cli_path(closure_arg, "CLI --closure")
+        evidence_dir = policy.control_cli_path(evidence_arg, "CLI --evidence-dir")
+        events_path = policy.control_cli_path(events_arg, "CLI --events") if events_arg is not None else None
+        stdout_path = policy.control_path(launch["stdoutPath"], "launch.stdoutPath") if launch.get("stdoutPath") else None
+        stderr_path = policy.control_path(launch["stderrPath"], "launch.stderrPath") if launch.get("stderrPath") else None
+    except (RunnerError, ArtifactNamespaceError) as exc:
         raise GatewayError(str(exc)) from exc
     if result_path != launch_result_path:
         raise GatewayError("launch.resultJsonPath and outputContract.resultPath must resolve to the same path")

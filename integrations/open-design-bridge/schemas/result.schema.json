@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://centurion.local/schemas/open-design-result.v1.json",
+  "title": "CENTURION Open Design Result V1",
+  "type": "object",
+  "required": ["resultVersion", "requestId", "status", "action", "proof", "warnings", "errors"],
+  "properties": {
+    "resultVersion": { "const": "CENTURION_OD_RESULT_V1" },
+    "requestId": { "type": ["string", "null"] },
+    "status": { "enum": ["done", "failed"] },
+    "action": { "enum": ["create", "revise", "cleanup", null] },
+    "projectId": { "type": ["string", "null"] },
+    "conversationId": { "type": ["string", "null"] },
+    "runId": { "type": ["string", "null"] },
+    "revisionOf": { "type": ["string", "null"] },
+    "executor": { "type": ["object", "null"] },
+    "orchestrator": { "type": ["object", "null"] },
+    "references": { "type": ["object", "null"] },
+    "artifact": { "type": ["object", "null"] },
+    "screenshot": { "type": ["object", "null"] },
+    "proof": { "type": "array", "items": { "type": "object" } },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "errors": { "type": "array", "items": { "type": "string" } },
+    "cleanup": {
+      "type": ["object", "null"],
+      "properties": {
+        "policy": { "enum": ["delete", "keep", "ask"] },
+        "mode": { "enum": ["delete", "trash"] },
+        "targetPath": { "type": ["string", "null"] },
+        "localAction": { "enum": ["deleted", "trashed", "already-absent", null] },
+        "trashPath": { "type": ["string", "null"] },
+        "projectDeleted": { "type": "boolean" },
+        "stagingDeleted": { "type": "boolean" },
+        "failedProjectDeleted": { "type": "boolean" },
+        "pending": { "type": "boolean" },
+        "preservedPath": { "type": ["string", "null"] },
+        "staleStagingRemoved": { "type": "integer", "minimum": 0 },
+        "staleTrashRemoved": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "diagnostics": { "type": "object" }
+  },
+  "additionalProperties": false
+}

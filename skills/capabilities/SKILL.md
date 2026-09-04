@@ -80,6 +80,7 @@ On activation, output the following capabilities reference:
 │  /evocate-ad-opus  EVOCATUS   Delegate tasks to external AI models via tmux     │
 │  /tabularius    TABULARIUS  Reports, charts, HTML formatting, publishing        │
 │  /capabilities  —           This help screen                                    │
+│  $open-design-producer      Verified HTML and screenshot production             │
 │                                                                                 │
 │  Usage: Evocate, ad opus! <model> for task(s) <numbers>                         │
 │                                                                                 │
@@ -132,6 +133,7 @@ On activation, output the following capabilities reference:
 │  architecture, design system        → /architect                                │
 │  Telegram Mini App game flow        → /ludifex                                  │
 │  UI/UX, interface, components       → /aedilis                                  │
+│  create/revise landing/dashboard UI → /pictor + $open-design-producer           │
 │  UX-writing, naming, CTA, microcopy → /nomenclator                              │
 │  i18n, localization, translation    → /glossator                                │
 │  Telegram API, bot, Mini App SDK    → /praeco                                   │
@@ -151,6 +153,7 @@ On activation, output the following capabilities reference:
 │  Review:    reviewer → security → tester                                        │
 │  Refactor:  researcher → refactorer → tester → reviewer                         │
 │  Security:  researcher → security → reviewer                                    │
+│  Design:    aedilis → pictor + open-design-producer → tester → reviewer         │
 └─────────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────────┐

@@ -10,4 +10,3 @@ description: Define and verify performance budgets for frontend, API, DB, worker
 4. Make targeted fixes only.
 5. Re-measure or run the closest available proxy check.
 6. Report before/after evidence, budget status, and residual risk.
-

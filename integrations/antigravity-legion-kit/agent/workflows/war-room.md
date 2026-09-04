@@ -14,4 +14,3 @@ When invoked:
 6. Report root cause, change, and proof.
 
 Use Opus for adversarial review when available. Use Gemini Pro for planning and architecture. Use Gemini Flash only for bounded search/summarization or low-risk edits.
-

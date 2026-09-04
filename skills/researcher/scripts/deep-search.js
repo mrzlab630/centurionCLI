@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 /**
  * EXPLORATOR Deep Search — Perplexity API integration
- *
+ * 
  * Usage:
  *   node deep-search.js "query" [model] [recency]
- *
+ * 
  * Models:
  *   sonar              — Fast (~1s), cheap ($0.005/req)
  *   sonar-pro          — Deep search, more citations
  *   sonar-reasoning    — Complex questions with chain-of-thought
  *   sonar-deep-research — Multi-step research agent (~30s+)
- *
+ * 
  * Recency:
  *   day, week, month, year (optional filter)
- *
+ * 
  * Environment:
  *   PERPLEXITY_API_KEY — API key (or hardcode in config below)
  */
@@ -84,10 +84,10 @@ const req = https.request(options, (res) => {
     res.on('data', chunk => raw += chunk);
     res.on('end', () => {
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-
+        
         try {
             const r = JSON.parse(raw);
-
+            
             if (r.error) {
                 console.error(`❌ API Error: ${r.error.message || JSON.stringify(r.error)}`);
                 process.exit(1);
@@ -106,7 +106,7 @@ const req = https.request(options, (res) => {
             console.log('═══════════════════════════════════════════');
             console.log('');
             console.log(content);
-
+            
             if (citations.length > 0) {
                 console.log('');
                 console.log('───── SOURCES ─────');
@@ -139,7 +139,7 @@ const req = https.request(options, (res) => {
 
             const outDir = path.join(__dirname, '..', 'reports');
             if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
-
+            
             const outFile = path.join(outDir, `report-${Date.now()}.json`);
             fs.writeFileSync(outFile, JSON.stringify(report, null, 2));
             console.log(`\n📄 Report saved: ${outFile}`);

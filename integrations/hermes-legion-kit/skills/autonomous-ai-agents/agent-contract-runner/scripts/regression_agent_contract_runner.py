@@ -17,6 +17,7 @@ from typing import Any
 from unittest import mock
 
 from attempt_ledger import append_attempt
+from agent_artifact_namespace import ArtifactNamespaceError, artifact_namespace
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNNER = ROOT / "scripts" / "agent_contract_runner.py"
@@ -149,11 +150,13 @@ def make_order(
     prose_allowed_after_json: Any = False,
 ) -> tuple[Path, Path, Path, Path, Path, Path]:
     order_id = f"regression-{name}"
-    actual_result_path = result_path or case_dir / "result.json"
+    control_dir = artifact_namespace(case_dir, order_id)
+    control_dir.mkdir(parents=True, exist_ok=True)
+    actual_result_path = result_path or control_dir / "result.json"
     actual_artifact_path = artifact_path or case_dir / "artifact.txt"
-    stdout_path = case_dir / "stdout.log"
-    stderr_path = case_dir / "stderr.log"
-    events_path = case_dir / "events.jsonl"
+    stdout_path = control_dir / "stdout.log"
+    stderr_path = control_dir / "stderr.log"
+    events_path = control_dir / "events.jsonl"
     executor_artifact_arg = actual_artifact_path if create_artifact else Path("NONE")
     proof_item = {"command": proof_command, "cwd": str(proof_cwd or case_dir), "required": True}
     if proof_argv is not None:
@@ -302,23 +305,28 @@ def load_runner_module() -> Any:
 def make_loop_fixture(name: str, executor: str, phase: str, state: dict[str, Any], metadata: dict[str, Any], *, allowed_state: bool = False, state_loop_id: str | None = None, executor_sleep_seconds: int = 0, structured_proof: bool = True) -> tuple[Path, Path, Path, Path, dict[str, str]]:
     case_dir = FIXTURE_ROOT / name
     case_dir.mkdir(parents=True, exist_ok=True)
-    state_path = case_dir / "state.json"
-    result_path = case_dir / "result.json"
+    order_id = f"{name}-order"
+    control_dir = artifact_namespace(case_dir, order_id)
+    control_dir.mkdir(parents=True, exist_ok=True)
+    state_path = control_dir / "state.json"
+    result_path = control_dir / "result.json"
     artifact_path = case_dir / "artifact.txt"
-    events_path = case_dir / "events.jsonl"
+    events_path = control_dir / "events.jsonl"
+    stdout_path = control_dir / "stdout.log"
+    stderr_path = control_dir / "stderr.log"
     state_copy = dict(state)
     state_copy["statePath"] = str(state_path)
     contract_loop_id = state_copy["loopId"]
     if state_loop_id is not None:
         state_copy["loopId"] = state_loop_id
     write_json(state_path, state_copy)
-    allowed = [str(case_dir), str(result_path), str(artifact_path), str(events_path), str(case_dir / "stdout.log"), str(case_dir / "stderr.log")]
+    allowed = [str(case_dir), str(control_dir), str(result_path), str(artifact_path), str(events_path), str(stdout_path), str(stderr_path)]
     if allowed_state:
         allowed.append(str(state_path))
     order = {
-        "orderVersion": "AGENT_ORDER_JSON_V1", "orderId": f"{name}-order", "createdAt": "2026-07-24T11:00:00Z", "controller": "Aquila", "executor": executor,
+        "orderVersion": "AGENT_ORDER_JSON_V1", "orderId": order_id, "createdAt": "2026-07-24T11:00:00Z", "controller": "Aquila", "executor": executor,
         "roleForTask": "loop fixture", "riskLevel": "low", "workspace": {"repoPath": str(case_dir), "branchOrWorktree": "fixture", "projectName": "loop-fixture"},
-        "launch": {"surface": "fake", "command": f"{executor} {result_path} {artifact_path} pass {name}-order {executor_sleep_seconds}", "timeoutSeconds": 5, "resultJsonPath": str(result_path), "stdoutPath": str(case_dir / "stdout.log"), "stderrPath": str(case_dir / "stderr.log")},
+        "launch": {"surface": "fake", "command": f"{executor} {result_path} {artifact_path} pass {order_id} {executor_sleep_seconds}", "timeoutSeconds": 5, "resultJsonPath": str(result_path), "stdoutPath": str(stdout_path), "stderrPath": str(stderr_path)},
         "objective": state_copy["workItem"]["objective"], "context": ["loop fixture"], "allowedPaths": allowed, "forbiddenPaths": [], "forbiddenActions": [], "nonGoals": [], "acceptanceCriteria": ["bounded phase"],
         "expectedArtifacts": [{"path": str(artifact_path), "type": "fixture", "required": True}], "proofCommands": [{"command": "python3 -c 'print(\"proof\")'", "argv": ["python3", "-c", "print(\"proof\")"], "cwd": str(case_dir), "required": True}],
         "outputContract": {"resultVersion": "AGENT_RESULT_JSON_V1", "resultPath": str(result_path), "stdoutAllowed": True, "proseAllowedAfterJson": False}, "stopConditions": ["stop"], "notesForExecutor": ["one phase"],
@@ -361,6 +369,130 @@ def main() -> int:
         shutil.rmtree(FIXTURE_ROOT)
     FIXTURE_ROOT.mkdir(parents=True)
     install_fake_executor()
+
+    unsafe_namespace_root = FIXTURE_ROOT / ".centurion" / "agents_results"
+    for unsafe_id in ("../escape", "nested/id", "", ".", "bad\\id"):
+        try:
+            artifact_namespace(FIXTURE_ROOT, unsafe_id)
+        except ArtifactNamespaceError:
+            pass
+        else:
+            raise AssertionError(f"unsafe orderId was accepted: {unsafe_id!r}")
+    assert not unsafe_namespace_root.exists(), "namespace helper must not create directories"
+    print("PASS artifact namespace derives deterministically and rejects unsafe order IDs without side effects")
+
+    root_noise = make_order(
+        FIXTURE_ROOT / "root-noise",
+        "root-noise",
+        "pass",
+        True,
+        "python3 -c 'print(\"proof ok\")'",
+    )
+    root_order = json.loads(root_noise[0].read_text(encoding="utf-8"))
+    root_control_names = ("AGENT_RESULT.json", "GRID_REMOVAL_RESULT.json", "CLAUDE_AUTH_REVIEW.stdout.json", "CLAUDE_AUTH_REVIEW.stderr.log")
+    for name in root_control_names:
+        candidate = FIXTURE_ROOT / "root-noise" / name
+        root_order["launch"]["resultJsonPath"] = str(candidate)
+        root_order["outputContract"]["resultPath"] = str(candidate)
+        write_json(root_noise[0], root_order)
+        completed = subprocess.run(
+            [sys.executable, str(RUNNER), "--order", str(root_noise[0]), "--validate-only", "--events", str(root_noise[5]), "--result", str(candidate)],
+            cwd=ROOT,
+            env={**os.environ, "AGENT_CONTRACT_RUNNER_ALLOW_OTHER": "1"},
+            text=True,
+            capture_output=True,
+        )
+        assert completed.returncode != 0 and "expected control artifact namespace" in completed.stderr
+        assert not candidate.exists() and not root_noise[5].exists()
+    print("PASS runner rejects representative root-level control artifact names before event creation")
+
+    symlink_cases = {
+        "centurion": ".centurion",
+        "agents-results": "agents_results",
+        "order-id": "orderId",
+    }
+    symlink_supported = True
+    for case_name, component in symlink_cases.items():
+        case_dir = FIXTURE_ROOT / f"namespace-symlink-{case_name}"
+        outside = FIXTURE_ROOT.parent / f"agent-contract-runner-outside-{case_name}"
+        case_dir.mkdir(parents=True)
+        outside.mkdir()
+        order_path, result_path, artifact_path, _, _, events_path = make_order(
+            case_dir,
+            f"namespace-symlink-{case_name}",
+            "pass",
+            True,
+            "python3 -c 'print(\"proof ok\")'",
+        )
+        order_id = f"regression-namespace-symlink-{case_name}"
+        control_root = case_dir / ".centurion"
+        namespace_link = control_root
+        shutil.rmtree(control_root)
+        try:
+            if component == ".centurion":
+                control_root.symlink_to(outside, target_is_directory=True)
+            elif component == "agents_results":
+                control_root.mkdir()
+                namespace_link = control_root / "agents_results"
+                namespace_link.symlink_to(outside, target_is_directory=True)
+            else:
+                (control_root / "agents_results").mkdir(parents=True)
+                namespace_link = control_root / "agents_results" / order_id
+                namespace_link.symlink_to(outside, target_is_directory=True)
+        except (NotImplementedError, OSError) as exc:
+            symlink_supported = False
+            if namespace_link.is_symlink():
+                namespace_link.unlink()
+            shutil.rmtree(case_dir, ignore_errors=True)
+            shutil.rmtree(outside, ignore_errors=True)
+            print(f"SKIP namespace symlink regression for {component}: symlinks unsupported ({exc})")
+            continue
+
+        before_outside = sorted(path.relative_to(outside).as_posix() for path in outside.rglob("*"))
+        launch_count_path = case_dir / "launch-count.txt"
+        symlink_env = os.environ.copy()
+        symlink_env["PATH"] = f"{BIN_DIR}:{symlink_env.get('PATH', '')}"
+        symlink_env["AGENT_CONTRACT_RUNNER_ALLOW_OTHER"] = "1"
+        symlink_env["FAKE_LAUNCH_COUNT"] = str(launch_count_path)
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(RUNNER),
+                "--order",
+                str(order_path),
+                "--mode",
+                "run",
+                "--events",
+                str(events_path),
+                "--result",
+                str(result_path),
+            ],
+            cwd=ROOT,
+            env=symlink_env,
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+        assert_case(completed.returncode != 0, f"symlinked {component} namespace must be rejected")
+        assert_case(
+            "control artifact namespace component must not be a symlink" in completed.stderr,
+            f"symlinked {component} rejection should identify the namespace component",
+        )
+        assert_case(not launch_count_path.exists(), f"symlinked {component} namespace must not launch executor")
+        assert_case(not events_path.exists(), f"symlinked {component} namespace must not create event log")
+        assert_case(not result_path.exists(), f"symlinked {component} namespace must not create result")
+        assert_case(not artifact_path.exists(), f"symlinked {component} namespace must not create product fixture")
+        assert_case(
+            sorted(path.relative_to(outside).as_posix() for path in outside.rglob("*")) == before_outside,
+            f"symlinked {component} namespace must not write outside target",
+        )
+        if namespace_link.is_symlink():
+            namespace_link.unlink()
+        shutil.rmtree(case_dir, ignore_errors=True)
+        shutil.rmtree(outside, ignore_errors=True)
+
+    if symlink_supported:
+        print("PASS pre-existing .centurion, agents_results, and orderId symlinks reject before launch without outside writes")
 
     for variant in ("duplicate-key", "nan", "infinity", "negative-infinity", "overflow"):
         case_dir = FIXTURE_ROOT / f"strict-order-{variant}"
@@ -545,7 +677,7 @@ def main() -> int:
         "AQUILA_ROUTING_JSON_V1:" + json.dumps(promoted_metadata, separators=(",", ":"))
     ]
     write_json(promotion_order, promotion_payload)
-    promoted_events = promotion_dir / "promoted-events.jsonl"
+    promoted_events = artifact_namespace(promotion_dir, "regression-post-cutover-promotion") / "promoted-events.jsonl"
     accepted_promotion = subprocess.run(
         [sys.executable, str(RUNNER), "--order", str(promotion_order), "--validate-only", "--events", str(promoted_events), "--result", str(promotion_result)],
         cwd=ROOT,
@@ -561,7 +693,7 @@ def main() -> int:
     malformed_ledger.write_text("{not-json\n", encoding="utf-8")
     malformed_env = dict(promotion_env)
     malformed_env["AQUILA_ATTEMPT_LEDGER"] = str(malformed_ledger)
-    malformed_events = promotion_dir / "malformed-events.jsonl"
+    malformed_events = artifact_namespace(promotion_dir, "regression-post-cutover-promotion") / "malformed-events.jsonl"
     malformed_history = subprocess.run(
         [sys.executable, str(RUNNER), "--order", str(promotion_order), "--mode", "run", "--events", str(malformed_events), "--result", str(promotion_result)],
         cwd=ROOT,
@@ -575,7 +707,7 @@ def main() -> int:
 
     missing_ledger_env = dict(promotion_env)
     missing_ledger_env["AQUILA_ATTEMPT_LEDGER"] = str(promotion_dir / "missing.jsonl")
-    missing_ledger_events = promotion_dir / "missing-ledger-events.jsonl"
+    missing_ledger_events = artifact_namespace(promotion_dir, "regression-post-cutover-promotion") / "missing-ledger-events.jsonl"
     missing_history = subprocess.run(
         [sys.executable, str(RUNNER), "--order", str(promotion_order), "--mode", "run", "--events", str(missing_ledger_events), "--result", str(promotion_result)],
         cwd=ROOT,
@@ -675,7 +807,7 @@ def main() -> int:
         "AQUILA_ROUTING_JSON_V1:" + json.dumps(promoted_terminal_metadata, separators=(",", ":"))
     ]
     write_json(terminal_order, terminal_payload)
-    promoted_terminal_events = terminal_dir / "promoted-events.jsonl"
+    promoted_terminal_events = artifact_namespace(terminal_dir, "regression-post-cutover-terminal-promotion") / "promoted-events.jsonl"
     accepted_terminal = subprocess.run(
         [sys.executable, str(RUNNER), "--order", str(terminal_order), "--mode", "run", "--events", str(promoted_terminal_events), "--result", str(terminal_result)],
         cwd=ROOT,
@@ -690,7 +822,7 @@ def main() -> int:
     assert_case(sum("dispatch_started" in line for line in promoted_terminal_events_text.splitlines()) == 1, "promoted terminal V2 route must dispatch exactly once")
     assert_case(terminal_result.exists() and terminal_artifact.exists(), "promoted terminal V2 route must produce executor outputs")
 
-    malformed_terminal_events = terminal_dir / "malformed-ledger-events.jsonl"
+    malformed_terminal_events = artifact_namespace(terminal_dir, "regression-post-cutover-terminal-promotion") / "malformed-ledger-events.jsonl"
     malformed_terminal = subprocess.run(
         [sys.executable, str(RUNNER), "--order", str(terminal_order), "--mode", "run", "--events", str(malformed_terminal_events), "--result", str(terminal_result)],
         cwd=ROOT,
@@ -702,7 +834,7 @@ def main() -> int:
     assert_case(malformed_terminal.returncode != 0 and "attempt ledger load failed" in malformed_terminal.stderr, "terminal review must fail closed on an explicit malformed ledger")
     assert_case("dispatch_started" not in events_text(malformed_terminal_events), "malformed terminal ledger rejection must precede dispatch")
 
-    missing_terminal_events = terminal_dir / "missing-ledger-events.jsonl"
+    missing_terminal_events = artifact_namespace(terminal_dir, "regression-post-cutover-terminal-promotion") / "missing-ledger-events.jsonl"
     missing_terminal = subprocess.run(
         [sys.executable, str(RUNNER), "--order", str(terminal_order), "--mode", "run", "--events", str(missing_terminal_events), "--result", str(terminal_result)],
         cwd=ROOT,
@@ -805,7 +937,10 @@ def main() -> int:
         "pass",
         True,
         "python3 -c 'print(\"proof ok\")'",
-        cli_result_path=FIXTURE_ROOT / "result-path-mismatch" / "different-result.json",
+        cli_result_path=artifact_namespace(
+            FIXTURE_ROOT / "result-path-mismatch",
+            "regression-result-path-mismatch",
+        ) / "different-result.json",
     )
     assert_case(mismatch.returncode != 0, "result path mismatch should be rejected")
     assert_case("must resolve to the same path" in mismatch.stderr, "mismatch rejection should cite path equality")
@@ -876,7 +1011,7 @@ def main() -> int:
     print("PASS missing required artifact rejected")
 
     edgecase_expected_artifacts = [
-        {"path": str(FIXTURE_ROOT / "result-artifact-edgecase" / "result.json"), "type": "AGENT_RESULT_JSON_V1 result", "required": True},
+        {"path": str(artifact_namespace(FIXTURE_ROOT / "result-artifact-edgecase", "regression-result-artifact-edgecase") / "result.json"), "type": "AGENT_RESULT_JSON_V1 result", "required": True},
         {"path": str(FIXTURE_ROOT / "result-artifact-edgecase" / "artifact.txt"), "type": "fixture", "required": True},
     ]
     result_artifact_edgecase, edgecase_result_path, edgecase_artifact_path, _, _, edgecase_events = run_case(

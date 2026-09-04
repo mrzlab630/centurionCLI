@@ -48,4 +48,3 @@ This is the final strengthening layer for JavaScript/TypeScript projects under `
 - Do not optimize blindly. Measure or inspect the path first, then change the bottleneck.
 - UI performance fixes must preserve accessibility and responsive behavior.
 - DB performance fixes must be verified with query shape, indexes, or representative tests, not intuition alone.
-

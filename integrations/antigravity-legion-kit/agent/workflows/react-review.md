@@ -10,4 +10,3 @@ description: Review React/Vite/TypeScript changes for correctness, accessibility
 4. Review TypeScript risks: `any`, unsafe casts, missing boundary validation, async errors.
 5. Review Vite/security risks: `VITE_*` secrets, sourcemaps, public env values.
 6. Report findings first, ordered by severity with file references.
-

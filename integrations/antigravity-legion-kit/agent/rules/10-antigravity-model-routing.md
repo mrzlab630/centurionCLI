@@ -23,7 +23,7 @@ Behavior:
 - identify assumptions and validation gates
 - produce a concrete implementation path, not generic advice
 
-## Gemini 3.5 Flash
+## Gemini 3.7 Flash
 
 Use for:
 
@@ -64,4 +64,3 @@ Escalate from Flash to Pro/Opus when:
 - the task affects production deployment or live services
 - the first attempted fix fails twice
 - project docs and code disagree
-

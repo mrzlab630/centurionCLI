@@ -25,4 +25,3 @@ Score and report concrete examples for:
 ## Output Contract
 
 Return findings with file references where possible, prioritized fixes, and a small token/component action plan. Do not propose a full redesign when local component cleanup is enough.
-

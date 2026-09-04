@@ -13,4 +13,3 @@ description: Evidence-first incident triage for runtime, API, DB, worker, provid
 7. Apply the smallest evidence-backed fix.
 8. Prove recovery with the failing path plus health/log/process evidence.
 9. Write a short incident report with follow-up prevention.
-

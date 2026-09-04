@@ -21,4 +21,3 @@ Chain: {LEG1} → {LEG2} → {LEG3} → {LEG4}
 
 ## Notes
 <!-- Pipeline-level notes, blockers, decisions -->
-

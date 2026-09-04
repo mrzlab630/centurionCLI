@@ -37,4 +37,3 @@ Stop and report before proceeding if:
 - a secret appears in tracked files or generated output
 - project phase docs forbid the requested implementation
 - validation fails and the next fix would require changing scope or architecture
-

@@ -17,7 +17,7 @@ if (!/^[a-z0-9-]+$/.test(skillName)) {
     process.exit(1);
 }
 
-const skillsRoot = path.join(process.env.HOME, 'agent-tools/skills');
+const skillsRoot = path.join(process.env.HOME, '.claude/skills');
 const skillDir = path.join(skillsRoot, skillName);
 
 if (fs.existsSync(skillDir)) {

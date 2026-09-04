@@ -32,4 +32,3 @@ If it does none, remove it.
 - layout shift during loading or state changes
 - missing reduced-motion fallback
 - excessive stagger delays or decorative reveal sequences
-

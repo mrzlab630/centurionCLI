@@ -18,14 +18,23 @@ Do not use JSON for open-ended exploration, broad architecture debate, chain-of-
 
 ## Versions
 
-- `LEGION_ORDER_V1`: neutral controller-to-executor order for bounded work.
-- `LEGION_RESULT_V1`: neutral executor-to-controller result with changed files, proof, self-review, scope violations, forbidden-pattern hits, and remaining risks.
+- `AGENT_ORDER_JSON_V1`: canonical controller-to-executor order for bounded work.
+- `AGENT_RESULT_JSON_V1`: canonical executor-to-controller result with changed files, proof, self-review, scope violations, forbidden-pattern hits, and remaining risks.
 - `LEGION_REVIEW_V1`: reviewer-to-controller verdict for accepting or rejecting an executor result.
 
-Surface-specific protocols remain valid where they already exist:
+Surface-specific legacy protocols remain valid only for explicit compatibility:
 
-- Antigravity and `agy` keep using `AGY_ORDER_V1` plus `AGY_RESULT.json`.
-- Claude Code keeps using `CLAUDE_ORDER_V1` plus `CLAUDE_RESULT.json`.
+- Antigravity and `agy` may opt into `AGY_ORDER_V1` plus `AGY_RESULT.json` for legacy compatibility.
+- Claude Code may opt into `CLAUDE_ORDER_V1` plus `CLAUDE_RESULT.json` for legacy compatibility.
+
+For new executor orders, controller-owned result/candidate/receipt/stream/event
+and evidence files belong under
+`<repo>/.centurion/agents_results/<orderId>/`, derived from the resolved
+workspace repository and a fresh safe `orderId`. Explicit product/application
+artifacts stay in their declared paths. Existing root files are not relocated;
+cleanup is a separate operation.
+
+Pre-execution snapshots for AGY and Claude are separate controller-custody inputs: guards require an absolute path outside the workspace plus a detached digest. A detached digest catches ordinary tampering; it is not independent authentication against a same-UID writer that can rewrite both custody files, so an external controller account or OS boundary is still required for that threat.
 
 The shared validator accepts those legacy result payloads only when a surface guard explicitly opts in with `acceptedOrderVersions`.
 
@@ -65,15 +74,16 @@ node ./scripts/legion-contract.mjs validate-result --file /path/to/LEGION_RESULT
 node ./scripts/legion-contract.mjs validate-review --file /path/to/LEGION_REVIEW.json
 ```
 
-Legacy result validation examples:
+Legacy result validation examples (compatibility-only; canonical results need no opt-in):
 
 ```bash
+CONTROL_DIR="$PWD/.centurion/agents_results/<orderId>"
 node integrations/legion-contracts/scripts/legion-contract.mjs validate-result \
-  --file /path/to/AGY_RESULT.json \
+  --file "$CONTROL_DIR/AGY_RESULT.json" \
   --accept-order-version AGY_ORDER_V1
 
 node integrations/legion-contracts/scripts/legion-contract.mjs validate-result \
-  --file /path/to/CLAUDE_RESULT.json \
+  --file "$CONTROL_DIR/CLAUDE_RESULT.json" \
   --accept-order-version CLAUDE_ORDER_V1
 ```
 

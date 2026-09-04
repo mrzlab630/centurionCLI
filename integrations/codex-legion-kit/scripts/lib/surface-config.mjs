@@ -39,6 +39,7 @@ export const EXPECTED_SKILLS = Object.freeze([
 ]);
 
 export const EXPECTED_SKILL_COUNT = EXPECTED_SKILLS.length;
+export const SHARED_CAPABILITIES = Object.freeze(['open-design-producer']);
 
 const IGNORED_GENERATED_DIRS = new Set([
   '.git',

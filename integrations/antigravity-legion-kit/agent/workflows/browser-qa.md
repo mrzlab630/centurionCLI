@@ -11,4 +11,3 @@ description: Verify browser-visible React/Vite behavior with real route checks a
 5. Check desktop and mobile 320-390px widths.
 6. Verify keyboard focus, loading, empty, error, disabled, and success paths when applicable.
 7. Report evidence: command result, URL, screenshot path, console/log findings, or exact reason browser proof was not run.
-

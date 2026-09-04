@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.hermes/contracts/execution-state.schema.json",
+  "title": "AQUILA_EXECUTION_STATE_V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["stateVersion", "scope", "execution", "revision", "provenance"],
+  "properties": {
+    "stateVersion": {"const": "AQUILA_EXECUTION_STATE_V1"},
+    "scope": {
+      "type": "object", "additionalProperties": false,
+      "required": ["project", "objective", "workItemId", "orderId"],
+      "properties": {
+        "project": {"type": "string", "minLength": 1, "maxLength": 512},
+        "objective": {"type": "string", "minLength": 1, "maxLength": 512},
+        "workItemId": {"type": "string", "minLength": 1, "maxLength": 512},
+        "orderId": {"type": "string", "minLength": 1, "maxLength": 512}
+      }
+    },
+    "execution": {
+      "type": "object", "additionalProperties": false,
+      "required": ["phase", "status"],
+      "properties": {
+        "phase": {"enum": ["execute", "verify"]},
+        "status": {"enum": ["planned", "running", "awaiting_verification", "completed", "blocked", "failed"]},
+        "executor": {"type": ["string", "null"], "maxLength": 128},
+        "iteration": {"type": ["integer", "null"], "minimum": 0, "maximum": 1000000},
+        "summary": {"type": ["string", "null"], "maxLength": 512},
+        "summaryOmitted": {
+          "type": "object", "additionalProperties": false,
+          "required": ["reason", "sourceBytes"],
+          "properties": {
+            "reason": {"const": "result-summary-over-bound"},
+            "sourceBytes": {"type": "integer", "minimum": 513, "maximum": 2097152}
+          }
+        }
+      },
+      "allOf": [
+        {"$ref": "#/$defs/phaseStatusPair"},
+        {"not": {"required": ["summary", "summaryOmitted"]}}
+      ]
+    },
+    "revision": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sequence", "orderSha256", "resultSha256", "parentSha256"],
+      "properties": {
+        "sequence": {"type": "integer", "minimum": 0},
+        "orderSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "resultSha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "parentSha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"sequence": {"const": 0}}},
+          "then": {"properties": {"parentSha256": {"type": "null"}}}
+        },
+        {
+          "if": {"properties": {"sequence": {"minimum": 1}}},
+          "then": {"properties": {"parentSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}
+        }
+      ]
+    },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["mode", "sources", "evidence"],
+      "properties": {
+        "mode": {"enum": ["read-only-derived", "read-only-derived-legacy-terminal"]},
+        "sources": {
+          "type": "array", "minItems": 1, "maxItems": 34,
+          "items": {"$ref": "#/$defs/source"}
+        },
+        "evidence": {
+          "type": "array", "maxItems": 32,
+          "items": {"$ref": "#/$defs/evidence"}
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["provenance"],
+        "properties": {
+          "provenance": {
+            "required": ["mode"],
+            "properties": {"mode": {"const": "read-only-derived-legacy-terminal"}}
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "execution": {
+            "properties": {
+              "phase": {"const": "verify"},
+              "status": {"enum": ["completed", "blocked", "failed"]}
+            }
+          },
+          "revision": {
+            "properties": {
+              "sequence": {"const": 0},
+              "resultSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+              "parentSha256": {"type": "null"}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["execution"],
+        "properties": {
+          "execution": {"required": ["summaryOmitted"]}
+        }
+      },
+      "then": {
+        "properties": {
+          "revision": {
+            "properties": {
+              "resultSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "phaseStatusPair": {
+      "oneOf": [
+        {"properties": {"phase": {"const": "execute"}, "status": {"enum": ["planned", "running", "awaiting_verification"]}}},
+        {"properties": {"phase": {"const": "verify"}, "status": {"enum": ["awaiting_verification", "completed", "blocked", "failed"]}}}
+      ]
+    },
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "path", "sha256", "bytes"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1, "maxLength": 64},
+        "path": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "bytes": {"type": "integer", "minimum": 0, "maximum": 2097152}
+      }
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "path", "sha256", "bytes"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1, "maxLength": 64},
+        "path": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "bytes": {"type": "integer", "minimum": 0, "maximum": 2097152}
+      }
+    }
+  }
+}

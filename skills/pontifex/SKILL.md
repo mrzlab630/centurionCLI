@@ -22,7 +22,7 @@ status, logs, or CI output. Report only verified state.
 ## 2. DATABASE (PostgreSQL)
 - **Management:** Use `psql` or Node scripts for migrations.
 - **Optimization:** Analyze `EXPLAIN ANALYZE`.
-- **Backup:** Ensure `pg_dump` protocols are in place.
+- **Safety:** Always backup before migration.
 
 ## 🚀 CODE MODE
 When managing DBs or Docker:

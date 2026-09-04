@@ -44,4 +44,3 @@ pnpm build
 ```
 
 Run Playwright/e2e only when the task affects browser flows, routing, responsive layout, or auth/session behavior.
-

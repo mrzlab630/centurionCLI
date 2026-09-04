@@ -10,4 +10,3 @@ description: Polish an existing UI without redesigning the whole product.
 4. Preserve existing product style and component API.
 5. Verify mobile width 320-390px and desktop behavior when feasible.
 6. Report before/after changes and proof.
-

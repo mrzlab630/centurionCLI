@@ -59,4 +59,3 @@ Match the interface to the product. Operational SaaS/admin surfaces should be de
 - Prefer specific mechanisms and concrete outcomes over abstract adjectives.
 - Keep one primary action per screen or message.
 - Use exploratory variants when the goal is creative direction, then choose one direction before implementation.
-

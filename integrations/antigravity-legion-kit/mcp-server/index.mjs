@@ -3,6 +3,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+import {
+  CONTROL_NAMESPACE_ROOT,
+  AGY_RESULT_FILE,
+  AGY_SNAPSHOT_FILE,
+  deriveControlPaths,
+  validateOrderId
+} from '../lib/control-artifact-namespace.mjs';
+import { parseStrictJson } from '../legion-contracts/lib/contracts.mjs';
 
 const KIT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const AGENT_ROOT = process.env.CENTURION_AGENT_ROOT || path.join(KIT_ROOT, 'agent');
@@ -118,14 +126,15 @@ const TOOLS = [
         task: { type: 'string', description: 'Task to consider delegating to agy.' },
         owner: { type: 'string', description: 'Optional current Legionary owner. If omitted, routing selects one.' },
         workspace: { type: 'string', description: 'Workspace path where agy should run. Default: current working directory.' },
+        orderId: { type: 'string', description: 'Safe AGY order identity used for all controller artifacts.' },
         changeType: { type: 'string', description: 'Optional gate type: code, docs, frontend, backend, infra, security, or agent-config.' },
         allowedPaths: { type: 'array', items: { type: 'string' }, description: 'Files or directories agy may read/edit. Result file is added separately.' },
         nonGoals: { type: 'array', items: { type: 'string' }, description: 'Explicit exclusions that agy must not reinterpret.' },
         proofCommands: { type: 'array', items: { type: 'string' }, description: 'Commands agy must run or report as unavailable.' },
         forbiddenPatterns: { type: 'array', items: { type: 'string' }, description: 'Regex/text patterns that must not appear in touched files.' },
-        resultFile: { type: 'string', description: 'Structured result file path inside workspace. Default: AGY_RESULT.json.' }
+        resultFile: { type: 'string', description: 'Optional namespaced result path. Defaults to .centurion/agents_results/<orderId>/AGY_RESULT.json.' }
       },
-      required: ['task']
+      required: ['task', 'orderId']
     }
   },
   {
@@ -858,11 +867,30 @@ function agyDelegationBrief(args = {}) {
   const explicitOwner = String(args.owner || '').trim().toUpperCase();
   const owner = legionaryByName(explicitOwner) || routedOwner;
   const workspace = String(args.workspace || process.cwd());
+  const orderId = validateOrderId(args.orderId);
+  const resultFileArg = args.resultFile === undefined ? undefined : String(args.resultFile);
+  const controlPaths = deriveControlPaths(workspace, orderId, {
+    requireWorkspace: false,
+    resultPath: resultFileArg
+  });
   const changeType = String(args.changeType || (/frontend|ui\b|landing|animation|responsive|react|css|layout|интерфейс|лендинг/i.test(task) ? 'frontend' : 'code')).toLowerCase();
   const fit = agyDelegationFit(task);
   const checks = qualityChecks(changeType);
-  const resultFile = String(args.resultFile || 'AGY_RESULT.json').trim() || 'AGY_RESULT.json';
-  const allowedPaths = [...new Set(stringList(args.allowedPaths, ['<exact files/directories allowed>']).concat(resultFile))];
+  const resultFile = controlPaths.resultRelative;
+  const snapshotFile = controlPaths.snapshotRelative;
+  const requestedAllowedPaths = stringList(args.allowedPaths, ['<exact files/directories allowed>']);
+  for (const allowedPath of requestedAllowedPaths) {
+    const normalized = allowedPath.replace(/\\/g, '/');
+    if (normalized === CONTROL_NAMESPACE_ROOT || normalized.startsWith(`${CONTROL_NAMESPACE_ROOT}/`)) {
+      if (normalized !== controlPaths.namespaceRelative && !normalized.startsWith(`${controlPaths.namespaceRelative}/`)) {
+        throw new Error(`allowedPaths must keep controller files inside ${controlPaths.namespaceRelative}`);
+      }
+    }
+    const baseName = normalized.split('/').pop();
+    if (baseName === AGY_RESULT_FILE && normalized !== resultFile) throw new Error(`allowedPaths cannot place ${AGY_RESULT_FILE} outside ${controlPaths.namespaceRelative}`);
+    if (baseName === AGY_SNAPSHOT_FILE && normalized !== snapshotFile) throw new Error(`allowedPaths cannot place ${AGY_SNAPSHOT_FILE} outside ${controlPaths.namespaceRelative}`);
+  }
+  const allowedPaths = [...new Set(requestedAllowedPaths.concat(resultFile, snapshotFile))];
   const nonGoals = stringList(args.nonGoals, ['no package/dependency changes unless explicitly allowed', 'no external network unless explicitly allowed', 'no edits outside allowed paths']);
   const proofCommands = stringList(args.proofCommands, ['<proof command 1>', '<proof command 2>']);
   const forbiddenPatterns = stringList(args.forbiddenPatterns, ['<forbidden regex/text pattern when applicable>']);
@@ -874,6 +902,9 @@ function agyDelegationBrief(args = {}) {
     `Delegation verdict: ${fit.verdict}`,
     `Reason: ${fit.reason}`,
     `Workspace: ${workspace}`,
+    `AGY orderId: ${orderId}`,
+    `Control namespace: ${controlPaths.namespaceRelative}`,
+    `Controller artifacts: ${snapshotFile}, ${resultFile}`,
     '',
     'Delegate to agy only if:',
     '- The owner can specify exact files, target behavior, non-goals, and proof commands.',
@@ -900,6 +931,14 @@ function agyDelegationBrief(args = {}) {
     'Proof commands:',
     formatList(proofCommands, ['- <proof command>']),
     '',
+    'Controller artifact rules:',
+    `- Write AGY control artifacts only under ${controlPaths.namespaceRelative}/ for this exact orderId.`,
+    `- Snapshot path: ${snapshotFile}. Result path: ${resultFile}.`,
+    '- Never create or read root-level AGY_RESULT.json or snapshot files.',
+    '',
+    'Owner snapshot command:',
+    `node ${path.join(KIT_ROOT, 'scripts', 'agy-order-guard.mjs')} snapshot --workspace ${workspace} --order-id ${orderId} --out ${snapshotFile}`,
+    '',
     'Hard-stop rules:',
     '- If a needed action is outside Allowed paths, stop and write status=blocked. Do not improvise.',
     '- If a Non-goal conflicts with the task, stop and write status=blocked. Do not reinterpret the order.',
@@ -907,30 +946,42 @@ function agyDelegationBrief(args = {}) {
     '- Read only files needed to satisfy the order and proof. Do not browse unrelated workspace files.',
     '- If proof fails, fix only within Allowed paths and rerun proof. If still failing, report blocked.',
     '',
-    `Write ${resultFile} as JSON with this schema:`,
+    `Write ${resultFile} as JSON with this canonical default schema:`,
     '{',
-    '  "orderVersion": "AGY_ORDER_V1",',
-    `  "owner": "${owner.name}",`,
-    '  "status": "done|blocked",',
-    '  "filesChanged": ["relative/path"],',
-    '  "proof": [{"command":"...","result":"passed|failed|not_run","summary":"..."}],',
-    '  "selfReviewFixed": "yes|no",',
-    '  "scopeViolations": [],',
+    '  "resultVersion": "AGENT_RESULT_JSON_V1",',
+    `  "orderId": "${orderId}",`,
+    '  "executor": "agy",',
+    '  "status": "done|blocked|failed",',
+    '  "summary": "...",',
+    '  "filesChanged": [{"path":"relative/path","action":"added|modified|deleted|renamed|none"}],',
+    '  "artifacts": [{"path":"relative/path","exists":true,"type":"...","note":"..."}],',
+    '  "proof": [{"command":"...","cwd":"...","status":"pass|fail|not_run","exitCode":0,"summary":"..."}],',
+    '  "selfReview": {"performed":true,"findings":[],"fixesApplied":[]},',
+    '  "scopeDeviations": [],',
     '  "forbiddenPatternHits": [],',
-    '  "remainingRisks": ["..."]',
+    '  "remainingRisks": [],',
+    '  "questions": [],',
+    '  "errors": [],',
+    '  "stdoutSummary": "",',
+    '  "stderrSummary": ""',
     '}',
+    '',
+    'Legacy compatibility only (--allow-legacy; not the default):',
+    `- To accept the previous AGY_ORDER_V1 result shape, pass --allow-legacy to agy-order-guard verify for this exact namespaced ${resultFile}.`,
+    '- Do not emit legacy fields or hybrid payloads in the default result.',
+    '{ "orderVersion": "AGY_ORDER_V1", "owner": "<OWNER>", "status": "done|blocked", "filesChanged": ["relative/path"], "proof": [{"command":"...","result":"passed|failed|not_run","summary":"..."}], "selfReviewFixed": "yes|no", "scopeViolations": [], "forbiddenPatternHits": [], "remainingRisks": [] }',
     '',
     'Final stdout must contain only:',
     `AGY_RESULT_FILE=${resultFile}`,
-    'STATUS=<done|blocked>',
-    'SELF_REVIEW_FIXED=<yes|no>',
+    'STATUS=<done|blocked|failed>',
+    'SELF_REVIEW_PERFORMED=<true|false>',
     '```',
     '',
     'Acceptance by CENTURION/owner:',
-    `- Validate ${resultFile}; prefer it over stdout because CLI models may add narration.`,
+    `- Validate ${resultFile} as AGENT_RESULT_JSON_V1 by default; prefer it over stdout because CLI models may add narration.`,
     '- Confirm agy output includes files/artifacts changed, proof commands, self-review findings, fixes applied, scope violations, forbidden-pattern hits, and residual risk.',
     '- Inspect the diff or artifact directly; do not accept prose claims alone.',
-    `- Suggested scope guard: node ${path.join(KIT_ROOT, 'scripts', 'agy-order-guard.mjs')} verify --workspace ${workspace} --before <snapshot.json> --allowed ${allowedPaths.join(',')} --result ${resultFile}`,
+    `- Suggested scope guard: node ${path.join(KIT_ROOT, 'scripts', 'agy-order-guard.mjs')} verify --workspace ${workspace} --order-id ${orderId} --before ${snapshotFile} --allowed ${allowedPaths.join(',')} --result ${resultFile}`,
     ...checks.map((check) => `- Run owner proof: ${check}`),
     '- Call TESTER for failing/fragile proof, REVIEWER for risky diffs, GUARDIAN for security or external-source risk, and CENSOR for claim-sensitive decisions.',
     '- Final report must state: owner, whether AUXILIUM AGY was used, agy proof, owner proof, and residual risk.'
@@ -1084,7 +1135,7 @@ process.stdin.on('data', (chunk) => {
     buffer = buffer.slice(newlineIndex + 1);
     if (!line) continue;
     try {
-      handleRequest(JSON.parse(line));
+      handleRequest(parseStrictJson(line, 'JSON-RPC request'));
     } catch (error) {
       send({ jsonrpc: '2.0', error: { code: -32700, message: error.message } });
     }

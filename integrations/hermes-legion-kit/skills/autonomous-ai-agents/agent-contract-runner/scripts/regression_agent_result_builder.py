@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator, ValidationError
 
 import agent_result_builder as builder
 from agent_result_builder import BuilderError, build_result, resolve_schema_path
@@ -51,6 +51,7 @@ def make_case(name: str, status: str = "done") -> tuple[Path, Path, Path, Path, 
         "orderVersion": "AGENT_ORDER_JSON_V1",
         "orderId": f"builder-{name}",
         "executor": "codex",
+        "workspace": {"repoPath": str(ROOT)},
         "outputContract": {"resultVersion": "AGENT_RESULT_JSON_V1", "resultPath": str(result)},
     }
     payload = {
@@ -125,6 +126,70 @@ def main() -> int:
     assert valid["status"] == "done"
     validator.validate(json.loads(valid_result.read_text(encoding="utf-8")))
     print("PASS valid candidate finalized once with canonical identity and schema")
+
+    semantic_cases = {
+        "failed-proof": lambda payload: payload["proof"][0].__setitem__("status", "fail"),
+        "unperformed-self-review": lambda payload: payload["selfReview"].__setitem__("performed", False),
+        "scope-deviation": lambda payload: payload["scopeDeviations"].append("outside"),
+        "forbidden-hit": lambda payload: payload["forbiddenPatternHits"].append("secret"),
+    }
+    for name, mutate in semantic_cases.items():
+        candidate = json.loads(json.dumps(valid))
+        mutate(candidate)
+        try:
+            validator.validate(candidate)
+        except ValidationError:
+            pass
+        else:
+            raise AssertionError(f"done schema semantic gate must reject {name}")
+    for status in ("blocked", "failed"):
+        candidate = json.loads(json.dumps(valid))
+        candidate.update({
+            "status": status,
+            "proof": [],
+            "selfReview": {"performed": False, "findings": [], "fixesApplied": []},
+            "scopeDeviations": ["not accepted"],
+            "forbiddenPatternHits": ["not accepted"],
+        })
+        validator.validate(candidate)
+    print("PASS schema conditional gate restricts done and leaves blocked/failed unconstrained")
+
+    relative_order, relative_candidate, relative_result, relative_evidence, _, _ = make_case("relative")
+    relative_order_payload = json.loads(relative_order.read_text(encoding="utf-8"))
+    relative_order_payload["outputContract"]["resultPath"] = str(relative_result.relative_to(ROOT))
+    write_json(relative_order, relative_order_payload)
+    relative = build_result(relative_order, relative_candidate, relative_result, relative_evidence)
+    assert relative["status"] == "done"
+    print("PASS relative result path resolves against workspace.repoPath")
+
+    absolute_order, absolute_candidate, absolute_result, absolute_evidence, _, _ = make_case("absolute")
+    absolute = build_result(absolute_order, absolute_candidate, absolute_result, absolute_evidence)
+    assert absolute["status"] == "done"
+    print("PASS absolute result path remains accepted")
+
+    mismatch_order, mismatch_candidate, mismatch_result, mismatch_evidence, _, _ = make_case("mismatch")
+    mismatch_payload = json.loads(mismatch_order.read_text(encoding="utf-8"))
+    mismatch_payload["outputContract"]["resultPath"] = "mismatch/other-result.json"
+    write_json(mismatch_order, mismatch_payload)
+    try:
+        build_result(mismatch_order, mismatch_candidate, mismatch_result, mismatch_evidence)
+    except BuilderError as exc:
+        assert "exactly match" in str(exc)
+    else:
+        raise AssertionError("mismatched result path must be rejected")
+    print("PASS mismatched result path is rejected")
+
+    escape_order, escape_candidate, escape_result, escape_evidence, _, _ = make_case("escape")
+    escape_payload = json.loads(escape_order.read_text(encoding="utf-8"))
+    escape_payload["outputContract"]["resultPath"] = "../escaped-result.json"
+    write_json(escape_order, escape_payload)
+    try:
+        build_result(escape_order, escape_candidate, escape_result, escape_evidence)
+    except BuilderError as exc:
+        assert "workspace.repoPath" in str(exc)
+    else:
+        raise AssertionError("escaping relative result path must be rejected")
+    print("PASS escaping relative result path is rejected")
 
     cases = {
         "proof-near-miss": lambda payload: payload["proof"][0].__setitem__("status", "pass_with_finding"),

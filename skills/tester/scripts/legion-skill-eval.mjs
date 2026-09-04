@@ -84,6 +84,15 @@ const routeCases = [
     primary: 'quaestor',
     guardianGate: false,
   },
+  {
+    task: 'спроектировать UX и провести visual review лендинга',
+    primary: 'aedilis',
+  },
+  {
+    task: 'создать landing page HTML через Open Design и вернуть screenshot',
+    primary: 'pictor',
+    requiredCandidate: 'open-design-producer',
+  },
 ];
 
 const routeResults = routeCases.map((item) => {
@@ -97,7 +106,8 @@ const routeResults = routeCases.map((item) => {
     selected,
     pass: result.primaryLegionary === item.primary
       && (item.guardianGate === undefined || result.guardianGate === item.guardianGate)
-      && forbidden.every((name) => !selected.includes(name)),
+      && forbidden.every((name) => !selected.includes(name))
+      && (!item.requiredCandidate || result.localSkillCandidates.some((candidate) => candidate.name === item.requiredCandidate)),
   };
 });
 

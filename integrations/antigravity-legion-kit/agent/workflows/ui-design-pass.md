@@ -11,4 +11,3 @@ description: Run a full UI design pass before implementing or redesigning a scre
 5. Implement using existing components/tokens unless a new pattern is justified.
 6. Verify mobile and desktop fit, keyboard access, labels, focus, and browser behavior when feasible.
 7. Report direction, files changed, proof, and residual design risks.
-

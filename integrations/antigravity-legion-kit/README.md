@@ -109,17 +109,40 @@ The default install updates two local surfaces and registers the CLI plugin thro
 
 Best fits are frontend/UI slices, reference summaries, UX copy variants, documentation drafts, focused tests, and small reproducible fixes. Do not delegate secrets, credentials, production deploys, destructive commands, wallet/payment/KYC flows, exploit execution, or final architecture/security/legal/product-risk judgment.
 
-Acceptance rule: require `agy` to self-review, fix confirmed defects, rerun proof, and report `SELF_REVIEW_FIXED=<yes/no>`. Then inspect the diff or artifact directly and rerun owner proof before claiming completion.
+Acceptance rule: require `agy` to self-review, fix confirmed defects, rerun proof, and report canonical `selfReview.performed=true` for a done result. Then inspect the diff or artifact directly and rerun owner proof before claiming completion.
 
-For implementation tasks, use `AGY_ORDER v1`: take a snapshot with `scripts/agy-order-guard.mjs`, pass `agy` exact allowed paths, non-goals, forbidden patterns, and proof commands, require `AGY_RESULT.json`, then verify scope and result shape with the guard before accepting. This is model-agnostic and does not depend on a specific Gemini version being perfectly obedient.
+For implementation tasks, use `AGY_ORDER v1` with a fresh safe `orderId`: take a controller-custody snapshot with `scripts/agy-order-guard.mjs` at an explicit absolute path outside the workspace, pass `agy` exact allowed paths, non-goals, forbidden patterns, and proof commands, require the namespaced `AGY_RESULT.json`, then verify scope and result shape with the guard before accepting. In-workspace snapshots are rejected. The detached digest catches ordinary tampering but does not authenticate against a same-UID writer that can rewrite both custody files; that requires an external controller/OS boundary. This is model-agnostic and does not depend on a specific Gemini version being perfectly obedient.
 
-`AGY_RESULT.json` is checked through the shared Legion result-contract validator as a legacy `AGY_ORDER_V1` payload. The shared contract lives in `../legion-contracts`; it standardizes result shape while `agy-order-guard.mjs` still owns snapshot, allowed-path, and forbidden-pattern enforcement.
+By default, `AGY_RESULT.json` must be canonical `AGENT_RESULT_JSON_V1` with the matching `orderId`, `executor=agy`, and object-shaped result fields. The bundled shared contract lives in `legion-contracts/`; `agy-order-guard.mjs` still owns snapshot, allowed-path, reported-scope, and forbidden-pattern enforcement. Every controller artifact is derived under `<workspace>/.centurion/agents_results/<orderId>/`; root-level result or snapshot paths are rejected before reading or writing.
+
+```json
+{
+  "resultVersion": "AGENT_RESULT_JSON_V1",
+  "orderId": "<orderId>",
+  "executor": "agy",
+  "status": "done",
+  "summary": "...",
+  "filesChanged": [{ "path": "relative/path", "action": "modified" }],
+  "artifacts": [{ "path": "relative/path", "exists": true, "type": "...", "note": "..." }],
+  "proof": [{ "command": "...", "cwd": "<workspace>", "status": "pass", "exitCode": 0, "summary": "..." }],
+  "selfReview": { "performed": true, "findings": [], "fixesApplied": [] },
+  "scopeDeviations": [],
+  "forbiddenPatternHits": [],
+  "remainingRisks": [],
+  "questions": [],
+  "errors": [],
+  "stdoutSummary": "",
+  "stderrSummary": ""
+}
+```
+
+Legacy compatibility is explicit: add `--allow-legacy` to `verify` only for the previous `AGY_ORDER_V1` result payload. Default verification rejects legacy-only and hybrid payloads. The compatibility flag does not bypass self-review, reported-scope, forbidden-pattern, or snapshot checks.
 
 When this kit is maintained inside `centurionCLI`, use the repo path as the source of truth:
 
 ```bash
-node integrations/antigravity-legion-kit/scripts/agy-order-guard.mjs snapshot --workspace <path> --out /tmp/agy-before.json
-node integrations/antigravity-legion-kit/scripts/agy-order-guard.mjs verify --workspace <path> --before /tmp/agy-before.json --allowed <paths> --result AGY_RESULT.json --forbidden <patterns>
+node integrations/antigravity-legion-kit/scripts/agy-order-guard.mjs snapshot --workspace <path> --order-id <orderId> --out /controller/custody/<orderId>/AGY_SNAPSHOT.json
+node integrations/antigravity-legion-kit/scripts/agy-order-guard.mjs verify --workspace <path> --order-id <orderId> --before /controller/custody/<orderId>/AGY_SNAPSHOT.json --allowed <paths> --result .centurion/agents_results/<orderId>/AGY_RESULT.json --forbidden <patterns>
 ```
 
 ## Security Notes

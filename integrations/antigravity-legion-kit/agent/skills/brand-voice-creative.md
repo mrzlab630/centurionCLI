@@ -33,4 +33,3 @@ Derive voice from real project material first:
 - vague value props
 - bait questions
 - copy that promises behavior the product does not implement
-

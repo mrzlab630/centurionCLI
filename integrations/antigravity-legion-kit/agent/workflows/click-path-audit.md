@@ -12,4 +12,3 @@ Use when users report broken buttons, confusing flows, inconsistent state, or af
 4. Verify keyboard and pointer paths.
 5. Use browser proof when feasible.
 6. Report each broken path with the exact state transition that fails.
-

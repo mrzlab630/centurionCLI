@@ -5,9 +5,9 @@
 <img src="logo/logo_vexillum.jpg" alt="CENTURION Vexillum" width="300">
 
 ![Name](https://img.shields.io/badge/⚔️-CENTURION-gold)
-![Version](https://img.shields.io/badge/version-COHORS%20SECUNDA%20v2.2-blue)
+![Version](https://img.shields.io/badge/version-COHORS%20SECUNDA%20v2.5-blue)
 ![Legionaries](https://img.shields.io/badge/legionaries-37-red)
-![MCP](https://img.shields.io/badge/MCP%20servers-7-green)
+![MCP](https://img.shields.io/badge/MCP%20servers-6-green)
 ![Status](https://img.shields.io/badge/status-BATTLE%20TESTED-green)
 
 **A Roman-legion orchestration framework for AI coding agents**
@@ -22,7 +22,7 @@
 
 CENTURION turns a coding agent into a disciplined Roman Legion of specialized
 skills. Each Legionary has a role, activation rules, tools, and proof standards.
-Cohors Secunda v2.2 keeps one canonical active Legion skill surface in
+Cohors Secunda v2.5 keeps one canonical active Legion skill surface in
 `~/.agents/skills` and leaves Codex system skills in `~/.codex/skills/.system` to
 avoid duplicate skill names and context bloat. It also records the current
 sanitized local tooling baseline for Hermes, Codex, Claude Code, and
@@ -40,9 +40,10 @@ Antigravity/`agy` without copying secret-bearing home configs into the repo.
 - **Antigravity Legion Kit** — portable Google Antigravity IDE and `agy` CLI integration under `integrations/antigravity-legion-kit`.
 - **Claude Legion Kit** — native Claude Code plugin, 37 subagents, and `CLAUDE_ORDER v1` guard under `integrations/claude-legion-kit`.
 - **Codex Legion Kit** — Codex CLI surface audit and canonical skill sync under `integrations/codex-legion-kit`.
-- **Hermes Legion Kit** — Aquila Team Lead skills and lean Hermes bundles under `integrations/hermes-legion-kit`.
+- **Hermes Legion Kit** — five Aquila skills, the SOLARIUS Solana program engineering skill, the shared Open Design capability, and lean Hermes bundles under `integrations/hermes-legion-kit`.
 - **Sanitized local tooling baseline** — current Hermes, Codex, Claude, Antigravity/`agy`, and toolchain settings under `docs/LOCAL_TOOLING_BASELINE.md` and `docs/settings-snapshots/`.
 - **Shared Legion JSON contracts** — bounded order/result/review validation under `integrations/legion-contracts`.
+- **Open Design production fabric** — curated reference search, proof-first create/revise, async MCP jobs, verified HTML, Chrome screenshots, and cross-client continuation under `integrations/open-design-bridge`.
 
 ---
 
@@ -78,6 +79,15 @@ Antigravity/`agy` without copying secret-bearing home configs into the repo.
 ---
 
 ## Field Doctrine
+
+### Probatio Proof Cycle
+
+Every material task follows the proof discipline preserved from Cohors Ferrata:
+
+1. **Recon** - understand the environment and collect current evidence.
+2. **Action** - implement the bounded change or execute the authorized check.
+3. **Probatio** - run the relevant test, health check, scan, or live verification.
+4. **Report** - claim success only when the proof passes.
 
 ### Legion Field Cycle
 
@@ -148,7 +158,7 @@ See [docs/ANTIGRAVITY_LEGION_KIT.md](docs/ANTIGRAVITY_LEGION_KIT.md) for install
 
 ## Claude Code Integration
 
-`integrations/claude-legion-kit` preserves the Claude Code-facing CENTURION pack. It contains a native Claude plugin, one entry skill, 37 Legionary subagents, a proof-first output style, installer, smoke test, and the guarded `CLAUDE_ORDER v1` protocol for bounded Claude execution.
+`integrations/claude-legion-kit` preserves the Claude Code-facing CENTURION pack. It contains a native Claude plugin, one entry skill, 37 Legionary subagents, the shared Open Design production capability, a proof-first output style, installer, smoke test, and the guarded `CLAUDE_ORDER v1` protocol for bounded Claude execution.
 
 Start here:
 
@@ -164,7 +174,7 @@ See [docs/CLAUDE_LEGION_KIT.md](docs/CLAUDE_LEGION_KIT.md) for local audit findi
 
 ## Hermes Integration
 
-`integrations/hermes-legion-kit` preserves the Hermes/Aquila Team Lead additions. It contains four local Hermes skills, three lean skill bundles, an installer, and an offline smoke check. The kit does not edit `SOUL.md`, enable plugins, change MCP servers, or import ECC runtime code.
+`integrations/hermes-legion-kit` preserves the Hermes/Aquila Team Lead additions. It contains five Aquila skills, the SOLARIUS `solana-program-engineering` skill, the shared Open Design capability, its local stdio MCP, four lean skill bundles, an installer, and an offline smoke check. SOLARIUS remains Aquila-routed and never self-approves implementation, audit findings, or release readiness. The kit does not edit `SOUL.md`, enable plugins, alter unrelated MCP servers, or import ECC runtime code.
 
 Start here:
 
@@ -175,6 +185,37 @@ npm run install:dry-run
 ```
 
 See [docs/HERMES_LEGION_KIT.md](docs/HERMES_LEGION_KIT.md) and [integrations/hermes-legion-kit/README.md](integrations/hermes-legion-kit/README.md) for install, validation, and maintenance rules.
+
+---
+
+## Open Design Production
+
+`skills/open-design-producer` exposes the proof-first Open Design bridge as a
+shared capability without creating a 38th Legionary owner. AEDILIS owns UX
+briefs and visual acceptance; PICTOR owns create/revise HTML and UI production.
+Domain specialists provide platform, copy, localization, marketing, and SEO
+constraints, while TESTER, REVIEWER, and GUARDIAN own acceptance gates.
+
+The reference phase uses `CENTURION_REFERENCE_REQUEST_V1` and returns a bounded
+manifest from shadcn/ui, Magic UI, HyperUI, Tabler, and Landbook. Production uses
+`CENTURION_OD_REQUEST_V1` and returns `CENTURION_OD_RESULT_V1` with absolute HTML,
+Chrome screenshot, immutable reference evidence, and continuation paths:
+
+```bash
+node skills/open-design-producer/scripts/open-design.mjs \
+  --request request.json \
+  --result result.json \
+  --pretty
+```
+
+Hermes, Claude, and Codex installers activate the same skill and stdio MCP using
+staged, rollback-safe replacement of their owned targets. A
+job can start in Hermes, be revised in Claude, and continue in Codex through the
+same durable `project.previousResultPath` under the design results root. Failed staging is deleted, preserved, or held
+for user choice according to the request policy. Accepted bundles remain
+immutable, and deleting an Open Design project always requires explicit consent.
+
+See [integrations/open-design-bridge/README.md](integrations/open-design-bridge/README.md), [docs/CLAUDE_LEGION_KIT.md](docs/CLAUDE_LEGION_KIT.md), and [docs/HERMES_LEGION_KIT.md](docs/HERMES_LEGION_KIT.md).
 
 ---
 
@@ -261,7 +302,7 @@ centurionCLI/
 ├── scripts/               # Utility scripts
 ├── pipeline/              # Handoff templates
 ├── mcp-servers/memoria/   # Semantic memory MCP server
-├── skills/                # 37 canonical Legionary modules
+├── skills/                # 37 Legionaries plus shared canonical capabilities
 └── logo/                  # Branding assets
 ```
 
@@ -276,6 +317,9 @@ centurionCLI/
 | 2.0 | Cohors Secunda | 27 | Full roster, MEMORIA, WAR ROOM, AGMEN |
 | **2.1** | **Cohors Secunda** | **37** | **Canonical `.agents` skill surface, specialized Product/UX Legionaries, mission-prep, skill audit/eval, duplicate-name guard** |
 | **2.2** | **Cohors Secunda** | **37** | **Sanitized Hermes/Codex/Claude/Antigravity local tooling baselines, HTTP local proxy correction, native web_extract, Camofox autostart, current CLI versions** |
+| **2.3** | **Cohors Secunda** | **37** | **Shared Open Design production, JSON bridge, verified HTML/screenshots, Claude and Hermes activation, artifact lifecycle guards** |
+| **2.4** | **Cohors Secunda** | **37** | **Curated reference search, async Open Design MCP, immutable reference evidence, and Hermes/Claude/Codex continuation** |
+| **2.5** | **Cohors Secunda** | **37** | **Bounded Open Design JSON/MCP input, SSRF hardening, FD leak repair, workload caps, timeout correctness, and dead-code reduction** |
 
 ---
 

@@ -6,12 +6,13 @@ import path from 'node:path';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { EXPECTED_SKILLS, isIgnoredGeneratedDir } from './lib/surface-config.mjs';
+import { EXPECTED_SKILLS, SHARED_CAPABILITIES, isIgnoredGeneratedDir } from './lib/surface-config.mjs';
 
 const SCRIPT_FILE = fileURLToPath(import.meta.url);
 const KIT_ROOT = path.resolve(path.dirname(SCRIPT_FILE), '..');
 const REPO_ROOT = path.resolve(KIT_ROOT, '..', '..');
 const CANONICAL_SKILLS = path.join(REPO_ROOT, 'skills');
+const OPEN_DESIGN_BRIDGE = path.join(REPO_ROOT, 'integrations', 'open-design-bridge');
 
 const REQUIRED_CONFIG = [
   { key: 'model', value: 'gpt-5.6-sol', severity: 'failure' },
@@ -201,10 +202,21 @@ function addWarning(report, message, details = {}) {
 }
 
 function auditRepo(report) {
-  const canonical = listSkillSlugs(CANONICAL_SKILLS);
+  const allSkills = listSkillSlugs(CANONICAL_SKILLS);
+  const canonical = allSkills.filter((slug) => !SHARED_CAPABILITIES.includes(slug));
   report.repo.canonicalSkillCount = canonical.length;
   report.repo.expectedSkillCount = EXPECTED_SKILLS.length;
+  report.repo.sharedCapabilities = allSkills.filter((slug) => SHARED_CAPABILITIES.includes(slug));
   if (!sameList(canonical, EXPECTED_SKILLS)) addFailure(report, 'canonical skill surface drift', { expected: EXPECTED_SKILLS, actual: canonical });
+  if (!sameList(report.repo.sharedCapabilities, SHARED_CAPABILITIES)) addFailure(report, 'shared capability surface drift', { expected: SHARED_CAPABILITIES, actual: report.repo.sharedCapabilities });
+  for (const file of [
+    path.join(CANONICAL_SKILLS, 'open-design-producer', 'SKILL.md'),
+    path.join(CANONICAL_SKILLS, 'open-design-producer', 'scripts', 'open-design.mjs'),
+    path.join(OPEN_DESIGN_BRIDGE, 'bin', 'centurion-reference.mjs'),
+    path.join(OPEN_DESIGN_BRIDGE, 'mcp-server', 'index.mjs')
+  ]) {
+    if (!fs.existsSync(file)) addFailure(report, 'Open Design shared capability file missing', { file });
+  }
 
   const missingPointers = [];
   for (const item of REQUIRED_POINTERS) {
@@ -225,13 +237,14 @@ function auditActiveSkills(options, report) {
   }
   const active = listSkillSlugs(activeRoot);
   report.activeSkills.count = active.length;
-  report.activeSkills.extra = active.filter((slug) => !EXPECTED_SKILLS.includes(slug));
-  report.activeSkills.missing = EXPECTED_SKILLS.filter((slug) => !active.includes(slug));
+  const expectedActive = [...EXPECTED_SKILLS, ...SHARED_CAPABILITIES].sort();
+  report.activeSkills.extra = active.filter((slug) => !expectedActive.includes(slug));
+  report.activeSkills.missing = expectedActive.filter((slug) => !active.includes(slug));
   if (report.activeSkills.missing.length) addFailure(report, 'active Legion skills missing from ~/.agents', { missing: report.activeSkills.missing });
   if (report.activeSkills.extra.length) addWarning(report, 'extra active skills exist outside canonical Legion surface', { extra: report.activeSkills.extra });
 
   const drift = [];
-  for (const slug of EXPECTED_SKILLS) {
+  for (const slug of expectedActive) {
     const source = path.join(CANONICAL_SKILLS, slug);
     const target = path.join(activeRoot, slug);
     if (!fs.existsSync(target)) continue;
@@ -293,6 +306,9 @@ function auditCodexConfig(options, report) {
   }
 
   const mcpServers = config.mcp_servers || {};
+  const openDesignMcp = mcpServers['centurion-open-design'];
+  if (!openDesignMcp) addFailure(report, 'Codex Open Design MCP missing', { configFile });
+  else if (openDesignMcp.command !== process.execPath && openDesignMcp.command !== 'node') addFailure(report, 'Codex Open Design MCP command mismatch', { actual: openDesignMcp.command });
   const broadMcp = [];
   for (const [name, server] of Object.entries(mcpServers)) {
     if (server?.command === 'npx') broadMcp.push({ name, reason: 'npx command MCP' });

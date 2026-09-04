@@ -40,4 +40,3 @@ description: Global React, Vite, and TypeScript engineering rules for Antigravit
 - For React component tests, prefer user-visible behavior and accessible queries: role, label, text.
 - Use Playwright only for browser/user journeys, routing, layout, auth, or integration behavior that unit tests cannot prove.
 - Bug fixes should add a regression test when the failure can be reproduced locally.
-

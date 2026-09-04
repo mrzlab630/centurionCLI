@@ -11,4 +11,3 @@ description: Develop non-trivial features by exploring existing code before plan
 5. Review: run React/TypeScript/security/database/browser review lanes based on touched surfaces.
 6. Verification: run focused checks plus the strongest feasible repo gate.
 7. Report: files changed, proof, skipped checks, residual risks.
-

@@ -27,4 +27,3 @@ Use this skill when the user says `WAR ROOM`, when a bug survived a simple fix, 
 - route/API contract drift
 - admin mutation without actor/reason/idempotency/audit
 - payment/wallet/delivery mutation without ledger/idempotency
-

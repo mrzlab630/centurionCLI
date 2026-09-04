@@ -21,4 +21,3 @@ Use this skill for non-trivial features, cross-module changes, new admin surface
 - Do not add speculative layers for future scope unless the repo already requires them.
 - Keep public API contracts explicit and machine-checkable.
 - Choose the model tier deliberately: Flash for small mechanical changes, Gemini Pro for ambiguous architecture, Opus for adversarial review/security/WAR ROOM.
-

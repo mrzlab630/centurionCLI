@@ -12,4 +12,3 @@ description: Verify a project is ready to release or restart with tests, migrati
 6. Verify deploy/restart command and rollback path.
 7. Run smoke/browser/health proof when user-visible or service behavior changed.
 8. Return `ship`, `ship with caveats`, or `block` with evidence.
-

@@ -10,4 +10,3 @@ description: Audit dependencies, lockfiles, install scripts, MCP/tool configs, a
 4. Inspect MCP/agent/tool config permissions if harness files changed.
 5. Block remote shell installers, obfuscated scripts, broad permissions, and secret exposure.
 6. Report risk level, evidence, and safer alternative or approval conditions.
-

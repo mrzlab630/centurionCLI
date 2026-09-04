@@ -1,11 +1,88 @@
 export const LEGION_ORDER_VERSION = 'LEGION_ORDER_V1';
 export const LEGION_RESULT_VERSION = 'LEGION_RESULT_V1';
 export const LEGION_REVIEW_VERSION = 'LEGION_REVIEW_V1';
+export const AGENT_RESULT_VERSION = 'AGENT_RESULT_JSON_V1';
+export const SAFE_ORDER_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{7,127}$/;
+
+function strictJsonParser(text, label) {
+  let index = 0;
+  const length = text.length;
+  const whitespace = () => { while (index < length && /\s/.test(text[index])) index += 1; };
+  const parseString = () => {
+    const start = index;
+    if (text[index] !== '"') throw new Error(`${label} expected string at ${index}`);
+    index += 1;
+    while (index < length) {
+      const char = text[index++];
+      if (char === '\\') index += 1;
+      else if (char === '"') return JSON.parse(text.slice(start, index));
+    }
+    throw new Error(`${label} unterminated string`);
+  };
+  const parseValue = () => {
+    whitespace();
+    if (text[index] === '{') return parseObject();
+    if (text[index] === '[') return parseArray();
+    if (text[index] === '"') return parseString();
+    const start = index;
+    while (index < length && !/[\s,\]}]/.test(text[index])) index += 1;
+    const token = text.slice(start, index);
+    if (!token) throw new Error(`${label} expected value at ${index}`);
+    return JSON.parse(token);
+  };
+  const parseObject = () => {
+    index += 1;
+    const value = {};
+    const keys = new Set();
+    whitespace();
+    if (text[index] === '}') { index += 1; return value; }
+    while (index < length) {
+      whitespace();
+      const key = parseString();
+      if (keys.has(key)) throw new Error(`${label} duplicate key ${JSON.stringify(key)}`);
+      keys.add(key);
+      whitespace();
+      if (text[index++] !== ':') throw new Error(`${label} expected ':' at ${index - 1}`);
+      value[key] = parseValue();
+      whitespace();
+      if (text[index] === '}') { index += 1; return value; }
+      if (text[index++] !== ',') throw new Error(`${label} expected ',' at ${index - 1}`);
+    }
+    throw new Error(`${label} unterminated object`);
+  };
+  const parseArray = () => {
+    index += 1;
+    const value = [];
+    whitespace();
+    if (text[index] === ']') { index += 1; return value; }
+    while (index < length) {
+      value.push(parseValue());
+      whitespace();
+      if (text[index] === ']') { index += 1; return value; }
+      if (text[index++] !== ',') throw new Error(`${label} expected ',' at ${index - 1}`);
+    }
+    throw new Error(`${label} unterminated array`);
+  };
+  const value = parseValue();
+  whitespace();
+  if (index !== length) throw new Error(`${label} trailing data at ${index}`);
+  return value;
+}
+
+export function parseStrictJson(text, label = 'JSON') {
+  if (typeof text !== 'string') throw new TypeError(`${label} must be text`);
+  return strictJsonParser(text, label);
+}
 
 const RESULT_STATUSES = new Set(['done', 'blocked']);
 const PROOF_RESULTS = new Set(['passed', 'failed', 'not_run']);
 const REVIEW_VERDICTS = new Set(['accepted', 'rejected', 'needs_changes', 'blocked']);
 const REVIEW_SEVERITIES = new Set(['critical', 'warning', 'note']);
+const AGENT_RESULT_EXECUTORS = new Set(['codex', 'claude', 'claudeFable', 'agy', 'hermes_delegate_task', 'other']);
+const AGENT_RESULT_STATUSES = new Set(['done', 'blocked', 'failed']);
+const AGENT_RESULT_FILE_ACTIONS = new Set(['added', 'modified', 'deleted', 'renamed', 'none']);
+const AGENT_RESULT_PROOF_STATUSES = new Set(['pass', 'fail', 'not_run']);
+const CANONICAL_LEGACY_FIELDS = new Set(['contractVersion', 'orderVersion', 'owner', 'selfReviewFixed', 'scopeViolations']);
 
 export function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -105,6 +182,139 @@ export function validateDelegationResult(result, options = {}) {
 
   return failures;
 }
+
+function requireCanonicalIdentity(failures, result, field, expected) {
+  if (typeof result[field] !== 'string' || !result[field].trim()) {
+    failures.push(`result.${field} must be a non-empty string`);
+    return;
+  }
+  if (field === 'orderId' && !SAFE_ORDER_ID_PATTERN.test(result[field])) failures.push('result.orderId must match 8-128 safe ASCII characters');
+  if (expected !== undefined && result[field] !== expected) {
+    failures.push(`result.${field} must match expected identity`);
+  }
+}
+
+function requireCanonicalStringArray(failures, object, field, label) {
+  if (!Array.isArray(object[field])) {
+    failures.push(`${label}.${field} must be an array`);
+    return;
+  }
+  if (!object[field].every((item) => typeof item === 'string')) {
+    failures.push(`${label}.${field} must contain only strings`);
+  }
+}
+
+function validateCanonicalFilesChanged(failures, result) {
+  if (!Array.isArray(result.filesChanged)) {
+    failures.push('result.filesChanged must be an array');
+    return;
+  }
+  result.filesChanged.forEach((item, index) => {
+    if (!isPlainObject(item)) {
+      failures.push(`result.filesChanged[${index}] must be an object`);
+      return;
+    }
+    if (typeof item.path !== 'string' || !item.path.trim()) failures.push(`result.filesChanged[${index}].path must be a non-empty string`);
+    if (!AGENT_RESULT_FILE_ACTIONS.has(item.action)) failures.push(`result.filesChanged[${index}].action must be added, modified, deleted, renamed, or none`);
+  });
+}
+
+function validateCanonicalArtifacts(failures, result) {
+  if (!Array.isArray(result.artifacts)) {
+    failures.push('result.artifacts must be an array');
+    return;
+  }
+  result.artifacts.forEach((item, index) => {
+    if (!isPlainObject(item)) {
+      failures.push(`result.artifacts[${index}] must be an object`);
+      return;
+    }
+    if (typeof item.path !== 'string' || !item.path.trim()) failures.push(`result.artifacts[${index}].path must be a non-empty string`);
+    if (typeof item.exists !== 'boolean') failures.push(`result.artifacts[${index}].exists must be a boolean`);
+    if (typeof item.type !== 'string') failures.push(`result.artifacts[${index}].type must be a string`);
+    if (typeof item.note !== 'string') failures.push(`result.artifacts[${index}].note must be a string`);
+  });
+}
+
+function validateCanonicalProof(failures, result) {
+  if (!Array.isArray(result.proof)) {
+    failures.push('result.proof must be an array');
+    return;
+  }
+  result.proof.forEach((item, index) => {
+    if (!isPlainObject(item)) {
+      failures.push(`result.proof[${index}] must be an object`);
+      return;
+    }
+    if (typeof item.command !== 'string' || !item.command.trim()) failures.push(`result.proof[${index}].command must be a non-empty string`);
+    if (typeof item.cwd !== 'string' || !item.cwd.trim()) failures.push(`result.proof[${index}].cwd must be a non-empty string`);
+    if (!AGENT_RESULT_PROOF_STATUSES.has(item.status)) failures.push(`result.proof[${index}].status must be pass, fail, or not_run`);
+    if (!(item.exitCode === null || Number.isInteger(item.exitCode))) failures.push(`result.proof[${index}].exitCode must be an integer or null`);
+    if (typeof item.summary !== 'string') failures.push(`result.proof[${index}].summary must be a string`);
+  });
+}
+
+function validateCanonicalSelfReview(failures, result) {
+  if (!isPlainObject(result.selfReview)) {
+    failures.push('result.selfReview must be an object');
+    return;
+  }
+  if (typeof result.selfReview.performed !== 'boolean') failures.push('result.selfReview.performed must be a boolean');
+  requireCanonicalStringArray(failures, result.selfReview, 'findings', 'result.selfReview');
+  requireCanonicalStringArray(failures, result.selfReview, 'fixesApplied', 'result.selfReview');
+}
+
+/**
+ * Validate the canonical AGENT_RESULT_JSON_V1 result contract.
+ * Optional identity fields reject a result that belongs to another order/run.
+ */
+export function validateAgentResult(result, options = {}) {
+  const failures = [];
+  if (!isPlainObject(result)) return ['result must be a JSON object'];
+
+  const identity = options.expectedIdentity || options.identity || {};
+  const expectedOrderId = options.expectedOrderId ?? options.orderId ?? identity.orderId;
+  const expectedExecutor = options.expectedExecutor ?? options.executor ?? identity.executor;
+  const expectedStatus = options.expectedStatus ?? options.status ?? identity.status;
+
+  if (result.resultVersion !== AGENT_RESULT_VERSION) failures.push(`result.resultVersion must be ${AGENT_RESULT_VERSION}`);
+  const legacyFields = [...CANONICAL_LEGACY_FIELDS].filter((field) => Object.prototype.hasOwnProperty.call(result, field));
+  if (legacyFields.length) failures.push(`result must not include legacy fields: ${legacyFields.join(', ')}`);
+  requireCanonicalIdentity(failures, result, 'orderId', expectedOrderId);
+  if (!AGENT_RESULT_EXECUTORS.has(result.executor)) failures.push('result.executor must be codex, claude, claudeFable, agy, hermes_delegate_task, or other');
+  else if (expectedExecutor !== undefined && result.executor !== expectedExecutor) failures.push('result.executor must match expected identity');
+  if (!AGENT_RESULT_STATUSES.has(result.status)) failures.push('result.status must be done, blocked, or failed');
+  else if (expectedStatus !== undefined && result.status !== expectedStatus) failures.push('result.status must match expected identity');
+  if (typeof result.summary !== 'string') failures.push('result.summary must be a string');
+
+  validateCanonicalFilesChanged(failures, result);
+  validateCanonicalArtifacts(failures, result);
+  validateCanonicalProof(failures, result);
+  if (Array.isArray(result.proof) && result.proof.some((item) => isPlainObject(item) && Object.prototype.hasOwnProperty.call(item, 'result'))) {
+    failures.push('result.proof must not include legacy result fields');
+  }
+  validateCanonicalSelfReview(failures, result);
+
+  for (const field of ['scopeDeviations', 'forbiddenPatternHits', 'remainingRisks', 'questions', 'errors']) {
+    requireCanonicalStringArray(failures, result, field, 'result');
+  }
+  if (typeof result.stdoutSummary !== 'string') failures.push('result.stdoutSummary must be a string');
+  if (typeof result.stderrSummary !== 'string') failures.push('result.stderrSummary must be a string');
+  if (result.executorExtensions !== undefined && !isPlainObject(result.executorExtensions)) failures.push('result.executorExtensions must be an object');
+
+  if (result.status === 'done') {
+    if (!Array.isArray(result.proof) || !result.proof.length) failures.push('done result requires at least one proof entry');
+    else if (result.proof.some((item) => item?.status !== 'pass')) failures.push('done result requires every proof[].status to be pass');
+    if (result.selfReview?.performed !== true) failures.push('done result requires selfReview.performed=true');
+    if (Array.isArray(result.scopeDeviations) && result.scopeDeviations.length) failures.push('done result must not include scope deviations');
+    if (Array.isArray(result.forbiddenPatternHits) && result.forbiddenPatternHits.length) failures.push('done result must not include forbidden pattern hits');
+  }
+
+  return failures;
+}
+
+export const validateCanonicalAgentResult = validateAgentResult;
+export const validateCanonicalResult = validateAgentResult;
 
 export function validateLegionReview(review) {
   const failures = [];
