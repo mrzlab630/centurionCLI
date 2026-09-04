@@ -229,7 +229,9 @@ function runInstallerCliOnlySmoke() {
     assert(report.openDesignCliOnly === true, 'CLI-only report missing mode');
     assert(report.openDesignMcpRegistered === false, 'CLI-only install must not register MCP');
     assert(!report.changedSurfaces.includes('mcp-server'), 'CLI-only install reported MCP mutation');
+    assert(!report.changedSurfaces.includes('centurion-config'), 'CLI-only install reported bridge config mutation');
     assert(report.untouchedSurfaces.includes('config.yaml'), 'CLI-only install must preserve config.yaml');
+    assert(report.untouchedSurfaces.includes('centurion-config'), 'CLI-only install must preserve bridge config');
     assert(readText(path.join(tempHome, 'config.yaml')) === beforeConfig, 'CLI-only install changed config.yaml');
     assert(readText(path.join(tempHome, 'SOUL.md')) === beforeSoul, 'CLI-only install changed SOUL.md');
     assert(readText(path.join(customSkill, 'SKILL.md')) === 'local-only\n', 'CLI-only install removed local-only skill');

@@ -138,10 +138,12 @@ function install(options) {
       stageFiles(operations, OPEN_DESIGN_SKILL_SOURCE, openDesignSkillTarget, openDesignSkillFiles);
       stageFiles(operations, BUNDLE_SOURCE, bundlesTarget, bundleFiles);
       stageFiles(operations, RUNTIME_SOURCE, options.hermesHome, runtimeFiles);
-      operations.push(stageFileContent(`${JSON.stringify({
-        configVersion: OPEN_DESIGN_CONFIG_VERSION,
-        bridgeRoot: OPEN_DESIGN_BRIDGE
-      }, null, 2)}\n`, openDesignConfigTarget, { mode: 0o644 }));
+      if (!options.openDesignCliOnly) {
+        operations.push(stageFileContent(`${JSON.stringify({
+          configVersion: OPEN_DESIGN_CONFIG_VERSION,
+          bridgeRoot: OPEN_DESIGN_BRIDGE
+        }, null, 2)}\n`, openDesignConfigTarget, { mode: 0o644 }));
+      }
       if (options.includeOverrides) {
         stageFiles(operations, overrideSkillsSource, overrideSkillsTarget, overrideSkillFiles);
       }
@@ -166,7 +168,7 @@ function install(options) {
     copiedRuntimeBinTo: runtimeBinTarget,
     openDesignConfigTarget,
     openDesignConfigVersion: OPEN_DESIGN_CONFIG_VERSION,
-    openDesignConfigWritten: !options.dryRun,
+    openDesignConfigWritten: !options.dryRun && !options.openDesignCliOnly,
     openDesignMcpEntry: OPEN_DESIGN_MCP_ENTRY,
     openDesignMcpRegistered,
     copiedOverrideSkillsTo: options.includeOverrides ? overrideSkillsTarget : null,
@@ -176,13 +178,14 @@ function install(options) {
     runtimeFiles,
     overrideSkillFiles: options.includeOverrides ? overrideSkillFiles : [],
     changedSurfaces: [
-      'skills', 'skill-bundles', 'runtime-bin', 'centurion-config',
+      'skills', 'skill-bundles', 'runtime-bin',
+      ...(!options.openDesignCliOnly ? ['centurion-config'] : []),
       ...(!options.openDesignCliOnly ? ['mcp-server'] : []),
       ...(options.includeOverrides ? ['override-skills'] : [])
     ],
     untouchedSurfaces: [
       'SOUL.md', 'plugins', 'hooks',
-      ...(options.openDesignCliOnly ? ['config.yaml', 'mcp-servers'] : [])
+      ...(options.openDesignCliOnly ? ['config.yaml', 'mcp-servers', 'centurion-config'] : [])
     ]
   };
 }

@@ -111,9 +111,10 @@ changing `config.yaml` or registering the Open Design MCP:
 node ./installer/install.mjs --open-design-cli-only
 ```
 
-For a repo-first deployment that preserves every local-only skill file, creates
-a hash-bound backup of replaced files, and verifies protected local files after
-installation, plan first and then apply from the repository root:
+For a repo-first deployment that preserves complete local skill trees including
+runtime directories, stages and verifies repo overlays, and atomically retains
+the previous roots as rollback backups, plan first and then apply from the
+repository root:
 
 ```bash
 node scripts/deploy-centurion-hermes.mjs
