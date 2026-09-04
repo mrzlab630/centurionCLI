@@ -167,12 +167,6 @@ try {
     fs.chmodSync(staged, fs.statSync(source).mode & 0o777);
     fs.renameSync(staged, target);
   }
-
-  const researcherRoot = path.join(agentsHome, 'skills', 'researcher');
-  if (fs.existsSync(path.join(researcherRoot, 'package-lock.json'))) {
-    const npm = spawnSync('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: researcherRoot, encoding: 'utf8' });
-    if (npm.status !== 0) throw new Error(`Researcher dependency install failed: ${npm.stderr || npm.stdout}`);
-  }
 } catch (error) {
   restoreBackups(backedUp, rootBySurface);
   removeAddedTargets(additions, rootBySurface);
