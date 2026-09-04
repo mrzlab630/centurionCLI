@@ -23,7 +23,7 @@ function installClients(root) {
     agents: path.join(root, 'agents-home')
   };
   const commands = [
-    ['Hermes', path.join(repoRoot, 'integrations', 'hermes-legion-kit', 'installer', 'install.mjs'), ['--hermes-home', homes.hermes]],
+    ['Hermes', path.join(repoRoot, 'integrations', 'hermes-legion-kit', 'installer', 'install.mjs'), ['--hermes-home', homes.hermes, '--open-design-cli-only']],
     ['Claude', path.join(repoRoot, 'integrations', 'claude-legion-kit', 'installer', 'install.mjs'), ['--claude-home', homes.claude]],
     ['Codex', path.join(repoRoot, 'integrations', 'codex-legion-kit', 'installer', 'install-open-design.mjs'), ['--agents-home', homes.agents, '--codex-home', homes.codex]]
   ];

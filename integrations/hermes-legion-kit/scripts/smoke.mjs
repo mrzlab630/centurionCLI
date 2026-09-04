@@ -205,6 +205,42 @@ function runInstallerOverrideDryRun() {
   assert(report.untouchedSurfaces.includes('SOUL.md'), 'override install must not edit SOUL.md');
 }
 
+function runInstallerCliOnlySmoke() {
+  const tempHome = fs.mkdtempSync(path.join(process.env.TMPDIR || '/tmp', 'hermes-legion-cli-only-'));
+  try {
+    const customSkill = path.join(tempHome, 'skills', 'custom', 'local-only');
+    fs.mkdirSync(customSkill, { recursive: true });
+    fs.writeFileSync(path.join(customSkill, 'SKILL.md'), 'local-only\n');
+    const overlappingSkill = path.join(tempHome, 'skills', 'autonomous-ai-agents', 'agent-contract-runner');
+    fs.mkdirSync(overlappingSkill, { recursive: true });
+    fs.writeFileSync(path.join(overlappingSkill, 'SKILL.md'), 'stale local version\n');
+    fs.writeFileSync(path.join(overlappingSkill, 'LOCAL_ONLY.md'), 'preserve me\n');
+    fs.writeFileSync(path.join(tempHome, 'config.yaml'), 'existing: config\n');
+    fs.writeFileSync(path.join(tempHome, 'SOUL.md'), 'existing soul\n');
+    const beforeConfig = readText(path.join(tempHome, 'config.yaml'));
+    const beforeSoul = readText(path.join(tempHome, 'SOUL.md'));
+    const result = spawnSync(process.execPath, [
+      path.join(KIT_ROOT, 'installer', 'install.mjs'),
+      '--hermes-home', tempHome,
+      '--open-design-cli-only'
+    ], { encoding: 'utf8' });
+    assert(result.status === 0, `CLI-only installer failed: ${result.stderr || result.stdout}`);
+    const report = JSON.parse(result.stdout);
+    assert(report.openDesignCliOnly === true, 'CLI-only report missing mode');
+    assert(report.openDesignMcpRegistered === false, 'CLI-only install must not register MCP');
+    assert(!report.changedSurfaces.includes('mcp-server'), 'CLI-only install reported MCP mutation');
+    assert(report.untouchedSurfaces.includes('config.yaml'), 'CLI-only install must preserve config.yaml');
+    assert(readText(path.join(tempHome, 'config.yaml')) === beforeConfig, 'CLI-only install changed config.yaml');
+    assert(readText(path.join(tempHome, 'SOUL.md')) === beforeSoul, 'CLI-only install changed SOUL.md');
+    assert(readText(path.join(customSkill, 'SKILL.md')) === 'local-only\n', 'CLI-only install removed local-only skill');
+    assert(readText(path.join(overlappingSkill, 'LOCAL_ONLY.md')) === 'preserve me\n', 'CLI-only install removed a local-only file inside an updated skill');
+    assert(sha256File(path.join(overlappingSkill, 'SKILL.md')) === sha256File(path.join(KIT_ROOT, 'skills', 'autonomous-ai-agents', 'agent-contract-runner', 'SKILL.md')), 'CLI-only install did not apply repo-wins to an overlapping skill file');
+    assert(fs.existsSync(path.join(tempHome, 'skills', 'autonomous-ai-agents', 'open-design-producer', 'SKILL.md')));
+  } finally {
+    fs.rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
 function runPackagedPythonRegressions(scriptRoot) {
   assert(!process.env.PYTHONOPTIMIZE, 'PYTHONOPTIMIZE must be unset so packaged regression assertions cannot be stripped');
   const scripts = ['regression_review_ladder.py', 'regression_agent_contract_runner.py', 'regression_agent_result_builder.py', 'regression_result_gateway.py', 'regression_execution_state.py'];
@@ -433,6 +469,7 @@ function main() {
   assertOverrides();
   runInstallerDryRun();
   runInstallerOverrideDryRun();
+  runInstallerCliOnlySmoke();
   runIsolatedInstallSmoke();
   runInstallerRollbackSmoke();
   process.stdout.write(JSON.stringify({ ok: true, skills: REQUIRED_SKILLS.length, sharedCapabilities: SHARED_CAPABILITIES.length, bundles: Object.keys(REQUIRED_BUNDLES).length }, null, 2) + '\n');

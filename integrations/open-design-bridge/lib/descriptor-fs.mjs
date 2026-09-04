@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const DIRECTORY_FLAGS = fs.constants.O_RDONLY | fs.constants.O_DIRECTORY | fs.constants.O_NOFOLLOW;
 const READ_FILE_FLAGS = fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW;
@@ -520,14 +521,16 @@ export class AnchoredDirectory {
         destination.resolve(destinationParent.parentParts.join('/')),
         options.label ?? 'rename destination parent'
       );
-      const result = spawnSync('/usr/bin/mv', [
-        '-T', '--no-copy', '--update=none-fail',
-        `/proc/self/fd/3/${sourceParent.name}`,
-        `/proc/self/fd/4/${destinationParent.name}`
+      const helper = path.join(path.dirname(fileURLToPath(import.meta.url)), 'rename-noreplace.py');
+      const result = spawnSync('python3', [
+        helper,
+        sourceParent.name,
+        destinationParent.name
       ], {
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'pipe', sourceParent.fd, destinationParent.fd]
       });
+      if (result.error) throw result.error;  // Surface missing helper/interpreter explicitly.
       if (result.status !== 0) {
         const message = `${result.stderr || ''}${result.stdout || ''}`.trim();
         const error = new Error(message || `atomic no-replace rename failed with status ${result.status}`);

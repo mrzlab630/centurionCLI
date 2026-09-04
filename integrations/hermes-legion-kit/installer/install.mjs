@@ -9,7 +9,6 @@ import {
   discardStaged,
   restoreFile,
   snapshotFile,
-  stageDirectory,
   stageFile,
   stageFileContent
 } from '../../lib/transactional-install.mjs';
@@ -29,13 +28,15 @@ function parseArgs(argv) {
   const options = {
     hermesHome: process.env.HERMES_HOME || path.join(os.homedir(), '.hermes'),
     dryRun: false,
-    includeOverrides: false
+    includeOverrides: false,
+    openDesignCliOnly: false
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--hermes-home') options.hermesHome = path.resolve(argv[++index]);
     else if (arg === '--dry-run') options.dryRun = true;
     else if (arg === '--include-overrides') options.includeOverrides = true;
+    else if (arg === '--open-design-cli-only') options.openDesignCliOnly = true;
     else if (arg === '--help') options.help = true;
     else throw new Error(`Unknown argument: ${arg}`);
   }
@@ -43,7 +44,7 @@ function parseArgs(argv) {
 }
 
 function usage() {
-  return `Usage: node installer/install.mjs [options]\n\nOptions:\n  --hermes-home <dir>   Hermes config root. Default: ~/.hermes\n  --dry-run            Print planned changes without writing\n  --include-overrides  Also install reviewed optional overrides from overrides/\n`;
+  return `Usage: node installer/install.mjs [options]\n\nOptions:\n  --hermes-home <dir>       Hermes config root. Default: ~/.hermes\n  --dry-run                Print planned changes without writing\n  --include-overrides      Also install reviewed optional overrides from overrides/\n  --open-design-cli-only  Install the Open Design CLI surface without registering its MCP\n`;
 }
 
 function installedMode(source) {
@@ -69,6 +70,16 @@ function listFiles(root) {
     }
   }
   return files.sort();
+}
+
+function stageFiles(operations, sourceRoot, targetRoot, files) {
+  for (const relative of files) {
+    operations.push(stageFile(
+      path.join(sourceRoot, relative),
+      path.join(targetRoot, relative),
+      { mode: installedMode(path.join(sourceRoot, relative)) }
+    ));
+  }
 }
 
 function registerOpenDesignMcp(options) {
@@ -123,37 +134,19 @@ function install(options) {
     const operations = [];
     const hermesConfigSnapshot = snapshotFile(path.join(options.hermesHome, 'config.yaml'));
     try {
-      for (const relative of skillFiles) {
-        const skillName = relative.split(path.sep).slice(0, 2).join(path.sep);
-        if (!operations.some((operation) => operation.target === path.join(skillsTarget, skillName))) {
-          operations.push(stageDirectory(path.join(SKILL_SOURCE, skillName), path.join(skillsTarget, skillName), {
-            skip: isTransient,
-            mode: installedMode
-          }));
-        }
-      }
-      operations.push(stageDirectory(OPEN_DESIGN_SKILL_SOURCE, openDesignSkillTarget, { skip: isTransient, mode: installedMode }));
-      for (const relative of bundleFiles) {
-        operations.push(stageFile(path.join(BUNDLE_SOURCE, relative), path.join(bundlesTarget, relative), { mode: installedMode(path.join(BUNDLE_SOURCE, relative)) }));
-      }
-      for (const relative of runtimeFiles) {
-        operations.push(stageFile(path.join(RUNTIME_SOURCE, relative), path.join(options.hermesHome, relative), { mode: installedMode(path.join(RUNTIME_SOURCE, relative)) }));
-      }
+      stageFiles(operations, SKILL_SOURCE, skillsTarget, skillFiles);
+      stageFiles(operations, OPEN_DESIGN_SKILL_SOURCE, openDesignSkillTarget, openDesignSkillFiles);
+      stageFiles(operations, BUNDLE_SOURCE, bundlesTarget, bundleFiles);
+      stageFiles(operations, RUNTIME_SOURCE, options.hermesHome, runtimeFiles);
       operations.push(stageFileContent(`${JSON.stringify({
         configVersion: OPEN_DESIGN_CONFIG_VERSION,
         bridgeRoot: OPEN_DESIGN_BRIDGE
       }, null, 2)}\n`, openDesignConfigTarget, { mode: 0o644 }));
       if (options.includeOverrides) {
-        for (const relative of overrideSkillFiles) {
-          const overrideName = relative.split(path.sep).slice(0, 2).join(path.sep);
-          const target = path.join(overrideSkillsTarget, overrideName);
-          if (!operations.some((operation) => operation.target === target)) {
-            operations.push(stageDirectory(path.join(overrideSkillsSource, overrideName), target, { skip: isTransient, mode: installedMode }));
-          }
-        }
+        stageFiles(operations, overrideSkillsSource, overrideSkillsTarget, overrideSkillFiles);
       }
       commitTransaction(operations, () => {
-        openDesignMcpRegistered = registerOpenDesignMcp(options);
+        if (!options.openDesignCliOnly) openDesignMcpRegistered = registerOpenDesignMcp(options);
       });
     } catch (error) {
       discardStaged(operations);
@@ -165,6 +158,7 @@ function install(options) {
   return {
     dryRun: options.dryRun,
     includeOverrides: options.includeOverrides,
+    openDesignCliOnly: options.openDesignCliOnly,
     hermesHome: options.hermesHome,
     copiedSkillsTo: skillsTarget,
     copiedOpenDesignSkillTo: openDesignSkillTarget,
@@ -181,8 +175,15 @@ function install(options) {
     bundleFiles,
     runtimeFiles,
     overrideSkillFiles: options.includeOverrides ? overrideSkillFiles : [],
-    changedSurfaces: options.includeOverrides ? ['skills', 'skill-bundles', 'runtime-bin', 'centurion-config', 'mcp-server', 'override-skills'] : ['skills', 'skill-bundles', 'runtime-bin', 'centurion-config', 'mcp-server'],
-    untouchedSurfaces: ['SOUL.md', 'plugins', 'hooks']
+    changedSurfaces: [
+      'skills', 'skill-bundles', 'runtime-bin', 'centurion-config',
+      ...(!options.openDesignCliOnly ? ['mcp-server'] : []),
+      ...(options.includeOverrides ? ['override-skills'] : [])
+    ],
+    untouchedSurfaces: [
+      'SOUL.md', 'plugins', 'hooks',
+      ...(options.openDesignCliOnly ? ['config.yaml', 'mcp-servers'] : [])
+    ]
   };
 }
 
