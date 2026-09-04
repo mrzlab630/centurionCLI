@@ -51,6 +51,22 @@ function protectedFiles(root, incoming) {
   return protectedMap;
 }
 
+function assertSafeTarget(root, target) {
+  const relative = path.relative(root, target);
+  if (relative === '' || relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error(`Deployment target escapes its root: ${target}`);
+  }
+  const rootStats = fs.lstatSync(root);
+  if (!rootStats.isDirectory() || rootStats.isSymbolicLink()) throw new Error(`Deployment root must be a real directory: ${root}`);
+  let current = root;
+  for (const component of relative.split(path.sep).slice(0, -1)) {
+    current = path.join(current, component);
+    if (!fs.existsSync(current)) break;
+    const stats = fs.lstatSync(current);
+    if (!stats.isDirectory() || stats.isSymbolicLink()) throw new Error(`Refusing unsafe deployment parent: ${current}`);
+  }
+}
+
 function restoreBackups(records, rootBySurface) {
   for (const record of records) {
     const target = path.join(rootBySurface[record.surface], record.path);
@@ -84,6 +100,7 @@ const replacements = [];
 const additions = [];
 for (const [surface, root, incoming] of [['hermes', hermesHome, hermesIncoming], ['agents', agentsHome, agentsIncoming]]) {
   for (const [target, source] of incoming) {
+    assertSafeTarget(root, target);
     if (fs.existsSync(target)) {
       const stats = fs.lstatSync(target);
       if (!stats.isFile() || stats.isSymbolicLink()) throw new Error(`Refusing non-regular deployment target: ${target}`);
