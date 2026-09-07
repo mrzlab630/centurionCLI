@@ -9,6 +9,7 @@ import json
 import math
 import os
 import secrets
+import selectors
 import shlex
 import signal
 import subprocess
@@ -337,7 +338,203 @@ def plan_command(order: dict[str, Any]) -> list[str]:
     return argv
 
 
-def run_child(argv: list[str], cwd: Path, timeout: int, grace_seconds: float) -> dict[str, Any]:
+# Three identical Read no-progress results are treated as a fail-closed loop.
+CLAUDE_NO_PROGRESS_LIMIT = 3
+
+
+def _claude_tool_event_state() -> dict[str, Any]:
+    return {"pending": {}, "signature": None, "noProgress": 0}
+
+
+def _observe_claude_tool_event(event: Any, state: dict[str, Any]) -> str | None:
+    if not isinstance(event, dict):
+        return None
+    message = event.get("message")
+    content = message.get("content") if isinstance(message, dict) else None
+    blocks = content if isinstance(content, list) else []
+    for block in blocks:
+        if (
+            not isinstance(block, dict)
+            or block.get("type") != "tool_use"
+            or block.get("name") != "Read"
+        ):
+            continue
+        tool_use_id = block.get("id")
+        if not isinstance(tool_use_id, str) or not tool_use_id:
+            continue
+        signature = json.dumps(
+            {"name": block.get("name"), "input": block.get("input")},
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        state["pending"][tool_use_id] = signature
+        if signature != state["signature"]:
+            state["signature"] = signature
+            state["noProgress"] = 0
+
+    for block in blocks:
+        if not isinstance(block, dict) or block.get("type") != "tool_result":
+            continue
+        signature = state["pending"].pop(block.get("tool_use_id"), None)
+        if signature is None:
+            continue
+        tool_use_result = event.get("tool_use_result")
+        result_content = block.get("content")
+        structured_marker = (
+            isinstance(tool_use_result, dict)
+            and tool_use_result.get("type") == "file_unchanged"
+        )
+        message_marker = (
+            isinstance(result_content, str)
+            and "wasted call" in result_content.lower()
+            and "file unchanged since your last read" in result_content.lower()
+        )
+        if structured_marker and message_marker:
+            if signature != state["signature"]:
+                state["signature"] = signature
+                state["noProgress"] = 0
+            state["noProgress"] += 1
+            if state["noProgress"] >= CLAUDE_NO_PROGRESS_LIMIT:
+                return (
+                    "Claude tool loop detected after "
+                    f"{CLAUDE_NO_PROGRESS_LIMIT} repeated identical tool calls returned no-progress results"
+                )
+        else:
+            state["signature"] = signature
+            state["noProgress"] = 0
+    return None
+
+
+def _claude_tool_history_error(events: list[dict[str, Any]]) -> str | None:
+    state = _claude_tool_event_state()
+    for event in events:
+        error = _observe_claude_tool_event(event, state)
+        if error is not None:
+            return error
+    return None
+
+
+def _run_child_streaming(
+    process: subprocess.Popen[bytes],
+    timeout: int,
+    grace_seconds: float,
+    signal_group: Any,
+) -> tuple[bytes, bytes, bool, bool, str | None, str | None]:
+    selector = selectors.DefaultSelector()
+    streams: dict[int, str] = {}
+    chunks: dict[str, list[bytes]] = {"stdout": [], "stderr": []}
+    line_buffers: dict[str, bytes] = {"stdout": b"", "stderr": b""}
+    tool_state = _claude_tool_event_state()
+    tool_loop_error: str | None = None
+    timed_out = False
+    drain_timed_out = False
+    termination_signal = None
+
+    for label, stream in (("stdout", process.stdout), ("stderr", process.stderr)):
+        if stream is None:
+            continue
+        os.set_blocking(stream.fileno(), False)
+        selector.register(stream, selectors.EVENT_READ, label)
+        streams[stream.fileno()] = label
+
+    deadline = time.monotonic() + timeout
+    drain_deadline: float | None = None
+    killed = False
+
+    def request_stop(reason: str, *, timeout_stop: bool = False) -> None:
+        nonlocal termination_signal, timed_out, tool_loop_error, drain_deadline
+        if timeout_stop:
+            timed_out = True
+        if reason.startswith("Claude tool loop"):
+            tool_loop_error = reason
+        if termination_signal is None:
+            termination_signal = "SIGTERM"
+            signal_group(signal.SIGTERM)
+            drain_deadline = time.monotonic() + grace_seconds
+
+    while streams or process.poll() is None:
+        now = time.monotonic()
+        if drain_deadline is None and now >= deadline:
+            request_stop(f"launcher timed out after {timeout}s", timeout_stop=True)
+        if drain_deadline is not None and now >= drain_deadline:
+            if not killed:
+                killed = True
+                termination_signal = "SIGKILL"
+                signal_group(signal.SIGKILL)
+                drain_deadline = time.monotonic() + grace_seconds
+            else:
+                drain_timed_out = True
+                break
+        wait_for = 0.1
+        if drain_deadline is None:
+            wait_for = max(0.0, min(wait_for, deadline - now))
+        else:
+            wait_for = max(0.0, min(wait_for, drain_deadline - now))
+        if not streams:
+            try:
+                process.wait(timeout=wait_for)
+            except subprocess.TimeoutExpired:
+                pass
+            continue
+        ready = selector.select(wait_for)
+        for key, _ in ready:
+            stream = key.fileobj
+            label = key.data
+            try:
+                chunk = os.read(stream.fileno(), 65536)
+            except BlockingIOError:
+                continue
+            except OSError:
+                chunk = b""
+            if not chunk:
+                selector.unregister(stream)
+                streams.pop(stream.fileno(), None)
+                continue
+            chunks[label].append(chunk)
+            if label != "stdout" or tool_loop_error is not None:
+                continue
+            line_buffers[label] += chunk
+            while b"\n" in line_buffers[label]:
+                line, line_buffers[label] = line_buffers[label].split(b"\n", 1)
+                try:
+                    event = strict_json_load_bytes(line, "Claude stream event")
+                except StrictJSONError:
+                    continue
+                if process.poll() is not None:
+                    continue
+                loop_error = _observe_claude_tool_event(event, tool_state)
+                if loop_error is not None:
+                    request_stop(loop_error)
+                    break
+    selector.close()
+    if process.poll() is None:
+        try:
+            process.wait(timeout=grace_seconds)
+        except subprocess.TimeoutExpired:
+            signal_group(signal.SIGKILL)
+            try:
+                process.wait(timeout=grace_seconds)
+            except subprocess.TimeoutExpired:
+                drain_timed_out = True
+    return (
+        b"".join(chunks["stdout"]),
+        b"".join(chunks["stderr"]),
+        timed_out,
+        drain_timed_out,
+        termination_signal,
+        tool_loop_error,
+    )
+
+
+def run_child(
+    argv: list[str],
+    cwd: Path,
+    timeout: int,
+    grace_seconds: float,
+    *,
+    detect_claude_tool_loop: bool = False,
+) -> dict[str, Any]:
     started_at = utc_now()
     monotonic_started = time.monotonic()
     try:
@@ -367,6 +564,7 @@ def run_child(argv: list[str], cwd: Path, timeout: int, grace_seconds: float) ->
     drain_timed_out = False
     termination_signal = None
     capture_error = None
+    tool_loop_error = None
     stdout = b""
     stderr = b""
 
@@ -395,7 +593,17 @@ def run_child(argv: list[str], cwd: Path, timeout: int, grace_seconds: float) ->
                 pass
 
     try:
-        stdout, stderr = process.communicate(timeout=timeout)
+        if detect_claude_tool_loop:
+            (
+                stdout,
+                stderr,
+                timed_out,
+                drain_timed_out,
+                termination_signal,
+                tool_loop_error,
+            ) = _run_child_streaming(process, timeout, grace_seconds, signal_group)
+        else:
+            stdout, stderr = process.communicate(timeout=timeout)
     except subprocess.TimeoutExpired as timeout_exc:
         timed_out = True
         termination_signal = "SIGTERM"
@@ -426,6 +634,8 @@ def run_child(argv: list[str], cwd: Path, timeout: int, grace_seconds: float) ->
         errors.append(f"post-SIGKILL pipe drain exceeded {grace_seconds}s")
     if capture_error:
         errors.append(capture_error)
+    if tool_loop_error:
+        errors.append(tool_loop_error)
     return {
         "childStarted": True,
         "startedAt": started_at,
@@ -458,19 +668,128 @@ def parse_strict_candidate(content: bytes, label: str) -> tuple[Any, list[str]]:
         return None, [str(exc)]
 
 
-def validate_stdout_candidate(
+def parse_claude_transport(content: bytes) -> tuple[Any, list[str]]:
+    try:
+        return strict_json_load_bytes(content, "stdout candidate"), []
+    except StrictJSONError as document_error:
+        try:
+            text = content.decode("utf-8")
+        except UnicodeDecodeError:
+            return None, [str(document_error)]
+        lines = text.splitlines()
+        if len(lines) < 2:
+            return None, [str(document_error)]
+        events = []
+        for line_number, line in enumerate(lines, start=1):
+            if not line.strip():
+                return None, [f"stdout JSONL line {line_number} is empty"]
+            try:
+                event = strict_json_load_bytes(line.encode("utf-8"), f"stdout JSONL line {line_number}")
+            except StrictJSONError as line_error:
+                return None, [str(line_error)]
+            events.append(event)
+        return events, []
+
+
+def claude_runtime_model_errors(events: list[dict[str, Any]], expected_model: str | None) -> list[str]:
+    observed: list[tuple[str, Any]] = []
+    for index, event in enumerate(events, start=1):
+        if "model" in event:
+            observed.append((f"event {index} model", event["model"]))
+        message = event.get("message")
+        if isinstance(message, dict) and "model" in message:
+            observed.append((f"event {index} message.model", message["model"]))
+        if "modelUsage" in event:
+            model_usage = event["modelUsage"]
+            if not isinstance(model_usage, dict):
+                observed.append((f"event {index} modelUsage", None))
+            else:
+                observed.extend((f"event {index} modelUsage key", model) for model in model_usage)
+
+    if not observed:
+        return ["Claude runtime model metadata is missing or empty"]
+
+    errors = []
+    for label, model in observed:
+        if not isinstance(model, str) or not model.strip():
+            errors.append(f"Claude runtime model metadata {label} must be a non-empty string")
+        elif expected_model is None:
+            errors.append(f"Claude runtime model {model!r} cannot be verified without routing.model")
+        elif model != expected_model:
+            errors.append(f"Claude runtime model {model!r} does not match routed model {expected_model!r}")
+    return errors
+
+
+def extract_stdout_candidate(
     content: bytes,
     order: dict[str, Any],
     schema_path: Path | None,
-) -> list[str]:
-    candidate, parse_errors = parse_strict_candidate(content, "stdout candidate")
+    routing: dict[str, Any] | None,
+) -> tuple[bytes | None, list[str]]:
+    transport, parse_errors = parse_claude_transport(content)
     if parse_errors:
-        return parse_errors
+        return None, parse_errors
     try:
         _, validator = _load_schema(resolve_schema_path(schema_path))
     except BuilderError as exc:
         raise GatewayError(str(exc)) from exc
-    return [f"stdout candidate validation failed: {error}" for error in validate_candidate(candidate, order, validator)]
+
+    if isinstance(transport, dict) and "resultVersion" in transport:
+        validation_errors = validate_candidate(transport, order, validator)
+        return content if not validation_errors else None, [
+            f"stdout candidate validation failed: {error}" for error in validation_errors
+        ]
+
+    if isinstance(transport, dict):
+        events = [transport]
+    elif isinstance(transport, list):
+        if any(not isinstance(event, dict) for event in transport):
+            return None, ["Claude stdout transport events must all be JSON objects"]
+        events = transport
+    else:
+        return None, ["Claude stdout transport must be a canonical result object, event object, event array, or JSONL"]
+
+    history_error = _claude_tool_history_error(events)
+    if history_error is not None:
+        return None, [history_error]
+
+    terminal_indexes = [index for index, event in enumerate(events) if event.get("type") == "result"]
+    if len(terminal_indexes) != 1:
+        return None, [f"Claude stdout transport must contain exactly one terminal result event; found {len(terminal_indexes)}"]
+    terminal_index = terminal_indexes[0]
+    if terminal_index != len(events) - 1:
+        return None, ["Claude terminal result must be the final event"]
+    terminal = events[terminal_index]
+
+    transport_errors = claude_runtime_model_errors(
+        events,
+        routing.get("model") if isinstance(routing, dict) and isinstance(routing.get("model"), str) else None,
+    )
+    if terminal.get("subtype") != "success":
+        transport_errors.append("Claude terminal subtype must be success")
+    if terminal.get("is_error") is not False:
+        transport_errors.append("Claude terminal is_error must be false")
+    permission_denials = terminal.get("permission_denials")
+    if not isinstance(permission_denials, list):
+        transport_errors.append("Claude terminal permission_denials must be an array")
+    elif permission_denials:
+        transport_errors.append("Claude terminal permission_denials must be empty")
+    inner = terminal.get("result")
+    if not isinstance(inner, str) or not inner.strip():
+        transport_errors.append("Claude terminal result must be a non-empty JSON string")
+        inner_bytes = None
+    else:
+        inner_bytes = inner.encode("utf-8")
+    if transport_errors or inner_bytes is None:
+        return None, sorted(set(transport_errors))
+
+    candidate, inner_parse_errors = parse_strict_candidate(inner_bytes, "Claude terminal inner result")
+    if inner_parse_errors:
+        return None, inner_parse_errors
+    validation_errors = validate_candidate(candidate, order, validator)
+    if validation_errors:
+        return None, [f"stdout candidate validation failed: {error}" for error in validation_errors]
+    return inner_bytes, []
 
 
 def synthetic_failed_result(
@@ -761,7 +1080,13 @@ def main() -> int:
             orderSha256=order_sha256,
             startReceiptSha256=start_receipt_sha256,
         )
-        child = run_child(argv, policy.repo_path, order["launch"]["timeoutSeconds"], args.termination_grace_seconds)
+        child = run_child(
+            argv,
+            policy.repo_path,
+            order["launch"]["timeoutSeconds"],
+            args.termination_grace_seconds,
+            detect_claude_tool_loop=order["executor"] == "claude",
+        )
         child_started = child["childStarted"]
         append_event_best_effort(
             events_path,
@@ -778,12 +1103,14 @@ def main() -> int:
         stderr_record, stderr_error = write_stream(stderr_path, child["stderr"], evidence_dir, "stderr")
         controller_errors = [error for error in (child.get("error"), stdout_error, stderr_error) if error]
         if args.candidate_source == "stdout" and not controller_errors:
-            stdout_errors = validate_stdout_candidate(child["stdout"], order, args.schema)
+            extracted_candidate, stdout_errors = extract_stdout_candidate(child["stdout"], order, args.schema, routing)
             if stdout_errors:
                 controller_errors.extend(stdout_errors)
             else:
                 try:
-                    atomic_create(candidate_path, child["stdout"])
+                    if extracted_candidate is None:
+                        raise GatewayError("stdout candidate extraction returned no bytes without an error")
+                    atomic_create(candidate_path, extracted_candidate)
                 except (GatewayError, OSError) as exc:
                     controller_errors.append(f"stdout candidate materialization failed at {candidate_path}: {exc}")
         candidate, candidate_bytes = candidate_record(candidate_path)
