@@ -1,6 +1,6 @@
 # Hermes Legion Kit
 
-CENTURION/Aquila Team Lead skills and lean skill bundles for Hermes Agent (kit version 0.7.3).
+CENTURION/Aquila Team Lead skills and lean skill bundles for Hermes Agent (kit version 0.7.4).
 
 This kit versions the local Hermes additions that were first installed under `~/.hermes`: six Aquila skills, the SOLARIUS `solana-program-engineering` skill, one shared Open Design capability, its local stdio MCP, four slash-command bundles, and a packaged delegation monitor. SOLARIUS remains Aquila-routed and never self-approves implementation, audit findings, or release readiness. It does not import ECC runtime code, enable plugins, alter unrelated MCP servers, or edit `SOUL.md`.
 

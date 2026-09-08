@@ -417,7 +417,7 @@ function assertOverrides() {
 
 function assertPackageVersion() {
   const manifest = JSON.parse(readText(PACKAGE_MANIFEST));
-  assert(manifest.version === '0.7.3', 'package version must be 0.7.3');
+  assert(manifest.version === '0.7.4', 'package version must be 0.7.4');
 }
 
 function main() {
