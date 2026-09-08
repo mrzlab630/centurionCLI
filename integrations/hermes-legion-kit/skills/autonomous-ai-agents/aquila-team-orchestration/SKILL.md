@@ -125,6 +125,15 @@ For any multi-agent or durable task, record these fields in the order, Kanban ca
 7. **Integrate**: merge or accept only after the merge gate is satisfied; otherwise send a correction order.
 8. **Report**: state accepted work, rejected work, evidence, risks, and next action.
 
+### Bounded recovery
+
+После сбоя или смены контекста используйте
+[`references/bounded-recovery-pilot.md`](references/bounded-recovery-pilot.md):
+восстанавливайте первый незакрытый `REQUIRED` gate из артефактов, не ослабляя
+scope, approvals, custody, review floor или лимит product attempts.
+Для timeout-safe исполнения декомпозируйте работу на маленькие checkpointed
+шаги и после timeout всегда делайте readback процесса и bytes до продолжения.
+
 ## Kanban vs Delegate Task
 
 Use `delegate_task` for small bounded tasks whose result can fit in one final response. Use Kanban when the task must survive restart, needs human input, has dependencies, or benefits from visible state and run history.

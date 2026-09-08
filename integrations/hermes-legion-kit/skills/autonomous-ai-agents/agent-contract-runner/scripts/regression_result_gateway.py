@@ -151,7 +151,68 @@ payload = {
     "scopeDeviations": [], "forbiddenPatternHits": [], "remainingRisks": [], "questions": [], "errors": [],
     "stdoutSummary": "", "stderrSummary": ""
 }
+
+def claude_terminal(inner=None, **overrides):
+    event = {
+        "type": "result", "subtype": "success", "is_error": False,
+        "result": json.dumps(payload) if inner is None else inner,
+        "permission_denials": [],
+        "modelUsage": {"claude-opus-5": {"inputTokens": 1, "outputTokens": 1}},
+    }
+    event.update(overrides)
+    return event
+
+def claude_events(terminal=None, *, model="claude-opus-5"):
+    return [
+        {"type": "system", "subtype": "init", "model": model},
+        {"type": "assistant", "message": {"model": model, "content": []}},
+        claude_terminal() if terminal is None else terminal,
+    ]
+
+def claude_events_without_model_metadata(terminal):
+    return [
+        {"type": "system", "subtype": "init"},
+        {"type": "assistant", "message": {"content": []}},
+        terminal,
+    ]
+
+def claude_tool_exchange(tool_use_id, *, no_progress):
+    tool_use = {
+        "type": "assistant",
+        "message": {
+            "model": "claude-opus-5",
+            "content": [{
+                "type": "tool_use", "id": tool_use_id, "name": "Read",
+                "input": {"file_path": "fixture.txt"},
+            }],
+        },
+    }
+    if no_progress:
+        content = "Wasted call - file unchanged since your last Read."
+        tool_use_result = {"type": "file_unchanged", "file_path": "fixture.txt"}
+    else:
+        content = "fixture contents changed"
+        tool_use_result = {"type": "text", "content": content}
+    tool_result = {
+        "type": "user",
+        "message": {"content": [{
+            "type": "tool_result", "tool_use_id": tool_use_id, "content": content,
+        }]},
+        "tool_use_result": tool_use_result,
+    }
+    return [tool_use, tool_result]
+
+def emit_chunked_jsonl(events):
+    for event in events:
+        encoded = (json.dumps(event) + "\\n").encode("utf-8")
+        midpoint = max(1, len(encoded) // 2)
+        os.write(sys.stdout.fileno(), encoded[:midpoint])
+        time.sleep(0.01)
+        os.write(sys.stdout.fileno(), encoded[midpoint:])
+        time.sleep(0.01)
+
 candidate.parent.mkdir(parents=True, exist_ok=True)
+close_streams = False
 if mode.startswith("stdout-"):
     stdout_mode = mode.removeprefix("stdout-")
     if stdout_mode == "valid":
@@ -176,6 +237,108 @@ if mode.startswith("stdout-"):
         output = json.dumps({"type": "result", "content": payload})
     elif stdout_mode == "multiple":
         output = json.dumps(payload) + "\\n" + json.dumps(payload)
+    elif stdout_mode == "claude-wrapper":
+        output = json.dumps(claude_terminal())
+    elif stdout_mode == "claude-event-array":
+        output = json.dumps(claude_events())
+    elif stdout_mode == "claude-event-jsonl":
+        output = "\\n".join(json.dumps(event) for event in claude_events()) + "\\n"
+    elif stdout_mode == "claude-missing-terminal":
+        output = json.dumps(claude_events()[:-1])
+    elif stdout_mode == "claude-duplicate-terminal":
+        events = claude_events()
+        output = json.dumps(events + [claude_terminal()])
+    elif stdout_mode == "claude-nonfinal-terminal":
+        output = json.dumps([claude_terminal(), {"type": "assistant", "message": {"model": "claude-opus-5"}}])
+    elif stdout_mode == "claude-malformed-inner":
+        output = json.dumps(claude_events(claude_terminal("{not-json")))
+    elif stdout_mode == "claude-empty-inner":
+        output = json.dumps(claude_events(claude_terminal("")))
+    elif stdout_mode == "claude-wrong-order":
+        payload["orderId"] = "wrong-order-id"
+        output = json.dumps(claude_events())
+    elif stdout_mode == "claude-wrong-executor":
+        payload["executor"] = "codex"
+        output = json.dumps(claude_events())
+    elif stdout_mode == "claude-denied-read":
+        denial = {"tool_name": "Read", "tool_use_id": "toolu_read", "tool_input": {"file_path": "fixture"}}
+        output = json.dumps(claude_events(claude_terminal(permission_denials=[denial])))
+    elif stdout_mode == "claude-denied-write":
+        denial = {"tool_name": "Write", "tool_use_id": "toolu_write", "tool_input": {"file_path": "fixture"}}
+        output = json.dumps(claude_events(claude_terminal(permission_denials=[denial])))
+    elif stdout_mode == "claude-error-terminal":
+        output = json.dumps(claude_events(claude_terminal("Maximum turns reached", subtype="error_max_turns", is_error=True)))
+    elif stdout_mode == "claude-budget-terminal":
+        output = json.dumps(claude_events(claude_terminal("Budget exhausted", subtype="error_during_execution", is_error=True)))
+    elif stdout_mode == "claude-is-error":
+        output = json.dumps(claude_events(claude_terminal(is_error=True)))
+    elif stdout_mode == "claude-wrong-model":
+        output = json.dumps(claude_events(model="claude-sonnet-5"))
+    elif stdout_mode == "claude-wrapper-missing-model-metadata":
+        terminal = claude_terminal()
+        terminal.pop("modelUsage")
+        output = json.dumps(terminal)
+    elif stdout_mode == "claude-event-array-missing-model-metadata":
+        terminal = claude_terminal()
+        terminal.pop("modelUsage")
+        output = json.dumps(claude_events_without_model_metadata(terminal))
+    elif stdout_mode == "claude-event-jsonl-empty-model-usage":
+        events = claude_events_without_model_metadata(claude_terminal(modelUsage={}))
+        output = "\\n".join(json.dumps(event) for event in events) + "\\n"
+    elif stdout_mode == "claude-malformed-jsonl":
+        events = claude_events()
+        output = json.dumps(events[0]) + "\\n{not-json\\n" + json.dumps(events[-1]) + "\\n"
+    elif stdout_mode == "claude-tool-loop":
+        events = []
+        for index in range(3):
+            events.extend(claude_tool_exchange(f"toolu_loop_{index}", no_progress=True))
+        emit_chunked_jsonl(events)
+        output = ""
+    elif stdout_mode == "claude-tool-success":
+        events = claude_tool_exchange("toolu_success", no_progress=False)
+        events.append(claude_terminal())
+        emit_chunked_jsonl(events)
+        output = ""
+    elif stdout_mode == "claude-tool-progress-reset":
+        events = []
+        for index in range(2):
+            events.extend(claude_tool_exchange(f"toolu_before_{index}", no_progress=True))
+        events.extend(claude_tool_exchange("toolu_progress", no_progress=False))
+        for index in range(2):
+            events.extend(claude_tool_exchange(f"toolu_after_{index}", no_progress=True))
+        events.append(claude_terminal())
+        emit_chunked_jsonl(events)
+        output = ""
+    elif stdout_mode == "claude-buffered-tool-history":
+        events = []
+        for index in range(3):
+            events.extend(claude_tool_exchange(f"toolu_buffered_{index}", no_progress=True))
+        events.append(claude_terminal())
+        output = json.dumps(events)
+    elif stdout_mode == "claude-buffered-tool-progress-reset":
+        events = []
+        for index in range(2):
+            events.extend(claude_tool_exchange(f"toolu_buffered_before_{index}", no_progress=True))
+        events.extend(claude_tool_exchange("toolu_buffered_progress", no_progress=False))
+        for index in range(2):
+            events.extend(claude_tool_exchange(f"toolu_buffered_after_{index}", no_progress=True))
+        events.append(claude_terminal())
+        output = json.dumps(events)
+    elif stdout_mode == "claude-buffered-tool-marker-lookalike":
+        events = []
+        for index in range(3):
+            exchange = claude_tool_exchange(f"toolu_lookalike_{index}", no_progress=False)
+            exchange[1]["message"]["content"][0]["content"] = {"note": {"type": "file_unchanged"}}
+            exchange[1]["tool_use_result"] = {
+                "type": "text",
+                "content": "Wasted call - file unchanged since your last Read.",
+            }
+            events.extend(exchange)
+        events.append(claude_terminal())
+        output = json.dumps(events)
+    elif stdout_mode == "claude-eof-before-exit":
+        output = json.dumps(claude_terminal()) + "\\n"
+        close_streams = True
     elif stdout_mode == "duplicate-key":
         output = json.dumps(payload).replace('"status": "' + status + '"', '"status": "failed", "status": "' + status + '"', 1)
     elif stdout_mode in {"non-finite", "infinity", "negative-infinity", "overflow-non-finite"}:
@@ -223,6 +386,9 @@ else:
         candidate.write_text("{\\\"resultVersion\\\":", encoding="utf-8")
     print("fixture stdout", flush=True)
 print("fixture stderr", file=sys.stderr, flush=True)
+if close_streams:
+    sys.stdout.close()
+    sys.stderr.close()
 if mode == "capture-oserror":
     (candidate.parent / "capture").chmod(0o500)
     (candidate.parent / "evidence").chmod(0o500)
@@ -547,6 +713,141 @@ def main() -> int:
         assert run_monitor(case).returncode == 0
     print("PASS Claude stdout candidates materialize only after closure and preserve valid verdicts")
 
+    for mode in ("claude-wrapper", "claude-event-array", "claude-event-jsonl"):
+        case = make_case(
+            f"claude-stdout-{mode}",
+            f"stdout-{mode}",
+            executor="claude",
+            candidate_source="stdout",
+        )
+        completed = run_gateway(case)
+        assert completed.returncode == 0, completed.stderr or completed.stdout
+        candidate = load_valid_result(Path(case["candidate"]))
+        result = load_valid_result(Path(case["result"]))
+        assert candidate == result and result["status"] == "done"
+        assert Path(case["candidate"]).read_bytes() != Path(case["stdout"]).read_bytes()
+        closure = read_json(Path(case["closure"]))
+        assert closure["candidate"]["source"] == "stdout"
+        assert closure["candidate"]["sha256"] != closure["stdout"]["sha256"]
+        assert run_monitor(case).returncode == 0
+    print("PASS Claude wrapper object, verbose event array, and JSONL transport extract strict inner candidates")
+
+    claude_transport_rejections = {
+        "claude-missing-terminal": "exactly one terminal",
+        "claude-duplicate-terminal": "exactly one terminal",
+        "claude-nonfinal-terminal": "final event",
+        "claude-malformed-inner": "inner result is not strict JSON",
+        "claude-empty-inner": "non-empty JSON string",
+        "claude-wrong-order": "orderId",
+        "claude-wrong-executor": "executor",
+        "claude-denied-read": "permission_denials",
+        "claude-denied-write": "permission_denials",
+        "claude-error-terminal": "subtype must be success",
+        "claude-budget-terminal": "subtype must be success",
+        "claude-is-error": "is_error must be false",
+        "claude-wrong-model": "runtime model",
+        "claude-wrapper-missing-model-metadata": "model metadata is missing or empty",
+        "claude-event-array-missing-model-metadata": "model metadata is missing or empty",
+        "claude-event-jsonl-empty-model-usage": "model metadata is missing or empty",
+        "claude-malformed-jsonl": "JSONL line 2",
+    }
+    for mode, expected_error in claude_transport_rejections.items():
+        case = make_case(
+            f"claude-stdout-{mode}",
+            f"stdout-{mode}",
+            executor="claude",
+            candidate_source="stdout",
+        )
+        completed = run_gateway(case)
+        assert completed.returncode != 0
+        assert load_valid_result(Path(case["result"]))["status"] == "failed"
+        assert not Path(case["candidate"]).exists()
+        closure = read_json(Path(case["closure"]))
+        assert any(expected_error in error for error in closure["controllerErrors"]), closure["controllerErrors"]
+        assert run_monitor(case).returncode == 0
+    print("PASS Claude transport rejects terminal ambiguity/failure, malformed inner data, wrong identity/model, and denied tools")
+
+    loop = make_case(
+        "claude-stdout-tool-loop",
+        "stdout-claude-tool-loop",
+        executor="claude",
+        sleep_seconds=5,
+        timeout_seconds=4,
+        candidate_source="stdout",
+    )
+    started = time.monotonic()
+    completed = run_gateway(loop)
+    elapsed = time.monotonic() - started
+    assert completed.returncode == 1, completed.stderr or completed.stdout
+    assert elapsed < 2, elapsed
+    assert load_valid_result(Path(loop["result"]))["status"] == "failed"
+    assert not Path(loop["candidate"]).exists()
+    closure = read_json(Path(loop["closure"]))
+    assert closure["timedOut"] is False and closure["terminationSignal"] == "SIGTERM"
+    assert closure["stdout"]["bytes"] > 0
+    assert any("Claude tool loop detected" in error for error in closure["controllerErrors"])
+    assert "file_unchanged" in Path(loop["stdout"]).read_text(encoding="utf-8")
+    assert run_monitor(loop).returncode == 0
+    print("PASS repeated identical Claude Read no-progress results fail closed before the launcher timeout")
+
+    buffered_loop = make_case(
+        "claude-stdout-buffered-tool-history",
+        "stdout-claude-buffered-tool-history",
+        executor="claude",
+        candidate_source="stdout",
+    )
+    completed = run_gateway(buffered_loop)
+    assert completed.returncode == 1, completed.stderr or completed.stdout
+    assert load_valid_result(Path(buffered_loop["result"]))["status"] == "failed"
+    assert not Path(buffered_loop["candidate"]).exists()
+    closure = read_json(Path(buffered_loop["closure"]))
+    assert closure["timedOut"] is False and closure["terminationSignal"] is None
+    assert any("Claude tool loop detected" in error for error in closure["controllerErrors"])
+    assert "file_unchanged" in Path(buffered_loop["stdout"]).read_text(encoding="utf-8")
+    assert run_monitor(buffered_loop).returncode == 0
+    print("PASS completed buffered Claude history with the same no-progress loop fails closed")
+
+    for mode in (
+        "claude-tool-success",
+        "claude-tool-progress-reset",
+        "claude-buffered-tool-progress-reset",
+        "claude-buffered-tool-marker-lookalike",
+    ):
+        case = make_case(
+            f"claude-stdout-{mode}",
+            f"stdout-{mode}",
+            executor="claude",
+            candidate_source="stdout",
+        )
+        completed = run_gateway(case)
+        assert completed.returncode == 0, completed.stderr or completed.stdout
+        assert load_valid_result(Path(case["result"]))["status"] == "done"
+        assert load_valid_result(Path(case["candidate"]))["status"] == "done"
+        closure = read_json(Path(case["closure"]))
+        assert closure["timedOut"] is False and not closure["controllerErrors"]
+        assert run_monitor(case).returncode == 0
+    print("PASS normal, changed, and out-of-shape marker results remain valid in JSONL and buffered Claude output")
+
+    eof = make_case(
+        "claude-stdout-eof-before-exit",
+        "stdout-claude-eof-before-exit",
+        executor="claude",
+        sleep_seconds=0.8,
+        timeout_seconds=3,
+        candidate_source="stdout",
+    )
+    started = time.monotonic()
+    completed = run_gateway(eof, grace_seconds="0.1")
+    elapsed = time.monotonic() - started
+    assert completed.returncode == 0, completed.stderr or completed.stdout
+    assert 0.6 < elapsed < 2, elapsed
+    assert load_valid_result(Path(eof["result"]))["status"] == "done"
+    closure = read_json(Path(eof["closure"]))
+    assert closure["timedOut"] is False and closure["terminationSignal"] is None
+    assert closure["stdout"]["bytes"] > 0 and closure["stderr"]["bytes"] > 0
+    assert run_monitor(eof).returncode == 0
+    print("PASS Claude EOF before process exit preserves captured evidence and the original launcher timeout")
+
     for mode in (
         "malformed",
         "fenced",
@@ -680,8 +981,9 @@ def main() -> int:
     assert not Path(stdout_timeout["candidate"]).exists()
     closure = json.loads(Path(stdout_timeout["closure"]).read_text(encoding="utf-8"))
     assert closure["timedOut"] is True and closure["stdout"]["bytes"] > 0
+    assert any("launcher timed out after 1s" in error for error in closure["controllerErrors"])
     assert run_monitor(stdout_timeout).returncode == 0
-    print("PASS timeout after partial Claude stdout preserves raw evidence without materialization")
+    print("PASS timeout after partial Claude stdout preserves raw evidence and the original timeout reason")
 
     capture_failure = make_case("capture-oserror", "capture-oserror", separate_stdout_parent=True)
     exact_paths = [
