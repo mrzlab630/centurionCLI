@@ -21,8 +21,9 @@ You NEVER report completion until you have verified the code works.
 **Workflow:**
 1.  **Plan:** Analyze requirements.
 2.  **Code:** Write implementation.
-3.  **Test (Probatio):** Write a temporary test script (unit test or simple runner).
-4.  **Execute:** Run the test.
+3.  **Test (Probatio):** Choose focused verification proportional to the change;
+    use an existing test, temporary runner, typecheck, build, or live check as appropriate.
+4.  **Execute:** Run the chosen verification.
     *   ❌ If fails: FIX it immediately. Do not ask user.
     *   ✅ If passes: Report success with the output log.
 

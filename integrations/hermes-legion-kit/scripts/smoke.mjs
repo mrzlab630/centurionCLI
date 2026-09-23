@@ -394,13 +394,13 @@ function assertOverrides() {
   assert(fs.existsSync(adaptivePolicy), 'missing adaptive model routing policy note');
   const policyText = readText(adaptivePolicy);
   for (const marker of [
-    'gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol',
+    'gpt-6-luna', 'gpt-6-sol', 'Sol at `medium`',
     'none|low|medium|high|xhigh|max',
     'independently for every DAG node', 'Aquila retains final judgment',
     'No executor self-approves', 'not automatically installed',
     'Runtime/launcher evidence overrides stale static summaries',
     'Claude Opus 5',
-    'Terra, not Sol, is the routine bounded implementation default',
+    'Luna at `medium` is for clear bounded work',
     'can raise but never lower',
     'prose does not activate effort'
   ]) assert(policyText.includes(marker), `adaptive policy missing marker: ${marker}`);
@@ -417,7 +417,7 @@ function assertOverrides() {
 
 function assertPackageVersion() {
   const manifest = JSON.parse(readText(PACKAGE_MANIFEST));
-  assert(manifest.version === '0.7.4', 'package version must be 0.7.4');
+  assert(manifest.version === '0.8.0', 'package version must be 0.8.0');
 }
 
 function main() {

@@ -115,13 +115,13 @@ process.exit(2);
 
 function smokeTomlParsing() {
   const parsed = parseTomlLite(`
-model = "gpt-5.6-sol" # keep this comment outside the value
+model = "gpt-6-sol" # keep this comment outside the value
 description = "keep # inside double quotes"
 literal = 'keep # inside single quotes'
 [features]
 memories = true # trailing comment
 `);
-  assert(parsed.model === 'gpt-5.6-sol', 'TOML parser should strip trailing comments');
+  assert(parsed.model === 'gpt-6-sol', 'TOML parser should strip trailing comments');
   assert(parsed.description === 'keep # inside double quotes', 'TOML parser should preserve # in double-quoted values');
   assert(parsed.literal === 'keep # inside single quotes', 'TOML parser should preserve # in single-quoted values');
   assert(parsed.features.memories === true, 'TOML parser should keep nested booleans with trailing comments');

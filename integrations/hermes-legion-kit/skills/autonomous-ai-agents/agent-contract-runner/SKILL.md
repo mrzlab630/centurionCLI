@@ -44,7 +44,7 @@ Use `scripts/review_ladder.py` to select V3, V2, V1, or V0 deterministically:
 | Profile | Terminal route |
 | --- | --- |
 | V0 | Deterministic controller proof only, with every trust predicate true. |
-| V1 | `gpt-5.6-sol` review for recoverable proof gaps. |
+| V1 | `gpt-6-sol` review for recoverable proof gaps in non-Codex implementations; Codex implementations with proof gaps require V2/Claude. |
 | V2 | `claude-opus-5` for medium consequence, ambiguity, shared contracts, or hidden failure modes. |
 | V3 | `claude-opus-5` plus an approved specialist/Boss gate for security, auth, secrets, money, production, dependencies, public endpoints, or infrastructure. |
 

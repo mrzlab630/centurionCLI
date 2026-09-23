@@ -49,6 +49,8 @@ def install_fake_executor() -> None:
         "#!/usr/bin/env python3\n"
         "import json, pathlib, sys, time\n"
         "executor_name = pathlib.Path(sys.argv[0]).name\n"
+        "if executor_name == 'codex' and len(sys.argv) > 4 and sys.argv[1] == 'exec':\n"
+        "    del sys.argv[1:6]\n"
         "result_path = pathlib.Path(sys.argv[1])\n"
         "artifact_path = pathlib.Path(sys.argv[2])\n"
         "proof_status = sys.argv[3]\n"
@@ -572,7 +574,7 @@ def main() -> int:
         "reasoningEffort": "medium",
         "executionProfile": "implementation",
         "verificationProfile": "V1",
-        "reviewer": "gpt-5.6-sol",
+        "reviewer": "gpt-6-sol",
         "confidence": "high",
         "reasons": ["deterministic proof is incomplete"],
     }
@@ -587,7 +589,7 @@ def main() -> int:
         capture_output=True,
     )
     assert_case(valid_route.returncode == 0, f"valid post-cutover routing must pass: {valid_route.stderr}")
-    assert_case("aquila_routing_validated:V1:gpt-5.6-sol:implementation" in events_text(missing_events), "runner must record the validated route")
+    assert_case("aquila_routing_validated:V1:gpt-6-sol:implementation" in events_text(missing_events), "runner must record the validated route")
     print("PASS runner enforces post-cutover routing before dispatch and accepts canonical V1")
 
     promotion_dir = FIXTURE_ROOT / "post-cutover-promotion"
@@ -643,7 +645,7 @@ def main() -> int:
             "attempt": 1,
             "taskClass": promoted_task_class,
             "executor": "codex",
-            "model": "gpt-5.6-terra",
+            "model": "gpt-6-luna",
             "reviewer": "none",
             "risk": "low",
             "status": "done",
@@ -755,7 +757,7 @@ def main() -> int:
     terminal_payload["createdAt"] = "2026-08-03T11:00:42Z"
     terminal_payload["executor"] = "codex"
     terminal_command = shlex.split(terminal_payload["launch"]["command"])
-    terminal_command[0] = "codex"
+    terminal_command[0:1] = ["codex", "exec", "--model", "gpt-6-sol", "-c", "model_reasoning_effort=high"]
     terminal_payload["launch"]["command"] = shlex.join(terminal_command)
     terminal_metadata = {
         "objectiveId": "runner-terminal-promotion",
@@ -767,7 +769,7 @@ def main() -> int:
         "reversibility": "high",
         "evidenceNeed": "low",
         "executor": "codex",
-        "model": "gpt-5.6-sol",
+        "model": "gpt-6-sol",
         "reasoningEffort": "high",
         "executionProfile": "terminal_review",
         "verificationProfile": "V1",
@@ -794,7 +796,7 @@ def main() -> int:
     assert_case(not terminal_stdout.exists() and not terminal_stderr.exists(), "promoted terminal rejection must not create executor logs")
 
     terminal_payload["executor"] = "claude"
-    terminal_command[0] = "claude"
+    terminal_command[0:6] = ["claude"]
     terminal_payload["launch"]["command"] = shlex.join(terminal_command)
     promoted_terminal_metadata = dict(
         terminal_metadata,
@@ -1130,7 +1132,7 @@ def main() -> int:
         "reversibility": "high",
         "evidenceNeed": "low",
         "executor": "codex",
-        "model": "gpt-5.6-sol",
+        "model": "gpt-6-sol",
         "reasoningEffort": "high",
         "executionProfile": "implementation",
         "verificationProfile": "V0",
@@ -1149,6 +1151,8 @@ def main() -> int:
         },
     }
     v0_payload["notesForExecutor"] = ["AQUILA_ROUTING_JSON_V1:" + json.dumps(v0_routing, separators=(",", ":"))]
+    v0_command = shlex.split(v0_payload["launch"]["command"])
+    v0_payload["launch"]["command"] = shlex.join(["codex", "exec", "--model", "gpt-6-sol", "-c", "model_reasoning_effort=high", *v0_command[1:]])
     write_json(v0_order, v0_payload)
     v0_completed = subprocess.run(
         [sys.executable, str(RUNNER), "--order", str(v0_order), "--mode", "run", "--events", str(v0_events), "--result", str(v0_result)],

@@ -61,11 +61,11 @@ def routing_metadata(order_id: str, executor: str, **overrides: Any) -> dict[str
         "reversibility": "high",
         "evidenceNeed": "high",
         "executor": executor,
-        "model": "claude-opus-5" if executor == "claude" else "gpt-5.6-terra",
+        "model": "claude-opus-5" if executor == "claude" else "gpt-6-luna",
         "reasoningEffort": "medium",
         "executionProfile": "implementation",
-        "verificationProfile": "V1",
-        "reviewer": "gpt-5.6-sol",
+        "verificationProfile": "V1" if executor == "claude" else "V2",
+        "reviewer": "gpt-6-sol" if executor == "claude" else "claude-opus-5",
         "confidence": "high",
         "reasons": ["deterministic gateway regression proof"],
     }
@@ -125,7 +125,10 @@ import sys
 import time
 from pathlib import Path
 
-mode, candidate_value, order_id, executor, status, side_effect_value, sleep_value, exit_value = sys.argv[1:]
+args = sys.argv[1:]
+if Path(sys.argv[0]).name == "codex" and args[:1] == ["exec"]:
+    args = args[5:]
+mode, candidate_value, order_id, executor, status, side_effect_value, sleep_value, exit_value = args
 candidate = Path(candidate_value)
 side_effect = Path(side_effect_value) if side_effect_value != "NONE" else None
 count = Path(os.environ["RESULT_GATEWAY_TEST_COUNT"])
@@ -441,6 +444,8 @@ def make_case(
     evidence.mkdir()
     side_effect_path = case / "side-effect.txt" if side_effect else Path("NONE")
     command = [executor, mode, str(candidate), order_id, executor, status, str(side_effect_path), str(sleep_seconds), str(exit_code)]
+    if executor == "codex":
+        command[1:1] = ["exec", "--model", "gpt-6-luna", "-c", "model_reasoning_effort=medium"]
     order = {
         "orderVersion": "AGENT_ORDER_JSON_V1",
         "orderId": order_id,
@@ -1090,7 +1095,21 @@ def main() -> int:
 
     argv_mismatch = make_case("argv-mismatch", "valid")
     rewrite_order(argv_mismatch, lambda order: order["launch"].update({"command": "claude valid"}))
-    assert "launch.command starts with claude" in assert_preflight_rejection(argv_mismatch).stderr
+    assert "must start with codex exec" in assert_preflight_rejection(argv_mismatch).stderr
+
+    for name, command, error in (
+        ("missing-model", "codex exec -c model_reasoning_effort=medium fixture", "must match routing.model"),
+        ("wrong-model-flag", "codex exec --model gpt-6-sol -c model_reasoning_effort=medium fixture", "must match routing.model"),
+        ("wrong-effort", "codex exec --model gpt-6-luna -c model_reasoning_effort=low fixture", "must match routing.model"),
+        ("model-override", "codex exec --model gpt-6-luna -c model_reasoning_effort=medium -c model=gpt-6-sol fixture", "must not override model"),
+        ("duplicate-model", "codex exec --model gpt-6-luna --model gpt-6-sol -c model_reasoning_effort=medium fixture", "must match routing.model"),
+    ):
+        rejected = make_case(f"launch-{name}", "valid")
+        rewrite_order(rejected, lambda order, value=command: order["launch"].update({"command": value}))
+        completed = assert_preflight_rejection(rejected)
+        assert error in completed.stderr, f"{name}: {completed.stderr}"
+        assert not Path(rejected["events"]).exists(), "launch mismatch must fail before custody artifacts"
+    print("PASS gateway binds Codex launch model and effort before dispatch")
 
     invalid_argv = make_case("invalid-argv", "valid")
     rewrite_order(invalid_argv, lambda order: order["launch"].update({"command": "codex '"}))
@@ -1162,8 +1181,8 @@ def main() -> int:
                     order["executor"],
                     executionProfile="terminal_review",
                     terminalGate=True,
-                    model="gpt-5.6-sol",
-                    reviewer="gpt-5.6-sol",
+                    model="gpt-6-sol",
+                    reviewer="gpt-6-sol",
                 ),
             ),
             "cannot select another reviewer",

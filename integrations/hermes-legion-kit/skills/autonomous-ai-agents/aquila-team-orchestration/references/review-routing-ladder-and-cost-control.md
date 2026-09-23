@@ -1,13 +1,13 @@
 # Review routing ladder and cost control
 
-This is the operational source for Aquila verification routing after the atomic cutover at `2026-08-03T11:00:42Z`. Route from consequence, proof strength, ambiguity, and active task-class promotions. The implementation model identity alone never selects the reviewer.
+This is the operational source for Aquila verification routing after the atomic cutover at `2026-08-03T11:00:42Z`. Route from consequence, proof strength, ambiguity, executor independence, and active task-class promotions. Model identity alone does not select the reviewer.
 
 ## Required order metadata
 
 Every order created at or after the cutover contains exactly one compact `notesForExecutor` entry:
 
 ```text
-AQUILA_ROUTING_JSON_V1:{"objectiveId":"stable-id","attempt":1,"taskClass":"routine_implementation","complexity":"medium","risk":"low","ambiguity":"low","reversibility":"high","evidenceNeed":"high","executor":"codex","model":"gpt-5.6-terra","reasoningEffort":"medium","executionProfile":"implementation","verificationProfile":"V1","reviewer":"gpt-5.6-sol","confidence":"high","reasons":["deterministic proof is incomplete"]}
+AQUILA_ROUTING_JSON_V1:{"objectiveId":"stable-id","attempt":1,"taskClass":"routine_implementation","complexity":"medium","risk":"low","ambiguity":"low","reversibility":"high","evidenceNeed":"high","executor":"codex","model":"gpt-6-luna","reasoningEffort":"medium","executionProfile":"implementation","verificationProfile":"V2","reviewer":"claude-opus-5","confidence":"high","reasons":["independent review is required for this Codex implementation"]}
 ```
 
 The runner rejects missing, duplicate, malformed, non-compact, unknown, or semantically incompatible metadata before dispatch. Orders created before the cutover retain their original contract and do not require this entry.
@@ -26,11 +26,11 @@ V0 additionally carries all canonical `trustPredicates` as exact `true` booleans
 | Profile | Terminal route | Required conditions |
 |---|---|---|
 | V0 | Deterministic controller proof only; no reviewer process | Low risk; local/narrow blast radius; cheap reversal; exact visible failure oracle; no security, data, schema, dependency, deploy/runtime, public, or external side effect; all required artifacts/proofs pass; no uncertainty, scope deviation, forbidden hit, or unverified assumption |
-| V1 | `gpt-5.6-sol` | Recoverable work where deterministic proof leaves a meaningful behavior gap |
+| V1 | `gpt-6-sol` | Recoverable work where deterministic proof leaves a meaningful behavior gap |
 | V2 | `claude-opus-5` | Medium consequence, material ambiguity, shared contract, architecture, difficult diagnosis, cross-service decision, or material hidden failure mode |
 | V3 | `claude-opus-5` plus specialist/Boss gate | Security, auth, secrets, money, payments, wallets, KYC, data loss, migration, production, dependency/supply-chain, public endpoint, or infrastructure change |
 
-Evaluate V3 triggers first. V2 and V3 are hard floors and can never route to `none` or Sol. V0 is legal only when every trust predicate is true. Sol implementation may still qualify for V0 because executor complexity and verification consequence are separate decisions.
+Evaluate V3 triggers first. V2 and V3 are hard floors and can never route to `none` or Sol. V0 is legal only when every trust predicate is true. Any Codex implementation with a proof gap requires V2/Claude, regardless of whether Luna or Sol executed it; the loop contract forbids Codex reviewing Codex. A fully proved low-risk Codex implementation may still qualify for V0.
 
 Contract-only result normalization with unchanged product hashes may use V0 deterministic closure. A normalizer must preserve original bytes and identity history and cannot invent proof, change semantic status, or author a success summary.
 

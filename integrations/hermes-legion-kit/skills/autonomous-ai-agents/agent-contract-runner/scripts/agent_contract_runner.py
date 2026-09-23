@@ -296,6 +296,33 @@ def canonical_proof_argv(proof: dict[str, Any], label: str, *, required: bool) -
     return argv_value
 
 
+def validate_codex_launch(command: str, model: str, effort: str) -> None:
+    """Bind the recorded route to the CLI invocation before either dispatcher starts."""
+    try:
+        argv = shlex.split(command)
+    except ValueError as exc:
+        raise RunnerError(f"launch.command cannot be parsed safely: {exc}") from exc
+    if len(argv) < 2 or Path(argv[0]).name != "codex" or argv[1] != "exec":
+        raise RunnerError("Codex launch.command must start with codex exec and explicit model/effort flags")
+    models: list[str] = []
+    efforts: list[str] = []
+    for index, token in enumerate(argv[2:], start=2):
+        if token == "--":
+            break
+        if token == "--model":
+            models.append(argv[index + 1] if index + 1 < len(argv) else "")
+        elif token == "-c":
+            setting = argv[index + 1] if index + 1 < len(argv) else ""
+            if setting.startswith("model_reasoning_effort="):
+                efforts.append(setting.partition("=")[2].strip('"\''))
+            elif setting.startswith(("model=", "model_provider=")):
+                raise RunnerError("Codex launch.command must not override model or provider via -c")
+        elif token in {"-m", "--config"} or token.startswith(("--model=", "--config=", "-m=", "-cmodel=")):
+            raise RunnerError("Codex launch.command must use a single explicit --model and -c model_reasoning_effort")
+    if models != [model] or efforts != [effort]:
+        raise RunnerError("Codex launch.command --model and -c model_reasoning_effort must match routing.model and routing.reasoningEffort exactly")
+
+
 def validate_files_changed(items: list[Any], policy: PathPolicy) -> None:
     for index, item in enumerate(items):
         file_obj = require_object(item, f"filesChanged[{index}]")
@@ -464,6 +491,8 @@ def validate_order(order: dict[str, Any]) -> tuple[list[str], PathPolicy]:
     except RoutingError as exc:
         raise RunnerError(f"routing validation failed: {exc}") from exc
     if routing is not None:
+        if order["executor"] == "codex":
+            validate_codex_launch(launch["command"], routing["model"], routing["reasoningEffort"])
         notes.append(
             "aquila_routing_validated:"
             f"{routing['verificationProfile']}:{routing['reviewer']}:{routing['executionProfile']}"

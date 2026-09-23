@@ -44,12 +44,12 @@ def metadata(profile: str, **overrides: Any) -> dict[str, Any]:
         "ambiguity": "medium" if profile == "V2" else "low",
         "reversibility": "high",
         "evidenceNeed": "high" if profile != "V0" else "low",
-        "executor": "codex",
-        "model": "gpt-5.6-sol",
-        "reasoningEffort": "high",
+        "executor": "claude" if profile == "V1" else "codex",
+        "model": "claude-opus-5" if profile == "V1" else "gpt-6-sol",
+        "reasoningEffort": "medium" if profile == "V1" else "high",
         "executionProfile": "implementation",
         "verificationProfile": profile,
-        "reviewer": {"V0": "none", "V1": "gpt-5.6-sol", "V2": "claude-opus-5", "V3": "claude-opus-5"}[profile],
+        "reviewer": {"V0": "none", "V1": "gpt-6-sol", "V2": "claude-opus-5", "V3": "claude-opus-5"}[profile],
         "confidence": "high",
         "reasons": [f"fixture route {profile}"],
     }
@@ -93,7 +93,7 @@ def ledger_row(order_id: str, **overrides: Any) -> dict[str, Any]:
         "attempt": 1,
         "taskClass": "routine_implementation",
         "executor": "codex",
-        "model": "gpt-5.6-terra",
+        "model": "gpt-6-luna",
         "reviewer": "none",
         "risk": "low",
         "status": "done",
@@ -149,13 +149,26 @@ def main() -> int:
             assert selected["specialistGateRequired"] and selected["specialistGateSatisfied"]
     print("PASS every V0-V3 route selects the enforced reviewer and V0 selects none")
 
-    sol_v0 = metadata("V0", complexity="high", model="gpt-5.6-sol")
+    sol_v0 = metadata("V0", complexity="high", model="gpt-6-sol")
     validate_order_routing(order_for(sol_v0))
     print("PASS executor model identity alone does not force senior review")
 
-    trust_failure = metadata("V0")
+    routine_luna = metadata("V2", model="gpt-6-luna", risk="low", ambiguity="low", reasons=["independent review of Codex work"])
+    validate_order_routing(order_for(routine_luna))
+    expect_error(order_for(metadata("V1", executor="codex", model="gpt-6-luna")), "hard floor V2")
+    expect_error(order_for(metadata("V2", model="gpt-6-luna", complexity="high")), "requires gpt-6-sol")
+    expect_error(order_for(metadata("V2", model="gpt-6-luna")), "requires gpt-6-sol")
+    expect_error(order_for(metadata("V2", model="gpt-6-luna", confidence="low")), "requires gpt-6-sol")
+    sol_with_gap = metadata("V1", executor="codex", model="gpt-6-sol", reasoningEffort="medium")
+    expect_error(order_for(sol_with_gap), "hard floor V2")
+    validate_order_routing(order_for(metadata("V2", model="gpt-6-sol", risk="low", ambiguity="low", reasons=["Sol executor with a proof gap"])))
+    old_routine = metadata("V1", executor="codex", model="gpt-5.6-terra")
+    expect_error(order_for(old_routine), "routing.model is not an allowed model")
+    print("PASS Luna is limited to clear, bounded work; Sol with a proof gap requires independent Claude review")
+
+    trust_failure = metadata("V0", model="gpt-6-luna")
     trust_failure["trustPredicates"]["requiredProofsPass"] = False
-    expect_error(order_for(trust_failure), "hard floor V1")
+    expect_error(order_for(trust_failure), "hard floor V2")
     medium_v1 = metadata("V1", risk="medium")
     expect_error(order_for(medium_v1), "hard floor V2")
     irreversible_v1 = metadata("V1", reversibility="low")
@@ -169,14 +182,15 @@ def main() -> int:
 
     terminal = metadata(
         "V1",
+        executor="codex",
         executionProfile="terminal_review",
         reviewer="none",
         terminalGate=True,
-        model="gpt-5.6-sol",
+        model="gpt-6-sol",
     )
     validate_order_routing(order_for(terminal))
     recursive = dict(terminal)
-    recursive["reviewer"] = "gpt-5.6-sol"
+    recursive["reviewer"] = "gpt-6-sol"
     expect_error(order_for(recursive), "cannot select another reviewer")
     medium_terminal = dict(terminal, risk="medium")
     expect_error(order_for(medium_terminal), "hard floor V2")
@@ -208,14 +222,21 @@ def main() -> int:
     ]
     floor, _ = task_class_promotion(low_history, "routine_implementation")
     assert floor == "V1"
+    promoted_codex = metadata("V0")
+    selected_codex = select_review_route(promoted_codex, low_history)
+    assert selected_codex["verificationProfile"] == "V2" and selected_codex["reviewer"] == "claude-opus-5"
+    expect_error(order_for(dict(promoted_codex, verificationProfile="V1", reviewer="gpt-6-sol", reasons=selected_codex["reasons"])), "hard floor V2", low_history)
+    validate_order_routing(order_for(dict(promoted_codex, verificationProfile="V2", reviewer="claude-opus-5", reasons=selected_codex["reasons"])), low_history)
     low_history.extend(ledger_row(f"clean-after-{index}") for index in range(5))
     floor, _ = task_class_promotion(low_history, "routine_implementation")
     assert floor is None
-    high_sol = [ledger_row("sol-high", reviewer="gpt-5.6-sol", failureClass="sol_miss", severity="high")]
+    high_sol = [ledger_row("sol-high", reviewer="gpt-6-sol", failureClass="sol_miss", severity="high")]
     assert task_class_promotion(high_sol, "routine_implementation")[0] == "V2"
+    legacy_sol = [ledger_row("old-sol-high", reviewer="gpt-5.6-sol", failureClass="sol_miss", severity="high")]
+    assert task_class_promotion(legacy_sol, "routine_implementation")[0] == "V2"
     medium_sol = [
-        ledger_row("sol-medium-1", reviewer="gpt-5.6-sol", failureClass="sol_miss", severity="medium"),
-        ledger_row("sol-medium-2", reviewer="gpt-5.6-sol", failureClass="sol_miss", severity="medium"),
+        ledger_row("sol-medium-1", reviewer="gpt-6-sol", failureClass="sol_miss", severity="medium"),
+        ledger_row("sol-medium-2", reviewer="gpt-6-sol", failureClass="sol_miss", severity="medium"),
     ]
     assert task_class_promotion(medium_sol, "routine_implementation")[0] == "V2"
     promoted_v0 = metadata("V0")

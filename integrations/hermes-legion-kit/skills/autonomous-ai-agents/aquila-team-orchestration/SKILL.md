@@ -61,14 +61,19 @@ fresh order; it cannot be inferred from a failure.
 ## Adaptive Model and Effort Routing
 
 Choose the model and reasoning effort independently for every DAG node. Use
-Luna for mechanical/read-only/high-volume low-complexity work, Terra as the
-routine bounded implementation default, and Sol for high complexity, material
-ambiguity, cross-service/architecture/security, hard debugging, or
-long-horizon reasoning. The effort enum is exactly
+Luna with `none`/`low` for exact mechanical work and `medium` for clear bounded
+changes with deterministic proof. Use Sol with `medium` when implementation
+needs judgment or the brief is uncertain; raise effort for difficult reasoning.
+High complexity, ambiguity, cross-service/architecture/security, hard debugging,
+or long-horizon work requires Sol. The effort enum is exactly
 `none|low|medium|high|xhigh|max`; risk, ambiguity, reversibility, and evidence
 need may raise but never lower the applicable floor. No executor self-approves;
-Aquila retains final judgment. See the manual, non-installed
+Codex implementations with a proof gap require Claude review. Aquila retains
+final judgment. See the manual, non-installed
 `overrides/ADAPTIVE_MODEL_ROUTING_POLICY.md` for the complete invariant set.
+For Codex orders, set `launch.command` with explicit `--model` and
+`-c model_reasoning_effort=...` matching the recorded route. The requested
+model is not runtime proof; verify the provider-selected model before closure.
 
 ## Atomic V0-V3 Routing Cutover
 
@@ -77,7 +82,7 @@ For orders created at or after `2026-08-03T11:00:42Z`, add exactly one compact `
 | Profile | Terminal reviewer | Rule |
 | --- | --- | --- |
 | V0 | none | Deterministic proof only; low-risk, local, fully observable work. |
-| V1 | `gpt-5.6-sol` | Recoverable work with a meaningful proof gap. |
+| V1 | `gpt-6-sol` | Recoverable work with a meaningful proof gap. |
 | V2 | `claude-opus-5` | Medium consequence, shared contract, ambiguity, architecture, or hidden-failure risk. |
 | V3 | `claude-opus-5` plus specialist/Boss gate | Security, auth, secrets, money, production, dependencies, public endpoints, or infrastructure. |
 

@@ -17,14 +17,13 @@ PROFILES = ("V0", "V1", "V2", "V3")
 PROFILE_RANK = {profile: index for index, profile in enumerate(PROFILES)}
 REVIEWER_BY_PROFILE = {
     "V0": "none",
-    "V1": "gpt-5.6-sol",
+    "V1": "gpt-6-sol",
     "V2": "claude-opus-5",
     "V3": "claude-opus-5",
 }
 ALLOWED_MODELS = {
-    "gpt-5.6-luna",
-    "gpt-5.6-terra",
-    "gpt-5.6-sol",
+    "gpt-6-luna",
+    "gpt-6-sol",
     "claude-opus-5",
     "agy",
     "hermes-delegate-task",
@@ -148,6 +147,17 @@ def _all_trust_predicates(metadata: dict[str, Any]) -> bool:
     )
 
 
+def _requires_sol(metadata: dict[str, Any]) -> bool:
+    return (
+        metadata["complexity"] == "high"
+        or metadata["risk"] != "low"
+        or metadata["ambiguity"] != "low"
+        or metadata["reversibility"] != "high"
+        or metadata["confidence"] != "high"
+        or _contains_marker(_normalized_decision_text(metadata), HARD_RISK_MARKERS | V2_MARKERS)
+    )
+
+
 def minimum_profile(metadata: dict[str, Any]) -> str:
     """Return the non-negotiable verification floor for an implementation decision."""
     decision_text = _normalized_decision_text(metadata)
@@ -162,6 +172,8 @@ def minimum_profile(metadata: dict[str, Any]) -> str:
         return "V2"
     if metadata.get("risk") == "low" and _all_trust_predicates(metadata):
         return "V0"
+    if metadata.get("executor") == "codex" and metadata.get("executionProfile") == "implementation":
+        return "V2"
     return "V1"
 
 
@@ -203,7 +215,7 @@ def task_class_promotion(history: Iterable[dict[str, Any]], task_class: str) -> 
     sol_rows = [
         row
         for row in rows
-        if row.get("reviewer") in {"gpt-5.6-sol", "sol"} and row.get("status") == "done"
+        if row.get("reviewer") in {"gpt-6-sol", "gpt-5.6-sol", "sol"} and row.get("status") == "done"
     ]
     for row in sol_rows:
         if str(row.get("failureClass", "")).casefold().startswith("sol_miss") and _severity(row) == "high":
@@ -220,12 +232,7 @@ def task_class_promotion(history: Iterable[dict[str, Any]], task_class: str) -> 
 
 def select_review_route(metadata: dict[str, Any], history: Iterable[dict[str, Any]] = ()) -> dict[str, Any]:
     """Select V0-V3 and the terminal reviewer without launching any process."""
-    profile = minimum_profile(metadata)
-    reasons = [f"base routing floor {profile}"]
-    promotion, promotion_reasons = task_class_promotion(history, str(metadata.get("taskClass", "")))
-    if promotion is not None and PROFILE_RANK[promotion] > PROFILE_RANK[profile]:
-        profile = promotion
-        reasons.extend(promotion_reasons)
+    profile, reasons = _effective_profile(metadata, history)
     reviewer = REVIEWER_BY_PROFILE[profile]
     gate = metadata.get("specialistGate") if profile == "V3" else None
     gate_satisfied = profile != "V3" or (
@@ -243,6 +250,19 @@ def select_review_route(metadata: dict[str, Any], history: Iterable[dict[str, An
         "specialistGateSatisfied": gate_satisfied,
         "reasons": reasons,
     }
+
+
+def _effective_profile(metadata: dict[str, Any], history: Iterable[dict[str, Any]]) -> tuple[str, list[str]]:
+    profile = minimum_profile(metadata)
+    reasons = [f"base routing floor {profile}"]
+    promotion, promotion_reasons = task_class_promotion(history, str(metadata.get("taskClass", "")))
+    if promotion is not None and PROFILE_RANK[promotion] > PROFILE_RANK[profile]:
+        profile = promotion
+        reasons.extend(promotion_reasons)
+    if profile == "V1" and metadata.get("executor") == "codex" and metadata.get("executionProfile") == "implementation":
+        profile = "V2"
+        reasons.append("promotion: Codex implementation requires an independent Claude reviewer")
+    return profile, reasons
 
 
 def _require_string(metadata: dict[str, Any], key: str) -> str:
@@ -288,7 +308,7 @@ def validate_routing_metadata(
         raise RoutingError("routing.reasoningEffort is not supported")
     if metadata["verificationProfile"] not in PROFILES:
         raise RoutingError("routing.verificationProfile must be V0, V1, V2, or V3")
-    if metadata["reviewer"] not in {"none", "gpt-5.6-sol", "claude-opus-5"}:
+    if metadata["reviewer"] not in {"none", "gpt-6-sol", "claude-opus-5"}:
         raise RoutingError("routing.reviewer is not a supported reviewer route")
     reasons = metadata.get("reasons")
     if not isinstance(reasons, list) or not reasons or not all(isinstance(item, str) and item.strip() for item in reasons):
@@ -300,8 +320,8 @@ def validate_routing_metadata(
 
     executor = metadata["executor"]
     model = metadata["model"]
-    if executor == "codex" and model not in {"gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"}:
-        raise RoutingError("codex routing.model must be a supported GPT-5.6 model")
+    if executor == "codex" and model not in {"gpt-6-luna", "gpt-6-sol"}:
+        raise RoutingError("codex routing.model must be a supported GPT-6 model")
     if executor == "claude" and model != "claude-opus-5":
         raise RoutingError("claude routing.model must be claude-opus-5")
     if executor == "agy" and model != "agy":
@@ -310,12 +330,11 @@ def validate_routing_metadata(
     execution_profile = metadata["executionProfile"]
     profile = metadata["verificationProfile"]
     base_floor = minimum_profile(metadata)
-    promotion, _ = task_class_promotion(history, metadata["taskClass"])
-    floor = base_floor
-    if promotion is not None and PROFILE_RANK[promotion] > PROFILE_RANK[floor]:
-        floor = promotion
+    floor, _ = _effective_profile(metadata, history)
     if PROFILE_RANK[profile] < PROFILE_RANK[floor]:
         raise RoutingError(f"routing profile {profile} violates hard floor {floor}")
+    if executor == "codex" and model == "gpt-6-luna" and _requires_sol(metadata):
+        raise RoutingError("codex routing.model requires gpt-6-sol for complex, uncertain, or consequential work")
 
     if execution_profile == "terminal_review":
         if metadata.get("terminalGate") is not True:
@@ -324,7 +343,7 @@ def validate_routing_metadata(
             raise RoutingError("V0 has no reviewer order")
         if metadata["reviewer"] != "none":
             raise RoutingError("terminal review orders cannot select another reviewer")
-        expected_model = "gpt-5.6-sol" if profile == "V1" else "claude-opus-5"
+        expected_model = "gpt-6-sol" if profile == "V1" else "claude-opus-5"
         if model != expected_model:
             raise RoutingError(f"{profile} terminal review must run {expected_model}")
     elif execution_profile == "implementation":
