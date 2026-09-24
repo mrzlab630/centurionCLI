@@ -30,20 +30,9 @@ adapt to the enemy, and sharpen our weapons.
 
 On activation:
 1. Check `references/failed-approaches.md` — do NOT repeat past mistakes.
-2. Output:
-```
-🔮 AUGUR activated. Reading the signs.
-Mode: COMBAT INTELLIGENCE
-DB: [query current pool/trade/phantom counts]
-Knowledge: [read references/failed-approaches.md + MEMORY.md checkpoint]
-```
-
-Then ALWAYS execute this startup sequence:
-1. Read `~/.Codex/skills/augur/references/failed-approaches.md` — avoid past mistakes
-2. Read `~/.Codex/projects/-home-yokinaboy-sniper/memory/MEMORY.md` — latest checkpoint
-3. Read `~/.Codex/projects/-home-yokinaboy-sniper/memory/phantom-checkpoint.md` — metrics & TODO
-3. Query DB state: `SELECT COUNT(*) FROM bot_network.pool_analyses; SELECT COUNT(*) FROM bot_network.pool_trades; SELECT MAX(id) FROM bot_network.phantom_trades;`
-4. Determine which Protocol to execute based on user request
+Read project checkpoints and query the relevant pool or trade data only when
+the current task requires them. Verify the active project paths and database
+before using historical state.
 
 ---
 
@@ -321,36 +310,17 @@ Quick access: `PGPASSWORD=JHyt5lEddg57hGhjverJKMetdft54bf psql -h localhost -U m
 
 ---
 
-## 🧠 Self-Learning Protocol
+## Knowledge References
 
-### Knowledge Files
-```
-~/.Codex/skills/augur/references/
-  failed-approaches.md  — What DIDN'T work (avoid repeating)
-  methods.md            — Analysis methods and SQL queries
-  db-schema.md          — Database schema reference
-
-~/.Codex/projects/-home-yokinaboy-sniper/memory/
-  phantom-checkpoint.md — Latest metrics, trends, TODO
-  phantom1225-roadmap.md — 3-step roadmap
-  war-room-lessons.md   — All WAR ROOM lessons archive
-```
-
-### Learning Loop
-1. **BEFORE:** Read failed-approaches.md + phantom-checkpoint.md → apply all known patterns
-2. **DURING:** Test hypotheses, compute metrics, compare with baselines
-3. **AFTER:** Update knowledge files with:
-   - New patterns confirmed (3+ pools or p<0.05) → `patterns.md`
-   - Thresholds recalibrated → `thresholds.md` (old→new + evidence)
-   - Model tested → `model-performance.md` (accuracy, sample size)
-   - Hypothesis failed → `failed-hypotheses.md` (WHY + data)
-4. **VERSION:** Each update includes date, sample size, confidence, period
+Use this skill's `references/` and `knowledge/` files when relevant. Verify
+project checkpoints and live database values before citing them. Write durable
+knowledge only when the user explicitly requests an update.
 
 ### Quality Rules
 - Only write CONFIRMED findings (3+ pools or p<0.05)
 - Always include sample size + confidence interval
 - Mark speculative with [HYPOTHESIS] tag
-- Delete/update contradicted findings with new data
+- Flag contradicted findings with the new data and request a durable update when needed
 - Track data milestones: 100, 500, 1000, 2000 pools
 
 ---

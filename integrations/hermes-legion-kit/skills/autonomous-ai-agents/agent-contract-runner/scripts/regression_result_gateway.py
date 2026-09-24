@@ -7,17 +7,21 @@ import atexit
 import json
 import hashlib
 import os
+import shlex
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft202012Validator
 
 from agent_artifact_namespace import ArtifactNamespaceError, artifact_namespace
+from artifact_lineage import LineageError, verify_anchor
+from agent_contract_runner import validate_codex_launch, validate_order, verify_result
 
 
 SCRIPT_ROOT = Path(__file__).resolve().parent
@@ -59,7 +63,7 @@ def routing_metadata(order_id: str, executor: str, **overrides: Any) -> dict[str
         "risk": "low",
         "ambiguity": "low",
         "reversibility": "high",
-        "evidenceNeed": "high",
+        "evidenceNeed": "medium",
         "executor": executor,
         "model": "claude-opus-5" if executor == "claude" else "gpt-6-luna",
         "reasoningEffort": "medium",
@@ -128,6 +132,8 @@ from pathlib import Path
 args = sys.argv[1:]
 if Path(sys.argv[0]).name == "codex" and args[:1] == ["exec"]:
     args = args[5:]
+    if args[:1] == ["--sandbox"]:
+        args = args[7:]  # sandbox, cwd, output-last-message, and --json
 mode, candidate_value, order_id, executor, status, side_effect_value, sleep_value, exit_value = args
 candidate = Path(candidate_value)
 side_effect = Path(side_effect_value) if side_effect_value != "NONE" else None
@@ -154,6 +160,9 @@ payload = {
     "scopeDeviations": [], "forbiddenPatternHits": [], "remainingRisks": [], "questions": [], "errors": [],
     "stdoutSummary": "", "stderrSummary": ""
 }
+loop_metadata = os.environ.get("RESULT_GATEWAY_TEST_LOOP_METADATA")
+if loop_metadata:
+    payload["executorExtensions"] = {"aquilaLoop": json.loads(loop_metadata)}
 
 def claude_terminal(inner=None, **overrides):
     event = {
@@ -534,10 +543,15 @@ def run_gateway(
     explicit_schema: bool = True,
     grace_seconds: str = "0.2",
 ) -> subprocess.CompletedProcess[str]:
+    env = environment()
+    if "test_count" in paths:
+        env["RESULT_GATEWAY_TEST_COUNT"] = str(paths["test_count"])
+    if "loop_metadata" in paths:
+        env["RESULT_GATEWAY_TEST_LOOP_METADATA"] = json.dumps(paths["loop_metadata"])
     return subprocess.run(
         gateway_command(paths, explicit_schema=explicit_schema, grace_seconds=grace_seconds),
         cwd=ROOT,
-        env=environment(),
+        env=env,
         text=True,
         capture_output=True,
         check=False,
@@ -622,11 +636,138 @@ def completed_case(name: str) -> dict[str, Path | dict[str, str]]:
     return case
 
 
+def loop_gateway_case(name: str, *, failing_proof: bool = False) -> tuple[dict[str, Any], Path]:
+    paths = make_case(name, "valid")
+    order = read_json(Path(paths["order"]))
+    namespace = artifact_namespace(ROOT, order["orderId"])
+    state_path = namespace / "state.json"
+    started_at = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat().replace("+00:00", "Z")
+    work = {"workItemId": "item-1", "objective": order["objective"], "status": "ready", "pendingWorkItems": []}
+    state = {
+        "stateVersion": "AQUILA_LOOP_STATE_V1", "loopId": f"loop-{name}", "controller": "Aquila",
+        "project": "gateway regression", "statePath": str(state_path), "workItem": work,
+        "iteration": {"current": 1, "max": 3}, "budgets": {"startedAt": started_at, "maxWallSeconds": 3600},
+        "candidate": {"orderId": "", "executor": "", "resultPath": ""},
+        "verification": {"status": "pending"}, "failures": [], "transitions": [],
+    }
+    write_json(state_path, state)
+    route = routing_metadata(order["orderId"], "codex", verificationProfile="V0", reviewer="none")
+    route["trustPredicates"] = {
+        "localNarrowBlastRadius": True, "cheapReversal": True,
+        "deterministicFailureOracle": True, "noSensitiveOrExternalSideEffects": True,
+        "requiredArtifactsPass": True, "requiredProofsPass": True,
+        "noUncertainty": True, "noScopeOrAssumptionIssues": True,
+    }
+    set_routing(order, route)
+    proof_argv = ["python3", "-c", "import sys; sys.exit(7)" if failing_proof else "pass"]
+    order["proofCommands"] = [{"command": shlex.join(proof_argv), "argv": proof_argv, "cwd": str(ROOT), "required": True}]
+    order["expectedArtifacts"] = [{"path": str(paths["result"]), "type": "fixture", "required": True}]
+    order["allowedPaths"] = [
+        str(ROOT), str(COUNT),
+        *(str(paths[key]) for key in ("candidate", "result", "start_receipt", "closure", "evidence", "events", "stdout", "stderr")),
+    ]
+    order["loopContract"] = {
+        "version": "AQUILA_LOOP_V1", "loopId": state["loopId"], "controller": "Aquila",
+        "phase": "execute", "statePath": str(state_path),
+        "workItem": {"workItemId": "item-1", "project": state["project"], "objective": work["objective"]},
+        "iteration": state["iteration"], "budgets": {"maxWallSeconds": 3600},
+        "executorStateWrites": False, "scheduleNextIteration": False, "selfApprove": False,
+    }
+    write_json(Path(paths["order"]), order)
+    paths["loop_metadata"] = {"loopId": state["loopId"], "phase": "execute", "workItemId": "item-1", "iteration": 1}
+    return paths, state_path
+
+
+def set_lineage_order(paths: dict[str, Any], artifact: Path, previous_anchor: Path | None = None, previous_digest: str | None = None) -> None:
+    order = read_json(Path(paths["order"]))
+    order["lineage"] = {
+        "artifactPaths": [str(artifact)], "deletedPaths": [],
+        "previousAnchorPath": str(previous_anchor) if previous_anchor else None,
+        "previousAnchorSha256": previous_digest,
+    }
+    proof_argv = ["python3", "-c", "from pathlib import Path; import sys; assert Path(sys.argv[1]).is_file()", str(artifact)]
+    order["proofCommands"] = [{"command": shlex.join(proof_argv), "argv": proof_argv, "cwd": str(ROOT), "required": True}]
+    write_json(Path(paths["order"]), order)
+
+
 def main() -> int:
     if sys.flags.optimize:
         print("FAIL regression_result_gateway.py requires assertions; PYTHONOPTIMIZE is not allowed", file=sys.stderr)
         return 1
     install_fake_executors()
+
+    advisory = make_case("astra-advisory", "valid")
+    advisory_order = read_json(Path(advisory["order"]))
+    advisory_namespace = artifact_namespace(ROOT, advisory_order["orderId"])
+    advisory["test_count"] = advisory_namespace / "count.txt"
+    advisory_order.update(roleForTask="ARCHITECTUS", riskLevel="medium")
+    advisory_order["allowedPaths"] = [str(advisory_namespace / "**")]
+    advisory_route = routing_metadata(
+        advisory_order["orderId"], "codex", taskClass="architecture_advisory",
+        complexity="high", risk="medium", ambiguity="high", model="gpt-6-astra",
+        reasoningEffort="xhigh", executionProfile="advisory", verificationProfile="V2",
+        reviewer="none", confidence="medium",
+        reasons=["astra advisory: material architecture ambiguity"],
+    )
+    set_routing(advisory_order, advisory_route)
+    advisory_order["launch"]["command"] = " ".join(subprocess.list2cmdline([part]) for part in [
+        "codex", "exec", "--model", "gpt-6-astra", "-c", "model_reasoning_effort=xhigh",
+        "--sandbox", "read-only", "-C", str(ROOT),
+        "--output-last-message", str(advisory["candidate"]), "--json",
+        "valid", str(advisory["candidate"]), advisory_order["orderId"], "codex", "done", "NONE", "0", "0",
+    ])
+    write_json(Path(advisory["order"]), advisory_order)
+    completed = run_gateway(advisory)
+    assert completed.returncode == 0, completed.stderr or completed.stdout
+    assert load_valid_result(Path(advisory["result"]))["status"] == "done"
+    assert run_monitor(advisory).returncode == 0
+    assert Path(advisory["test_count"]).read_text(encoding="utf-8") == "launch\n"
+
+    malformed_advisory = make_case("astra-malformed", "malformed")
+    malformed_order = read_json(Path(malformed_advisory["order"]))
+    malformed_namespace = artifact_namespace(ROOT, malformed_order["orderId"])
+    malformed_advisory["test_count"] = malformed_namespace / "count.txt"
+    malformed_order.update(roleForTask="ARCHITECTUS", riskLevel="medium")
+    malformed_order["allowedPaths"] = [str(malformed_namespace / "**")]
+    set_routing(malformed_order, dict(advisory_route, objectiveId=malformed_order["orderId"]))
+    malformed_order["launch"]["command"] = " ".join(subprocess.list2cmdline([part]) for part in [
+        "codex", "exec", "--model", "gpt-6-astra", "-c", "model_reasoning_effort=xhigh",
+        "--sandbox", "read-only", "-C", str(ROOT),
+        "--output-last-message", str(malformed_advisory["candidate"]), "--json",
+        "malformed", str(malformed_advisory["candidate"]), malformed_order["orderId"], "codex", "done", "NONE", "0", "0",
+    ])
+    write_json(Path(malformed_advisory["order"]), malformed_order)
+    completed = run_gateway(malformed_advisory)
+    assert completed.returncode != 0
+    failed = load_valid_result(Path(malformed_advisory["result"]))
+    assert failed["status"] == "failed" and failed["filesChanged"] == []
+    assert failed["artifacts"][0]["type"] == "malformed-result-evidence"
+    _, malformed_policy = validate_order(malformed_order)
+    verify_result(Path(malformed_advisory["result"]), malformed_order, malformed_policy)
+    assert run_monitor(malformed_advisory).returncode == 0
+
+    mismatched_advisory = make_case("astra-candidate-mismatch", "valid")
+    mismatched_order = json.loads(json.dumps(advisory_order))
+    mismatched_order["orderId"] = "gateway-astra-candidate-mismatch"
+    mismatched_order["launch"]["resultJsonPath"] = str(mismatched_advisory["result"])
+    mismatched_order["launch"]["stdoutPath"] = str(mismatched_advisory["stdout"])
+    mismatched_order["launch"]["stderrPath"] = str(mismatched_advisory["stderr"])
+    mismatched_order["outputContract"]["resultPath"] = str(mismatched_advisory["result"])
+    mismatched_namespace = artifact_namespace(ROOT, mismatched_order["orderId"])
+    mismatched_order["allowedPaths"] = [str(mismatched_namespace / "**")]
+    mismatched_order["launch"]["command"] = " ".join(subprocess.list2cmdline([part]) for part in [
+        "codex", "exec", "--model", "gpt-6-astra", "-c", "model_reasoning_effort=xhigh",
+        "--sandbox", "read-only", "-C", str(ROOT),
+        "--output-last-message", str(mismatched_namespace / "wrong-candidate.json"), "--json",
+        "valid", str(mismatched_advisory["candidate"]), mismatched_order["orderId"], "codex", "done", "NONE", "0", "0",
+    ])
+    set_routing(mismatched_order, dict(advisory_route, objectiveId=mismatched_order["orderId"]))
+    write_json(Path(mismatched_advisory["order"]), mismatched_order)
+    before = launch_count()
+    completed = run_gateway(mismatched_advisory)
+    assert completed.returncode != 0 and "must match gateway candidate path" in completed.stderr
+    assert launch_count() == before
+    print("PASS Astra advisory gateway binds candidate path and preserves verifiable failed advice")
 
     root_noise_cases = {
         "candidate": "AGENT_RESULT.json",
@@ -670,6 +811,171 @@ def main() -> int:
     assert completed.returncode == 0, completed.stderr or completed.stdout
     assert product_path.exists(), "explicit product artifact must remain outside control namespace"
     print("PASS explicitly declared product artifact paths remain outside the control namespace")
+
+    v0_proof_failure = make_case("v0-observed-proof-failure", "valid", side_effect=True)
+    v0_order = read_json(Path(v0_proof_failure["order"]))
+    v0_route = routing_metadata(v0_order["orderId"], "codex", verificationProfile="V0", reviewer="none")
+    v0_route["trustPredicates"] = {
+        "localNarrowBlastRadius": True,
+        "cheapReversal": True,
+        "deterministicFailureOracle": True,
+        "noSensitiveOrExternalSideEffects": True,
+        "requiredArtifactsPass": True,
+        "requiredProofsPass": True,
+        "noUncertainty": True,
+        "noScopeOrAssumptionIssues": True,
+    }
+    set_routing(v0_order, v0_route)
+    v0_order["proofCommands"] = [{
+        "command": "python3 -c 'import sys; sys.exit(7)'",
+        "argv": ["python3", "-c", "import sys; sys.exit(7)"],
+        "cwd": str(ROOT), "required": True,
+    }]
+    write_json(Path(v0_proof_failure["order"]), v0_order)
+    completed = run_gateway(v0_proof_failure)
+    assert completed.returncode != 0, completed.stdout
+    assert load_valid_result(v0_proof_failure["result"])["status"] == "done"
+    v0_acceptance = read_json(artifact_namespace(ROOT, v0_order["orderId"]) / "controller-acceptance.json")
+    assert v0_acceptance["status"] == "rejected" and "required proofCommands failed" in v0_acceptance["reason"]
+    v0_proof = read_json(artifact_namespace(ROOT, v0_order["orderId"]) / "controller-proof.json")
+    assert v0_proof["observedChecks"]["proof"][0]["status"] == "fail"
+    assert run_monitor(v0_proof_failure).returncode == 0
+    print("PASS V0 Gateway proof failure rejects controller acceptance without rewriting canonical done")
+
+    loop_success, loop_success_state = loop_gateway_case("loop-gateway-v0-success")
+    completed = run_gateway(loop_success)
+    assert completed.returncode == 0, completed.stderr or completed.stdout
+    assert read_json(loop_success_state)["workItem"]["status"] == "completed"
+    assert read_json(artifact_namespace(ROOT, read_json(Path(loop_success["order"]))["orderId"]) / "controller-acceptance.json")["status"] == "passed"
+    assert run_monitor(loop_success).returncode == 0
+    print("PASS Gateway holds Loop V1 custody through proof and V0 completion")
+
+    loop_failure, loop_failure_state = loop_gateway_case("loop-gateway-v0-proof-failure", failing_proof=True)
+    completed = run_gateway(loop_failure)
+    assert completed.returncode != 0, completed.stdout
+    assert read_json(loop_failure_state)["workItem"]["status"] == "blocked"
+    before_retry = launch_count()
+    assert run_gateway(loop_failure).returncode != 0
+    assert launch_count() == before_retry
+    print("PASS Gateway proof failure blocks Loop V1 state and prevents redispatch")
+
+    receipt_failure, receipt_failure_state = loop_gateway_case("loop-terminal-receipt-failure")
+    injected_source = """
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+import result_gateway as gateway
+original = gateway.atomic_create
+def fail_terminal(path, content, mode=0o600):
+    if path.name == 'controller-acceptance.json':
+        raise OSError(28, 'injected terminal receipt failure')
+    return original(path, content, mode)
+gateway.atomic_create = fail_terminal
+sys.argv = ['result_gateway.py', *sys.argv[2:]]
+raise SystemExit(gateway.main())
+"""
+    injected_env = environment()
+    injected_env["RESULT_GATEWAY_TEST_LOOP_METADATA"] = json.dumps(receipt_failure["loop_metadata"])
+    before_failure = launch_count()
+    completed = subprocess.run(
+        [sys.executable, "-c", injected_source, str(SCRIPT_ROOT), *gateway_command(receipt_failure)[2:]],
+        cwd=ROOT, env=injected_env, text=True, capture_output=True, check=False,
+    )
+    assert completed.returncode != 0 and "injected terminal receipt failure" in completed.stderr
+    assert launch_count() == before_failure + 1
+    assert read_json(receipt_failure_state)["workItem"]["status"] == "blocked"
+    receipt_namespace = artifact_namespace(ROOT, read_json(Path(receipt_failure["order"]))["orderId"])
+    assert not (receipt_namespace / "controller-acceptance.json").exists()
+    assert not list(receipt_namespace.glob(".state.json.pre-acceptance-*"))
+    print("PASS terminal receipt write failure restores and blocks Loop V1 state")
+
+    event_failure, event_failure_state = loop_gateway_case("loop-gateway-state-event-failure")
+    injected_event_source = """
+import sys
+sys.path.insert(0, sys.argv[1])
+import agent_contract_runner as runner
+original = runner.append_event
+def fail_after_state(events_path, event, **payload):
+    if event == 'aquila_loop_state_updated':
+        raise OSError(28, 'injected loop event failure')
+    return original(events_path, event, **payload)
+runner.append_event = fail_after_state
+import result_gateway as gateway
+sys.argv = ['result_gateway.py', *sys.argv[2:]]
+raise SystemExit(gateway.main())
+"""
+    injected_event_env = environment()
+    injected_event_env["RESULT_GATEWAY_TEST_LOOP_METADATA"] = json.dumps(event_failure["loop_metadata"])
+    completed = subprocess.run(
+        [sys.executable, "-c", injected_event_source, str(SCRIPT_ROOT), *gateway_command(event_failure)[2:]],
+        cwd=ROOT, env=injected_event_env, text=True, capture_output=True, check=False,
+    )
+    assert completed.returncode == 0, completed.stderr or completed.stdout
+    assert "injected loop event failure" in completed.stderr
+    assert read_json(event_failure_state)["workItem"]["status"] == "completed"
+    event_namespace = artifact_namespace(ROOT, read_json(Path(event_failure["order"]))["orderId"])
+    assert read_json(event_namespace / "controller-acceptance.json")["status"] == "passed"
+    print("PASS Gateway event failure after loop commit keeps state and terminal receipt consistent")
+
+    lineage_failure = make_case("lineage-finalization-oserror", "valid", side_effect=True)
+    set_lineage_order(lineage_failure, Path(lineage_failure["side_effect"]))
+    injected_lineage_source = """
+import sys
+sys.path.insert(0, sys.argv[1])
+import result_gateway as gateway
+def fail_lineage(*args, **kwargs):
+    raise OSError(28, 'injected lineage write failure')
+gateway.finalize_lineage = fail_lineage
+sys.argv = ['result_gateway.py', *sys.argv[2:]]
+raise SystemExit(gateway.main())
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", injected_lineage_source, str(SCRIPT_ROOT), *gateway_command(lineage_failure)[2:]],
+        cwd=ROOT, env=environment(), text=True, capture_output=True, check=False,
+    )
+    assert completed.returncode != 0, completed.stdout
+    lineage_failure_namespace = artifact_namespace(ROOT, read_json(Path(lineage_failure["order"]))["orderId"])
+    assert read_json(lineage_failure_namespace / "controller-proof.json")["status"] == "passed"
+    lineage_failure_acceptance = read_json(lineage_failure_namespace / "controller-acceptance.json")
+    assert lineage_failure_acceptance["status"] == "rejected"
+    assert "injected lineage write failure" in lineage_failure_acceptance["reason"]
+    print("PASS lineage OSError records terminal rejection after passing proof")
+
+    first_lineage = make_case("lineage-first", "valid", side_effect=True)
+    shared_artifact = Path(first_lineage["side_effect"])
+    set_lineage_order(first_lineage, shared_artifact)
+    completed = run_gateway(first_lineage)
+    assert completed.returncode == 0, completed.stderr or completed.stdout
+    first_anchor = artifact_namespace(ROOT, read_json(Path(first_lineage["order"]))["orderId"]) / "lineage-anchor.json"
+    first_digest = hashlib.sha256(first_anchor.read_bytes()).hexdigest()
+    verify_anchor(first_anchor, ROOT, expected_sha256=first_digest)
+
+    tampered_successor = make_case("lineage-tampered-successor", "valid", side_effect=True)
+    set_lineage_order(tampered_successor, shared_artifact, first_anchor, first_digest)
+    shared_artifact.write_text("tampered\n", encoding="utf-8")
+    before_tampered = launch_count()
+    completed = run_gateway(tampered_successor)
+    assert completed.returncode != 0 and "lineage preflight failed" in completed.stderr
+    assert launch_count() == before_tampered
+    shared_artifact.write_text("effect\n", encoding="utf-8")
+
+    successor = make_case("lineage-same-path-successor", "valid", side_effect=True)
+    successor_order = read_json(Path(successor["order"]))
+    successor_order["launch"]["command"] = successor_order["launch"]["command"].replace(str(successor["side_effect"]), str(shared_artifact))
+    write_json(Path(successor["order"]), successor_order)
+    set_lineage_order(successor, shared_artifact, first_anchor, first_digest)
+    completed = run_gateway(successor)
+    assert completed.returncode == 0, completed.stderr or completed.stdout
+    successor_anchor = artifact_namespace(ROOT, read_json(Path(successor["order"]))["orderId"]) / "lineage-anchor.json"
+    successor_digest = hashlib.sha256(successor_anchor.read_bytes()).hexdigest()
+    verify_anchor(successor_anchor, ROOT, expected_sha256=successor_digest)
+    try:
+        verify_anchor(first_anchor, ROOT, expected_sha256=first_digest)
+    except LineageError:
+        pass
+    else:
+        raise AssertionError("predecessor live artifact unexpectedly verified after intentional successor edit")
+    print("PASS Gateway lineage rejects prelaunch tampering and anchors a same-path successor")
 
     missing = make_case("exit-zero-missing", "missing")
     completed = run_gateway(missing)
@@ -729,7 +1035,9 @@ def main() -> int:
         assert completed.returncode == 0, completed.stderr or completed.stdout
         candidate = load_valid_result(Path(case["candidate"]))
         result = load_valid_result(Path(case["result"]))
-        assert candidate == result and result["status"] == "done"
+        assert candidate == {key: value for key, value in result.items() if key != "responseEnvelope"} and result["status"] == "done"
+        envelope = result["responseEnvelope"]
+        assert Path(envelope["rawEvidencePath"]).read_bytes() == Path(case["candidate"]).read_bytes()
         assert Path(case["candidate"]).read_bytes() != Path(case["stdout"]).read_bytes()
         closure = read_json(Path(case["closure"]))
         assert closure["candidate"]["source"] == "stdout"
@@ -855,7 +1163,6 @@ def main() -> int:
 
     for mode in (
         "malformed",
-        "fenced",
         "truncated",
         "partial",
         "wrong-order",
@@ -905,7 +1212,21 @@ def main() -> int:
         assert "terminal-closure-verified" in monitored.stdout
     print("PASS duplicate keys, NaN, Infinity, -Infinity, and overflow-non-finite Codex file candidates fail closed with evidence")
 
-    for mode in ("malformed", "fenced", "truncated", "partial", "wrong-order", "wrong-executor"):
+    for source, executor, mode in (("file", "codex", "fenced"), ("stdout", "claude", "stdout-fenced")):
+        case = make_case(f"clean-fence-{executor}", mode, executor=executor, candidate_source=source, side_effect=True)
+        completed = run_gateway(case)
+        assert completed.returncode == 0, completed.stderr or completed.stdout
+        result = load_valid_result(case["result"])
+        assert result["status"] == "done"
+        envelope = result["responseEnvelope"]
+        assert envelope["transport"] == "json_fence"
+        raw = Path(envelope["rawEvidencePath"]).read_bytes()
+        assert raw == Path(case["candidate"]).read_bytes()
+        assert hashlib.sha256(raw).hexdigest() == envelope["rawSha256"]
+        assert run_monitor(case).returncode == 0
+    print("PASS clean fences finalize once with raw and normalized response evidence")
+
+    for mode in ("malformed", "truncated", "partial", "wrong-order", "wrong-executor"):
         case = make_case(mode, mode)
         completed = run_gateway(case)
         assert completed.returncode != 0
@@ -913,7 +1234,7 @@ def main() -> int:
         assert result["status"] == "failed"
         assert result["artifacts"][0]["type"] == "malformed-result-evidence"
         assert run_monitor(case).returncode == 0
-    print("PASS malformed, fenced, truncated, partial, and wrong-identity candidates fail closed with evidence")
+    print("PASS malformed, truncated, partial, and wrong-identity candidates fail closed with evidence")
 
     early = make_case("early-before-exit", "early", sleep_seconds=1.2)
     process = subprocess.Popen(gateway_command(early), cwd=ROOT, env=environment(), text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -1103,6 +1424,17 @@ def main() -> int:
         ("wrong-effort", "codex exec --model gpt-6-luna -c model_reasoning_effort=low fixture", "must match routing.model"),
         ("model-override", "codex exec --model gpt-6-luna -c model_reasoning_effort=medium -c model=gpt-6-sol fixture", "must not override model"),
         ("duplicate-model", "codex exec --model gpt-6-luna --model gpt-6-sol -c model_reasoning_effort=medium fixture", "must match routing.model"),
+        ("attached-model", "codex exec --model gpt-6-luna -c model_reasoning_effort=medium -mgpt-6-sol fixture", "must match routing.model"),
+        ("model-after-prompt", "codex exec --model gpt-6-luna -c model_reasoning_effort=medium fixture -mgpt-6-sol", "must match routing.model"),
+        ("attached-effort", "codex exec --model gpt-6-luna -c model_reasoning_effort=medium -cmodel_reasoning_effort=none fixture", "must match routing.model"),
+        ("effort-after-prompt", "codex exec --model gpt-6-luna -c model_reasoning_effort=medium fixture -cmodel_reasoning_effort=none", "must match routing.model"),
+        ("long-attached-model", "codex exec --model gpt-6-luna -c model_reasoning_effort=medium --model=gpt-6-sol fixture", "must match routing.model"),
+        ("quoted-config-model", "codex exec --model gpt-6-luna -c model_reasoning_effort=medium --config '\"model\" = \"gpt-6-sol\"' fixture", "must not override model"),
+        ("quoted-config-effort", "codex exec --model gpt-6-luna -c model_reasoning_effort=medium --config '\"model_reasoning_effort\" = \"none\"' fixture", "must match routing.model"),
+        ("config-provider", "codex exec --model gpt-6-luna -c model_reasoning_effort=medium --config='model_provider = \"other\"' fixture", "must not override model"),
+        ("oss-provider", "codex exec --model gpt-6-luna -c model_reasoning_effort=medium --oss fixture", "must not override the selected provider"),
+        ("local-provider", "codex exec --model gpt-6-luna -c model_reasoning_effort=medium --local-provider=ollama fixture", "must not override the selected provider"),
+        ("profile", "codex exec --model gpt-6-luna -c model_reasoning_effort=medium -pother fixture", "must not override the selected provider"),
     ):
         rejected = make_case(f"launch-{name}", "valid")
         rewrite_order(rejected, lambda order, value=command: order["launch"].update({"command": value}))
@@ -1110,6 +1442,14 @@ def main() -> int:
         assert error in completed.stderr, f"{name}: {completed.stderr}"
         assert not Path(rejected["events"]).exists(), "launch mismatch must fail before custody artifacts"
     print("PASS gateway binds Codex launch model and effort before dispatch")
+
+    for command in (
+        "codex exec --model gpt-6-luna -c model_reasoning_effort=medium --json -C /tmp fixture",
+        "codex exec -mgpt-6-luna --config '\"model_reasoning_effort\" = \"medium\"' --output-last-message /tmp/last fixture",
+        "codex exec --model=gpt-6-luna -cmodel_reasoning_effort=medium --output-last-message '--oss' -- 'prompt -mgpt-6-sol'",
+    ):
+        validate_codex_launch(command, "gpt-6-luna", "medium")
+    print("PASS canonical and attached pinned launches respect option-value and prompt boundaries")
 
     invalid_argv = make_case("invalid-argv", "valid")
     rewrite_order(invalid_argv, lambda order: order["launch"].update({"command": "codex '"}))
@@ -1173,6 +1513,27 @@ def main() -> int:
             "requires reviewer",
         ),
         (
+            "self-asserted-v3",
+            lambda order: (
+                order.update({"riskLevel": "high"}),
+                set_routing(
+                    order,
+                    routing_metadata(
+                        order["orderId"],
+                        order["executor"],
+                        model="gpt-6-sol",
+                        reasoningEffort="xhigh",
+                        risk="high",
+                        verificationProfile="V3",
+                        reviewer="claude-opus-5",
+                        reasons=["security boundary requires specialist approval"],
+                        specialistGate={"required": True, "approved": True, "approver": "Boss"},
+                    ),
+                ),
+            ),
+            "V3 requires independently verified approval evidence; no trusted verification source configured",
+        ),
+        (
             "terminal-recursive",
             lambda order: set_routing(
                 order,
@@ -1183,6 +1544,7 @@ def main() -> int:
                     terminalGate=True,
                     model="gpt-6-sol",
                     reviewer="gpt-6-sol",
+                    reasoningEffort="high",
                 ),
             ),
             "cannot select another reviewer",

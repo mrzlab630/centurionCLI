@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { isPlainObject, parseStrictJson, validateCanonicalAgentResult, validateDelegationResult } from '../lib/claude-result-validator.mjs';
+import { isPlainObject, parseStrictJson, readFinalizedAgentResponse, validateAgentHandoff, validateCanonicalAgentResult, validateDelegationResult, verifyAgentArtifactFiles } from '../lib/claude-result-validator.mjs';
 
 const IGNORE_DIRS = new Set(['.git', 'node_modules', 'dist', 'build', 'coverage', '.venv', 'vendor']);
 const ORDER_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{7,127}$/;
@@ -27,7 +27,7 @@ function parseArgs(argv) {
 }
 
 function usage() {
-  return `Usage:\n  node scripts/claude-order-guard.mjs snapshot --workspace <dir> --order-id <safe-id> [--out <namespace-relative-or-absolute-path>]\n  node scripts/claude-order-guard.mjs verify --workspace <dir> --order-id <safe-id> [--before <namespace-relative-or-absolute-path>] --allowed <path[,path]> [--result <namespace-relative-or-absolute-path>] [--forbidden <regex[,regex]>]\n`;
+  return `Usage:\n  node scripts/claude-order-guard.mjs snapshot --workspace <dir> --order-id <safe-id> [--out <namespace-relative-or-absolute-path>]\n  node scripts/claude-order-guard.mjs verify --workspace <dir> --order-id <safe-id> [--before <namespace-relative-or-absolute-path>] --allowed <path[,path]> [--result <namespace-relative-or-absolute-path>] [--forbidden <regex[,regex]>] [--handoff <expected-handoff.json>]\n`;
 }
 
 function splitList(value) {
@@ -227,9 +227,9 @@ function scanForbidden(workspace, files, patterns) {
   return hits;
 }
 
-function validateResultShape(result, orderId, allowLegacy) {
+function validateResultShape(result, orderId, allowLegacy, expectedHandoff) {
   if (allowLegacy) return validateDelegationResult(result, { acceptedContractVersions: [], acceptedOrderVersions: ['CLAUDE_ORDER_V1'], actorLabel: 'claude' });
-  return validateCanonicalAgentResult(result, { expectedOrderId: orderId, expectedExecutor: 'claude' });
+  return validateCanonicalAgentResult(result, { expectedOrderId: orderId, expectedExecutor: 'claude', expectedHandoff });
 }
 
 function sameList(left, right) {
@@ -274,39 +274,54 @@ function verify(args) {
   if (!fs.existsSync(beforeFile)) throw new Error(`snapshot custody file not found: ${beforeFile}`);
 
   const before = readCustodySnapshot(beforeFile);
+  let expectedHandoff;
+  if (args.handoff !== undefined) {
+    if (typeof args.handoff !== 'string') throw new Error('--handoff requires a strict JSON file');
+    expectedHandoff = readJson(path.resolve(args.handoff));
+    validateAgentHandoff({ orderId, handoff: expectedHandoff }, { expectedHandoff, orderId });
+    if (args['allow-legacy']) throw new Error('--handoff requires canonical result mode');
+  }
   const after = snapshotWorkspace(workspace);
   const resultRelative = workspaceRelative(workspace, resultFile);
   const changed = changedFiles(before, after);
-  const productChanged = changed.filter((file) => file !== resultRelative);
-  const allowedPaths = [...new Set([...allowed, resultRelative])];
-  const scopeViolations = changed.filter((file) => !isAllowed(file, allowedPaths));
-  const forbiddenHits = scanForbidden(workspace, changed.filter((file) => isAllowed(file, allowedPaths)), splitList(args.forbidden));
   const failures = [];
+  const responseErrors = [];
+  let response = null;
 
   if (!fs.existsSync(resultFile)) failures.push(`missing result file: ${workspaceRelative(workspace, resultFile)}`);
   let result = null;
   if (fs.existsSync(resultFile)) {
     try {
-      result = readJson(resultFile);
+      response = readFinalizedAgentResponse(resultFile, { expectedHandoff, orderId, evidenceDir: `${beforeFile}.responses`, allowedEvidenceRoots: [namespace, `${beforeFile}.responses`] });
+      result = response.value;
       const allowLegacy = args['allow-legacy'] === true;
-      failures.push(...validateResultShape(result, orderId, allowLegacy));
-      if (allowLegacy && Array.isArray(result.filesChanged) && result.filesChanged.every((item) => typeof item === 'string') && !sameList(result.filesChanged.map(normalizeRelative), changed)) failures.push(`result.filesChanged mismatch: expected ${changed.join(', ') || '<none>'}; got ${result.filesChanged.join(', ') || '<none>'}`);
-      if (!allowLegacy && Array.isArray(result.filesChanged) && result.filesChanged.every(isPlainFileChange)) {
-        const declared = result.filesChanged.map((item) => normalizeRelative(item.path));
-        if (!sameList(declared, productChanged)) failures.push(`result.filesChanged[].path mismatch: expected ${productChanged.join(', ') || '<none>'}; got ${declared.join(', ') || '<none>'}`);
-      }
+      const schemaFailures = validateResultShape(result, orderId, allowLegacy, expectedHandoff);
+      failures.push(...schemaFailures);
+      if (schemaFailures.length) responseErrors.push({ code: 'RESPONSE_SCHEMA_ERROR', message: schemaFailures.join('; ') });
+      if (!allowLegacy) failures.push(...verifyAgentArtifactFiles(result, workspace, { expectedHandoff }));
     } catch (error) {
       failures.push(`result JSON parse failed: ${error.message}`);
+      responseErrors.push({ code: error.code || 'RESPONSE_FORMAT_ERROR', message: error.message, rawEvidencePath: error.rawEvidencePath, rawSha256: error.rawSha256 });
     }
   }
 
+  const generated = new Set((response?.controlFiles || []).filter((file) => isWithin(workspace, file)).map((file) => workspaceRelative(workspace, file)));
+  const productChanged = changed.filter((file) => file !== resultRelative && !generated.has(file));
+  const allowedPaths = [...new Set([...allowed, resultRelative, ...generated])];
+  const scopeViolations = changed.filter((file) => !isAllowed(file, allowedPaths));
+  const forbiddenHits = scanForbidden(workspace, changed.filter((file) => !generated.has(file) && isAllowed(file, allowedPaths)), splitList(args.forbidden));
+  if (args['allow-legacy'] && Array.isArray(result?.filesChanged) && result.filesChanged.every((item) => typeof item === 'string') && !sameList(result.filesChanged.map(normalizeRelative), changed)) failures.push(`result.filesChanged mismatch: expected ${changed.join(', ') || '<none>'}; got ${result.filesChanged.join(', ') || '<none>'}`);
+  if (!args['allow-legacy'] && Array.isArray(result?.filesChanged) && result.filesChanged.every(isPlainFileChange)) {
+    const declared = result.filesChanged.map((item) => normalizeRelative(item.path));
+    if (!sameList(declared, productChanged)) failures.push(`result.filesChanged[].path mismatch: expected ${productChanged.join(', ') || '<none>'}; got ${declared.join(', ') || '<none>'}`);
+  }
   if (scopeViolations.length) failures.push(`scope violations: ${scopeViolations.join(', ')}`);
   if (forbiddenHits.length) failures.push(`forbidden pattern hits: ${forbiddenHits.map((hit) => `${hit.file}:${hit.pattern}`).join(', ')}`);
   if (Array.isArray(result?.scopeViolations) && result.scopeViolations.length) failures.push(`claude reported scope violations: ${result.scopeViolations.join(', ')}`);
   if (Array.isArray(result?.scopeDeviations) && result.scopeDeviations.length) failures.push(`claude reported scope deviations: ${result.scopeDeviations.join(', ')}`);
   if (Array.isArray(result?.forbiddenPatternHits) && result.forbiddenPatternHits.length) failures.push(`claude reported forbidden hits: ${result.forbiddenPatternHits.join(', ')}`);
 
-  const report = { ok: failures.length === 0, mode: args['allow-legacy'] === true ? 'legacy' : 'canonical', changed, productChanged, scopeViolations, forbiddenHits, resultFile: resultRelative, failures };
+  const report = { ok: failures.length === 0, mode: args['allow-legacy'] === true ? 'legacy' : 'canonical', changed, productChanged, scopeViolations, forbiddenHits, resultFile: resultRelative, responseEnvelope: response?.envelope || null, responseReceipt: response?.receiptPath || null, responseErrors, failures };
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   if (failures.length) process.exitCode = 1;
 }

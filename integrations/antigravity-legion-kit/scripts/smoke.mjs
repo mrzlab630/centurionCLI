@@ -9,6 +9,15 @@ import { spawn, spawnSync } from 'node:child_process';
 const KIT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const REPORT = process.argv.includes('--report');
 const CONTRACT_ONLY = process.argv.includes('--contract-only');
+
+function assertResponseContractParity() {
+  const sharedRoot = path.resolve(KIT_ROOT, '../legion-contracts');
+  if (!fs.existsSync(sharedRoot)) return;
+  for (const file of ['lib/contracts.mjs', 'scripts/legion-contract.mjs']) {
+    const shared = fs.readFileSync(path.join(sharedRoot, file), 'utf8').replace('export const SAFE_ORDER_ID_PATTERN', 'const SAFE_ORDER_ID_PATTERN');
+    assert(fs.readFileSync(path.join(KIT_ROOT, 'legion-contracts', file), 'utf8') === shared, `bundled response contract drift: ${file}`);
+  }
+}
 const REQUIRED_RULES = ['00-centurion-base.md', '05-single-owner-routing.md', '10-antigravity-model-routing.md', '70-external-skill-safety.md'];
 const REQUIRED_WORKFLOWS = ['war-room.md', 'quality-gate.md', 'external-skill-audit.md', 'skill-migrator.md', 'frontend-landing-igaming.md', 'frontend-reference-search.md', 'content-copy-system.md', 'agy-delegation.md'];
 const REQUIRED_SKILLS = ['product-language-copy.md'];
@@ -93,7 +102,7 @@ const ROUTING_MATRIX = [
   ['SICARIUS', 'сделай PoC exploit verification через browser automation'],
   ['AUGUR', 'проанализируй Phantom1225 ScamNet sniper pump dump live pool'],
   ['QUAESTOR', 'проанализируй DEX token on-chain pool wallet trading risk'],
-  ['EVOCATUS', 'delegate bounded task to external model opus in tmux and collect result'],
+  ['EVOCATUS', 'delegate bounded task to external model opus through contract gateway and collect result'],
   ['TABULARIUS', 'сверстай HTML report с charts tables и publish handoff']
 ];
 const OVERLAP_MATRIX = [
@@ -342,6 +351,25 @@ function smokeAgyOrderGuard() {
     writeResult(canonical());
     const ok = verify('--forbidden', 'fonts\\.googleapis,font-size\\s*:[^;]*vw');
     assert(ok.status === 0, `canonical AGY result should pass by default: ${ok.stderr || ok.stdout}`);
+    const fencedBytes = Buffer.from(`\x60\x60\x60json\n${JSON.stringify(canonical())}\n\x60\x60\x60`);
+    fs.writeFileSync(path.join(tempRoot, resultRelative), fencedBytes);
+    const fenced = verify();
+    assert(fenced.status === 0, `fenced AGY result must pass: ${fenced.stderr || fenced.stdout}`);
+    const fencedReport = JSON.parse(fenced.stdout);
+    assert(fencedReport.responseEnvelope.transport === 'json_fence' && fs.readFileSync(fencedReport.responseEnvelope.rawEvidencePath).equals(fencedBytes), 'AGY guard lost raw fenced evidence');
+    assert(fs.readFileSync(path.join(tempRoot, resultRelative)).equals(fencedBytes) && verify().status === 0, 'AGY ingress must preserve input and support repeated verification');
+    const handoff = { version: 'AGENT_HANDOFF_V1', schemaId: 'AGENT_RESULT_JSON_V1', inReplyTo: orderId, senderRole: 'PICTOR', recipientRole: 'CENTURION', objectiveId: 'agy-guard-objective' };
+    const handoffFile = `${snapshotPath}.handoff.json`;
+    fs.writeFileSync(handoffFile, JSON.stringify(handoff));
+    writeResult(canonical({ handoff, artifacts: [] }));
+    assert(verify('--handoff', handoffFile).status === 0, 'AGY guard must accept expected handoff');
+    writeResult(canonical({ handoff: { ...handoff, recipientRole: 'other' }, artifacts: [] }));
+    const mismatch = verify('--handoff', handoffFile);
+    assert(mismatch.status !== 0 && JSON.parse(mismatch.stdout).responseErrors.some((error) => error.code === 'RESPONSE_IDENTITY_ERROR'), 'AGY guard must reject handoff role mismatch');
+    fs.rmSync(handoffFile);
+    fs.writeFileSync(path.join(tempRoot, resultRelative), '{"x":1e999}');
+    const invalidResponse = verify();
+    assert(invalidResponse.status !== 0 && JSON.parse(invalidResponse.stdout).responseErrors.some((error) => error.code === 'RESPONSE_FORMAT_ERROR' && fs.existsSync(error.rawEvidencePath)), 'AGY guard must preserve invalid raw evidence');
 
     writeResult(legacy);
     const legacyDefault = verify();
@@ -737,6 +765,7 @@ async function smokeMcp() {
 }
 
 async function main() {
+  assertResponseContractParity();
   if (CONTRACT_ONLY) {
     await smokeMcp();
     smokeAgyOrderGuard();

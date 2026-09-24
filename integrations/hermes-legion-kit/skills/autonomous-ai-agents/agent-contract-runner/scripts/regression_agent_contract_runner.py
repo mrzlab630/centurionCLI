@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import atexit
 import importlib.util
 import json
 import os
@@ -10,6 +11,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -18,11 +20,14 @@ from unittest import mock
 
 from attempt_ledger import append_attempt
 from agent_artifact_namespace import ArtifactNamespaceError, artifact_namespace
+from direct_custody import verify_direct_attempt, verify_direct_terminal
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNNER = ROOT / "scripts" / "agent_contract_runner.py"
-FIXTURE_ROOT = Path("/tmp/agent-contract-runner-regression")
+FIXTURE_ROOT = Path(tempfile.mkdtemp(prefix="agent-contract-runner-regression-"))
+atexit.register(shutil.rmtree, FIXTURE_ROOT, ignore_errors=True)
 BIN_DIR = FIXTURE_ROOT / "bin"
+ROUTING_PREFIX = "AQUILA_ROUTING_JSON_V1:"
 
 
 def write_json(path: Path, value: dict[str, Any]) -> None:
@@ -88,6 +93,8 @@ def install_fake_executor() -> None:
         "    'stderrSummary': 'fake stderr',\n"
         "}\n"
         "loop_json = __import__('os').environ.get('FAKE_LOOP_METADATA')\n"
+        "if __import__('os').environ.get('FAKE_REVIEW_ONLY') == '1':\n"
+        "    payload['filesChanged'] = []\n"
         "if loop_json:\n"
         "    payload.setdefault('executorExtensions', {})['aquilaLoop'] = json.loads(loop_json)\n"
         "result_mode = __import__('os').environ.get('FAKE_RESULT_MODE', 'valid')\n"
@@ -367,9 +374,6 @@ def base_loop_state(
 
 
 def main() -> int:
-    if FIXTURE_ROOT.exists():
-        shutil.rmtree(FIXTURE_ROOT)
-    FIXTURE_ROOT.mkdir(parents=True)
     install_fake_executor()
 
     unsafe_namespace_root = FIXTURE_ROOT / ".centurion" / "agents_results"
@@ -578,6 +582,32 @@ def main() -> int:
         "confidence": "high",
         "reasons": ["deterministic proof is incomplete"],
     }
+    v3_metadata = dict(
+        routing_metadata,
+        risk="high",
+        verificationProfile="V3",
+        reviewer="claude-opus-5",
+        reasons=["security boundary requires specialist approval"],
+        specialistGate={"required": True, "approved": True, "approver": "Boss"},
+    )
+    missing_payload["riskLevel"] = "high"
+    missing_payload["notesForExecutor"] = [ROUTING_PREFIX + json.dumps(v3_metadata, separators=(",", ":"))]
+    write_json(missing_order, missing_payload)
+    forged_v3_route = subprocess.run(
+        [sys.executable, str(RUNNER), "--order", str(missing_order), "--validate-only", "--events", str(missing_events), "--result", str(missing_result)],
+        cwd=ROOT,
+        env=routing_env,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    assert_case(
+        forged_v3_route.returncode != 0
+        and "V3 requires independently verified approval evidence; no trusted verification source configured" in forged_v3_route.stderr,
+        "runner must reject self-asserted V3 before dispatch",
+    )
+    assert_case("dispatch_started" not in events_text(missing_events), "V3 rejection must precede dispatch")
+    missing_payload["riskLevel"] = "low"
     missing_payload["notesForExecutor"] = ["AQUILA_ROUTING_JSON_V1:" + json.dumps(routing_metadata, separators=(",", ":"))]
     write_json(missing_order, missing_payload)
     valid_route = subprocess.run(
@@ -591,6 +621,69 @@ def main() -> int:
     assert_case(valid_route.returncode == 0, f"valid post-cutover routing must pass: {valid_route.stderr}")
     assert_case("aquila_routing_validated:V1:gpt-6-sol:implementation" in events_text(missing_events), "runner must record the validated route")
     print("PASS runner enforces post-cutover routing before dispatch and accepts canonical V1")
+
+    advisory_dir = FIXTURE_ROOT / "astra-advisory"
+    advisory_dir.mkdir(parents=True)
+    advisory_order_path, advisory_result, _, _, _, _ = make_order(
+        advisory_dir, "astra-advisory", "pass", False, "fixture proof"
+    )
+    advisory_order = json.loads(advisory_order_path.read_text(encoding="utf-8"))
+    advisory_namespace = artifact_namespace(advisory_dir, advisory_order["orderId"])
+    advisory_candidate = advisory_namespace / "candidate.json"
+    advisory_order.update(createdAt="2026-09-23T00:00:00Z", executor="codex", roleForTask="ARCHITECTUS", riskLevel="medium")
+    advisory_order["allowedPaths"] = [str(advisory_namespace / "**")]
+    advisory_order["expectedArtifacts"] = [{"path": str(advisory_candidate), "type": "advice", "required": False}]
+    advisory_order["proofCommands"] = []
+    advisory_order["launch"]["command"] = shlex.join([
+        "codex", "exec", "--model", "gpt-6-astra", "-c", "model_reasoning_effort=xhigh",
+        "--sandbox", "read-only", "-C", str(advisory_dir),
+        "--output-last-message", str(advisory_candidate), "--json", "Return JSON",
+    ])
+    advisory_routing = {
+        "objectiveId": "astra-advisory", "attempt": 1, "taskClass": "architecture_advisory",
+        "complexity": "high", "risk": "medium", "ambiguity": "high", "reversibility": "high",
+        "evidenceNeed": "high", "executor": "codex", "model": "gpt-6-astra",
+        "reasoningEffort": "xhigh", "executionProfile": "advisory",
+        "verificationProfile": "V2", "reviewer": "none", "confidence": "medium",
+        "reasons": ["astra advisory: material architecture ambiguity"],
+    }
+    advisory_order["notesForExecutor"] = ["AQUILA_ROUTING_JSON_V1:" + json.dumps(advisory_routing, separators=(",", ":"))]
+    runner_module = load_runner_module()
+    with mock.patch.dict(os.environ, {"HOME": str(FIXTURE_ROOT / "isolated-home")}, clear=False):
+        runner_module.validate_order(advisory_order)
+        def reject_advisory(mutator: Any, expected: str) -> None:
+            altered = json.loads(json.dumps(advisory_order))
+            mutator(altered)
+            try:
+                runner_module.validate_order(altered)
+            except runner_module.RunnerError as exc:
+                assert_case(expected in str(exc), f"expected {expected!r}, got {exc!r}")
+            else:
+                raise AssertionError(f"Astra advisory mutation was accepted: {expected}")
+
+        for old, new, message in (
+            ("--sandbox read-only", "--sandbox workspace-write", "read-only sandbox"),
+            ("--model gpt-6-astra", "--model gpt-6-sol", "must match routing.model"),
+            ("model_reasoning_effort=xhigh", "model_reasoning_effort=high", "must match routing.model"),
+            ("--json", "--dangerously-bypass-approvals-and-sandbox", "unsupported option"),
+            ("--json", "-c sandbox_mode=workspace-write", "only the reasoning effort"),
+        ):
+            reject_advisory(lambda row, old=old, new=new: row["launch"].__setitem__("command", row["launch"]["command"].replace(old, new)), message)
+        reject_advisory(lambda row: row["allowedPaths"].append(str(advisory_dir / "product.txt")), "control artifact namespace")
+        reject_advisory(lambda row: row["expectedArtifacts"].append({"path": str(advisory_dir / "product.txt"), "type": "product", "required": False}), "not covered by allowedPaths")
+        reject_advisory(lambda row: row["proofCommands"].append({"command": "true", "cwd": str(advisory_dir), "required": True}), "not covered by allowedPaths")
+    write_json(advisory_order_path, advisory_order)
+    direct_advisory_events = advisory_namespace / "direct-run-events.jsonl"
+    direct_advisory = subprocess.run(
+        [sys.executable, str(RUNNER), "--order", str(advisory_order_path), "--mode", "run", "--events", str(direct_advisory_events), "--result", str(advisory_result)],
+        cwd=ROOT, env={**os.environ, "HOME": str(FIXTURE_ROOT / "isolated-home")},
+        check=False, text=True, capture_output=True,
+    )
+    assert_case(direct_advisory.returncode != 0 and "requires result_gateway.py" in direct_advisory.stderr,
+                "Astra advisory direct runner dispatch must fail before child launch")
+    assert_case(not advisory_candidate.exists() and not advisory_result.exists() and not direct_advisory_events.exists(),
+                "Astra advisory direct runner rejection must not create custody artifacts")
+    print("PASS Astra advisory launch binds model, effort, read-only sandbox, control paths, and no bypass flags")
 
     promotion_dir = FIXTURE_ROOT / "post-cutover-promotion"
     promotion_dir.mkdir(parents=True)
@@ -813,7 +906,7 @@ def main() -> int:
     accepted_terminal = subprocess.run(
         [sys.executable, str(RUNNER), "--order", str(terminal_order), "--mode", "run", "--events", str(promoted_terminal_events), "--result", str(terminal_result)],
         cwd=ROOT,
-        env=promotion_env,
+        env={**promotion_env, "FAKE_REVIEW_ONLY": "1"},
         check=False,
         text=True,
         capture_output=True,
@@ -948,7 +1041,7 @@ def main() -> int:
     assert_case("must resolve to the same path" in mismatch.stderr, "mismatch rejection should cite path equality")
     print("PASS result path mismatch rejected")
 
-    out_artifact = Path("/tmp/agent-contract-runner-outside-artifact.txt")
+    out_artifact = FIXTURE_ROOT / "outside-artifact.txt"
     out_artifact_rejection, *_ = run_case(
         "out-of-allowed-artifact",
         "pass",
@@ -1087,6 +1180,59 @@ def main() -> int:
     print("PASS stdout/stderr capture files written")
     print("PASS events redact raw argv and executor streams")
 
+    runner_module = load_runner_module()
+    canonical_order_path = FIXTURE_ROOT / "canonical-accepted" / "order.json"
+    canonical_order = json.loads(canonical_order_path.read_text(encoding="utf-8"))
+    canonical_order.update(
+        createdAt="2026-09-23T00:00:00Z",
+        riskLevel="high",
+        notesForExecutor=[
+            ROUTING_PREFIX
+            + json.dumps(
+                {
+                    "objectiveId": canonical_order["orderId"],
+                    "attempt": 1,
+                    "taskClass": "security_boundary",
+                    "complexity": "medium",
+                    "risk": "high",
+                    "ambiguity": "low",
+                    "reversibility": "high",
+                    "evidenceNeed": "high",
+                    "executor": "other",
+                    "model": "other",
+                    "reasoningEffort": "medium",
+                    "executionProfile": "implementation",
+                    "verificationProfile": "V3",
+                    "reviewer": "claude-opus-5",
+                    "confidence": "high",
+                    "reasons": ["security boundary requires specialist approval"],
+                    "specialistGate": {"required": True, "approved": True, "approver": "Boss"},
+                },
+                separators=(",", ":"),
+            )
+        ],
+    )
+    canonical_policy = runner_module.PathPolicy(
+        Path(canonical_order["workspace"]["repoPath"]),
+        canonical_order["allowedPaths"],
+        canonical_order["forbiddenPaths"],
+        canonical_order["orderId"],
+    )
+    try:
+        runner_module.verify_result(
+            Path(canonical_order["launch"]["resultJsonPath"]),
+            canonical_order,
+            canonical_policy,
+        )
+    except (runner_module.RunnerError, runner_module.RoutingError) as exc:
+        assert_case(
+            "V3 requires independently verified approval evidence; no trusted verification source configured" in str(exc),
+            f"verify_result must reject self-asserted V3: {exc}",
+        )
+    else:
+        raise AssertionError("verify_result accepted self-asserted V3")
+    print("PASS verify_result rejects self-asserted V3 after candidate validation")
+
     salvage, _, salvage_artifact, salvage_stdout, salvage_stderr, salvage_events = run_case(
         "timeout-salvage-accepted",
         "pass",
@@ -1167,7 +1313,106 @@ def main() -> int:
     assert_case(v0_state["workItem"]["status"] == "completed", "V0 must complete without awaiting a reviewer")
     assert_case(v0_state["verification"]["verifierExecutor"] == "Aquila", "V0 verifier must be deterministic Aquila proof")
     assert_case(sum('dispatch_started' in line for line in v0_events.read_text(encoding="utf-8").splitlines()) == 1, "V0 must launch only the implementation executor")
+    v0_receipt_dir = artifact_namespace(v0_order.parent, v0_payload["orderId"])
+    v0_starts = list(v0_receipt_dir.glob("direct-start-*.json"))
+    v0_closures = list(v0_receipt_dir.glob("direct-closure-*.json"))
+    assert_case(len(v0_starts) == len(v0_closures) == 1, "direct V0 launch must create exactly one start and closure receipt")
+    v0_closure = verify_direct_attempt(v0_starts[0], v0_closures[0], v0_order, v0_result)
+    assert_case(v0_closure["controllerVerification"] == "passed", "direct V0 closure must bind observed controller proof")
+    v0_terminals = list(v0_receipt_dir.glob("direct-acceptance-*.json"))
+    assert_case(len(v0_terminals) == 1, "direct V0 must create one terminal acceptance")
+    assert_case(verify_direct_terminal(v0_starts[0], v0_closures[0], v0_terminals[0], v0_order, v0_result)["status"] == "passed", "direct V0 terminal acceptance must pass after loop transition")
     print("PASS V0 loop completes after deterministic proof with no reviewer launch")
+
+    direct_receipt_order, direct_receipt_result, direct_receipt_state, direct_receipt_events, direct_receipt_env = make_loop_fixture(
+        "loop-direct-terminal-write-failure", "codex", "execute", base_loop_state(), execute_meta,
+    )
+    injected_direct_source = """
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+import direct_custody
+original = direct_custody._create_only
+def fail_terminal(path, content):
+    if path.name.startswith('direct-acceptance-'):
+        raise OSError(28, 'injected direct terminal write failure')
+    return original(path, content)
+direct_custody._create_only = fail_terminal
+import agent_contract_runner
+sys.argv = ['agent_contract_runner.py', *sys.argv[2:]]
+raise SystemExit(agent_contract_runner.main())
+"""
+    direct_receipt_completed = subprocess.run(
+        [sys.executable, "-c", injected_direct_source, str(RUNNER.parent),
+         "--order", str(direct_receipt_order), "--mode", "run", "--events", str(direct_receipt_events), "--result", str(direct_receipt_result)],
+        cwd=ROOT, env=direct_receipt_env, check=False, text=True, capture_output=True,
+    )
+    assert_case(direct_receipt_completed.returncode != 0, "direct terminal receipt failure must reject")
+    assert_case(json.loads(direct_receipt_state.read_text(encoding="utf-8"))["workItem"]["status"] == "blocked", "direct receipt failure must roll back completed state before blocking")
+    assert_case(not list(direct_receipt_state.parent.glob("direct-acceptance-*.json")), "failed direct terminal receipt must not look accepted")
+    assert_case(not list(direct_receipt_state.parent.glob(".state.json.pre-acceptance-*")), "direct loop snapshot must be cleaned after rollback")
+    print("PASS direct terminal receipt failure restores and blocks Loop V1 state")
+
+    event_failure_order, event_failure_result, event_failure_state, event_failure_events, event_failure_env = make_loop_fixture(
+        "loop-direct-state-event-failure", "codex", "execute", base_loop_state(), execute_meta,
+    )
+    injected_event_source = """
+import sys
+sys.path.insert(0, sys.argv[1])
+import agent_contract_runner as runner
+original = runner.append_event
+def fail_after_state(events_path, event, **payload):
+    if event == 'aquila_loop_state_updated':
+        raise OSError(28, 'injected loop event failure')
+    return original(events_path, event, **payload)
+runner.append_event = fail_after_state
+sys.argv = ['agent_contract_runner.py', *sys.argv[2:]]
+raise SystemExit(runner.main())
+"""
+    event_failure_completed = subprocess.run(
+        [sys.executable, "-c", injected_event_source, str(RUNNER.parent),
+         "--order", str(event_failure_order), "--mode", "run", "--events", str(event_failure_events), "--result", str(event_failure_result)],
+        cwd=ROOT, env=event_failure_env, check=False, text=True, capture_output=True,
+    )
+    assert_case(event_failure_completed.returncode == 0, f"committed loop event failure must not reject direct custody: {event_failure_completed.stderr}")
+    assert_case("injected loop event failure" in event_failure_completed.stderr, "direct event write failure must be visible")
+    assert_case(json.loads(event_failure_state.read_text(encoding="utf-8"))["workItem"]["status"] == "awaiting_verification", "direct loop state must remain committed")
+    event_terminals = list(artifact_namespace(event_failure_order.parent, json.loads(event_failure_order.read_text(encoding="utf-8"))["orderId"]).glob("direct-acceptance-*.json"))
+    assert_case(len(event_terminals) == 1 and json.loads(event_terminals[0].read_text(encoding="utf-8"))["status"] == "passed", "direct final receipt must remain passed")
+    print("PASS direct event failure after loop commit keeps state and terminal receipt consistent")
+
+    start_event_failure_order, start_event_failure_result, start_event_failure_state, start_event_failure_events, start_event_failure_env = make_loop_fixture(
+        "loop-direct-start-event-failure", "codex", "execute", base_loop_state(), execute_meta,
+    )
+    injected_start_event_source = """
+import sys
+sys.path.insert(0, sys.argv[1])
+import agent_contract_runner as runner
+original = runner.append_event
+def fail_after_start(events_path, event, **payload):
+    if event == 'direct_custody_started':
+        raise OSError(28, 'injected direct start event failure')
+    return original(events_path, event, **payload)
+runner.append_event = fail_after_start
+sys.argv = ['agent_contract_runner.py', *sys.argv[2:]]
+raise SystemExit(runner.main())
+"""
+    start_event_failure_completed = subprocess.run(
+        [sys.executable, "-c", injected_start_event_source, str(RUNNER.parent),
+         "--order", str(start_event_failure_order), "--mode", "run", "--events", str(start_event_failure_events), "--result", str(start_event_failure_result)],
+        cwd=ROOT, env=start_event_failure_env, check=False, text=True, capture_output=True,
+    )
+    assert_case(start_event_failure_completed.returncode != 0, "direct start event failure must reject")
+    assert_case("injected direct start event failure" in start_event_failure_completed.stderr, "direct start event failure must be visible")
+    start_event_state = json.loads(start_event_failure_state.read_text(encoding="utf-8"))
+    assert_case(start_event_state["workItem"]["status"] == "ready", "pre-child custody failure must leave loop state retryable")
+    start_event_namespace = artifact_namespace(start_event_failure_order.parent, json.loads(start_event_failure_order.read_text(encoding="utf-8"))["orderId"])
+    start_event_starts = list(start_event_namespace.glob("direct-start-*.json"))
+    start_event_closures = list(start_event_namespace.glob("direct-closure-*.json"))
+    start_event_terminals = list(start_event_namespace.glob("direct-acceptance-*.json"))
+    assert_case(len(start_event_starts) == len(start_event_closures) == len(start_event_terminals) == 1, "direct start event failure must close every custody receipt")
+    assert_case(json.loads(start_event_terminals[0].read_text(encoding="utf-8"))["status"] == "rejected", "direct start event failure must never pass terminal acceptance")
+    print("PASS direct start event failure closes custody and leaves retryable state")
 
     post_dispatch_order, post_dispatch_result, post_dispatch_state_path, post_dispatch_events, post_dispatch_env = make_loop_fixture(
         "loop-post-dispatch-proof-failure",
@@ -1197,6 +1442,15 @@ def main() -> int:
     assert_case(post_dispatch_state["transitions"][-1]["from"] == "ready" and post_dispatch_state["transitions"][-1]["to"] == "blocked", "blocked state must record ready-to-blocked transition")
     assert_case(post_dispatch_launch_count.read_text(encoding="utf-8").splitlines() == ["launch"], "post-dispatch proof failure must never auto-redispatch")
     assert_case("aquila_loop_state_blocked_after_dispatch_failure" in events_text(post_dispatch_events), "post-dispatch failure must emit explicit blocked event")
+    post_receipt_dir = artifact_namespace(post_dispatch_order.parent, post_dispatch_payload["orderId"])
+    post_starts = list(post_receipt_dir.glob("direct-start-*.json"))
+    post_closures = list(post_receipt_dir.glob("direct-closure-*.json"))
+    assert_case(len(post_starts) == len(post_closures) == 1, "failed direct proof must still close exactly one attempt")
+    post_closure = verify_direct_attempt(post_starts[0], post_closures[0], post_dispatch_order, post_dispatch_result)
+    assert_case(post_closure["controllerVerification"] == "rejected", "failed direct proof must bind controller rejection")
+    post_terminals = list(post_receipt_dir.glob("direct-acceptance-*.json"))
+    assert_case(len(post_terminals) == 1, "failed direct proof must create terminal acceptance")
+    assert_case(verify_direct_terminal(post_starts[0], post_closures[0], post_terminals[0], post_dispatch_order, post_dispatch_result)["status"] == "rejected", "failed direct proof must not pass terminal acceptance")
     print("PASS post-dispatch proof failure blocks state and prevents redispatch")
 
     false_claim_order, false_claim_result, false_claim_state_path, false_claim_events, false_claim_env = make_loop_fixture(

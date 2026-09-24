@@ -2,7 +2,7 @@
 
 Portable CENTURION rules, workflows, skill briefs, and a small MCP bridge for Google Antigravity.
 
-Current kit version: `0.2.1`.
+Current kit version: `0.3.0`.
 
 ## What It Installs
 

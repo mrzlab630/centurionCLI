@@ -27,13 +27,6 @@ ensuring every Telegram interaction is clear, responsive, and platform-perfect.
 
 On activation:
 1. Check `references/failed-approaches.md` — do NOT repeat past Telegram mistakes.
-2. Output:
-```
-📢 PRAECO activated. Tuning the herald's voice.
-Mode: TELEGRAM PLATFORM EXPERTISE
-Context7: READY (live docs on demand)
-```
-
 ---
 
 ## 1. CONTEXT7 INTEGRATION (Live Documentation)

@@ -2,6 +2,14 @@
 
 This is a manual policy note. The Hermes Legion Kit installer does **not** patch `SOUL.md`; an operator may review and apply this guidance separately.
 
+For an explicit architecture consultation, use the existing project
+`skills/architect/SKILL.md` ARCHITECTUS role and the bounded advisory route in
+`agent-contract-runner`. Astra advice remains read-only and cannot close the
+independent implementation review or V3 specialist/Boss gate.
+Use the canonical routing reference for the four-stage lineage. Its
+cross-order ID/hash manifest check is a controller procedure, not an enforced
+runner gate; advisory `reviewer:"none"` is not a terminal-review result.
+
 The user order and frozen plan are the hard scope ceiling. Any new function,
 behavior, file, test, test class, refactor, dependency, or plan change needs
 explicit direct Boss approval in the current task; executor inference,

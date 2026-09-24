@@ -195,5 +195,45 @@ class MissionStateLifecycleTests(unittest.TestCase):
                     self.assertEqual(persisted.data["steps"]["analyze"]["status"], "skipped")
 
 
+class MissionControlOutputTests(unittest.TestCase):
+    def test_parse_legion_output_accepts_marker_and_fallback_success(self):
+        payload = '{"status":"success","data":{"ports":[]}}'
+        marked = f"noise\n{mission_control.JSON_START}\n{payload}\n{mission_control.JSON_END}\n"
+
+        self.assertEqual(
+            mission_control.parse_legion_output(marked),
+            {"status": "success", "data": {"ports": []}},
+        )
+        self.assertEqual(
+            mission_control.parse_legion_output(payload),
+            {"status": "success", "data": {"ports": []}},
+        )
+
+    def test_parse_legion_output_rejects_ambiguous_json_at_subprocess_boundary(self):
+        invalid_payloads = (
+            '{"status":"error","error":"failed","status":"success","data":{}}',
+            '{"status":"success","data":{"value":NaN}}',
+            '{"status":"success","data":{"value":1e999}}',
+        )
+        for payload in invalid_payloads:
+            with self.subTest(payload=payload):
+                marked = f"{mission_control.JSON_START}{payload}{mission_control.JSON_END}"
+                with self.assertRaisesRegex(RuntimeError, "Invalid JSON inside markers"):
+                    mission_control.parse_legion_output(marked)
+
+    def test_parse_legion_output_rejects_untrusted_result_shape(self):
+        invalid_payloads = (
+            '[]',
+            '{"status":"success"}',
+            '{"status":"success","data":[]}',
+            '{"status":"complete","data":{}}',
+            '{"status":"error","error":""}',
+        )
+        for payload in invalid_payloads:
+            with self.subTest(payload=payload):
+                with self.assertRaisesRegex(RuntimeError, "No valid Legion JSON output"):
+                    mission_control.parse_legion_output(payload)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -13,8 +13,20 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from response_envelope import (
+    JSON_FENCE,
+    RAW_JSON,
+    ResponseEnvelopeError,
+    ParsedResponse,
+    parse_response_bytes,
+    response_envelope,
+    response_state_errors,
+    validate_response_handoff,
+    valid_media_type,
+)
 from strict_json import StrictJSONError, strict_json_load_bytes, strict_json_load_path
-from agent_artifact_namespace import ArtifactNamespaceError, validate_order_id
+from agent_artifact_namespace import ArtifactNamespaceError, artifact_namespace, validate_order_id
+from review_ladder import RoutingError, validate_order_routing, validate_terminal_review_result
 
 
 RESULT_VERSION = "AGENT_RESULT_JSON_V1"
@@ -69,6 +81,46 @@ def validate_candidate(candidate: Any, order: dict[str, Any], validator: Draft20
         errors.append("orderId: must match the declared order")
     if candidate.get("executor") != order.get("executor"):
         errors.append("executor: must match the declared order")
+    try:
+        routing_for_handoff = validate_order_routing(order) if "createdAt" in order else None
+    except RoutingError as exc:
+        routing_for_handoff = None
+        errors.append(f"routing validation failed: {exc}")
+    errors.extend(validate_response_handoff(candidate, order, routing_for_handoff))
+    errors.extend(response_state_errors(candidate))
+    for artifact in candidate.get("artifacts", []) if isinstance(candidate.get("artifacts"), list) else []:
+        if not isinstance(artifact, dict):
+            continue
+        typed = order.get("outputContract", {}).get("handoff") is not None and artifact.get("exists") is True
+        if typed or "sha256" in artifact or "mediaType" in artifact:
+            digest, media_type = artifact.get("sha256"), artifact.get("mediaType")
+            if not isinstance(digest, str) or len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
+                errors.append("artifacts.sha256 must be a lowercase SHA-256 digest")
+            if not valid_media_type(media_type):
+                errors.append("artifacts.mediaType must be a media type")
+    routing = None
+    if "createdAt" in order:
+        try:
+            routing = validate_order_routing(order)
+            validate_terminal_review_result(routing, candidate)
+        except RoutingError as exc:
+            errors.append(f"routing validation failed: {exc}")
+    if routing is not None and routing["executionProfile"] == "advisory":
+        if candidate.get("filesChanged") != []:
+            errors.append("Astra advisory filesChanged must be empty")
+        workspace = order.get("workspace")
+        repo_value = workspace.get("repoPath") if isinstance(workspace, dict) else None
+        if isinstance(repo_value, str):
+            namespace = artifact_namespace(Path(repo_value), order["orderId"])
+            for index, artifact in enumerate(candidate.get("artifacts", [])):
+                if not isinstance(artifact, dict) or not isinstance(artifact.get("path"), str):
+                    continue
+                path = Path(artifact["path"]).expanduser()
+                if not path.is_absolute():
+                    path = Path(repo_value) / path
+                resolved = path.resolve(strict=False)
+                if namespace not in resolved.parents:
+                    errors.append(f"Astra advisory artifacts[{index}] must stay in the control namespace")
     if candidate.get("status") == "done":
         proof = candidate.get("proof")
         if not isinstance(proof, list) or not proof:
@@ -80,13 +132,27 @@ def validate_candidate(candidate: Any, order: dict[str, Any], validator: Draft20
             errors.append("done result requires selfReview.performed=true")
         for field in ("scopeDeviations", "forbiddenPatternHits"):
             if candidate.get(field): errors.append(f"done result must not include {field}")
+    if errors and not any("RESPONSE_" in error for error in errors):
+        identity_error = any(error.startswith(("orderId:", "executor:")) for error in errors)
+        errors.insert(0, "RESPONSE_IDENTITY_ERROR" if identity_error else "RESPONSE_SCHEMA_ERROR")
     return sorted(set(errors))
 
 
 def preserve_original(candidate_bytes: bytes, evidence_dir: Path) -> Path:
     digest = hashlib.sha256(candidate_bytes).hexdigest()
     evidence_path = evidence_dir / f"{digest}.candidate-result.bin"
-    evidence_dir.mkdir(parents=True, exist_ok=True)
+    return preserve_bytes(candidate_bytes, evidence_path)
+
+
+def preserve_bytes(content: bytes, path: Path) -> Path:
+    """Create one immutable evidence file and verify an existing same-name file."""
+    path = path.expanduser().absolute()
+    evidence_path = path
+    digest = hashlib.sha256(content).hexdigest()
+    for component in (path, *path.parents):
+        if component.is_symlink():
+            raise BuilderError(f"evidence path contains a symlink: {component}")
+    evidence_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         fd = os.open(evidence_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     except FileExistsError:
@@ -95,12 +161,32 @@ def preserve_original(candidate_bytes: bytes, evidence_dir: Path) -> Path:
         return evidence_path
     try:
         offset = 0
-        while offset < len(candidate_bytes):
-            offset += os.write(fd, candidate_bytes[offset:])
+        while offset < len(content):
+            written = os.write(fd, content[offset:])
+            if written < 1:
+                raise OSError("evidence write made no progress")
+            offset += written
         os.fsync(fd)
     finally:
         os.close(fd)
     return evidence_path
+
+
+def preserve_normalized(parsed: ParsedResponse, evidence_dir: Path) -> Path:
+    digest = parsed.normalized_sha256
+    return preserve_bytes(parsed.normalized_bytes, evidence_dir / f"{digest}.normalized-candidate.json")
+
+
+def _allowed_response_transports(order: dict[str, Any]) -> tuple[str, ...]:
+    output_contract = order.get("outputContract")
+    if not isinstance(output_contract, dict):
+        return (RAW_JSON, JSON_FENCE)
+    declared = output_contract.get("acceptedTransports")
+    if declared is None:
+        return (RAW_JSON, JSON_FENCE)
+    if not isinstance(declared, list) or not all(isinstance(item, str) for item in declared):
+        raise BuilderError("outputContract.acceptedTransports must be an array of strings")
+    return tuple(declared)
 
 
 def create_only_finalize(result_path: Path, payload: dict[str, Any]) -> None:
@@ -133,18 +219,20 @@ def create_only_finalize(result_path: Path, payload: dict[str, Any]) -> None:
 
 
 def failed_result(order: dict[str, Any], evidence_path: Path, errors: list[str]) -> dict[str, Any]:
-    return {
+    payload = {
         "resultVersion": RESULT_VERSION,
         "orderId": order["orderId"],
         "executor": order["executor"],
         "status": "failed",
         "summary": "Candidate result rejected by deterministic validation.",
-        "filesChanged": [{"path": str(evidence_path), "action": "added"}],
+        "filesChanged": [],
         "artifacts": [
             {
                 "path": str(evidence_path),
                 "exists": True,
                 "type": "malformed-result-evidence",
+                "mediaType": "application/octet-stream",
+                "sha256": hashlib.sha256(evidence_path.read_bytes()).hexdigest(),
                 "note": f"Original candidate bytes preserved as sha256:{evidence_path.name.split('.', 1)[0]}",
             }
         ],
@@ -166,6 +254,9 @@ def failed_result(order: dict[str, Any], evidence_path: Path, errors: list[str])
         "stdoutSummary": "",
         "stderrSummary": "Candidate result was not accepted.",
     }
+    if order.get("outputContract", {}).get("handoff") is not None:
+        payload["handoff"] = order["outputContract"]["handoff"]
+    return payload
 
 
 def _canonical_result_path(order: dict[str, Any], declared_path: str, result_path: Path) -> Path:
@@ -210,8 +301,16 @@ def build_result(
         raise BuilderError("result path must exactly match order.outputContract.resultPath")
     if _canonical_result_path(order, declared_result_path, result_path) != result_path.expanduser().resolve(strict=False):
         raise BuilderError("result path must exactly match order.outputContract.resultPath")
+    if result_path.exists() or result_path.is_symlink():
+        raise BuilderError(f"result path collision: {result_path}")
+    if candidate_path.resolve(strict=False) == result_path.resolve(strict=False):
+        raise BuilderError("candidate and canonical result must be distinct")
 
     _, validator = _load_schema(resolve_schema_path(schema_path))
+    if any(component.is_symlink() for component in (candidate_path, *candidate_path.parents)):
+        raise BuilderError("candidate path must not contain symlinks")
+    if candidate_path.exists() and not candidate_path.is_file():
+        raise BuilderError("candidate must be a regular file")
     try:
         candidate_bytes = candidate_path.read_bytes()
     except FileNotFoundError:
@@ -219,12 +318,23 @@ def build_result(
     except OSError as exc:
         raise BuilderError(f"could not read candidate: {exc}") from exc
     parse_errors: list[str] = []
+    parsed_response: ParsedResponse | None = None
     try:
-        candidate = strict_json_load_bytes(candidate_bytes, "candidate result")
-    except StrictJSONError as exc:
+        parsed_response = parse_response_bytes(
+            candidate_bytes,
+            "candidate result",
+            allowed_transports=_allowed_response_transports(order),
+        )
+        candidate = parsed_response.value
+    except (ResponseEnvelopeError, StrictJSONError) as exc:
         candidate = None
-        parse_errors.append(f"candidate JSON parse failed: {exc}")
+        parse_errors.append(f"candidate response parse failed: {exc}")
+    if isinstance(candidate, dict) and "responseEnvelope" in candidate:
+        parse_errors.append("RESPONSE_FORMAT_ERROR: candidate responseEnvelope is controller-owned and must not be supplied by executor")
     errors = parse_errors + validate_candidate(candidate, order, validator)
+    if errors and not any("RESPONSE_" in error for error in errors):
+        identity_error = any(error.startswith(("orderId:", "executor:")) for error in errors)
+        errors.insert(0, "RESPONSE_IDENTITY_ERROR" if identity_error else "RESPONSE_SCHEMA_ERROR")
     if errors:
         evidence_path = preserve_original(candidate_bytes, evidence_dir)
         payload = failed_result(order, evidence_path, sorted(set(errors)))
@@ -232,7 +342,18 @@ def build_result(
         if schema_errors:
             raise BuilderError("internal failed-result schema error: " + "; ".join(schema_errors))
     else:
-        payload = candidate
+        assert parsed_response is not None
+        raw_evidence_path = preserve_original(candidate_bytes, evidence_dir)
+        normalized_path = preserve_normalized(parsed_response, evidence_dir)
+        payload = dict(candidate)
+        payload["responseEnvelope"] = response_envelope(
+            parsed_response,
+            raw_evidence_path=str(raw_evidence_path),
+            normalized_path=str(normalized_path),
+        )
+        schema_errors = _schema_errors(validator, payload)
+        if schema_errors:
+            raise BuilderError("internal normalized-result schema error: " + "; ".join(schema_errors))
     create_only_finalize(result_path, payload)
     return payload
 

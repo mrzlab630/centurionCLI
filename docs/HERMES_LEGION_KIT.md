@@ -1,6 +1,6 @@
 # Hermes Legion Kit
 
-`integrations/hermes-legion-kit` (version 0.8.0) is the versioned source for the local Hermes/Aquila Team Lead pack.
+`integrations/hermes-legion-kit` (version 0.9.0) is the versioned source for the local Hermes/Aquila Team Lead pack.
 
 ## Purpose
 
@@ -127,7 +127,20 @@ installer mode applies it automatically.
 
 ## Delegation Result Boundary
 
-All external Codex or Claude candidates go through `result_gateway.py`. Before any output preflight can create a receipt or the child can launch, the gateway runs full canonical `validate_order`, including attempt-ledger-aware routing validation. Missing, duplicate, malformed, below-floor, wrong-reviewer/model, or recursive terminal routing fails with no child or candidate/result/start/closure/stdout/stderr artifacts.
+Lineage and Astra advisory candidates go through `result_gateway.py`; ordinary
+non-lineage/non-advisory Codex/Claude orders may use direct runner custody. Before
+Gateway creates outputs or launches a child, full canonical `validate_order`,
+including attempt-ledger-aware routing validation, runs. Invalid routing fails
+before child or custody artifacts.
+
+Response ingress uses `response_envelope.py`: raw JSON or exactly one clean `json`
+fence; preserved raw/normalized bytes and SHA-256; optional `AGENT_HANDOFF_V1` echo;
+typed artifacts; distinct format/schema/identity/refusal/incomplete errors.
+Canonical files remain strict JSON and create-only. `accepted_inputs.py` verifies
+optional predecessor result/acceptance/closure pins before launch and after proof.
+See `LEGION_CONTRACTS.md` and the runner skill for the direct candidate adapter,
+surface fallbacks, and same-UID limitations. These are repository guarantees;
+provider-native structured output and live route availability require live proof.
 
 The packaged Python control plane uses `strict_json.py` for every authoritative JSON read. Duplicate object keys, `NaN`, `Infinity`, `-Infinity`, and float literals such as `1e999` that overflow to a non-finite value are rejected with input context. The separately installed monitor embeds equivalent parsing for order, result, schema, start-receipt, and closure JSON.
 
@@ -148,6 +161,10 @@ PYTHONDONTWRITEBYTECODE=1 python3 regression_review_ladder.py
 PYTHONDONTWRITEBYTECODE=1 python3 regression_agent_contract_runner.py
 PYTHONDONTWRITEBYTECODE=1 python3 regression_agent_result_builder.py
 PYTHONDONTWRITEBYTECODE=1 python3 regression_result_gateway.py
+PYTHONDONTWRITEBYTECODE=1 python3 regression_response_envelope.py
+PYTHONDONTWRITEBYTECODE=1 python3 regression_artifact_lineage.py
+PYTHONDONTWRITEBYTECODE=1 python3 regression_accepted_inputs.py
+PYTHONDONTWRITEBYTECODE=1 python3 regression_accepted_inputs_gateway.py
 PYTHONDONTWRITEBYTECODE=1 python3 regression_execution_state.py
 ```
 

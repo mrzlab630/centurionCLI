@@ -7,6 +7,8 @@ import hashlib
 import json
 import os
 import shutil
+import tempfile
+import atexit
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -17,7 +19,8 @@ import agent_result_builder as builder
 from agent_result_builder import BuilderError, build_result, resolve_schema_path
 
 
-ROOT = Path("/tmp/agent-result-builder-regression")
+ROOT = Path(tempfile.mkdtemp(prefix="agent-result-builder-regression-"))
+atexit.register(shutil.rmtree, ROOT, ignore_errors=True)
 SCHEMA = Path(__file__).resolve().parent.parent / "references" / "agent-result.schema.json"
 
 
@@ -126,6 +129,39 @@ def main() -> int:
     assert valid["status"] == "done"
     validator.validate(json.loads(valid_result.read_text(encoding="utf-8")))
     print("PASS valid candidate finalized once with canonical identity and schema")
+
+    for variant in ("valid", "product-change", "product-artifact"):
+        order_path, candidate_path, result_path, evidence_path, product_path, payload = make_case(f"astra-{variant}")
+        order = json.loads(order_path.read_text(encoding="utf-8"))
+        order.update(createdAt="2026-09-23T00:00:00Z", roleForTask="ARCHITECTUS", riskLevel="medium")
+        routing = {
+            "objectiveId": order["orderId"], "attempt": 1, "taskClass": "architecture_advisory",
+            "complexity": "high", "risk": "medium", "ambiguity": "high", "reversibility": "high",
+            "evidenceNeed": "high", "executor": "codex", "model": "gpt-6-astra",
+            "reasoningEffort": "xhigh", "executionProfile": "advisory",
+            "verificationProfile": "V2", "reviewer": "none", "confidence": "medium",
+            "reasons": ["astra advisory: material architecture ambiguity"],
+        }
+        order["notesForExecutor"] = ["AQUILA_ROUTING_JSON_V1:" + json.dumps(routing, separators=(",", ":"))]
+        write_json(order_path, order)
+        control_artifact = ROOT / ".centurion" / "agents_results" / order["orderId"] / "advice.txt"
+        control_artifact.parent.mkdir(parents=True, exist_ok=True)
+        control_artifact.write_text("read-only advice\n", encoding="utf-8")
+        payload["filesChanged"] = []
+        payload["artifacts"] = [{"path": str(control_artifact), "exists": True, "type": "advice", "note": "control artifact"}]
+        if variant == "product-change":
+            payload["filesChanged"] = [{"path": str(product_path), "action": "modified"}]
+        elif variant == "product-artifact":
+            payload["artifacts"].append({"path": str(product_path), "exists": True, "type": "product", "note": "outside control"})
+        write_json(candidate_path, payload)
+        built = build_result(order_path, candidate_path, result_path, evidence_path)
+        assert built["status"] == ("done" if variant == "valid" else "failed")
+        assert built["filesChanged"] == [], "controller evidence is not an executor file change"
+        if variant == "product-change":
+            assert any("filesChanged must be empty" in error for error in built["errors"])
+        if variant == "product-artifact":
+            assert any("control namespace" in error for error in built["errors"])
+    print("PASS Astra advisory accepts control-only advice and rejects product changes or artifacts")
 
     semantic_cases = {
         "failed-proof": lambda payload: payload["proof"][0].__setitem__("status", "fail"),

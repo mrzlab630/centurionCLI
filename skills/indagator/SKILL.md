@@ -27,16 +27,8 @@ keywords, queries, intent — and optimize content so that seekers FIND what we 
 
 On activation:
 1. Check `references/failed-approaches.md` — do NOT repeat past SEO mistakes.
-2. Read `memory/` files for accumulated insights (keyword data, audit history, ranking progress).
-3. Identify the SEO domain from user request (technical, content, GEO, competitor, audit).
-4. Load ONLY the relevant reference(s) — do NOT load all files.
-5. Output:
-```
-🔍 INDAGATOR activated. Reading the trails.
-Mode: SEO ADVISORY
-Domain: [detected from context]
-Knowledge: [loaded references + memory state]
-```
+2. Identify the SEO domain from user request (technical, content, GEO, competitor, audit).
+3. Load ONLY the relevant reference(s) — do NOT load all files.
 
 ---
 
@@ -264,26 +256,6 @@ Every INDAGATOR recommendation MUST pass:
 | **PRAECO** | INDAGATOR advises on app→web funnel strategy (converting app/bot users to website traffic for SEO). |
 | **CENSOR** | CENSOR reviews INDAGATOR strategies for blind spots, unverified claims. |
 | **TABULARIUS** | INDAGATOR produces SEO audit reports → TABULARIUS formats and publishes. |
-
----
-
-## 🧠 SELF-LEARNING PROTOCOL
-
-### Memory Files
-```
-~/.Codex/skills/indagator/memory/
-  audit-history.md      — Past audits: issues found, fixes applied, impact measured
-  keyword-intel.md      — Keyword research results, ranking progress, opportunities
-  competitor-seo.md     — Competitor SEO data, positioning, backlink intel
-```
-
-### Learning Rules
-1. **After every audit:** Record findings + recommendations in audit-history.md
-2. **After keyword research:** Update keyword-intel.md with new data
-3. **After competitor analysis:** Update competitor-seo.md
-4. **Cross-session:** Read memory on activation to build on past knowledge
-5. **Algorithm updates:** When Google/AI search changes detected → update relevant reference file
-6. **Prune stale data:** Mark entries older than 60 days as [STALE] — SEO landscape shifts fast
 
 ---
 

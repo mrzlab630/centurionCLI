@@ -20,10 +20,28 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from agent_contract_runner import PathPolicy, RunnerError, validate_order
+from agent_contract_runner import (
+    LoopStateLock,
+    LoopStateSnapshot,
+    PathPolicy,
+    RunnerError,
+    append_event as append_runner_event,
+    block_loop_state_after_dispatch_failure,
+    loop_contract,
+    loop_lock_path,
+    prepare_loop_dispatch,
+    run_verification_gate,
+    update_loop_state_after_result,
+    validate_codex_launch,
+    validate_loop_order,
+    validate_order,
+)
 from agent_artifact_namespace import ArtifactNamespaceError, require_control_path
-from agent_result_builder import BuilderError, _load_schema, build_result, resolve_schema_path, validate_candidate
+from artifact_lineage import LineageError, finalize_lineage, preflight_lineage
+from agent_result_builder import BuilderError, _load_schema, _schema_errors, build_result, create_only_finalize, resolve_schema_path, validate_candidate
 from review_ladder import RoutingError, validate_order_routing
+from response_envelope import ResponseEnvelopeError, parse_response_bytes, response_state_errors
+from accepted_inputs import AcceptedInputError, verify_input_results
 from strict_json import StrictJSONError, strict_json_load_bytes
 
 
@@ -293,12 +311,16 @@ def preflight_outputs(
     events_path: Path | None,
     stdout_path: Path | None,
     stderr_path: Path | None,
+    acceptance_path: Path | None = None,
+    proof_path: Path | None = None,
 ) -> None:
     create_only = {
         "result": result_path,
         "candidate": candidate_path,
         "start receipt": start_receipt_path,
         "closure": closure_path,
+        "controller acceptance": acceptance_path,
+        "controller proof": proof_path,
         "stdout": stdout_path,
         "stderr": stderr_path,
     }
@@ -663,15 +685,21 @@ def candidate_record(path: Path) -> tuple[dict[str, Any], bytes | None]:
 
 def parse_strict_candidate(content: bytes, label: str) -> tuple[Any, list[str]]:
     try:
-        return strict_json_load_bytes(content, label), []
-    except StrictJSONError as exc:
+        return parse_response_bytes(content, label).value, []
+    except (ResponseEnvelopeError, StrictJSONError) as exc:
         return None, [str(exc)]
 
 
 def parse_claude_transport(content: bytes) -> tuple[Any, list[str]]:
+    # A provider may return the complete canonical response in one clean JSON
+    # fence.  Try the shared envelope parser before interpreting Claude's
+    # structured event stream so the same boundary semantics apply to both.
     try:
-        return strict_json_load_bytes(content, "stdout candidate"), []
-    except StrictJSONError as document_error:
+        parsed = parse_response_bytes(content, "stdout candidate")
+        if parsed.transport == "json_fence" and not (isinstance(parsed.value, dict) and "resultVersion" in parsed.value):
+            return None, ["RESPONSE_FORMAT_ERROR: a fenced stdout document must be a canonical result"]
+        return parsed.value, []
+    except ResponseEnvelopeError as document_error:
         try:
             text = content.decode("utf-8")
         except UnicodeDecodeError:
@@ -684,9 +712,9 @@ def parse_claude_transport(content: bytes) -> tuple[Any, list[str]]:
             if not line.strip():
                 return None, [f"stdout JSONL line {line_number} is empty"]
             try:
-                event = strict_json_load_bytes(line.encode("utf-8"), f"stdout JSONL line {line_number}")
-            except StrictJSONError as line_error:
-                return None, [str(line_error)]
+                event = parse_response_bytes(line.encode("utf-8"), f"stdout JSONL line {line_number}", allowed_transports=["raw_json"]).value
+            except ResponseEnvelopeError as line_error:
+                return None, [str(document_error), str(line_error)]
             events.append(event)
         return events, []
 
@@ -729,6 +757,9 @@ def extract_stdout_candidate(
     transport, parse_errors = parse_claude_transport(content)
     if parse_errors:
         return None, parse_errors
+    state_errors = response_state_errors(transport)
+    if state_errors:
+        return None, state_errors
     try:
         _, validator = _load_schema(resolve_schema_path(schema_path))
     except BuilderError as exc:
@@ -779,7 +810,11 @@ def extract_stdout_candidate(
         transport_errors.append("Claude terminal result must be a non-empty JSON string")
         inner_bytes = None
     else:
-        inner_bytes = inner.encode("utf-8")
+        try:
+            inner_bytes = inner.encode("utf-8")
+        except UnicodeEncodeError as exc:
+            transport_errors.append(f"Claude terminal result is not valid UTF-8: {exc}")
+            inner_bytes = None
     if transport_errors or inner_bytes is None:
         return None, sorted(set(transport_errors))
 
@@ -800,7 +835,6 @@ def synthetic_failed_result(
     evidence_path: Path | None = None,
 ) -> dict[str, Any]:
     if evidence_path is not None:
-        files_changed = [{"path": str(evidence_path), "action": "added"}]
         artifacts = [
             {
                 "path": str(evidence_path),
@@ -810,7 +844,6 @@ def synthetic_failed_result(
             }
         ]
     else:
-        files_changed = []
         artifacts = [
             {
                 "path": candidate["path"],
@@ -819,13 +852,13 @@ def synthetic_failed_result(
                 "note": f"Controller-observed candidate sha256:{candidate.get('sha256') or 'unavailable'}",
             }
         ]
-    return {
+    payload = {
         "resultVersion": RESULT_VERSION,
         "orderId": order["orderId"],
         "executor": order["executor"],
         "status": "failed",
         "summary": "Result Gateway closed the executor attempt without an acceptable candidate result.",
-        "filesChanged": files_changed,
+        "filesChanged": [],
         "artifacts": artifacts,
         "proof": [
             {
@@ -845,6 +878,16 @@ def synthetic_failed_result(
         "stdoutSummary": next((f"capturedBytes={record['bytes']}" for label, record in stream_records if label == "stdout"), ""),
         "stderrSummary": next((f"capturedBytes={record['bytes']}" for label, record in stream_records if label == "stderr"), ""),
     }
+    expected = order["outputContract"].get("handoff")
+    if expected is not None:
+        payload["handoff"] = expected
+    for artifact in artifacts:
+        if artifact["exists"]:
+            path = Path(artifact["path"])
+            if path.is_file() and not path.is_symlink():
+                artifact["sha256"] = sha256_bytes(path.read_bytes())
+                artifact["mediaType"] = "application/octet-stream"
+    return payload
 
 
 def finalize_synthetic(
@@ -857,24 +900,17 @@ def finalize_synthetic(
 ) -> dict[str, Any]:
     if not result_path.parent.is_dir():
         raise GatewayError(f"result parent does not exist: {result_path.parent}")
-    fd, name = tempfile.mkstemp(prefix=".gateway-failure.", suffix=".json", dir=result_path.parent)
-    candidate_path = Path(name)
     try:
-        encoded = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
-        os.fchmod(fd, 0o600)
-        offset = 0
-        while offset < len(encoded):
-            offset += os.write(fd, encoded[offset:])
-        os.fsync(fd)
-        os.close(fd)
-        fd = -1
-        return build_result(order_path, candidate_path, result_path, evidence_dir, schema_path)
+        _, validator = _load_schema(resolve_schema_path(schema_path))
+        errors = _schema_errors(validator, payload)
+        if errors:
+            raise BuilderError("internal failed-result schema error: " + "; ".join(errors))
+        # This is a controller failure statement. Its evidence is bound in the
+        # closure; do not mislabel a synthetic payload as executor response bytes.
+        create_only_finalize(result_path, payload)
+        return payload
     except (BuilderError, OSError) as exc:
         raise GatewayError(str(exc)) from exc
-    finally:
-        if fd >= 0:
-            os.close(fd)
-        candidate_path.unlink(missing_ok=True)
 
 
 def finalize_candidate(
@@ -1006,8 +1042,12 @@ def main() -> int:
     result_path: Path | None = None
     start_receipt_path: Path | None = None
     closure_path: Path | None = None
+    acceptance_path: Path | None = None
+    proof_path: Path | None = None
     events_path: Path | None = None
     child_started = False
+    loop_lock: LoopStateLock | None = None
+    loop_snapshot: LoopStateSnapshot | None = None
     try:
         if not math.isfinite(args.termination_grace_seconds) or args.termination_grace_seconds <= 0:
             raise GatewayError("--termination-grace-seconds must be a finite positive number")
@@ -1016,6 +1056,10 @@ def main() -> int:
             _, policy = validate_order(order)
         except RunnerError as exc:
             raise GatewayError(f"order validation failed: {exc}") from exc
+        try:
+            verify_input_results(order, policy.repo_path)
+        except AcceptedInputError as exc:
+            raise GatewayError(f"accepted input verification failed before launch: {exc}") from exc
         routing, routing_sha256 = routing_binding(order)
         if args.candidate_source == "stdout" and order["executor"] != "claude":
             raise GatewayError("--candidate-source stdout is supported only for claude executors")
@@ -1030,6 +1074,39 @@ def main() -> int:
             stdout_path,
             stderr_path,
         ) = parse_order_paths(order, policy, args.candidate, args.start_receipt, args.closure, args.evidence_dir, args.events)
+        acceptance_path = require_control_path(
+            policy.control_namespace / "controller-acceptance.json", policy.control_namespace, "controller acceptance"
+        )
+        proof_path = require_control_path(
+            policy.control_namespace / "controller-proof.json", policy.control_namespace, "controller proof"
+        )
+        try:
+            lineage_config = preflight_lineage(order, policy.repo_path)
+        except LineageError as exc:
+            raise GatewayError(f"lineage preflight failed: {exc}") from exc
+        if lineage_config is not None:
+            if loop_contract(order) is not None:
+                raise GatewayError("lineage orders cannot use Loop V1 until its final acceptance path is integrated")
+            if not any(isinstance(proof, dict) and proof.get("required") is True for proof in order["proofCommands"]):
+                raise GatewayError("lineage requires at least one required controller proof command")
+            for path in (*lineage_config["artifactPaths"], *lineage_config["deletedPaths"]):
+                policy.order_path(path, "order.lineage product path")
+            for name in ("lineage-manifest.json", "lineage-anchor.json"):
+                target = policy.control_namespace / name
+                if target.exists() or target.is_symlink():
+                    raise GatewayError(f"lineage output already exists before launch: {target}")
+        if len({path for path in (result_path, candidate_path, start_receipt_path, closure_path, evidence_dir, events_path, stdout_path, stderr_path, proof_path, acceptance_path) if path is not None}) != len([path for path in (result_path, candidate_path, start_receipt_path, closure_path, evidence_dir, events_path, stdout_path, stderr_path, proof_path, acceptance_path) if path is not None]):
+            raise GatewayError("controller proof and acceptance paths must be distinct from gateway outputs")
+        if evidence_dir in acceptance_path.parents or evidence_dir in proof_path.parents:
+            raise GatewayError("controller proof and acceptance paths must be outside evidence directory")
+        if routing is not None and routing["executionProfile"] == "advisory":
+            advisory_paths = validate_codex_launch(
+                order["launch"]["command"], routing["model"], routing["reasoningEffort"], advisory=True
+            )
+            assert advisory_paths is not None
+            output_path, _ = advisory_paths
+            if policy.control_path(output_path, "Astra advisory --output-last-message") != candidate_path:
+                raise GatewayError("Astra advisory output-last-message must match gateway candidate path")
         argv = plan_command(order)
         try:
             _load_schema(resolve_schema_path(args.schema))
@@ -1044,7 +1121,17 @@ def main() -> int:
             events_path,
             stdout_path,
             stderr_path,
+            acceptance_path,
+            proof_path,
         )
+        if loop_contract(order) is not None:
+            if events_path is None:
+                raise GatewayError("--events is required for Loop V1 gateway dispatch")
+            state_path = validate_loop_order(order, policy)
+            loop_lock = LoopStateLock(loop_lock_path(state_path)).acquire()
+            append_runner_event(events_path, "aquila_loop_state_lock_acquired", orderId=order["orderId"], statePath=str(state_path), lockPath=str(loop_lock.path))
+            prepare_loop_dispatch(order, policy)
+            append_runner_event(events_path, "aquila_loop_dispatch_preflight_passed", orderId=order["orderId"], phase=order["loopContract"]["phase"])
         run_id = secrets.token_hex(32)
         gateway_started_at = utc_now()
         order_sha256 = sha256_bytes(order_bytes)
@@ -1155,7 +1242,9 @@ def main() -> int:
             routing,
             routing_sha256,
         )
-        atomic_create(closure_path, (json.dumps(closure, indent=2, sort_keys=True) + "\n").encode("utf-8"))
+        closure_bytes = (json.dumps(closure, indent=2, sort_keys=True) + "\n").encode("utf-8")
+        closure_sha256 = sha256_bytes(closure_bytes)
+        atomic_create(closure_path, closure_bytes)
         append_event_best_effort(
             events_path,
             "canonical_finalized",
@@ -1167,13 +1256,145 @@ def main() -> int:
             runId=run_id,
             startReceiptSha256=start_receipt_sha256,
         )
-        print(json.dumps({"status": "closed", "resultStatus": result["status"], "path": str(result_path)}, sort_keys=True))
+        verification: dict[str, Any] = {}
+        rejection_reason: str | None = None
+        if child["timedOut"]:
+            rejection_reason = "executor timed out"
+        elif controller_errors:
+            rejection_reason = "; ".join(controller_errors)
+        elif child["exitCode"] not in (0, None):
+            rejection_reason = f"executor exit code {child['exitCode']}"
+        elif result["status"] != "done":
+            rejection_reason = f"executor result status {result['status']}"
+        else:
+            try:
+                run_verification_gate(
+                    order, result_path, events_path, policy, "verification_passed", verification,
+                    event_sink=append_event_best_effort,
+                )
+                if verification["resultSha256"] != closure["canonicalResultSha256"]:
+                    raise RunnerError("canonical result changed after Gateway closure")
+                if sha256_bytes(args.order.read_bytes()) != order_sha256:
+                    raise RunnerError("order bytes changed after Gateway launch")
+                if sha256_bytes(start_receipt_path.read_bytes()) != start_receipt_sha256:
+                    raise RunnerError("start receipt changed after Gateway launch")
+                if sha256_bytes(closure_path.read_bytes()) != closure_sha256:
+                    raise RunnerError("closure receipt changed after Gateway finalization")
+            except (RunnerError, RoutingError) as exc:
+                rejection_reason = str(exc)
+        proof_receipt = {
+            "version": "AQUILA_CONTROLLER_VERIFICATION_V1",
+            "orderId": order["orderId"],
+            "runId": run_id,
+            "orderSha256": order_sha256,
+            "startReceiptSha256": start_receipt_sha256,
+            "closureSha256": closure_sha256,
+            "canonicalResultSha256": closure["canonicalResultSha256"],
+            "status": "rejected" if rejection_reason is not None else "passed",
+            "scope": "post_execution_proof",
+            "reason": rejection_reason,
+            "observedChecks": verification,
+            "completedAt": utc_now(),
+        }
+        proof_bytes = (json.dumps(proof_receipt, indent=2, sort_keys=True) + "\n").encode("utf-8")
+        proof_sha256 = sha256_bytes(proof_bytes)
+        atomic_create(proof_path, proof_bytes)
+        lineage_result = None
+        if rejection_reason is None and lineage_config is not None:
+            try:
+                lineage_result = finalize_lineage(
+                    order, policy.repo_path, args.order, result_path,
+                    {"start": start_receipt_path, "closure": closure_path, "acceptance": proof_path},
+                )
+            except (LineageError, OSError) as exc:
+                rejection_reason = f"lineage finalization failed: {exc}"
+        if rejection_reason is None and loop_lock is not None:
+            try:
+                assert events_path is not None
+                loop_snapshot = LoopStateSnapshot(state_path)
+                update_loop_state_after_result(order, policy, result, result_path, events_path)
+            except RunnerError as exc:
+                if loop_snapshot is not None:
+                    loop_snapshot.rollback()
+                    loop_snapshot = None
+                rejection_reason = str(exc)
+        if rejection_reason is not None and loop_lock is not None and child_started:
+            assert events_path is not None
+            try:
+                block_loop_state_after_dispatch_failure(order, policy, events_path, RunnerError(rejection_reason))
+            except RunnerError as exc:
+                rejection_reason += f"; loop state block failed: {exc}"
+        if rejection_reason is None:
+            try:
+                verification["inputResults"] = verify_input_results(order, policy.repo_path)
+                if sha256_bytes(args.order.read_bytes()) != order_sha256:
+                    raise GatewayError("order changed before terminal acceptance")
+                if sha256_bytes(start_receipt_path.read_bytes()) != start_receipt_sha256:
+                    raise GatewayError("start receipt changed before terminal acceptance")
+                if sha256_bytes(closure_path.read_bytes()) != closure_sha256:
+                    raise GatewayError("closure receipt changed before terminal acceptance")
+                if sha256_bytes(result_path.read_bytes()) != closure["canonicalResultSha256"]:
+                    raise GatewayError("result changed before terminal acceptance")
+                if sha256_bytes(proof_path.read_bytes()) != proof_sha256:
+                    raise GatewayError("proof receipt changed before terminal acceptance")
+            except (GatewayError, OSError, AcceptedInputError) as exc:
+                rejection_reason = str(exc)
+                if loop_snapshot is not None:
+                    loop_snapshot.rollback()
+                    loop_snapshot = None
+                if loop_lock is not None and child_started:
+                    assert events_path is not None
+                    block_loop_state_after_dispatch_failure(order, policy, events_path, RunnerError(rejection_reason))
+        terminal_acceptance = {
+            "version": "AQUILA_CONTROLLER_ACCEPTANCE_V1",
+            "orderId": order["orderId"],
+            "runId": run_id,
+            "orderSha256": order_sha256,
+            "startReceiptSha256": start_receipt_sha256,
+            "closureSha256": closure_sha256,
+            "canonicalResultSha256": closure["canonicalResultSha256"],
+            "proofReceiptSha256": proof_sha256,
+            "lineageAnchorSha256": lineage_result["anchorSha256"] if lineage_result is not None else None,
+            "status": "rejected" if rejection_reason is not None else "passed",
+            "reason": rejection_reason,
+            "completedAt": utc_now(),
+        }
+        try:
+            atomic_create(acceptance_path, (json.dumps(terminal_acceptance, indent=2, sort_keys=True) + "\n").encode("utf-8"))
+        except (GatewayError, OSError, AcceptedInputError):
+            if loop_snapshot is not None:
+                loop_snapshot.rollback()
+                loop_snapshot = None
+                if child_started:
+                    assert events_path is not None
+                    block_loop_state_after_dispatch_failure(order, policy, events_path, RunnerError("terminal acceptance write failed"))
+            raise
+        if loop_snapshot is not None:
+            loop_snapshot.discard()
+            loop_snapshot = None
+        append_event_best_effort(
+            events_path,
+            "controller_verification_closed",
+            orderId=order["orderId"],
+            status="rejected" if rejection_reason is not None else "passed",
+            reason=rejection_reason,
+            acceptancePath=str(acceptance_path),
+            lineage=lineage_result,
+        )
+        print(json.dumps({"status": "closed", "resultStatus": result["status"], "controllerVerification": "rejected" if rejection_reason is not None else "passed", "lineage": lineage_result, "path": str(result_path)}, sort_keys=True))
         if child["timedOut"]:
             return 124
         if controller_errors or child["exitCode"] not in (0, None):
             return 1
-        return 0 if result["status"] == "done" else 2
-    except (GatewayError, OSError) as exc:
+        if rejection_reason is not None:
+            return 1 if result["status"] == "done" else 2
+        return 0
+    except (GatewayError, RunnerError, RoutingError, LineageError, AcceptedInputError, OSError) as exc:
+        if child_started and loop_lock is not None and order is not None and events_path is not None and "policy" in locals():
+            try:
+                block_loop_state_after_dispatch_failure(order, policy, events_path, RunnerError(str(exc)))
+            except RunnerError:
+                pass
         try:
             append_event(
                 events_path,
@@ -1187,6 +1408,9 @@ def main() -> int:
             pass
         print(f"error: {exc}", file=sys.stderr)
         return 1
+    finally:
+        if loop_lock is not None:
+            loop_lock.release()
 
 
 if __name__ == "__main__":

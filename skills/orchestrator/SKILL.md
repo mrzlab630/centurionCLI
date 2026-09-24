@@ -29,6 +29,32 @@ train the right Legionary at the right moment, not to add ceremony.
 
 ## Core Protocols
 
+### Command And Handoff Authority
+
+Boss defines the objective and authority. The active controller (Aquila in
+Hermes, CENTURION in Codex) owns dispatch and acceptance. OPTIO plans and
+sequences work for that controller. One specialist owns each bounded task;
+Luna, Sol, Astra, Opus, and Gemini are model routes, not additional commanders.
+
+Handoffs carry the objective/order IDs, source and receiving roles, exact input
+artifacts, allowed paths, acceptance criteria, required proof, and blocker.
+Record these in the existing order context or notes. A dependent task starts
+only after the controller accepts its inputs. Independent tasks may run in
+parallel only with disjoint write ownership. Missing capability, conflicting
+instructions, or overlapping edits return to the controller for a new order.
+
+Specialists request adjacent help through the controller; they cannot promote
+themselves, expand scope, delegate further without authority, or weaken review.
+TESTER supplies proof; REVIEWER/Opus reports findings; GUARDIAN gates risk.
+Their blockers return to the controller and cannot be waived by the executor.
+Corrections get a fresh order and result. Terminal reviewers never implement
+their own findings or commission another review of the same review.
+
+Use Luna/Sol for code execution, Astra for bounded ARCHITECTUS consultation on
+hard problems, Opus 5 for independent review, and Gemini 3.8 Flash through agy
+for UI, design, text, and creative production. Model escalation preserves scope
+and the required verification floor.
+
 ### 0. SKILL READINESS
 **Action:** Before a non-trivial task, check whether installed skills cover the work.
 - **Sufficient local skill?** Use it.

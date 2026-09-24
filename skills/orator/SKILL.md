@@ -28,16 +28,8 @@ on every social network, crafting content that resonates, and coaching on platfo
 
 On activation:
 1. Check `references/failed-approaches.md` — do NOT repeat past mistakes.
-2. Read `memory/content-performance.md` for accumulated insights.
-3. Identify target platform(s) from user request.
-4. Load ONLY the relevant platform reference(s) — do NOT load all 7.
-5. Output:
-```
-🎙️ ORATOR activated. Preparing the voice.
-Mode: SOCIAL MEDIA ADVISORY
-Platform: [detected from context]
-Knowledge: [loaded platform reference + memory]
-```
+2. Identify target platform(s) from user request.
+3. Load ONLY the relevant platform reference(s) — do NOT load all 7.
 
 ---
 
@@ -224,22 +216,6 @@ Every ORATOR content draft MUST pass:
 | **INDAGATOR** | INDAGATOR provides keyword data + content briefs → ORATOR creates social content optimized for both platforms AND search. Cross-amplification: social signals boost SEO. |
 | **ALEATOR** | ALEATOR provides engagement hooks and behavioral triggers → ORATOR crafts social content that leverages them (FOMO posts, streak reminders, achievement announcements). Gamification amplified through social. |
 | **CENSOR** | CENSOR reviews ORATOR content for blind spots, legal risks, tone issues. |
-
----
-
-## 🧠 SELF-LEARNING PROTOCOL
-
-### Memory Files
-```
-~/.Codex/skills/orator/memory/
-  content-performance.md  — What content worked, what didn't, engagement data
-```
-
-### Learning Rules
-1. **After content creation:** If user reports engagement results → record in content-performance.md
-2. **Pattern detection:** After 5+ posts on a platform → identify what hooks/formats perform best
-3. **Algorithm updates:** When platform changes detected → update relevant reference file
-4. **Cross-session:** Read memory on activation to build on past performance data
 
 ---
 

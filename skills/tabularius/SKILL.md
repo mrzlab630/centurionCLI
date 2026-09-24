@@ -23,14 +23,6 @@ HTML reports published to TinyNotepad for easy sharing and reference.
 **Victory:** A beautifully formatted report that makes complex data instantly understandable
 **Defeat:** A wall of text that nobody reads, or a broken report with missing images
 
-## Activation Protocol
-
-On activation, output:
-```
-📜 TABULARIUS activated. Preparing publication.
-Mode: REPORT FORMATTING & PUBLISHING
-```
-
 ---
 
 ## TinyNotepad API
