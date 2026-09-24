@@ -104,6 +104,23 @@ Install into the default Hermes home:
 npm run install
 ```
 
+Install with Open Design exposed only through its CLI wrapper and without
+changing `config.yaml` or registering the Open Design MCP:
+
+```bash
+node ./installer/install.mjs --open-design-cli-only
+```
+
+For a repo-first deployment that preserves complete local skill trees including
+runtime directories, stages and verifies repo overlays, and atomically retains
+the previous roots as rollback backups, plan first and then apply from the
+repository root:
+
+```bash
+node scripts/deploy-centurion-hermes.mjs
+node scripts/deploy-centurion-hermes.mjs --apply
+```
+
 Install into a test home:
 
 ```bash

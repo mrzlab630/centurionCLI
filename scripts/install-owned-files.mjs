@@ -50,7 +50,7 @@ function expectedMode(source, kind) {
 }
 
 function isGenerated(name) {
-  return name === '__pycache__' || name.endsWith('.pyc');
+  return name === '__pycache__' || name === 'node_modules' || name.endsWith('.pyc');
 }
 
 function inspectTree(root, source = false) {

@@ -80,10 +80,10 @@ hours. The result reports the removal counts as `staleStagingRemoved` and
 ## Setup
 
 The security-hardened storage layer currently requires Linux with a mounted
-`/proc/self/fd` and GNU coreutils `mv` supporting `--no-copy` plus
-`--update=none-fail`. Publication passes opened directory descriptors to that
-command, which uses Linux `renameat2(RENAME_NOREPLACE)` for atomic no-clobber
-promotion. Previous-result reads, reference reads, materialization, cleanup,
+`/proc/self/fd`, Python 3, and libc support for
+`renameat2(RENAME_NOREPLACE)`. Publication passes opened directory descriptors
+to the bundled bounded helper for atomic no-clobber promotion without depending
+on a particular GNU coreutils version. Previous-result reads, reference reads, materialization, cleanup,
 job receipts, and TTL removal are anchored to opened directory descriptors with
 `O_NOFOLLOW`. If that platform contract is absent, the bridge fails closed
 instead of falling back to path-only containment checks.

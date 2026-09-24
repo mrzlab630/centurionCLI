@@ -56,8 +56,11 @@ def fail(message):
 
 try:
     from jsonschema import Draft202012Validator
-except ImportError as exc:
-    fail(f"jsonschema prerequisite is unavailable: {exc}")
+except ImportError:
+    try:
+        from jsonschema import Draft7Validator as Draft202012Validator
+    except ImportError as exc:
+        fail(f"jsonschema prerequisite is unavailable: {exc}")
 
 
 def strict_json_loads(text, label):

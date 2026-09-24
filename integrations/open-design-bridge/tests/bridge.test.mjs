@@ -11,7 +11,7 @@ import { runDesignRequest } from '../lib/bridge.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const mockOd = path.join(here, 'fixtures', 'mock-od.mjs');
-const browserPath = ['/home/mrz/.local/bin/google-chrome', '/usr/bin/google-chrome', '/usr/bin/chromium']
+const browserPath = ['/home/mrz/.local/bin/google-chrome', '/usr/bin/google-chrome', '/usr/bin/chromium', '/snap/bin/chromium']
   .find((candidate) => fs.existsSync(candidate));
 
 test('create returns absolute artifact path and deterministic proof', async () => {
@@ -126,7 +126,8 @@ test('previous result read fails closed if its parent is replaced after it is op
 });
 
 test('browser proof returns an absolute full-page PNG', { skip: !browserPath }, async () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-od-browser-'));
+  const tempBase = browserPath?.startsWith('/snap/') ? os.homedir() : os.tmpdir();
+  const root = fs.mkdtempSync(path.join(tempBase, 'centurion-od-browser-'));
   try {
     const result = await runDesignRequest({
       requestVersion: 'CENTURION_OD_REQUEST_V1',

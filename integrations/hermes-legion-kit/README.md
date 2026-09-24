@@ -85,6 +85,14 @@ node ./installer/install.mjs --include-overrides
 
 `--include-overrides` still does not edit `SOUL.md`. The installer changes only the named `centurion-open-design` MCP entry in `config.yaml`; other config and MCP entries remain intact. The reviewed SOUL notes are `overrides/SOUL_RUNTIME_MODEL_RULE.md` and `overrides/SOUL_CLAUDE_ROLE_RULE.md`; both remain manual and reviewable, and neither is applied automatically by the installer.
 
+`--open-design-cli-only` installs the shared Open Design skill and CLI wrapper
+without writing the bridge descriptor, registering its MCP, or changing
+`config.yaml`.
+The repository-level `scripts/deploy-centurion-hermes.mjs` stages complete live
+skill roots, applies repo-wins only inside staging, verifies incoming and
+local-only hashes including runtime directories, and atomically retains each
+previous root as a rollback backup.
+
 Owned skill, bundle, runtime, bridge-config, and optional override targets are
 staged before replacement. If Hermes MCP registration fails, the installer
 restores those targets and the previous `config.yaml` bytes and modes.
