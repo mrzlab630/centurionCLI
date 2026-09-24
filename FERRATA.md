@@ -23,7 +23,7 @@ Every finding goes through the **Probatio** cycle:
 ```bash
 python3 skills/velites/scripts/recon.py example.com
 ```
-**Output:** JSON map of ports, tech stack, and hidden files.
+**Output:** JSON report with the resolved IP, checked common ports, and HTTP headers or request error.
 
 ### 2. 🔮 HARUSPEX (The Analyst)
 **Role:** Static Analysis (SAST)

@@ -1,51 +1,47 @@
 ---
-description: Model routing and behavior rules for Antigravity agents using Gemini Pro, Gemini Flash, and Opus.
+description: Model routing and behavior rules for Gemini 3.8 Flash and the CENTURION executor, advisor, and reviewer routes.
 ---
 
 # Antigravity Model Routing
 
-Use the smallest model that can complete the work without losing correctness.
+The controller selects the model for the bounded specialty. Models do not
+change ownership, scope, or acceptance authority.
 
-## Gemini Pro 3.1
+## GPT-6 Luna And Sol
 
-Use for:
+Luna handles clear bounded implementation; Sol handles uncertain, complex,
+or consequential code and diagnosis. Return those tasks to the controller for
+a Codex order. A Gemini session cannot silently change the model or assume
+another executor's authority.
 
-- architecture and phase planning
-- ambiguous requirements
-- cross-module reasoning
-- database/API contract decisions
-- security-sensitive design
-- large refactors where mistakes are expensive
+## GPT-6 Astra
 
-Behavior:
+Request ARCHITECTUS consultation for architecture ambiguity, cross-system
+tradeoffs, or hard diagnosis. Advice is read-only and returns to the controller;
+Luna/Sol implement the accepted decision and Opus independently reviews it.
 
-- read local context before proposing changes
-- identify assumptions and validation gates
-- produce a concrete implementation path, not generic advice
-
-## Gemini 3.7 Flash
+## Gemini 3.8 Flash
 
 Use for:
 
-- fast repository search and summarization
-- simple edits
-- test failure triage when the failure is local and obvious
-- documentation cleanup
-- command/result summarization
+- UI and frontend production under PICTOR
+- design alternatives and visual review under AEDILIS
+- UX copy, localization, social text, and creative drafts under the matching owner
+- bounded documentation and content production
 
 Behavior:
 
-- be concise
-- avoid broad architecture changes
-- escalate to Pro/Opus when uncertainty or blast radius grows
+- pin `--model gemini-3.8-flash` and `--effort low|medium|high`
+- keep the assigned role, exact files, AGY guard, and owner-side proof
+- return uncertainty and findings to the controller for routing
 
-## Opus 4.6
+## Claude Opus 5
 
 Use for:
 
 - adversarial review and WAR ROOM analysis
 - security review
-- hard debugging
+- independent diagnosis of executor failures
 - complex UI critique
 - final pre-merge review of risky changes
 
@@ -54,10 +50,12 @@ Behavior:
 - challenge assumptions
 - look for hidden regressions, missing tests, data-contract mismatch, and runtime ownership issues
 - prioritize findings with file/line evidence
+- return required fixes to the controller for a fresh Luna/Sol order
+- never implement findings while serving as terminal reviewer
 
 ## Default Escalation
 
-Escalate from Flash to Pro/Opus when:
+Return to the controller for Sol, Astra consultation, or Opus review when:
 
 - more than one package/app boundary is touched
 - auth, payments, wallet, delivery, admin, database, or runtime ownership is involved

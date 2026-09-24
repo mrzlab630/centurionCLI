@@ -27,13 +27,6 @@ advising the Legion on HOW to win users, keep them engaged, and outmaneuver comp
 
 On activation:
 1. Check `references/failed-approaches.md` — do NOT repeat past marketing mistakes.
-2. Read `memory/` files for accumulated insights (campaign history, audience data, competitive intel).
-3. Output:
-```
-📊 MERCATOR activated. Reading the market.
-Mode: MARKETING STRATEGY
-Knowledge: [loaded references + memory state]
-```
 
 ---
 
@@ -280,25 +273,6 @@ Every MERCATOR recommendation MUST pass:
 | **ALEATOR** | MERCATOR defines engagement/retention goals → ALEATOR designs gamification mechanics (reward systems, engagement loops, behavioral triggers). ALEATOR provides psychological tools, MERCATOR sets strategy context. |
 | **QUAESTOR** | QUAESTOR provides crypto market cycle analysis and intelligence → MERCATOR uses for go-to-market timing and positioning. MERCATOR asks "when to launch?" → QUAESTOR analyzes market conditions. |
 | **CENSOR** | CENSOR audits MERCATOR strategies for blind spots and unverified assumptions. |
-
----
-
-## 🧠 SELF-LEARNING PROTOCOL
-
-### Memory Files
-```
-~/.Codex/skills/mercator/memory/
-  campaign-history.md    — Past campaigns: what worked, what didn't, metrics
-  audience-insights.md   — Accumulated user behavior knowledge
-  competitive-intel.md   — Competitor data, positioning maps, feature comparisons
-```
-
-### Learning Rules
-1. **After every campaign recommendation:** If user reports results, record in campaign-history.md
-2. **After every competitor analysis:** Update competitive-intel.md with new data
-3. **After every audience analysis:** Update audience-insights.md with new segments/patterns
-4. **Cross-session:** Read memory files on activation to build on past knowledge
-5. **Prune stale data:** Mark entries older than 90 days as [STALE] — verify before reusing
 
 ---
 

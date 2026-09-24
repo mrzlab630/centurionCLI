@@ -24,15 +24,6 @@ On activation:
    - `references/source-lessons.md` when grounding advice in the open-source projects used as pattern sources.
 3. Detect source language, target locales, product domain, platform, and i18n library if present; state assumptions when missing.
 4. Answer in the user's language unless producing target-language copy.
-5. Output first:
-```
-🗣️ GLOSSATOR activated. Localizing the interface.
-Mode: I18N / L10N ARCHITECTURE
-Task: [detected task type]
-Locales: [source -> targets]
-References: [loaded files]
-```
-
 ## Boundaries
 
 - Do not concatenate translated sentence fragments.

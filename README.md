@@ -5,7 +5,7 @@
 <img src="logo/logo_vexillum.jpg" alt="CENTURION Vexillum" width="300">
 
 ![Name](https://img.shields.io/badge/⚔️-CENTURION-gold)
-![Version](https://img.shields.io/badge/version-COHORS%20SECUNDA%20v2.5-blue)
+![Version](https://img.shields.io/badge/version-COHORS%20SECUNDA%20v2.6-blue)
 ![Legionaries](https://img.shields.io/badge/legionaries-37-red)
 ![MCP](https://img.shields.io/badge/MCP%20servers-6-green)
 ![Status](https://img.shields.io/badge/status-BATTLE%20TESTED-green)
@@ -22,7 +22,7 @@
 
 CENTURION turns a coding agent into a disciplined Roman Legion of specialized
 skills. Each Legionary has a role, activation rules, tools, and proof standards.
-Cohors Secunda v2.5 keeps one canonical active Legion skill surface in
+Cohors Secunda v2.6 keeps one canonical active Legion skill surface in
 `~/.agents/skills` and leaves Codex system skills in `~/.codex/skills/.system` to
 avoid duplicate skill names and context bloat. It also records the current
 sanitized local tooling baseline for Hermes, Codex, Claude Code, and
@@ -40,7 +40,7 @@ Antigravity/`agy` without copying secret-bearing home configs into the repo.
 - **Antigravity Legion Kit** — portable Google Antigravity IDE and `agy` CLI integration under `integrations/antigravity-legion-kit`.
 - **Claude Legion Kit** — native Claude Code plugin, 37 subagents, and `CLAUDE_ORDER v1` guard under `integrations/claude-legion-kit`.
 - **Codex Legion Kit** — Codex CLI surface audit and canonical skill sync under `integrations/codex-legion-kit`.
-- **Hermes Legion Kit** — five Aquila skills, the SOLARIUS Solana program engineering skill, the shared Open Design capability, and lean Hermes bundles under `integrations/hermes-legion-kit`.
+- **Hermes Legion Kit** — six Aquila skills, the SOLARIUS Solana program engineering skill, the shared Open Design capability, and lean Hermes bundles under `integrations/hermes-legion-kit`.
 - **Sanitized local tooling baseline** — current Hermes, Codex, Claude, Antigravity/`agy`, and toolchain settings under `docs/LOCAL_TOOLING_BASELINE.md` and `docs/settings-snapshots/`.
 - **Shared Legion JSON contracts** — bounded order/result/review validation under `integrations/legion-contracts`.
 - **Open Design production fabric** — curated reference search, proof-first create/revise, async MCP jobs, verified HTML, Chrome screenshots, and cross-client continuation under `integrations/open-design-bridge`.
@@ -174,7 +174,7 @@ See [docs/CLAUDE_LEGION_KIT.md](docs/CLAUDE_LEGION_KIT.md) for local audit findi
 
 ## Hermes Integration
 
-`integrations/hermes-legion-kit` preserves the Hermes/Aquila Team Lead additions. It contains five Aquila skills, the SOLARIUS `solana-program-engineering` skill, the shared Open Design capability, its local stdio MCP, four lean skill bundles, an installer, and an offline smoke check. SOLARIUS remains Aquila-routed and never self-approves implementation, audit findings, or release readiness. The kit does not edit `SOUL.md`, enable plugins, alter unrelated MCP servers, or import ECC runtime code.
+`integrations/hermes-legion-kit` preserves the Hermes/Aquila Team Lead additions. It contains six Aquila skills, the SOLARIUS `solana-program-engineering` skill, the shared Open Design capability, its local stdio MCP, four lean skill bundles, an installer, and an offline smoke check. SOLARIUS remains Aquila-routed and never self-approves implementation, audit findings, or release readiness. The kit does not edit `SOUL.md`, enable plugins, alter unrelated MCP servers, or import ECC runtime code.
 
 Start here:
 
@@ -237,11 +237,11 @@ machine-readable sanitized snapshot is
 
 ## Legion JSON Contracts
 
-`integrations/legion-contracts` provides shared `LEGION_ORDER_V1`, `LEGION_RESULT_V1`, and `LEGION_REVIEW_V1` validators for bounded delegation between Codex, `agy`, Claude, and future executors.
+`integrations/legion-contracts` validates shared `LEGION_ORDER_V1` and `LEGION_REVIEW_V1` artifacts, plus `AGENT_RESULT_JSON_V1` executor results. Its `LEGION_RESULT_V1` validator remains available for the older neutral result format. Hermes validates its `AGENT_ORDER_JSON_V1` orders in the separate agent-contract-runner.
 
 Use JSON only for orders, results, and review artifacts that a controller can validate mechanically. Keep WAR ROOM reasoning, research notes, normal agent discussion, and user-facing summaries in Markdown.
 
-Surface-specific protocols remain in place: Antigravity keeps `AGY_ORDER_V1`, Claude keeps `CLAUDE_ORDER_V1`, and their guards explicitly opt in to legacy result validation while still owning workspace scope checks.
+Antigravity and Claude guards accept canonical `AGENT_RESULT_JSON_V1` results by default. Legacy result payloads carrying `orderVersion: AGY_ORDER_V1` or `CLAUDE_ORDER_V1` require explicit opt-in; the guards still own workspace scope checks.
 
 See [docs/LEGION_CONTRACTS.md](docs/LEGION_CONTRACTS.md) for the exact boundary and validation commands.
 
@@ -254,7 +254,7 @@ See [docs/ECC_INTAKE_PLAN.md](docs/ECC_INTAKE_PLAN.md) for the constrained ECC p
 ```bash
 git clone https://github.com/mrzlab630/centurionCLI.git
 cd centurionCLI
-git checkout cohors-secunda
+git switch main
 chmod +x install.sh
 ./install.sh
 ```
@@ -280,7 +280,7 @@ export PERPLEXITY_API_KEY="pplx-x"
 1. Checks prerequisites.
 2. Backs up existing Claude configuration.
 3. Installs `CLAUDE.md`, doctrine docs, scripts, pipeline templates, and shared libs.
-4. Deploys all 37 Legion skills to `~/.agents/skills`.
+4. Deploys 37 Legionary skills and the shared Open Design capability to `~/.agents/skills`.
 5. Keeps Codex system skills in `~/.codex/skills/.system` and avoids Legion duplicates in `~/.codex/skills`.
 6. Builds MEMORIA and registers MCP servers when possible.
 7. Runs the Legion skill eval when installed.
@@ -320,6 +320,7 @@ centurionCLI/
 | **2.3** | **Cohors Secunda** | **37** | **Shared Open Design production, JSON bridge, verified HTML/screenshots, Claude and Hermes activation, artifact lifecycle guards** |
 | **2.4** | **Cohors Secunda** | **37** | **Curated reference search, async Open Design MCP, immutable reference evidence, and Hermes/Claude/Codex continuation** |
 | **2.5** | **Cohors Secunda** | **37** | **Bounded Open Design JSON/MCP input, SSRF hardening, FD leak repair, workload caps, timeout correctness, and dead-code reduction** |
+| **2.6** | **Cohors Secunda** | **37** | **GPT-6 role hierarchy, JSON handoff/response ingress, controller acceptance and artifact lineage, staged skill installation, and remediation regressions** |
 
 ---
 

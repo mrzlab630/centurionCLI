@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -14,6 +15,7 @@ import {
   validateLegionOrder,
   validateLegionReview
 } from '../lib/contracts.mjs';
+import * as responseContracts from '../lib/contracts.mjs';
 
 const KIT_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 
@@ -116,6 +118,81 @@ function smokeValidators() {
   assert(validateAgentResult({ ...canonical, forbiddenPatternHits: ['forbidden'] }).some((item) => item.includes('forbidden pattern hits')), 'done canonical result with forbidden pattern hits must fail');
 }
 
+async function smokeResponseContracts() {
+  const modules = [responseContracts];
+  const standalone = path.resolve(KIT_ROOT, '../claude-legion-kit/lib/claude-result-validator.mjs');
+  if (fs.existsSync(standalone)) {
+    modules.push(await import(standalone));
+    const sharedSource = fs.readFileSync(path.join(KIT_ROOT, 'lib/contracts.mjs'), 'utf8');
+    const standaloneSource = fs.readFileSync(standalone, 'utf8');
+    const start = 'export const RESPONSE_ENVELOPE_VERSION';
+    assert(sharedSource.slice(sharedSource.indexOf(start), sharedSource.indexOf('\nconst RESULT_STATUSES')).trim() === standaloneSource.slice(standaloneSource.indexOf(start), standaloneSource.indexOf('\n\nexport function isPlainObject')).trim(), 'standalone Claude response adapter has drifted from shared contracts');
+  }
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'response-envelope-'));
+  const digest = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
+  const handoff = { version: 'AGENT_HANDOFF_V1', schemaId: 'AGENT_RESULT_JSON_V1', inReplyTo: 'response-order-001', senderRole: 'CODER', recipientRole: 'Aquila', objectiveId: 'response-objective' };
+  const payload = { orderId: handoff.inReplyTo, handoff, summary: '``` inside text is data', extensions: { n: 1e2, unicode: 'Привет 😀' } };
+  const body = JSON.stringify(payload);
+  const reject = (fn, code, label) => {
+    let caught;
+    try { fn(); } catch (error) { caught = error; }
+    assert(caught?.code === code, `${label}: expected ${code}, got ${caught?.message || 'accepted'}`);
+    return caught;
+  };
+  try {
+    for (const [index, api] of modules.entries()) {
+      for (const [raw, transport, normalized] of [[body, 'raw_json', body], [` \t\n\x60\x60\x60json\n${body}\n\x60\x60\x60\r\n`, 'json_fence', body], [`\x60\x60\x60json \t\r\n${body}\r\n\x60\x60\x60`, 'json_fence', body]]) {
+        const parsed = api.parseAgentResponseBytes(Buffer.from(raw), { expectedHandoff: handoff });
+        assert(parsed.transport === transport && parsed.normalizedBytes.equals(Buffer.from(normalized)), 'response normalization changed JSON bytes');
+        assert(parsed.rawSha256 === digest(Buffer.from(raw)), 'raw response digest mismatch');
+      }
+      const malformed = [
+        `prose\n\x60\x60\x60json\n${body}\n\x60\x60\x60`, `\x60\x60\x60json\n${body}\n\x60\x60\x60\nprose`,
+        `\x60\x60\x60JSON\n${body}\n\x60\x60\x60`, `\x60\x60\x60json\n${body}\n\x60\x60\x60\n\x60\x60\x60json\n{}\n\x60\x60\x60`,
+        '{}{}', '{"x":1,"x":2}', '{"x":1,"\\u0078":2}', '{"x":{"a":1,"a":2}}', '{"x":1e999}', '{"x":NaN}', '{"x":Infinity}', '{"x":1,}', '{"x":[1,]}', '{"x":', '\u00a0{}', '\ufeff{}', '{"x":"\\ud800"}', '{"\\udfff":1}', Buffer.from([0xff, 0xfe])
+      ];
+      for (const raw of malformed) reject(() => api.parseAgentResponseBytes(Buffer.from(raw)), 'RESPONSE_FORMAT_ERROR', `malformed response ${String(raw).slice(0, 30)}`);
+      reject(() => api.parseAgentResponseBytes(Buffer.from('{"refusal":"no"}')), 'RESPONSE_REFUSED', 'provider refusal');
+      reject(() => api.parseAgentResponseBytes(Buffer.from('{"status":"incomplete"}')), 'RESPONSE_INCOMPLETE', 'provider incomplete');
+      reject(() => api.parseAgentResponseBytes(Buffer.from('{"responseEnvelope":{}}')), 'RESPONSE_SCHEMA_ERROR', 'executor-owned response metadata');
+      reject(() => api.parseAgentResponseBytes(Buffer.from(body), { expectedHandoff: { ...handoff, senderRole: 'REVIEWER' } }), 'RESPONSE_IDENTITY_ERROR', 'wrong sender');
+      reject(() => api.parseAgentResponseBytes(Buffer.from(JSON.stringify({ ...payload, handoff: undefined })), { expectedHandoff: handoff }), 'RESPONSE_SCHEMA_ERROR', 'missing required handoff');
+      reject(() => api.parseAgentResponseBytes(Buffer.from(body), { expectedHandoff: { ...handoff, objectiveId: undefined } }), 'RESPONSE_SCHEMA_ERROR', 'invalid expected handoff');
+      const file = path.join(root, `response-${index}.json`);
+      const raw = Buffer.from(`\x60\x60\x60json\n${body}\n\x60\x60\x60`);
+      fs.writeFileSync(file, raw);
+      const response = api.readAgentResponse(file, { expectedHandoff: handoff });
+      assert(fs.readFileSync(file).equals(raw), 'normalizer overwrote executor input');
+      assert(fs.readFileSync(response.rawEvidencePath).equals(raw), 'raw evidence bytes changed');
+      assert(fs.readFileSync(response.normalizedCandidatePath).equals(Buffer.from(body)), 'candidate bytes changed');
+      const receipt = JSON.parse(fs.readFileSync(response.receiptPath, 'utf8'));
+      assert(receipt.rawSha256 === digest(raw) && receipt.normalizedSha256 === digest(Buffer.from(body)), 'receipt does not bind evidence');
+      api.readAgentResponse(file, { expectedHandoff: handoff });
+      const finalized = { ...payload, responseEnvelope: response.envelope };
+      api.verifyResponseEnvelope(finalized, { expectedHandoff: handoff, allowedEvidenceRoots: [root] });
+      reject(() => api.verifyResponseEnvelope({ ...finalized, summary: 'changed by controller' }, { allowedEvidenceRoots: [root] }), 'RESPONSE_IDENTITY_ERROR', 'finalized payload changed');
+      reject(() => api.verifyResponseEnvelope(finalized, { allowedEvidenceRoots: [path.join(root, 'other')] }), 'RESPONSE_IDENTITY_ERROR', 'evidence outside custody');
+      fs.writeFileSync(response.normalizedCandidatePath, '{}');
+      reject(() => api.verifyResponseEnvelope(finalized, { allowedEvidenceRoots: [root] }), 'RESPONSE_IDENTITY_ERROR', 'tampered candidate');
+      let collision;
+      try { api.readAgentResponse(file); } catch (error) { collision = error; }
+      assert(collision?.message.includes('collision'), 'normalizer overwrote altered evidence');
+      fs.writeFileSync(file, Buffer.from('{ bad'));
+      const rejected = reject(() => api.readFinalizedAgentResponse(file), 'RESPONSE_FORMAT_ERROR', 'invalid raw file');
+      assert(fs.readFileSync(rejected.rawEvidencePath).equals(Buffer.from('{ bad')), 'invalid raw bytes were not preserved');
+      const artifact = path.join(root, 'product.txt');
+      fs.writeFileSync(artifact, 'product');
+      const artifactPayload = { artifacts: [{ path: 'product.txt', exists: true, mediaType: 'text/plain', sha256: digest(Buffer.from('product')) }] };
+      assert(api.verifyAgentArtifactFiles(artifactPayload, root, { expectedHandoff: handoff }).length === 0, 'valid handoff artifact binding failed');
+      fs.writeFileSync(artifact, 'tampered');
+      assert(api.verifyAgentArtifactFiles(artifactPayload, root, { expectedHandoff: handoff }).some((failure) => failure.includes('does not match')), 'tampered product artifact hash was accepted');
+      assert(api.validateArtifactBindings({ artifacts: [{ exists: true }] }, { expectedHandoff: handoff }).length === 2, 'opt-in handoff must bind existing artifacts');
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
 function smokeCli() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'legion-contract-'));
   try {
@@ -168,6 +245,7 @@ function smokeCli() {
 
 try {
   smokeValidators();
+  await smokeResponseContracts();
   smokeCli();
   process.stdout.write('legion-contracts smoke: pass\n');
 } catch (error) {

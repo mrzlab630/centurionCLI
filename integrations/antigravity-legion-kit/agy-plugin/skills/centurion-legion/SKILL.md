@@ -28,6 +28,13 @@ Use this skill for non-trivial `agy` tasks, WAR ROOM requests, frontend/interfac
 
 `agy` is a recruited auxiliary executor for CENTURION. It is not a Legionary owner, not a 38th owner, and must not override the selected Legionary.
 
+Use `gemini-3.8-flash` for bounded UI, design, text, and creative production.
+Pin `--model gemini-3.8-flash --effort high` (or the assigned low/medium effort)
+and verify the runtime model. Keep PICTOR/AEDILIS or the selected language/
+creative Legionary as owner. Sol/Luna own general code execution, Astra supplies
+ARCHITECTUS advice, and Opus 5 independently reviews. Model changes, further
+delegation, or scope changes return to the controller for a new decision.
+
 Good delegation targets:
 
 - Frontend/UI slices, responsive fixes, animation drafts, component states, and visual polish under PICTOR.
@@ -46,6 +53,14 @@ Delegation acceptance contract:
 3. If the task requires anything outside scope or conflicts with a non-goal, `agy` must stop and write `status=blocked`; it must not reinterpret the order.
 4. Before execution, the owner writes the pre-snapshot to an absolute path outside the workspace (for example, `/tmp/centurion-agy-snapshots/<orderId>/AGY_SNAPSHOT.json`).
 5. `agy` completes the bounded task, then runs a self-review pass, fixes confirmed defects, reruns proof, and writes `AGY_RESULT.json` only to `.centurion/agents_results/<orderId>/AGY_RESULT.json` as `AGENT_RESULT_JSON_V1`. The canonical object must bind `orderId` and `executor=agy` and include object-shaped `filesChanged`, `artifacts`, `proof`, and `selfReview`, plus `scopeDeviations`, `forbiddenPatternHits`, `remainingRisks`, `questions`, `errors`, `stdoutSummary`, and `stderrSummary`.
+
+For orders that declare `AGENT_HANDOFF_V1`, echo the exact handoff object and
+include `mediaType`/`sha256` on existing artifact references. The controller passes
+`--handoff <expected-handoff.json>` to the guard. Ingress accepts raw JSON or one
+clean lowercase `json` fence, preserves both raw and normalized evidence, and
+rejects prose/ambiguity without replay. Never emit controller-owned
+`responseEnvelope`. If `launch.candidateJsonPath` is declared, write that candidate;
+the controller finalizes the distinct canonical result. Legacy V1 remains valid.
 6. CENTURION or the owner validates the namespaced `AGY_RESULT.json` against the matching namespaced snapshot with `agy-order-guard`, inspects the diff/artifact directly, and reruns proof before accepting.
 7. Root-level `AGY_RESULT.json` and snapshot files are invalid; controller artifacts must stay inside the exact safe `orderId` namespace.
 8. TESTER, REVIEWER, GUARDIAN, or CENSOR gates still apply when proof, regression, security, external-source, or claim risk appears.
@@ -90,7 +105,7 @@ When acting as AUXILIUM AGY, avoid broad reconnaissance. Read only files needed 
 - CURATOR owns context optimization, token load, skill-surface audit, and progressive disclosure.
 - ARTIFEX owns accepted skill/workflow packaging and migration into the local Antigravity surface.
 - SIGNIFER owns git operations, commits, branches, conflicts, PRs, and release notes.
-- EVOCATUS owns bounded external-model delegation in tmux and result collection.
+- EVOCATUS owns bounded external-model delegation through the active controller and verified result collection.
 - TABULARIUS owns reports, charts, tables, HTML formatting, and publishing handoffs.
 - CAPABILITIES owns capability and command reference.
 

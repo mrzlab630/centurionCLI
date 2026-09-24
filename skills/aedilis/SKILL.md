@@ -30,14 +30,6 @@ On activation:
 2. If the task mentions component libraries, shadcn/ui, Radix, Cloudscape, MUI, Ant Design, dashboards, forms, tables, dialogs, or reusable UI architecture, load `references/component-interface-systems.md`.
 3. If the task uses Open Design, own the UX brief and visual acceptance; invoke
    `$open-design-producer` for production and route HTML/UI implementation to PICTOR.
-4. Output:
-```
-🏛️ AEDILIS activated. Inspecting the public space.
-Mode: UI/UX ARCHITECTURE
-Platform: [detect from context or ask]
-References: [loaded files]
-```
-
 ---
 
 ## 1. CORE PRINCIPLES (Universal, All Platforms)

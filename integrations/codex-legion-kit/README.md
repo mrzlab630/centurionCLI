@@ -34,6 +34,13 @@ This kit keeps Codex aligned with the current Legion structure without adding mo
 
 Codex uses `../legion-contracts` for neutral `LEGION_ORDER_V1`, `LEGION_RESULT_V1`, and `LEGION_REVIEW_V1` validation when a bounded delegation artifact needs machine checking. Normal discussion, research notes, and WAR ROOM reasoning stay in Markdown.
 
+New executor results use `AGENT_RESULT_JSON_V1`. The shared `normalize-response`
+ingress accepts raw JSON or one clean lowercase `json` fence and preserves raw
+and normalized SHA-256 evidence. Echo a declared `AGENT_HANDOFF_V1` unchanged;
+never emit controller-owned `responseEnvelope`. Hermes-managed Codex uses the
+Gateway candidate file and builder; see `docs/LEGION_CONTRACTS.md` and the
+`agent-contract-runner` skill. Formatting failures never authorize product replay.
+
 It does not install external GitHub skill packs or create new Legionary owners.
 The Open Design installer changes only the named `centurion-open-design` MCP
 entry and uses staged replacement with rollback for the installed skill, bridge

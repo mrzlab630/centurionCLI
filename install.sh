@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # CENTURION Installation Script
-# Version: COHORS SECUNDA (v2.1)
 # Installs: 37 Legionaries + MEMORIA MCP + 6 MCP Servers + Pipeline Templates
 
 set -e
@@ -117,57 +116,18 @@ if [ -d "$SCRIPT_DIR/scripts" ]; then
     echo -e "${GREEN}  ✓${NC} Utility scripts"
 fi
 
-# Libs
-if [ -d "$SCRIPT_DIR/libs" ]; then
-    mkdir -p "$CLAUDE_DIR/libs"
-    cp -r "$SCRIPT_DIR/libs/"* "$CLAUDE_DIR/libs/" 2>/dev/null || true
-    echo -e "${GREEN}  ✓${NC} Shared libraries (legion_core.py)"
-fi
-
 echo ""
 
 # ─── PHASE 4: Skills (37 Legionaries) ───
 
 echo -e "${BOLD}[4/8] Deploying 37 Legionaries to canonical skill root...${NC}"
 
-SKILL_COUNT=0
-for skill_dir in "$SCRIPT_DIR/skills/"*/; do
-    skill_name=$(basename "$skill_dir")
-    # Copy everything except memory/ directories (project-specific)
-    mkdir -p "$SKILLS_DIR/$skill_name"
-
-    # Copy SKILL.md
-    [ -f "$skill_dir/SKILL.md" ] && cp "$skill_dir/SKILL.md" "$SKILLS_DIR/$skill_name/"
-    [ -f "$skill_dir/REFERENCE.md" ] && cp "$skill_dir/REFERENCE.md" "$SKILLS_DIR/$skill_name/"
-    [ -f "$skill_dir/package.json" ] && cp "$skill_dir/package.json" "$SKILLS_DIR/$skill_name/"
-    [ -f "$skill_dir/package-lock.json" ] && cp "$skill_dir/package-lock.json" "$SKILLS_DIR/$skill_name/"
-
-    # Copy references/ (institutional knowledge)
-    if [ -d "$skill_dir/references" ]; then
-        rm -rf "$SKILLS_DIR/$skill_name/references"
-        cp -r "$skill_dir/references" "$SKILLS_DIR/$skill_name/"
-    fi
-
-    # Copy agents/ (UI metadata)
-    if [ -d "$skill_dir/agents" ]; then
-        rm -rf "$SKILLS_DIR/$skill_name/agents"
-        cp -r "$skill_dir/agents" "$SKILLS_DIR/$skill_name/"
-    fi
-
-    # Copy scripts/ (tools)
-    if [ -d "$skill_dir/scripts" ]; then
-        rm -rf "$SKILLS_DIR/$skill_name/scripts"
-        cp -r "$skill_dir/scripts" "$SKILLS_DIR/$skill_name/"
-    fi
-
-    # Copy knowledge/ (e.g. augur)
-    if [ -d "$skill_dir/knowledge" ]; then
-        rm -rf "$SKILLS_DIR/$skill_name/knowledge"
-        cp -r "$skill_dir/knowledge" "$SKILLS_DIR/$skill_name/"
-    fi
-
-    SKILL_COUNT=$((SKILL_COUNT + 1))
-done
+# Only project-owned files are switched. Unknown files inside managed
+# subdirectories stop the update; memory/ and node_modules/ remain untouched.
+# Backups stay beside targets.
+node "$SCRIPT_DIR/scripts/install-owned-files.mjs" \
+    --agents-home "$AGENTS_DIR" --claude-home "$CLAUDE_DIR" --codex-home "$CODEX_DIR"
+SKILL_COUNT=$(find "$SCRIPT_DIR/skills" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l)
 
 # Preserve the Playwright-based researcher runtime from main. The package lock
 # remains the dependency source; installation failure is reported without
@@ -178,7 +138,7 @@ if [ -f "$SKILLS_DIR/researcher/package.json" ] && command -v npm &> /dev/null; 
         echo -e "${YELLOW}  ! Researcher dependencies unavailable; run npm install in $SKILLS_DIR/researcher${NC}"
 fi
 
-echo -e "${GREEN}  ✓${NC} $SKILL_COUNT legionaries deployed"
+echo -e "${GREEN}  ✓${NC} $SKILL_COUNT skill directories deployed (37 Legionaries plus shared capabilities)"
 echo -e "${CYAN}    Core 8:    OPTIO CODER DEBUGGER EXPLORATOR PONTIFEX TESTER GUARDIAN LIBRARIUS${NC}"
 echo -e "${CYAN}    Command:   CAPABILITIES SKILL-QUARTERMASTER PRAEMONITOR${NC}"
 echo -e "${CYAN}    Build 6:   ARTIFEX ARCHITECT DOCUMENTER PICTOR PRAECO REFACTORER${NC}"

@@ -12,9 +12,8 @@ surrounding text for conflicts before applying the clauses manually.
 
 ## Approved Clauses
 
-- **Claude Opus 5: Principal reviewer and reasoning-heavy executor.** Use the exact local `claude-opus-5` route for principal review and reasoning-heavy execution.
-- **Codex remains the default implementation owner.** GPT-6 Luna at `medium` handles clear bounded changes; GPT-6 Sol at `medium` handles implementation requiring judgment. High complexity, ambiguity, cross-service/architecture/security, hard debugging, or long-horizon work requires Sol. Any Codex implementation with a proof gap requires independent Claude review.
-- Claude may own selected implementation when ambiguity, long context, cross-service reasoning, architecture-heavy work, security or test strategy, or difficult diagnosis dominates the task.
-- **Claude implementation is not limited to Codex unavailability.** Aquila may select Claude because the task characteristics favor Claude, even when Codex is available.
-- **Claude is not allowed to self-approve** implementation it owns. Claude-owned implementation requires review by Codex or another independent qualified reviewer.
+- **Claude Opus 5: Principal independent reviewer.** Use the exact `claude-opus-5` route to inspect executor work and return evidence-backed findings to Aquila.
+- **Codex remains the default implementation owner.** GPT-6 Luna at `medium` is the routine bounded default; `none`/`low` is reserved for exact mechanical work. Use `high` for non-trivial implementation, review, or raised evidence/risk needs. GPT-6 Sol handles implementation requiring judgment. High complexity, material ambiguity, cross-service/architecture/security, hard debugging, or long-horizon work requires Sol and task-appropriate raised effort. Any Codex implementation with a proof gap requires independent Claude review.
+- **Corrections return to Luna/Sol.** Astra provides bounded ARCHITECTUS consultation for architecture and hard problems; Claude reviews the resulting implementation. A terminal reviewer cannot edit product files or apply its own findings.
+- **Claude is not allowed to self-approve** implementation it owns. Legacy Claude execution remains readable by the validator, but is not the current implementation default. Under V2/V3 no independent reviewer route exists for Claude-owned implementation; block dispatch pending a separately approved route.
 - Aquila retains final judgment over routing, review acceptance, and completion.

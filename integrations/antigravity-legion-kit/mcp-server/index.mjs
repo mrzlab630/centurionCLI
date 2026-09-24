@@ -55,7 +55,7 @@ const LEGIONARIES = [
   { name: 'SICARIUS', slug: 'sicarius', kind: 'security', use: 'exploit verification via browser automation and PoC attempts' },
   { name: 'AUGUR', slug: 'augur', kind: 'security', use: 'Phantom1225, ScamNet, pool intelligence, and pump/dump behavior' },
   { name: 'QUAESTOR', slug: 'quaestor', kind: 'security', use: 'crypto/on-chain, DEX, token, pool, and trading-risk intelligence' },
-  { name: 'EVOCATUS', slug: 'evocate-ad-opus', kind: 'utility', use: 'bounded external-model delegation in tmux and result collection' },
+  { name: 'EVOCATUS', slug: 'evocate-ad-opus', kind: 'utility', use: 'contract-governed external-model delegation and verified result collection' },
   { name: 'TABULARIUS', slug: 'tabularius', kind: 'utility', use: 'reports, charts, HTML publishing, and large analysis formatting' },
   { name: 'CAPABILITIES', slug: 'capabilities', kind: 'utility', use: 'capability and command reference' }
 ];
@@ -1098,7 +1098,7 @@ function handleRequest(message) {
       result: {
         protocolVersion: params?.protocolVersion || '2024-11-05',
         capabilities: { tools: {} },
-        serverInfo: { name: 'centurion-legion', version: '0.2.1' }
+        serverInfo: { name: 'centurion-legion', version: '0.3.0' }
       }
     });
     return;

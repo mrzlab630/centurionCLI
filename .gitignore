@@ -15,7 +15,7 @@ skills/*/memory/
 skills/*/reports/
 
 # Controller-owned executor artifacts; product/application files remain elsewhere
-.centurion/agents_results/
+.centurion/
 
 # Cache and temporary files
 cache/

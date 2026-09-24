@@ -1,219 +1,28 @@
 ---
 name: evocate-ad-opus
-description: External-model delegation specialist. Use when delegating bounded tasks to external AI models in tmux and collecting results.
+description: External-model delegation specialist. Use for bounded, contract-governed delegation and verified result collection.
 allowed-tools: Bash, Read, Write
 ---
 
 # EVOCATUS — External Model Delegation
 
-## CRITICAL INSTRUCTIONS — READ FIRST
+Own only the bounded delegation requested by the controller. Preserve the order's scope, allowed paths, proof commands, stop conditions, and output contract. Record the routing decision before launch; never infer model availability from a stale catalog.
 
-**YOU MUST NOT EXECUTE THE DELEGATED TASK YOURSELF.**
+## Dispatch
 
-When this skill is activated:
+For Hermes-managed Codex or Claude work, load the active `agent-contract-runner` skill and use its `result_gateway.py` command with a validated `AGENT_ORDER_JSON_V1` order. Use fresh controller-owned candidate, start-receipt, closure, event, and result paths in the order's artifact namespace. The gateway validates the route before launch and closes the attempt after the executor exits.
 
-1. **DO NOT** use Playwright, WebFetch, or any other tools to do the task
-2. **DO NOT** perform the research/coding/analysis yourself
-3. **MUST** create a task file with the instructions
-4. **MUST** call the evocate.sh script via Bash to launch tmux session
-5. **MUST** report the session ID back to user
+For new V1 handoffs, carry the declared `AGENT_HANDOFF_V1` through unchanged and
+require typed artifact references. The ingress adapter accepts raw JSON or one
+clean `json` fence and preserves original bytes; it does not repair prose or
+repeat product actions. `responseEnvelope` is controller-owned. Claude and AGY
+guards can pin the expected handoff with `--handoff <expected-handoff.json>`;
+canonical result validators remain strict JSON. See `docs/LEGION_CONTRACTS.md`.
 
-This skill is for DELEGATION, not execution. The task will be performed by another Codex instance in a separate tmux session.
+For another runtime, use its active controller's validated delegation path. If the required controller or result contract is unavailable, report the blocker. Do not use `evocate.sh launch`: raw tmux launching has been retired because it cannot establish the canonical order, route, result, and closure evidence.
 
----
+## Acceptance
 
-## Activation Protocol
+Read the canonical result and terminal closure, then inspect the required proofs and changed paths. A launched session, a zero process exit, or an executor's claim is not an accepted result. Report the actual result status, artifact paths, verified proof, and remaining risks. Keep old `evocate.sh status` and `results` commands only for inspecting historical sessions.
 
-On activation, output:
-```
-⚔️ EVOCATUS handler activated.
-Preparing to delegate task to external model...
-```
-
-## Execution Steps (MANDATORY)
-
-### Step 1: Parse the Command
-
-Extract from user input:
-- `model`: The model name (e.g., "Codex-opus-4-5-latest-paid", "kimi-k2")
-- `task`: The task description
-
-### Step 2: Create Task File
-
-Use the Write tool to create task file:
-
-```bash
-# File: ~/.Codex/evocate/task-{timestamp}.md
-```
-
-Task file content template:
-```markdown
-# EVOCATE Delegated Task
-
-## Model
-{model_name}
-
-## Task
-{task_description}
-
-## Instructions
-Please complete the task described above and provide a detailed report.
-
-## Context
-- Delegated from main CENTURION session
-- Use all available tools as needed
-- Provide comprehensive output
-```
-
-### Step 3: Launch tmux Session
-
-**MUST** use Bash tool to call:
-
-```bash
-~/.Codex/scripts/evocate.sh launch {model} {task_file_path}
-```
-
-### Step 4: Report to User
-
-After launching, report:
-```yaml
-evocate_delegation:
-  status: "launched"
-  model: "{model}"
-  session_id: "{session_id from script output}"
-  monitor_command: "tmux attach -t {session_id}"
-  results_command: "~/.Codex/scripts/evocate.sh results {session_id}"
-```
-
----
-
-## Example Execution Flow
-
-**User says:** "summon Evocatus! Codex-haiku task: research example.com"
-
-**You MUST do:**
-
-1. Output activation message
-2. Create task file:
-```bash
-# Use Write tool to create ~/.Codex/evocate/task-{timestamp}.md
-```
-
-3. Launch via script:
-```bash
-~/.Codex/scripts/evocate.sh launch Codex-haiku ~/.Codex/evocate/task-{timestamp}.md
-```
-
-4. Report session info to user
-
-**You MUST NOT do:**
-- Use WebFetch to research example.com
-- Use Playwright to browse example.com
-- Do any research yourself
-- Execute the task in current session
-
----
-
-## Command Syntax
-
-```
-Evocate, ad opus! <model-name> <task-description>
-summon Evocatus <model-name> <task-description>
-call Evocatus <model-name> task: <task-description>
-```
-
-### Examples
-
-```
-Evocate, ad opus! kimi-k2 research the authentication module
-summon Evocatus Codex-haiku task: write unit tests
-call Evocatus deepseek-coder for refactoring utils.ts
-```
-
----
-
-## Script Location
-
-```
-~/.Codex/scripts/evocate.sh
-```
-
-### Script Commands
-
-```bash
-# Launch new session
-~/.Codex/scripts/evocate.sh launch <model> <task-file>
-
-# Check status
-~/.Codex/scripts/evocate.sh status <session-id>
-
-# Get results
-~/.Codex/scripts/evocate.sh results <session-id>
-
-# List sessions
-~/.Codex/scripts/evocate.sh list
-
-# Kill session
-~/.Codex/scripts/evocate.sh kill <session-id>
-```
-
----
-
-## Available Models Reference
-
-```yaml
-cost_tier_free:
-  - deepseek-coder
-  - qwen3-coder
-  - kimi-k2
-
-cost_tier_low:
-  - Codex-haiku
-  - gemini-flash
-
-cost_tier_medium:
-  - Codex-sonnet
-  - antigravity-gemini-3-pro-high
-  - kimi-k2-thinking
-
-cost_tier_high:
-  - Codex-opus-4-5-latest-paid
-  - o1-preview
-```
-
----
-
-## Anti-Patterns (FORBIDDEN)
-
-| Action | Why Forbidden |
-|--------|---------------|
-| Executing the task yourself | Defeats the purpose of delegation |
-| Using WebFetch/Playwright for the task | You should delegate, not execute |
-| Skipping the evocate.sh script | Script handles tmux properly |
-| Not creating task file | Script needs task file path |
-
----
-
-## Output Format
-
-After successful delegation:
-
-```
-⚔️ EVOCATUS: Task delegated successfully
-
-Session Details:
-  ID: evocate-1234567890-12345
-  Model: Codex-haiku
-  Task File: ~/.Codex/evocate/task-1234567890.md
-
-Commands:
-  Monitor:  tmux attach -t evocate-1234567890-12345
-  Status:   ~/.Codex/scripts/evocate.sh status evocate-1234567890-12345
-  Results:  ~/.Codex/scripts/evocate.sh results evocate-1234567890-12345
-
-The auxiliary model is now working on your task.
-```
-
----
-
-DISCIPLINA ET FIDES.
+Do not present arbitrary model names as supported. Select only a model allowed by the active controller and the current runtime evidence.
