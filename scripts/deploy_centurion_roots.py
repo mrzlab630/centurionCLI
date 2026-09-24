@@ -233,7 +233,7 @@ def stage_surface(parent: Path, name: str, overlays: list[tuple[Path, str]], sta
     except Exception:
         os.close(staging_fd)
         os.close(live_fd)
-        shutil.rmtree(staging_name, dir_fd=parent_fd, ignore_errors=True)
+        shutil.rmtree(parent / staging_name, ignore_errors=True)
         os.close(parent_fd)
         raise
 
@@ -266,14 +266,14 @@ def publish(stages: list[Stage]) -> None:
             rename_noreplace(stage.parent_fd, stage.name, failed)
             rename_noreplace(stage.parent_fd, stage.backup_name, stage.name)
             os.fsync(stage.parent_fd)
-            shutil.rmtree(failed, dir_fd=stage.parent_fd, ignore_errors=True)
+            shutil.rmtree(stage.parent / failed, ignore_errors=True)
         raise
 
 
 def close_stages(stages: list[Stage]) -> None:
     for stage in stages:
         try:
-            shutil.rmtree(stage.staging_name, dir_fd=stage.parent_fd, ignore_errors=True)
+            shutil.rmtree(stage.parent / stage.staging_name, ignore_errors=True)
         except OSError:
             pass
         for fd in (stage.staging_fd, stage.live_fd, stage.parent_fd):

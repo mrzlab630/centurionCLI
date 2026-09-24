@@ -13,7 +13,33 @@ import shlex
 import subprocess
 import sys
 import tempfile
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10 compatibility for the small value parser below.
+    import ast
+    import types
+
+    class _TomlDecodeError(ValueError):
+        pass
+
+    def _loads(source: str) -> dict[str, Any]:
+        _key, separator, raw = source.partition('=')
+        if not separator:
+            raise _TomlDecodeError('missing assignment')
+        value = raw.strip()
+        try:
+            parsed = ast.literal_eval(value)
+        except (SyntaxError, ValueError):
+            if value in {'true', 'false'}:
+                parsed = value == 'true'
+            else:
+                try:
+                    parsed = int(value, 10)
+                except ValueError as exc:
+                    raise _TomlDecodeError(str(exc)) from exc
+        return {'value': parsed}
+
+    tomllib = types.SimpleNamespace(loads=_loads, TOMLDecodeError=_TomlDecodeError)
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
