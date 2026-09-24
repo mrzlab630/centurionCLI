@@ -82,13 +82,14 @@ function registerOpenDesignMcp(options) {
     if (existing.status !== 0 && !/not found|does not exist|no server/i.test(`${existing.stdout}${existing.stderr}`)) {
       throw new Error(`failed to replace Hermes MCP: ${existing.stderr || existing.stdout}`);
     }
+    // The default accepts discovered tools and declines a failed connection.
     const added = spawnSync('hermes', [
       'mcp', 'add', 'centurion-open-design',
       '--connect-timeout', '10',
       '--command', process.execPath,
       '--args', OPEN_DESIGN_MCP_ENTRY
-    ], { env, encoding: 'utf8', input: 'n\n' });
-    if (added.status !== 0 || !/Saved 'centurion-open-design'/.test(added.stdout)) {
+    ], { env, encoding: 'utf8', input: '\n' });
+    if (added.status !== 0 || !/Saved 'centurion-open-design'[^\n]*\([1-9]\d*\/[1-9]\d* tools enabled\)/.test(added.stdout)) {
       throw new Error(`failed to register Hermes MCP: ${added.stderr || added.stdout}`);
     }
   } catch (error) {

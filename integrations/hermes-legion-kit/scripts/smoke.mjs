@@ -236,9 +236,10 @@ import path from 'node:path';
 const args = process.argv.slice(2);
 if (args[0] === 'mcp' && args[1] === 'remove') { process.stderr.write('Server not found\\n'); process.exit(1); }
 if (args[0] === 'mcp' && args[1] === 'add') {
+  if (fs.readFileSync(0, 'utf8') !== '\\n') { process.stderr.write('expected safe default prompt response\\n'); process.exit(3); }
   fs.mkdirSync(process.env.HERMES_HOME, { recursive: true });
   fs.writeFileSync(path.join(process.env.HERMES_HOME, 'config.yaml'), 'mcpServers:\\n  centurion-open-design:\\n    command: node\\n');
-  process.stdout.write(\"Saved 'centurion-open-design'\\n\");
+  process.stdout.write(\"Saved 'centurion-open-design' to config.yaml (4/4 tools enabled)\\n\");
   process.exit(0);
 }
 process.exit(2);
@@ -281,6 +282,7 @@ process.exit(2);
     assert(result.stdout.includes('"openDesignMcpRegistered": true'), 'installer did not register Open Design MCP');
     const hermesConfig = readText(path.join(tempHome, 'config.yaml'));
     assert(/centurion-open-design:/.test(hermesConfig), 'installed Hermes Open Design MCP missing');
+    assert(result.stderr === '', 'installer must not write an interactive prompt or warning to stderr');
     assert(!result.stdout.includes('Save config anyway') && !result.stderr.includes('Save config anyway'), 'installer success must not prompt for MCP save');
     const wrapper = spawnSync(process.execPath, [path.join(tempHome, 'skills', 'autonomous-ai-agents', 'open-design-producer', 'scripts', 'open-design.mjs'), '--print-cli'], {
       encoding: 'utf8',
@@ -322,6 +324,10 @@ const args = process.argv.slice(2);
 if (args[0] === 'mcp' && args[1] === 'remove') { process.stderr.write('Server not found\\n'); process.exit(1); }
 if (args[0] === 'mcp' && args[1] === 'add') {
   fs.writeFileSync(path.join(process.env.HERMES_HOME, 'config.yaml'), 'mutated before failure\\n');
+  if (process.env.CENTURION_TEST_DISABLED_MCP === '1') {
+    process.stdout.write(\"Saved 'centurion-open-design' to config (disabled)\\n\");
+    process.exit(0);
+  }
   process.stderr.write('injected add failure\\n');
   process.exit(42);
 }
@@ -335,6 +341,12 @@ process.exit(2);
     });
     assert(result.status !== 0, 'Hermes installer failure injection must fail');
     assert(JSON.stringify(snapshotTree(tempHome)) === JSON.stringify(before), 'Hermes installer did not restore the previous home');
+    const disabled = spawnSync(process.execPath, [path.join(KIT_ROOT, 'installer', 'install.mjs'), '--hermes-home', tempHome], {
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${fakeBin}${path.delimiter}${process.env.PATH}`, CENTURION_TEST_DISABLED_MCP: '1' }
+    });
+    assert(disabled.status !== 0, 'disabled MCP with exit zero must not count as successful installation');
+    assert(JSON.stringify(snapshotTree(tempHome)) === JSON.stringify(before), 'disabled MCP must roll back the installation');
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
@@ -423,7 +435,7 @@ function assertOverrides() {
 
 function assertPackageVersion() {
   const manifest = JSON.parse(readText(PACKAGE_MANIFEST));
-  assert(manifest.version === '0.9.0', 'package version must be 0.9.0');
+  assert(manifest.version === '0.9.1', 'package version must be 0.9.1');
 }
 
 function main() {

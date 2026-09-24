@@ -3,7 +3,7 @@
 ## Release
 
 - CENTURION: 2.6.
-- Hermes Legion Kit: 0.9.0.
+- Hermes Legion Kit: 0.9.1.
 - Claude Legion Kit and plugin: 0.5.0.
 - Antigravity Legion Kit and shared Legion contracts: 0.3.0.
 - Base commit: `3ee00134800dd8bdbbcdb2fc11a82ae25ba00e5e`.
@@ -57,3 +57,13 @@ is included in the installed package and smoke suite.
 No further implementation loop or JEV evaluation is required for this bounded
 release. Runtime artifacts, installation backups and local receipts belong
 under the ignored `.centurion/` directory, outside the release commit.
+
+## Local rollout correction
+
+The first Hermes rollout exposed an installer prompt bug: a hard-coded `n`
+cancelled tool selection after a successful MCP connection. Version 0.9.1 sends
+the default prompt response and requires a saved entry with enabled tools.
+A zero-exit disabled entry is rejected with rollback. Regression coverage checks
+both the prompt response and rollback. The deployment checkout also requires
+`npm ci --omit=dev --ignore-scripts` in `integrations/open-design-bridge`, using
+the existing lockfile, before MCP registration.

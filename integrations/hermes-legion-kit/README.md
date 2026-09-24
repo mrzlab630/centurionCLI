@@ -1,6 +1,6 @@
 # Hermes Legion Kit
 
-CENTURION/Aquila Team Lead skills and lean skill bundles for Hermes Agent (kit version 0.9.0).
+CENTURION/Aquila Team Lead skills and lean skill bundles for Hermes Agent (kit version 0.9.1).
 
 This kit versions the local Hermes additions that were first installed under `~/.hermes`: six Aquila skills, the SOLARIUS `solana-program-engineering` skill, one shared Open Design capability, its local stdio MCP, four slash-command bundles, and a packaged delegation monitor. SOLARIUS remains Aquila-routed and never self-approves implementation, audit findings, or release readiness. It does not import ECC runtime code, enable plugins, alter unrelated MCP servers, or edit `SOUL.md`.
 
@@ -9,7 +9,7 @@ The reviewed adaptive routing policy is available as the manual note
 installer remains non-applying for SOUL, Codex, Claude, config, plugins, hooks,
 and MCP policy files.
 
-Version 0.9.0 routes clear, bounded GPT-6 work to Luna and work requiring
+Version 0.9.1 routes clear, bounded GPT-6 work to Luna and work requiring
 judgment to Sol. A Codex implementation with a proof gap requires independent
 Claude review; historical 2026-07-09 host snapshots remain unchanged. The
 policy note is manual, so installing this kit does not change live host models.
