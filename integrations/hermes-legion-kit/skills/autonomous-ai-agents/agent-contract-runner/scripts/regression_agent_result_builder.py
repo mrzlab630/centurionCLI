@@ -7,17 +7,16 @@ import hashlib
 import json
 import os
 import shutil
+import subprocess
+import sys
 import tempfile
 import atexit
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
-try:
-    from jsonschema import Draft202012Validator
-except ImportError:  # Debian Python 3.10 images may ship jsonschema 3.x only.
-    from jsonschema import Draft7Validator as Draft202012Validator
 from jsonschema import ValidationError
+from schema_validation import Draft202012Validator
 
 import agent_result_builder as builder
 from agent_result_builder import BuilderError, build_result, resolve_schema_path
@@ -106,6 +105,17 @@ def assert_failed_with_evidence(built: dict[str, Any], original: bytes, evidence
 
 
 def main() -> int:
+    with tempfile.TemporaryDirectory(prefix="schema-validation-import-") as temp:
+        probe = subprocess.run(
+            [sys.executable, "-c", "import sys; sys.modules['jsonschema'] = None; import schema_validation"],
+            cwd=Path(__file__).resolve().parent,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if probe.returncode == 0 or "Draft 2020-12 support is required" not in probe.stderr:
+            raise AssertionError("schema validation must fail closed when Draft 2020-12 is unavailable")
+
     if ROOT.exists():
         shutil.rmtree(ROOT)
     ROOT.mkdir(parents=True)

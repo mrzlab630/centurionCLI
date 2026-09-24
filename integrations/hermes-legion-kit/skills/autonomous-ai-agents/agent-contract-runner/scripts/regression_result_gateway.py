@@ -17,10 +17,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-try:
-    from jsonschema import Draft202012Validator
-except ImportError:  # Debian Python 3.10 images may ship jsonschema 3.x only.
-    from jsonschema import Draft7Validator as Draft202012Validator
+from schema_validation import Draft202012Validator
 
 from agent_artifact_namespace import ArtifactNamespaceError, artifact_namespace
 from artifact_lineage import LineageError, verify_anchor

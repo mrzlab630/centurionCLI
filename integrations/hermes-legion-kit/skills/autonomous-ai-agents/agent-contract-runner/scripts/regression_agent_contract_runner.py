@@ -375,6 +375,17 @@ def base_loop_state(
 
 def main() -> int:
     install_fake_executor()
+    runner = load_runner_module()
+
+    for raw_effort in ("medium", "'medium'", '"medium"'):
+        assert runner.parse_reasoning_effort_scalar(raw_effort) == "medium"
+    try:
+        runner.parse_reasoning_effort_scalar("'medium\\nother=bad'")
+    except runner.RunnerError:
+        pass
+    else:
+        raise AssertionError("multi-line reasoning effort must fail closed")
+    print("PASS bounded reasoning-effort parsing accepts scalar spellings and rejects multiline TOML")
 
     unsafe_namespace_root = FIXTURE_ROOT / ".centurion" / "agents_results"
     for unsafe_id in ("../escape", "nested/id", "", ".", "bad\\id"):

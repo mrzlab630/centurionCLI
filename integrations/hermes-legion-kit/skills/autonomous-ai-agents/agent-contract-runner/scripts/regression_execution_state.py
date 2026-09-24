@@ -12,13 +12,10 @@ import sys
 import tempfile
 from pathlib import Path
 
-try:
-    from jsonschema import Draft202012Validator
-except ImportError:  # Debian Python 3.10 images may ship jsonschema 3.x only.
-    from jsonschema import Draft7Validator as Draft202012Validator
-
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
+
+from schema_validation import Draft202012Validator
 
 from execution_state import (  # noqa: E402
     MAX_SUMMARY_BYTES,
