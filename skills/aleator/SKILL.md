@@ -28,16 +28,8 @@ ethically capture attention and build habits.
 
 On activation:
 1. Check `references/failed-approaches.md` — do NOT repeat past mistakes.
-2. Read `memory/engagement-history.md` for accumulated insights.
-3. Identify the engagement domain from user request (retention, onboarding, monetization, re-engagement).
-4. Load ONLY the relevant reference(s) — do NOT load all files.
-5. Output:
-```
-🎲 ALEATOR activated. Reading the odds.
-Mode: BEHAVIORAL DESIGN ADVISORY
-Domain: [detected from context]
-Knowledge: [loaded references + memory state]
-```
+2. Identify the engagement domain from user request (retention, onboarding, monetization, re-engagement).
+3. Load ONLY the relevant reference(s) — do NOT load all files.
 
 ---
 
@@ -317,23 +309,6 @@ Every ALEATOR recommendation MUST pass:
 | **QUAESTOR** | QUAESTOR identifies psychological patterns in market behavior (FOMO, panic selling, loss aversion) → ALEATOR maps to behavioral frameworks. Cross-pollination on trader psychology. |
 | **CENSOR** | CENSOR reviews ALEATOR designs for ethical blind spots, manipulation risks, and regulatory issues. |
 | **TABULARIUS** | ALEATOR produces engagement analysis reports → TABULARIUS formats and publishes. |
-
----
-
-## 🧠 SELF-LEARNING PROTOCOL
-
-### Memory Files
-```
-~/.Codex/skills/aleator/memory/
-  engagement-history.md  — Past designs: what mechanics worked, metrics, user reactions
-```
-
-### Learning Rules
-1. **After every design:** Record mechanics used + context + outcome in engagement-history.md
-2. **Pattern detection:** After 3+ designs → identify which mechanics perform best per product type
-3. **Ethical incidents:** Record any mechanic that crossed ethical lines → update failed-approaches.md
-4. **Cross-session:** Read memory on activation to build on past engagement insights
-5. **Research updates:** When new gamification research surfaces → update relevant reference file
 
 ---
 

@@ -1,6 +1,6 @@
 # Hermes Legion Kit
 
-CENTURION/Aquila Team Lead skills and lean skill bundles for Hermes Agent (kit version 0.7.4).
+CENTURION/Aquila Team Lead skills and lean skill bundles for Hermes Agent (kit version 0.9.1).
 
 This kit versions the local Hermes additions that were first installed under `~/.hermes`: six Aquila skills, the SOLARIUS `solana-program-engineering` skill, one shared Open Design capability, its local stdio MCP, four slash-command bundles, and a packaged delegation monitor. SOLARIUS remains Aquila-routed and never self-approves implementation, audit findings, or release readiness. It does not import ECC runtime code, enable plugins, alter unrelated MCP servers, or edit `SOUL.md`.
 
@@ -8,6 +8,22 @@ The reviewed adaptive routing policy is available as the manual note
 `overrides/ADAPTIVE_MODEL_ROUTING_POLICY.md`. It is reference-only: the
 installer remains non-applying for SOUL, Codex, Claude, config, plugins, hooks,
 and MCP policy files.
+
+Version 0.9.1 routes clear, bounded GPT-6 work to Luna and work requiring
+judgment to Sol. A Codex implementation with a proof gap requires independent
+Claude review; historical 2026-07-09 host snapshots remain unchanged. The
+policy note is manual, so installing this kit does not change live host models.
+
+For an explicit architectural trigger, Aquila may request one read-only
+GPT-6 Astra consultation under the existing project ARCHITECTUS role
+(`skills/architect/SKILL.md`). This staged route uses the existing order and
+result contracts; implementation remains on Luna/Sol, and Opus 5 remains the
+independent V2/V3 reviewer. No live route changes are implied by this README.
+The canonical routing reference defines the four-stage lineage; advisory V2/V3
+is a downstream floor only. Gateway verifies declared predecessor IDs,
+result/acceptance hashes and selected artifacts through `inputResults`, and
+product lineage through controller-owned manifests. These checks prove local
+integrity, with the documented same-UID and concurrent modification limits.
 
 ## What It Installs
 
@@ -91,7 +107,7 @@ restores those targets and the previous `config.yaml` bytes and modes.
 - Treat runtime model evidence as current-session truth. If `config.yaml`, `hermes profile list`, or `hermes prompt-size` reports a stale model while turn context/logs show a runtime switch, classify it as a warning with proof, not an identity conflict.
 - Treat enabled `npx -y` MCP servers as explicit supply-chain warnings even when the package is version-pinned.
 - Keep optional overrides explicit. Builtin skill overrides are installed only with `--include-overrides`; SOUL/config changes stay manual and reviewable.
-- Route every external Codex or Claude candidate through `result_gateway.py`. The gateway must complete full canonical order validation, including ledger-aware routing, before creating receipts or launching the child; `agent_result_builder.py` remains an internal canonicalization stage.
+- Use `result_gateway.py` for lineage and Astra advisory orders. Simple non-lineage, non-advisory Codex/Claude orders may use direct runner custody with start, closure, and terminal receipts. Gateway performs proof in a separate controller process and is the stronger custody tier; both paths require actual controller acceptance.
 - Treat `strict_json.py` semantics as the package boundary for Python control-plane input. Duplicate keys, `NaN`, `Infinity`, `-Infinity`, and overflowed literals such as `1e999` fail closed; the installed monitor enforces equivalent parsing and exact `routingSha256` receipt binding.
 - Keep new executor control artifacts under `<repo>/.centurion/agents_results/<orderId>/`, derived from the resolved repository and a fresh safe `orderId`. Product/application artifacts remain in their declared paths; root-artifact cleanup is a separate migration operation.
 
@@ -112,6 +128,12 @@ restores those targets and the previous `config.yaml` bytes and modes.
 
 ## Validation
 
+Response ingress uses `response_envelope.py`: raw JSON or one clean `json` fence,
+exact raw/normalized SHA-256 evidence, optional `AGENT_HANDOFF_V1`, typed artifacts,
+and no executor replay. `accepted_inputs.py` binds advisory/control handoffs to
+previous Gateway acceptance. See `docs/LEGION_CONTRACTS.md` for transport support
+and the distinction between executor status and controller acceptance.
+
 ```bash
 node --check installer/install.mjs
 node --check scripts/smoke.mjs
@@ -124,10 +146,15 @@ PYTHONDONTWRITEBYTECODE=1 python3 regression_review_ladder.py
 PYTHONDONTWRITEBYTECODE=1 python3 regression_agent_contract_runner.py
 PYTHONDONTWRITEBYTECODE=1 python3 regression_agent_result_builder.py
 PYTHONDONTWRITEBYTECODE=1 python3 regression_result_gateway.py
+PYTHONDONTWRITEBYTECODE=1 python3 regression_response_envelope.py
+PYTHONDONTWRITEBYTECODE=1 python3 regression_artifact_lineage.py
+PYTHONDONTWRITEBYTECODE=1 python3 regression_accepted_inputs.py
+PYTHONDONTWRITEBYTECODE=1 python3 regression_accepted_inputs_gateway.py
 PYTHONDONTWRITEBYTECODE=1 python3 regression_execution_state.py
+PYTHONDONTWRITEBYTECODE=1 python3 regression_legion_handoffs.py
 ```
 
-The smoke check verifies all six Aquila skills, SOLARIUS, the shared Open Design capability, all four lean bundles, trigger-bearing descriptions, absence of direct ECC clone references, no remote-shell install pattern, JavaScript syntax, deterministic audit script syntax, and installer dry-run behavior. It also installs into an isolated temporary HOME, checks the SOLARIUS `SKILL.md` plus all four references under `skills/software-development/solana-program-engineering`, the Open Design config and executable wrapper, `strict_json.py`, `result_gateway.py`, `regression_result_gateway.py`, `regression_execution_state.py`, `runtime/bin/monitor-delegation.sh`, the packaged routing reference and runner scripts, preserves the Opus 5 routing assertions, and runs all five packaged Python regressions without touching the live Hermes home.
+The smoke check verifies all six Aquila skills, SOLARIUS, the shared Open Design capability, all four lean bundles, trigger-bearing descriptions, absence of direct ECC clone references, no remote-shell install pattern, JavaScript syntax, deterministic audit script syntax, and installer dry-run behavior. It also installs into an isolated temporary HOME, checks the SOLARIUS references, Open Design config/wrapper, `strict_json.py`, `response_envelope.py`, `accepted_inputs.py`, `result_gateway.py`, `runtime/bin/monitor-delegation.sh`, routing and runner scripts, preserves the Opus 5 routing assertions, and runs all ten packaged Python regressions without touching the live Hermes home.
 
 The packaged contract-runner Python scripts require the existing Python `jsonschema` runtime. The kit does not install or declare that dependency in its JavaScript package manifests. Result-schema lookup uses an explicit `--schema`/library argument first, then `AQUILA_AGENT_RESULT_SCHEMA`, the packaged `references/agent-result.schema.json`, `HERMES_HOME/contracts/agent-result.schema.json`, and finally `~/.hermes/contracts/agent-result.schema.json`.
 

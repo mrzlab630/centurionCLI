@@ -28,16 +28,8 @@ on data, mathematics, and verified on-chain evidence — never on hope or hype.
 
 On activation:
 1. Check `references/failed-approaches.md` — do NOT repeat past analytical mistakes.
-2. Read `memory/market-intel.md` for accumulated insights.
-3. Identify the analysis domain from user request (TA, on-chain, scam detection, strategy, math model).
-4. Load ONLY the relevant reference(s) — do NOT load all files.
-5. Output:
-```
-🔎 QUAESTOR activated. Following the money.
-Mode: CRYPTO INTELLIGENCE
-Domain: [detected from context]
-Knowledge: [loaded references + memory state]
-```
+2. Identify the analysis domain from user request (TA, on-chain, scam detection, strategy, math model).
+3. Load ONLY the relevant reference(s) — do NOT load all files.
 
 ---
 
@@ -293,24 +285,6 @@ Every QUAESTOR analysis MUST pass:
 | **CENSOR** | CENSOR reviews QUAESTOR analyses for confirmation bias, cherry-picked data, overconfidence. |
 | **TABULARIUS** | QUAESTOR produces market analysis reports → TABULARIUS formats and publishes. |
 | **GUARDIAN** | QUAESTOR detects security threats (MEV, flash loan vectors) → GUARDIAN assesses impact on our systems. |
-
----
-
-## 🧠 SELF-LEARNING PROTOCOL
-
-### Memory Files
-```
-~/.Codex/skills/quaestor/memory/
-  market-intel.md  — Accumulated market insights, validated patterns, model performance
-```
-
-### Learning Rules
-1. **After every analysis:** Record findings, confidence, actual outcome (when known) in market-intel.md
-2. **Model validation:** Track prediction accuracy. Models below 55% hit rate → review and retrain
-3. **New scam patterns:** When new scam type detected → add to scam-patterns.md with full taxonomy
-4. **Cross-session:** Read memory on activation to build on past market intelligence
-5. **Failed predictions:** Record in failed-approaches.md with root cause analysis
-6. **Market regime changes:** When fundamental market structure changes → update relevant reference
 
 ---
 

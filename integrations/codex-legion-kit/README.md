@@ -8,7 +8,12 @@ This kit keeps Codex aligned with the current Legion structure without adding mo
 
 - Sanitized baseline date: 2026-07-09. Raw `~/.codex/config.toml`, provider credentials, memories, permission state, and trusted project lists are intentionally not copied into this repository.
 - Codex CLI observed on this workstation: `codex-cli 0.146.0`.
-- Current Codex model baseline: `gpt-5.6-sol` with provider `cliproxyapi`, `model_reasoning_effort = "xhigh"`, and `personality = "pragmatic"`.
+- Codex model in the dated 2026-07-09 baseline: `gpt-5.6-sol` with provider `cliproxyapi`, `model_reasoning_effort = "xhigh"`, and `personality = "pragmatic"`.
+- Current repository audit target: `gpt-6-sol`; the dated baseline below remains historical.
+- Host model configuration is not installed by this repository. After separately
+  approving a local Codex profile update, set its `model` to `gpt-6-sol` and
+  confirm the proxy serves that ID; until then `audit:surface` may fail its
+  model check. This repository change alone does not prove a live model switch.
 - Local provider endpoint: `http://127.0.0.1:8317/v1` using the Responses wire API.
 - `features.memories = true` is enabled; memories remain a recall layer and are not copied into the repo.
 - `features.multi_agent_v2.enabled = true` is enabled with spawn-agent metadata hidden.
@@ -28,6 +33,13 @@ This kit keeps Codex aligned with the current Legion structure without adding mo
 - `skills/camofox-browser`: optional explicit Codex skill for bounded Camofox/Camoufox browser snapshots and screenshots when normal browser tooling is blocked.
 
 Codex uses `../legion-contracts` for neutral `LEGION_ORDER_V1`, `LEGION_RESULT_V1`, and `LEGION_REVIEW_V1` validation when a bounded delegation artifact needs machine checking. Normal discussion, research notes, and WAR ROOM reasoning stay in Markdown.
+
+New executor results use `AGENT_RESULT_JSON_V1`. The shared `normalize-response`
+ingress accepts raw JSON or one clean lowercase `json` fence and preserves raw
+and normalized SHA-256 evidence. Echo a declared `AGENT_HANDOFF_V1` unchanged;
+never emit controller-owned `responseEnvelope`. Hermes-managed Codex uses the
+Gateway candidate file and builder; see `docs/LEGION_CONTRACTS.md` and the
+`agent-contract-runner` skill. Formatting failures never authorize product replay.
 
 It does not install external GitHub skill packs or create new Legionary owners.
 The Open Design installer changes only the named `centurion-open-design` MCP
@@ -74,7 +86,7 @@ Run those commands sequentially. Parallel Camofox tab creation can time out on t
 ## Guard Philosophy
 
 - One task still has one primary Legionary owner.
-- Codex `gpt-5.6-sol` is treated as a stronger executor, not permission to broaden roles.
+- Codex `gpt-6-sol` is treated as a stronger executor, not permission to broaden roles.
 - Large context is reserve capacity; CURATOR keeps dossiers compact.
 - Subagents are for bounded read-heavy work and review lanes, not uncontrolled write fan-out.
 - Hooks and plugins are power tools. They must be audited before being trusted in broad workflows.
@@ -96,6 +108,6 @@ Expected green audit on this host:
 - repository canonical skills: `37`;
 - active `~/.agents/skills`: `38` (37 owners plus `open-design-producer`);
 - active skill drift dirs: `0`;
-- Codex model: `gpt-5.6-sol`;
+- Codex model: `gpt-6-sol`;
 - Codex custom agents: low or zero unless intentionally configured;
 - warnings may appear for inline secret-like config values or broad MCP servers; these are security visibility signals, not automatic blockers unless `--strict-secrets` is used.

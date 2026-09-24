@@ -13,7 +13,7 @@ import re
 
 # Import Legion Core path setup
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-sys.path.append(os.path.join(REPO_ROOT, 'libs'))
+sys.path.insert(0, os.path.join(REPO_ROOT, 'libs'))
 
 # Try importing to ensure it works
 try:
@@ -25,6 +25,30 @@ except ImportError:
 
 SKILLS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
+
+def _strict_legion_json_loads(raw):
+    """Load a Legion result without ambiguous JSON values or result shapes."""
+    result = json.loads(
+        raw,
+        object_pairs_hook=MissionState._pairs_without_duplicates,
+        parse_constant=MissionState._reject_constant,
+    )
+    MissionState._assert_finite(result)
+    if not isinstance(result, dict):
+        raise ValueError("Legion result must be a JSON object")
+
+    status = result.get("status")
+    if status == "success":
+        if "data" not in result or not isinstance(result["data"], dict):
+            raise ValueError("Successful Legion result must contain object data")
+    elif status == "error":
+        if not isinstance(result.get("error"), str) or not result["error"]:
+            raise ValueError("Error Legion result must contain a non-empty error message")
+    else:
+        raise ValueError("Legion result status must be 'success' or 'error'")
+    return result
+
+
 def parse_legion_output(stdout):
     """Extract JSON from marker blocks."""
     # Look for content between markers
@@ -32,13 +56,13 @@ def parse_legion_output(stdout):
     match = pattern.search(stdout)
     if match:
         try:
-            return json.loads(match.group(1))
-        except json.JSONDecodeError as e:
+            return _strict_legion_json_loads(match.group(1))
+        except (json.JSONDecodeError, ValueError) as e:
             raise RuntimeError(f"Invalid JSON inside markers: {e}")
     # Fallback: try parsing whole stdout if it looks like JSON
     try:
-        return json.loads(stdout.strip())
-    except:
+        return _strict_legion_json_loads(stdout.strip())
+    except (json.JSONDecodeError, ValueError):
         raise RuntimeError("No valid Legion JSON output found in stdout")
 
 def run_agent(role, script, args):

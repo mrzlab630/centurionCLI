@@ -36,7 +36,7 @@
 | SICARIUS | `select_legionary`, workflows | Exploit verification, browser automation, PoC evidence |
 | AUGUR | `select_legionary`, workflows | Phantom1225, ScamNet, pump/dump, sniper timing, pool intelligence |
 | QUAESTOR | `select_legionary`, workflows | Crypto/on-chain, DEX/token/pool, wallet, trading-risk analysis |
-| EVOCATUS | `select_legionary`, workflows | External-model delegation in tmux and result collection |
+| EVOCATUS | `select_legionary`, workflows | Contract-governed external-model delegation and verified result collection |
 | TABULARIUS | `select_legionary`, workflows | Reports, charts, tables, HTML publishing handoffs |
 | CAPABILITIES | `select_legionary`, docs | Capability and command reference |
 

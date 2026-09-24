@@ -73,7 +73,9 @@
           },
           "note": {
             "type": "string"
-          }
+          },
+          "mediaType": { "type": "string", "pattern": "^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+(?:[\\t ]*;[^\\r\\n]*)?$" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
         },
         "additionalProperties": true
       }
@@ -166,6 +168,43 @@
     },
     "stderrSummary": {
       "type": "string"
+    },
+    "handoff": {
+      "type": "object",
+      "required": ["version", "schemaId", "inReplyTo", "senderRole", "recipientRole"],
+      "properties": {
+        "version": { "const": "AGENT_HANDOFF_V1" },
+        "schemaId": { "const": "AGENT_RESULT_JSON_V1" },
+        "inReplyTo": { "type": "string", "minLength": 1 },
+        "senderRole": { "type": "string", "minLength": 1 },
+        "recipientRole": { "type": "string", "minLength": 1 },
+        "objectiveId": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "responseEnvelope": {
+      "type": "object",
+      "required": [
+        "version",
+        "transport",
+        "rawEvidencePath",
+        "rawSha256",
+        "rawBytes",
+        "normalizedCandidatePath",
+        "normalizedSha256",
+        "normalizedBytes"
+      ],
+      "properties": {
+        "version": { "const": "AGENT_RESPONSE_ENVELOPE_V1" },
+        "transport": { "enum": ["raw_json", "json_fence"] },
+        "rawEvidencePath": { "type": "string", "minLength": 1 },
+        "rawSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "rawBytes": { "type": "integer", "minimum": 0 },
+        "normalizedCandidatePath": { "type": "string", "minLength": 1 },
+        "normalizedSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "normalizedBytes": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
     }
   },
   "allOf": [

@@ -7,6 +7,7 @@ import {
   validateDelegationResult,
   validateLegionOrder,
   validateLegionReview,
+  readAgentResponse,
   parseStrictJson
 } from '../lib/contracts.mjs';
 
@@ -28,7 +29,7 @@ function parseArgs(argv) {
 }
 
 function usage() {
-  return `Usage:\n  node scripts/legion-contract.mjs validate-order --file <LEGION_ORDER.json>\n  node scripts/legion-contract.mjs validate-result --file <RESULT.json> [--accept-order-version <AGY_ORDER_V1,CLAUDE_ORDER_V1>]\n  node scripts/legion-contract.mjs validate-result --canonical --file <AGENT_RESULT.json> [--order-id <id>] [--executor <id>] [--status <done,blocked,failed>]\n  node scripts/legion-contract.mjs validate-agent-result --file <AGENT_RESULT.json> [--order-id <id>] [--executor <id>] [--status <done,blocked,failed>]\n  node scripts/legion-contract.mjs validate-canonical-result --file <AGENT_RESULT.json> [--order-id <id>] [--executor <id>] [--status <done,blocked,failed>]\n  node scripts/legion-contract.mjs validate-review --file <LEGION_REVIEW.json>\n`;
+  return `Usage:\n  node scripts/legion-contract.mjs normalize-response --file <EXECUTOR_RESPONSE> [--order-id <id>] [--executor <id>] [--handoff <expected-handoff.json>]\n  node scripts/legion-contract.mjs validate-order --file <LEGION_ORDER.json>\n  node scripts/legion-contract.mjs validate-result --file <RESULT.json> [--accept-order-version <AGY_ORDER_V1,CLAUDE_ORDER_V1>]\n  node scripts/legion-contract.mjs validate-result --canonical --file <AGENT_RESULT.json> [--order-id <id>] [--executor <id>] [--status <done,blocked,failed>]\n  node scripts/legion-contract.mjs validate-agent-result --file <AGENT_RESULT.json> [--order-id <id>] [--executor <id>] [--status <done,blocked,failed>]\n  node scripts/legion-contract.mjs validate-canonical-result --file <AGENT_RESULT.json> [--order-id <id>] [--executor <id>] [--status <done,blocked,failed>]\n  node scripts/legion-contract.mjs validate-review --file <LEGION_REVIEW.json>\n`;
 }
 
 function readJson(file) {
@@ -43,6 +44,14 @@ function splitList(value) {
 function validate(args) {
   if (!args.file || args.file === true) throw new Error('--file is required');
   const file = path.resolve(String(args.file));
+  if (args.command === 'normalize-response') {
+    const expectedHandoff = args.handoff === undefined ? undefined : readJson(path.resolve(String(args.handoff)));
+    const response = readAgentResponse(file, { expectedHandoff, orderId: args['order-id'] });
+    const failures = validateAgentResult(response.value, { expectedHandoff, expectedOrderId: args['order-id'], expectedExecutor: args.executor, expectedStatus: args.status });
+    process.stdout.write(`${JSON.stringify({ ok: failures.length === 0, file, responseEnvelope: response.envelope, responseReceipt: response.receiptPath, code: failures.length ? 'RESPONSE_SCHEMA_ERROR' : null, failures }, null, 2)}\n`);
+    if (failures.length) process.exitCode = 1;
+    return;
+  }
   const data = readJson(file);
   let failures;
   if (args.command === 'validate-order') failures = validateLegionOrder(data);
@@ -71,6 +80,6 @@ try {
     validate(args);
   }
 } catch (error) {
-  process.stderr.write(`${error.message}\n`);
+  process.stderr.write(`${error.code ? JSON.stringify({ ok: false, code: error.code, message: error.message, rawEvidencePath: error.rawEvidencePath, rawSha256: error.rawSha256 }) : error.message}\n`);
   process.exitCode = 1;
 }

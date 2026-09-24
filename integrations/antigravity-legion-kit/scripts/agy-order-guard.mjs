@@ -6,8 +6,11 @@ import process from 'node:process';
 import {
   isPlainObject,
   parseStrictJson,
+  readFinalizedAgentResponse,
+  validateAgentHandoff,
   validateAgentResult,
-  validateDelegationResult
+  validateDelegationResult,
+  verifyAgentArtifactFiles
 } from '../legion-contracts/lib/contracts.mjs';
 import {
   AGY_RESULT_FILE,
@@ -42,7 +45,7 @@ function parseArgs(argv) {
 }
 
 function usage() {
-  return `Usage:\n  node scripts/agy-order-guard.mjs snapshot --workspace <dir> --order-id <orderId> [--out .centurion/agents_results/<orderId>/AGY_SNAPSHOT.json]\n  node scripts/agy-order-guard.mjs verify --workspace <dir> --order-id <orderId> [--before .centurion/agents_results/<orderId>/AGY_SNAPSHOT.json] --allowed <path[,path]> [--result .centurion/agents_results/<orderId>/AGY_RESULT.json] [--forbidden <regex[,regex]>] [--allow-legacy]\n`;
+  return `Usage:\n  node scripts/agy-order-guard.mjs snapshot --workspace <dir> --order-id <orderId> [--out .centurion/agents_results/<orderId>/AGY_SNAPSHOT.json]\n  node scripts/agy-order-guard.mjs verify --workspace <dir> --order-id <orderId> [--before .centurion/agents_results/<orderId>/AGY_SNAPSHOT.json] --allowed <path[,path]> [--result .centurion/agents_results/<orderId>/AGY_RESULT.json] [--forbidden <regex[,regex]>] [--handoff <expected-handoff.json>] [--allow-legacy]\n`;
 }
 
 function splitList(value) {
@@ -222,15 +225,16 @@ function scanForbidden(workspace, files, patterns) {
   return hits;
 }
 
-function validateCanonicalResult(result, orderId) {
+function validateCanonicalResult(result, orderId, expectedHandoff) {
   return validateAgentResult(result, {
     expectedOrderId: orderId,
-    expectedExecutor: 'agy'
+    expectedExecutor: 'agy',
+    expectedHandoff
   });
 }
 
-function validateResultShape(result, { allowLegacy, orderId }) {
-  if (!allowLegacy) return validateCanonicalResult(result, orderId);
+function validateResultShape(result, { allowLegacy, orderId, expectedHandoff }) {
+  if (!allowLegacy) return validateCanonicalResult(result, orderId, expectedHandoff);
   return validateDelegationResult(result, {
     acceptedOrderVersions: ['AGY_ORDER_V1'],
     actorLabel: 'agy',
@@ -253,46 +257,65 @@ function verify(args) {
   const resultPath = paths.resultRelative;
   const declaredAllowedPaths = splitList(args.allowed);
   rejectOutOfNamespaceControlEntries(paths, declaredAllowedPaths);
-  const allowedPaths = [...new Set(declaredAllowedPaths.concat(resultPath))];
   const forbidden = splitList(args.forbidden);
 
   if (!fs.existsSync(beforeFile)) throw new Error(`snapshot custody file not found: ${beforeFile}`);
   if (!declaredAllowedPaths.length) throw new Error('allowed paths are required');
 
   const before = readCustodySnapshot(beforeFile);
+  let expectedHandoff;
+  if (args.handoff !== undefined) {
+    if (typeof args.handoff !== 'string') throw new Error('--handoff requires a strict JSON file');
+    expectedHandoff = readJson(path.resolve(args.handoff));
+    validateAgentHandoff({ orderId, handoff: expectedHandoff }, { expectedHandoff, orderId });
+    if (args['allow-legacy']) throw new Error('--handoff requires canonical result mode');
+  }
   const after = snapshotWorkspace(paths.workspace);
   const changed = changedFiles(before, after);
-  const productChanged = changed.filter((file) => file !== paths.resultRelative);
-  const scopeViolations = changed.filter((file) => !isAllowed(file, allowedPaths));
-  const forbiddenHits = scanForbidden(paths.workspace, changed.filter((file) => isAllowed(file, allowedPaths)), forbidden);
   const resultFullPath = paths.resultAbsolute;
   const failures = [];
+  const responseErrors = [];
+  let response = null;
 
   if (!fs.existsSync(resultFullPath)) failures.push(`missing result file: ${resultPath}`);
   let result = null;
   if (fs.existsSync(resultFullPath)) {
     try {
-      result = readJson(resultFullPath);
-      failures.push(...validateResultShape(result, {
+      response = readFinalizedAgentResponse(resultFullPath, { expectedHandoff, orderId, evidenceDir: `${beforeFile}.responses`, allowedEvidenceRoots: [paths.namespaceAbsolute, `${beforeFile}.responses`] });
+      result = response.value;
+      const schemaFailures = validateResultShape(result, {
         allowLegacy: args['allow-legacy'] === true,
-        orderId
-      }));
-      if (!args['allow-legacy'] && Array.isArray(result.filesChanged) && result.filesChanged.every((item) => isPlainObject(item) && typeof item.path === 'string')) {
-        const declared = result.filesChanged.map((item) => normalizeRelative(item.path));
-        if (!sameList(declared, productChanged)) failures.push(`result.filesChanged[].path mismatch: expected ${productChanged.join(', ') || '<none>'}; got ${declared.join(', ') || '<none>'}`);
-      }
+        orderId,
+        expectedHandoff
+      });
+      failures.push(...schemaFailures);
+      if (schemaFailures.length) responseErrors.push({ code: 'RESPONSE_SCHEMA_ERROR', message: schemaFailures.join('; ') });
+      if (!args['allow-legacy']) failures.push(...verifyAgentArtifactFiles(result, paths.workspace, { expectedHandoff }));
     } catch (error) {
       failures.push(`result JSON parse failed: ${error.message}`);
+      responseErrors.push({ code: error.code || 'RESPONSE_FORMAT_ERROR', message: error.message, rawEvidencePath: error.rawEvidencePath, rawSha256: error.rawSha256 });
     }
   }
 
+  const generated = new Set((response?.controlFiles || []).filter((file) => {
+    const relative = path.relative(paths.workspace, file);
+    return relative !== '' && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+  }).map((file) => normalizeRelative(path.relative(paths.workspace, file))));
+  const productChanged = changed.filter((file) => file !== paths.resultRelative && !generated.has(file));
+  const allowedPaths = [...new Set(declaredAllowedPaths.concat(resultPath, [...generated]))];
+  const scopeViolations = changed.filter((file) => !isAllowed(file, allowedPaths));
+  const forbiddenHits = scanForbidden(paths.workspace, changed.filter((file) => !generated.has(file) && isAllowed(file, allowedPaths)), forbidden);
+  if (!args['allow-legacy'] && Array.isArray(result?.filesChanged) && result.filesChanged.every((item) => isPlainObject(item) && typeof item.path === 'string')) {
+    const declared = result.filesChanged.map((item) => normalizeRelative(item.path));
+    if (!sameList(declared, productChanged)) failures.push(`result.filesChanged[].path mismatch: expected ${productChanged.join(', ') || '<none>'}; got ${declared.join(', ') || '<none>'}`);
+  }
   if (scopeViolations.length) failures.push(`scope violations: ${scopeViolations.join(', ')}`);
   if (forbiddenHits.length) failures.push(`forbidden pattern hits: ${forbiddenHits.map((hit) => `${hit.file}:${hit.pattern}`).join(', ')}`);
-  if (result?.scopeDeviations?.length) failures.push(`agy reported scope deviations: ${result.scopeDeviations.join(', ')}`);
-  if (result?.scopeViolations?.length) failures.push(`agy reported scope violations: ${result.scopeViolations.join(', ')}`);
-  if (result?.forbiddenPatternHits?.length) failures.push(`agy reported forbidden hits: ${result.forbiddenPatternHits.join(', ')}`);
+  if (Array.isArray(result?.scopeDeviations) && result.scopeDeviations.length) failures.push(`agy reported scope deviations: ${result.scopeDeviations.join(', ')}`);
+  if (Array.isArray(result?.scopeViolations) && result.scopeViolations.length) failures.push(`agy reported scope violations: ${result.scopeViolations.join(', ')}`);
+  if (Array.isArray(result?.forbiddenPatternHits) && result.forbiddenPatternHits.length) failures.push(`agy reported forbidden hits: ${result.forbiddenPatternHits.join(', ')}`);
 
-  const report = { ok: failures.length === 0, changed, productChanged, scopeViolations, forbiddenHits, resultFile: resultPath, failures };
+  const report = { ok: failures.length === 0, changed, productChanged, scopeViolations, forbiddenHits, resultFile: resultPath, responseEnvelope: response?.envelope || null, responseReceipt: response?.receiptPath || null, responseErrors, failures };
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   if (failures.length) process.exitCode = 1;
 }

@@ -15,7 +15,7 @@ const CANONICAL_SKILLS = path.join(REPO_ROOT, 'skills');
 const OPEN_DESIGN_BRIDGE = path.join(REPO_ROOT, 'integrations', 'open-design-bridge');
 
 const REQUIRED_CONFIG = [
-  { key: 'model', value: 'gpt-5.6-sol', severity: 'failure' },
+  { key: 'model', value: 'gpt-6-sol', severity: 'failure' },
   { key: 'model_reasoning_effort', value: 'xhigh', severity: 'warning' }
 ];
 

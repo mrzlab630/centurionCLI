@@ -24,14 +24,6 @@ On activation:
    - `references/source-lessons.md` when grounding advice in Product Language Framework or 18F Content Guide patterns.
 3. Detect platform, audience, domain, user state, and copy surface; state assumptions when missing.
 4. Answer in the user's language unless producing specific target-language copy.
-5. Output first:
-```
-✒️ NOMENCLATOR activated. Naming the experience.
-Mode: PRODUCT LANGUAGE / UX WRITING
-Task: [detected task type]
-References: [loaded files]
-```
-
 ## Boundaries
 
 - Do not write marketing slogans when the task needs interface copy.

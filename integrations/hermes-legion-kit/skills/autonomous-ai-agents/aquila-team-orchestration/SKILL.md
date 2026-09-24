@@ -27,6 +27,15 @@ Load this when:
 
 One task has one accountable owner. If the owner lacks a needed capability, they request or depend on another owner; they do not silently widen scope.
 
+Boss sets authority; Aquila owns dispatch and acceptance; OPTIO sequences the
+mission; the selected Legionary owns the bounded specialty. Executor/model
+names are execution routes, not ownership levels. A specialist reports back to
+its owner and requests additional delegation through Aquila. It cannot expand
+scope, overrule a specialist gate, lower review, or accept its own work.
+Carry objective/order IDs, source/receiving roles, artifact paths, acceptance
+criteria, proof, and blockers in existing order context/notes. Start dependent
+work only after its inputs are accepted; parallel writers need disjoint scope.
+
 ### Scope, attempt, and step gates
 
 The user order and frozen plan are the hard scope ceiling. A new function,
@@ -50,25 +59,40 @@ fresh order; it cannot be inferred from a failure.
 
 ## Executor Routing
 
-| Need | Primary owner | Notes |
+| Need | Executor surface | Notes |
 | --- | --- | --- |
 | Production code, repo edits, tests, refactors | codex | Default implementation executor. Require a namespaced `CODEX_RESULT.json` or equivalent AGENT_RESULT_JSON_V1. |
-| Independent review, architecture critique, hard debugging | claude | Use for second-pass verification and complex reasoning. Do not let it self-approve its own implementation. |
-| UI alternatives, UX/content drafts, fast frontend prototypes | agy | Narrow scope, exact paths, browser/layout proof for UI, mandatory namespaced `AGY_RESULT.json`. |
+| Independent review and findings | claude | Pin `claude-opus-5`. Return corrections to the implementation owner through Aquila. |
+| UI, design, text, creative production | agy | Pin `gemini-3.8-flash` and `--effort low|medium|high`; preserve the selected specialty owner, browser/layout proof for UI, and namespaced `AGY_RESULT.json`. |
 | Small isolated parallel reasoning | Hermes `delegate_task` | Good for bounded research/review. Require structured final output mappable to AGENT_RESULT_JSON_V1. |
 | Durable multi-step work, restart-safe handoffs, human interjection | Hermes Kanban | Use explicit board/card state and owner. |
 
 ## Adaptive Model and Effort Routing
 
+Project `skills/architect/SKILL.md` remains the single ARCHITECTUS role.
+Keep Sol as the accepting architecture controller. Request one read-only
+GPT-6 Astra consultation only for an explicit user request, material
+architecture ambiguity, cross-system tradeoffs, or difficult diagnosis.
+Record the trigger in the existing advisory order; advice cannot implement,
+approve, or replace the independent Opus 5 V2/V3 review and V3 gate.
+
 Choose the model and reasoning effort independently for every DAG node. Use
-Luna for mechanical/read-only/high-volume low-complexity work, Terra as the
-routine bounded implementation default, and Sol for high complexity, material
-ambiguity, cross-service/architecture/security, hard debugging, or
-long-horizon reasoning. The effort enum is exactly
+Luna with `none`/`low` for exact mechanical work and `medium` for routine
+bounded implementation. Use `high` for non-trivial implementation, review,
+or raised evidence/risk needs. Use Sol when implementation needs
+judgment or the brief is uncertain; use at least `high` for complex,
+consequential, or long-horizon work and `xhigh` for hard debugging, security,
+architecture, cross-service reasoning, or high ambiguity.
+High complexity, ambiguity, cross-service/architecture/security, hard debugging,
+or long-horizon work requires Sol. The effort enum is exactly
 `none|low|medium|high|xhigh|max`; risk, ambiguity, reversibility, and evidence
 need may raise but never lower the applicable floor. No executor self-approves;
-Aquila retains final judgment. See the manual, non-installed
+Codex implementations with a proof gap require Claude review. Aquila retains
+final judgment. See the manual, non-installed
 `overrides/ADAPTIVE_MODEL_ROUTING_POLICY.md` for the complete invariant set.
+For Codex orders, set `launch.command` with explicit `--model` and
+`-c model_reasoning_effort=...` matching the recorded route. The requested
+model is not runtime proof; verify the provider-selected model before closure.
 
 ## Atomic V0-V3 Routing Cutover
 
@@ -77,11 +101,17 @@ For orders created at or after `2026-08-03T11:00:42Z`, add exactly one compact `
 | Profile | Terminal reviewer | Rule |
 | --- | --- | --- |
 | V0 | none | Deterministic proof only; low-risk, local, fully observable work. |
-| V1 | `gpt-5.6-sol` | Recoverable work with a meaningful proof gap. |
+| V1 | `gpt-6-sol` | Recoverable work with a meaningful proof gap. |
 | V2 | `claude-opus-5` | Medium consequence, shared contract, ambiguity, architecture, or hidden-failure risk. |
-| V3 | `claude-opus-5` plus specialist/Boss gate | Security, auth, secrets, money, production, dependencies, public endpoints, or infrastructure. |
+| V3 | Currently blocked by the runner pending a trusted approval verifier; intended route is `claude-opus-5` plus specialist/Boss gate | Security, auth, secrets, money, production, dependencies, public endpoints, or infrastructure. |
 
 The terminal review never delegates a review of itself. After its model gate, Aquila performs only deterministic identity, schema, hash, path, artifact, and proof closure. Record escaped V0 defects and Sol misses in the append-only attempt ledger; the history promotions in the policy elevate future task-class routes without retrospective review of unrelated objectives. See `references/review-routing-ladder-and-cost-control.md` and the installed `agent-contract-runner` skill for the enforceable runner and regressions.
+
+Loop V1 persists the accepted candidate's result digest, objective, task class,
+review profile, and reviewer in controller state. The review order inherits
+those requirements; it cannot downgrade them or substitute another objective.
+The controller rechecks candidate JSON before dispatch and closure. Product
+bytes still require snapshot/guard proof; Loop V1 does not support lineage.
 
 ### Executor artifact boundary
 
@@ -121,6 +151,15 @@ For any multi-agent or durable task, record these fields in the order, Kanban ca
 3. **Assign**: choose one owner per task and issue AGENT_ORDER_JSON_V1 when the surface can accept structured text.
 4. **Execute**: let the owner work. Do not replace a failed executor with Aquila self-coding unless Boss gave direct-work override.
 5. **Verify**: result JSON exists, expected artifacts exist, diff is scoped, proof commands pass, self-review is present.
+
+For new machine handoffs, declare `outputContract.handoff` as `AGENT_HANDOFF_V1`
+using the runner skill: pin schema, order, sender/recipient roles and objective;
+require the exact response echo and typed artifact hashes. Use its deterministic
+raw JSON / single clean `json` fence ingress. Never strip arbitrary prose or
+rerun product work to repair formatting. `responseEnvelope` belongs to the
+controller; accepted predecessor control artifacts use `inputResults` pins.
+Dispatch native structured output only when the active surface supports it;
+otherwise use the documented separate candidate-file adapter.
 6. **Review**: use claude/reviewer path for independent critique when risk is medium or higher.
 7. **Integrate**: merge or accept only after the merge gate is satisfied; otherwise send a correction order.
 8. **Report**: state accepted work, rejected work, evidence, risks, and next action.

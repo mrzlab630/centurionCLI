@@ -136,12 +136,14 @@ function assertSkill({ category, name }) {
     assert(text.includes('AQUILA_ROUTING_JSON_V1'), `${label} missing deterministic routing metadata`);
     assert(text.includes('review-routing-ladder-and-cost-control.md'), `${label} missing routing policy reference`);
     assert(text.includes('V0'), `${label} missing V0-V3 matrix`);
+    assert(text.includes('skills/architect/SKILL.md') && text.includes('GPT-6 Astra consultation'), `${label} missing bounded ARCHITECTUS pointer`);
   }
   if (name === 'agent-contract-runner') {
     assert(/^version:\s*0\.4\.0$/m.test(text), `${label} version must be 0.4.0`);
-    for (const marker of ['2026-08-03T11:00:42Z', 'AQUILA_ROUTING_JSON_V1', 'V0', 'V1', 'V2', 'V3', 'strict_json.py', 'attempt_ledger.py', 'review_ladder.py', 'agent_result_builder.py', 'internal canonicalization', 'result_gateway.py', 'validate_order', 'routingSha256', 'monitor-delegation.sh', '--start-receipt', 'terminal closure', 'routing intent', 'backup', 'rollback', 'terminal']) {
+    for (const marker of ['2026-08-03T11:00:42Z', 'AQUILA_ROUTING_JSON_V1', 'V0', 'V1', 'V2', 'V3', 'strict_json.py', 'response_envelope.py', 'attempt_ledger.py', 'review_ladder.py', 'agent_result_builder.py', 'internal canonicalization', 'result_gateway.py', 'validate_order', 'routingSha256', 'monitor-delegation.sh', '--start-receipt', 'terminal closure', 'routing intent', 'backup', 'rollback', 'terminal']) {
       assert(text.includes(marker), `${label} missing marker: ${marker}`);
     }
+    assert(text.includes('executionProfile:"advisory"') && text.includes('read-only Codex sandbox'), `${label} missing Astra advisory boundary`);
   }
   if (name === 'aquila-execution-state') {
     for (const marker of ['AQUILA_EXECUTION_STATE_V1', 'read-only-derived', 'legacy-terminal-compat', 'summaryOmitted', 'default-off', 'execution_state.py', '16 KiB']) {
@@ -245,7 +247,7 @@ function runInstallerCliOnlySmoke() {
 
 function runPackagedPythonRegressions(scriptRoot) {
   assert(!process.env.PYTHONOPTIMIZE, 'PYTHONOPTIMIZE must be unset so packaged regression assertions cannot be stripped');
-  const scripts = ['regression_review_ladder.py', 'regression_agent_contract_runner.py', 'regression_agent_result_builder.py', 'regression_result_gateway.py', 'regression_execution_state.py'];
+  const scripts = ['regression_review_ladder.py', 'regression_agent_contract_runner.py', 'regression_agent_result_builder.py', 'regression_result_gateway.py', 'regression_response_envelope.py', 'regression_artifact_lineage.py', 'regression_accepted_inputs.py', 'regression_accepted_inputs_gateway.py', 'regression_execution_state.py', 'regression_legion_handoffs.py'];
   const isolatedEnvironment = {
     ...process.env,
     HOME: path.join(path.dirname(scriptRoot), 'nonexistent-home'),
@@ -272,9 +274,10 @@ import path from 'node:path';
 const args = process.argv.slice(2);
 if (args[0] === 'mcp' && args[1] === 'remove') { process.stderr.write('Server not found\\n'); process.exit(1); }
 if (args[0] === 'mcp' && args[1] === 'add') {
+  if (fs.readFileSync(0, 'utf8') !== '\\n') { process.stderr.write('expected safe default prompt response\\n'); process.exit(3); }
   fs.mkdirSync(process.env.HERMES_HOME, { recursive: true });
   fs.writeFileSync(path.join(process.env.HERMES_HOME, 'config.yaml'), 'mcpServers:\\n  centurion-open-design:\\n    command: node\\n');
-  process.stdout.write(\"Saved 'centurion-open-design'\\n\");
+  process.stdout.write(\"Saved 'centurion-open-design' to config.yaml (4/4 tools enabled)\\n\");
   process.exit(0);
 }
 process.exit(2);
@@ -297,7 +300,7 @@ process.exit(2);
       ...['rust-solana-foundations.md', 'security-audit-checklist.md', 'testing-and-release.md', 'sources.md'].map((file) => path.join(tempHome, 'skills', 'software-development', 'solana-program-engineering', 'references', file)),
       path.join(tempHome, 'centurion', 'open-design-bridge.json'),
       path.join(tempHome, 'bin', 'monitor-delegation.sh'),
-      ...['strict_json.py', 'agent_contract_runner.py', 'regression_agent_contract_runner.py', 'agent_result_builder.py', 'regression_agent_result_builder.py', 'result_gateway.py', 'regression_result_gateway.py', 'attempt_ledger.py', 'review_ladder.py', 'regression_review_ladder.py', 'execution_state.py', 'regression_execution_state.py'].map((file) => path.join(scriptRoot, file)),
+      ...['strict_json.py', 'response_envelope.py', 'regression_response_envelope.py', 'accepted_inputs.py', 'regression_accepted_inputs.py', 'regression_accepted_inputs_gateway.py', 'artifact_lineage.py', 'regression_artifact_lineage.py', 'direct_custody.py', 'agent_contract_runner.py', 'regression_agent_contract_runner.py', 'agent_result_builder.py', 'regression_agent_result_builder.py', 'result_gateway.py', 'regression_result_gateway.py', 'attempt_ledger.py', 'review_ladder.py', 'regression_review_ladder.py', 'execution_state.py', 'regression_execution_state.py', 'regression_legion_handoffs.py'].map((file) => path.join(scriptRoot, file)),
       path.join(tempHome, 'skills', 'autonomous-ai-agents', 'aquila-execution-state', 'SKILL.md')
     ];
     for (const file of requiredFiles) assert(fs.existsSync(file), `isolated install missing: ${file}`);
@@ -317,6 +320,7 @@ process.exit(2);
     assert(result.stdout.includes('"openDesignMcpRegistered": true'), 'installer did not register Open Design MCP');
     const hermesConfig = readText(path.join(tempHome, 'config.yaml'));
     assert(/centurion-open-design:/.test(hermesConfig), 'installed Hermes Open Design MCP missing');
+    assert(result.stderr === '', 'installer must not write an interactive prompt or warning to stderr');
     assert(!result.stdout.includes('Save config anyway') && !result.stderr.includes('Save config anyway'), 'installer success must not prompt for MCP save');
     const wrapper = spawnSync(process.execPath, [path.join(tempHome, 'skills', 'autonomous-ai-agents', 'open-design-producer', 'scripts', 'open-design.mjs'), '--print-cli'], {
       encoding: 'utf8',
@@ -358,6 +362,10 @@ const args = process.argv.slice(2);
 if (args[0] === 'mcp' && args[1] === 'remove') { process.stderr.write('Server not found\\n'); process.exit(1); }
 if (args[0] === 'mcp' && args[1] === 'add') {
   fs.writeFileSync(path.join(process.env.HERMES_HOME, 'config.yaml'), 'mutated before failure\\n');
+  if (process.env.CENTURION_TEST_DISABLED_MCP === '1') {
+    process.stdout.write(\"Saved 'centurion-open-design' to config (disabled)\\n\");
+    process.exit(0);
+  }
   process.stderr.write('injected add failure\\n');
   process.exit(42);
 }
@@ -371,6 +379,12 @@ process.exit(2);
     });
     assert(result.status !== 0, 'Hermes installer failure injection must fail');
     assert(JSON.stringify(snapshotTree(tempHome)) === JSON.stringify(before), 'Hermes installer did not restore the previous home');
+    const disabled = spawnSync(process.execPath, [path.join(KIT_ROOT, 'installer', 'install.mjs'), '--hermes-home', tempHome], {
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${fakeBin}${path.delimiter}${process.env.PATH}`, CENTURION_TEST_DISABLED_MCP: '1' }
+    });
+    assert(disabled.status !== 0, 'disabled MCP with exit zero must not count as successful installation');
+    assert(JSON.stringify(snapshotTree(tempHome)) === JSON.stringify(before), 'disabled MCP must roll back the installation');
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
@@ -397,11 +411,14 @@ function assertResultGatewayDocs() {
     'regression_review_ladder.py',
     'regression_agent_contract_runner.py',
     'regression_agent_result_builder.py',
-    'regression_result_gateway.py'
+    'regression_result_gateway.py',
+    'regression_response_envelope.py',
+    'regression_accepted_inputs.py',
+    'regression_accepted_inputs_gateway.py'
   ];
   for (const [label, file] of surfaces) {
     const text = readText(file);
-    for (const marker of ['strict_json.py', 'result_gateway.py', 'agent_result_builder.py', 'routingSha256', 'monitor-delegation.sh']) {
+    for (const marker of ['strict_json.py', 'response_envelope.py', 'result_gateway.py', 'agent_result_builder.py', 'routingSha256', 'monitor-delegation.sh']) {
       assert(text.includes(marker), `${label} missing result-boundary marker: ${marker}`);
     }
     for (const regression of regressions) assert(text.includes(regression), `${label} missing regression command: ${regression}`);
@@ -421,24 +438,25 @@ function assertOverrides() {
   assert(fs.existsSync(claudeRoleRule), 'missing SOUL Claude role rule note');
   const claudeRoleText = readText(claudeRoleRule);
   for (const marker of [
-    'Principal reviewer and reasoning-heavy executor',
+    'Principal independent reviewer',
     'Codex remains the default implementation owner',
     'Claude is not allowed to self-approve',
-    'Claude implementation is not limited to Codex unavailability',
+    'Corrections return to Luna/Sol',
     'Aquila retains final judgment'
   ]) {
     assert(claudeRoleText.includes(marker), `SOUL Claude role rule note missing marker: ${marker}`);
   }
   assert(fs.existsSync(adaptivePolicy), 'missing adaptive model routing policy note');
   const policyText = readText(adaptivePolicy);
+  assert(policyText.includes('GPT-6 Astra') && policyText.includes('Opus 5 review'), 'adaptive policy missing bounded Astra route');
   for (const marker of [
-    'gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol',
+    'gpt-6-luna', 'gpt-6-sol', 'Luna work at `medium`',
     'none|low|medium|high|xhigh|max',
     'independently for every DAG node', 'Aquila retains final judgment',
     'No executor self-approves', 'not automatically installed',
     'Runtime/launcher evidence overrides stale static summaries',
     'Claude Opus 5',
-    'Terra, not Sol, is the routine bounded implementation default',
+    'Luna at `medium` is the routine bounded default',
     'can raise but never lower',
     'prose does not activate effort'
   ]) assert(policyText.includes(marker), `adaptive policy missing marker: ${marker}`);
@@ -455,7 +473,7 @@ function assertOverrides() {
 
 function assertPackageVersion() {
   const manifest = JSON.parse(readText(PACKAGE_MANIFEST));
-  assert(manifest.version === '0.7.4', 'package version must be 0.7.4');
+  assert(manifest.version === '0.9.1', 'package version must be 0.9.1');
 }
 
 function main() {

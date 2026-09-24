@@ -24,14 +24,6 @@ On activation:
    - `references/source-lessons.md` when grounding advice in the GitHub repositories used as pattern sources.
 3. State assumptions when genre, audience, monetization, locale, or age rating is missing.
 4. Answer in the user's language.
-5. Output first:
-```
-🎮 LUDIFEX activated. Shaping the game.
-Mode: TELEGRAM MINI APP GAME PRODUCT
-Task: [detected task type]
-References: [loaded files]
-```
-
 ## Boundaries
 
 - Do not copy competitor code, screen text, art, economy numbers, or brand-specific mechanics.
