@@ -21,11 +21,12 @@ from jsonschema import Draft202012Validator
 
 from agent_artifact_namespace import ArtifactNamespaceError, artifact_namespace
 from artifact_lineage import LineageError, verify_anchor
-from agent_contract_runner import validate_codex_launch, validate_order, verify_result
+from agent_contract_runner import prepare_order_namespace, validate_codex_launch, validate_order, verify_result
 
 
 SCRIPT_ROOT = Path(__file__).resolve().parent
 GATEWAY = SCRIPT_ROOT / "result_gateway.py"
+RUNNER = SCRIPT_ROOT / "agent_contract_runner.py"
 SCHEMA = SCRIPT_ROOT.parent / "references" / "agent-result.schema.json"
 ROOT = Path(tempfile.mkdtemp(prefix="result-gateway-regression-"))
 atexit.register(shutil.rmtree, ROOT, ignore_errors=True)
@@ -137,6 +138,9 @@ if Path(sys.argv[0]).name == "codex" and args[:1] == ["exec"]:
 mode, candidate_value, order_id, executor, status, side_effect_value, sleep_value, exit_value = args
 candidate = Path(candidate_value)
 side_effect = Path(side_effect_value) if side_effect_value != "NONE" else None
+required_evidence = os.environ.get("RESULT_GATEWAY_TEST_EVIDENCE")
+if required_evidence and not Path(required_evidence).is_dir():
+    raise SystemExit("controller evidence directory missing before child startup")
 count = Path(os.environ["RESULT_GATEWAY_TEST_COUNT"])
 count.parent.mkdir(parents=True, exist_ok=True)
 with count.open("a", encoding="utf-8") as handle:
@@ -428,6 +432,7 @@ def make_case(
     bad_stdout_parent: bool = False,
     separate_stdout_parent: bool = False,
     candidate_source: str = "file",
+    prepare: bool = True,
 ) -> dict[str, Path | dict[str, str]]:
     case = ROOT / name
     case.mkdir(parents=True)
@@ -450,7 +455,7 @@ def make_case(
         capture = control_dir / "capture"
         capture.mkdir()
         stdout = capture / "stdout.log"
-    evidence.mkdir()
+
     side_effect_path = case / "side-effect.txt" if side_effect else Path("NONE")
     command = [executor, mode, str(candidate), order_id, executor, status, str(side_effect_path), str(sleep_seconds), str(exit_code)]
     if executor == "codex":
@@ -488,6 +493,9 @@ def make_case(
     set_routing(order, routing_metadata(order_id, executor))
     order_path = case / "order.json"
     write_json(order_path, order)
+    _, policy = validate_order(order)
+    if prepare:
+        assert prepare_order_namespace(policy) == evidence
     return {
         "case": case,
         "order": order_path,
@@ -695,6 +703,37 @@ def main() -> int:
         print("FAIL regression_result_gateway.py requires assertions; PYTHONOPTIMIZE is not allowed", file=sys.stderr)
         return 1
     install_fake_executors()
+
+    for mode in ("validate-only", "dry-run", "invalid-preflight", "run"):
+        case = make_case(f"controller-evidence-{mode}", "valid", prepare=False)
+        evidence = Path(case["evidence"])
+        assert not evidence.exists()
+        order = read_json(Path(case["order"]))
+        if mode == "run":
+            argv = shlex.split(order["launch"]["command"])
+            argv[argv.index(str(case["candidate"]))] = str(case["result"])
+            order["launch"]["command"] = shlex.join(argv)
+            write_json(Path(case["order"]), order)
+        command = [
+            sys.executable, str(RUNNER), "--order", str(case["order"]),
+            "--mode", "dry-run" if mode == "dry-run" else "run",
+            "--events", str(case["events"]), "--result",
+            str(ROOT / "wrong-result.json") if mode == "invalid-preflight" else str(case["result"]),
+        ]
+        if mode == "validate-only":
+            command.append("--validate-only")
+        env = environment()
+        env["RESULT_GATEWAY_TEST_EVIDENCE"] = str(evidence)
+        before = launch_count()
+        completed = subprocess.run(command, cwd=ROOT, env=env, text=True, capture_output=True, check=False)
+        if mode == "run":
+            assert completed.returncode == 0, completed.stderr or completed.stdout
+            assert evidence.is_dir() and launch_count() == before + 1
+            assert load_valid_result(Path(case["result"]))["status"] == "done"
+        else:
+            assert completed.returncode == (1 if mode == "invalid-preflight" else 0), completed.stderr or completed.stdout
+            assert not evidence.exists() and launch_count() == before
+    print("PASS controller entrypoint prepares evidence at child startup only after run preflight")
 
     advisory = make_case("astra-advisory", "valid")
     advisory_order = read_json(Path(advisory["order"]))

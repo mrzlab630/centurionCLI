@@ -234,6 +234,31 @@ class PathPolicy:
             raise RunnerError(str(exc)) from exc
 
 
+def prepare_order_namespace(policy: PathPolicy) -> Path:
+    """Create and validate the controller evidence namespace before dispatch.
+
+    Result Gateway deliberately does not call this helper: a Gateway invoked
+    without controller preparation must continue to reject a missing evidence
+    directory.
+    """
+    namespace = policy.control_namespace
+    try:
+        require_no_symlink_components(namespace)
+        namespace.mkdir(parents=True, exist_ok=True)
+        require_no_symlink_components(namespace)
+        evidence = require_control_path(namespace / "evidence", namespace, "order evidence directory")
+        if evidence.exists() and evidence.is_symlink():
+            raise RunnerError(f"order evidence directory must not be a symlink: {evidence}")
+        evidence.mkdir(exist_ok=True)
+        if not evidence.is_dir():
+            raise RunnerError(f"order evidence directory is not a directory: {evidence}")
+        fd, probe = tempfile.mkstemp(prefix=".order-evidence-probe.", dir=evidence)
+        os.close(fd)
+        Path(probe).unlink(missing_ok=True)
+    except (ArtifactNamespaceError, OSError) as exc:
+        raise RunnerError(f"could not prepare order evidence directory: {exc}") from exc
+    return evidence
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
@@ -1511,6 +1536,7 @@ def main() -> int:
                 terminalPath=str(direct_custody["terminal"]),
             )
         try:
+            prepare_order_namespace(policy)
             completed = run_command(order, argv, policy)
         except CommandTimeoutError as exc:
             executor_ran = True
