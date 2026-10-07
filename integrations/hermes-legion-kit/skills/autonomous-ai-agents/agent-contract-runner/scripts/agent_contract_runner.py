@@ -26,7 +26,14 @@ from agent_artifact_namespace import (
     require_no_symlink_components,
 )
 from direct_custody import CustodyError, close_direct_attempt, finalize_direct_attempt, start_direct_attempt
-from review_ladder import PROFILE_RANK, REVIEWER_BY_PROFILE, RoutingError, validate_order_routing, validate_terminal_review_result
+from review_ladder import (
+    PROFILE_RANK,
+    REVIEWER_BY_PROFILE,
+    REVIEWER_FALLBACK_BY_PROFILE,
+    RoutingError,
+    validate_order_routing,
+    validate_terminal_review_result,
+)
 from strict_json import StrictJSONError, strict_json_load_path
 from accepted_inputs import AcceptedInputError, verify_input_results
 from response_envelope import ResponseEnvelopeError, parse_response_bytes, validate_handoff_order, validate_response_handoff, response_state_errors, valid_media_type
@@ -517,6 +524,48 @@ def validate_gemini_launch(command: str, model: str, effort: str) -> None:
         raise RunnerError("Gemini launch --model and --effort must match the recorded route exactly")
 
 
+def validate_claude_launch(command: str, model: str, fallback_model: str) -> None:
+    """Bind Claude's primary and ordered fallback models to the actual argv."""
+    try:
+        argv = shlex.split(command)
+    except ValueError as exc:
+        raise RunnerError(f"launch.command cannot be parsed safely: {exc}") from exc
+    if not argv or Path(argv[0]).name != "claude":
+        raise RunnerError("Claude launch.command must start with claude")
+
+    values = {"--model": [], "--fallback-model": []}
+    prompt_started = False
+    index = 1
+    while index < len(argv):
+        token = argv[index]
+        if token == "--":
+            break
+        if prompt_started:
+            break
+        if not token.startswith("-") or token == "-":
+            prompt_started = True
+            index += 1
+            continue
+        name, separator, attached = token.partition("=")
+        if name in values:
+            if separator:
+                value = attached
+            elif index + 1 < len(argv) and not argv[index + 1].startswith("-"):
+                index += 1
+                value = argv[index]
+            else:
+                raise RunnerError(f"Claude launch option {name} requires a value")
+            values[name].append(value)
+        index += 1
+
+    if values["--model"] != [model]:
+        raise RunnerError("Claude launch.command must contain exactly one --model matching routing.model")
+    if values["--fallback-model"] != [fallback_model]:
+        raise RunnerError(
+            "Claude launch.command must contain exactly one --fallback-model matching the ordered reviewer fallback"
+        )
+
+
 def validate_files_changed(items: list[Any], policy: PathPolicy) -> None:
     for index, item in enumerate(items):
         file_obj = require_object(item, f"filesChanged[{index}]")
@@ -762,6 +811,12 @@ def validate_order(order: dict[str, Any]) -> tuple[list[str], PathPolicy]:
     if routing is not None:
         if routing["model"] == "gemini-3.8-flash":
             validate_gemini_launch(launch["command"], routing["model"], routing["reasoningEffort"])
+        if order["executor"] == "claude" and routing["verificationProfile"] in REVIEWER_FALLBACK_BY_PROFILE:
+            validate_claude_launch(
+                launch["command"],
+                routing["model"],
+                REVIEWER_FALLBACK_BY_PROFILE[routing["verificationProfile"]],
+            )
         if order["executor"] == "codex":
             advisory = routing["executionProfile"] == "advisory"
             advisory_paths = validate_codex_launch(launch["command"], routing["model"], routing["reasoningEffort"], advisory=advisory)

@@ -15,17 +15,27 @@ ROUTING_PREFIX = "AQUILA_ROUTING_JSON_V1:"
 CUTOVER_AT = datetime(2026, 8, 3, 11, 0, 42, tzinfo=timezone.utc)
 PROFILES = ("V0", "V1", "V2", "V3")
 PROFILE_RANK = {profile: index for index, profile in enumerate(PROFILES)}
+SOL_PRIMARY_MODEL = "gpt-6.1-sol"
+SOL_FALLBACK_MODEL = "gpt-6-sol"
+SOL_FALLBACK_REASON = (
+    "fallback: gpt-6-sol selected after verified pre-side-effect unavailability of gpt-6.1-sol"
+)
 REVIEWER_BY_PROFILE = {
     "V0": "none",
-    "V1": "gpt-6-sol",
-    "V2": "claude-opus-5",
-    "V3": "claude-opus-5",
+    "V1": SOL_PRIMARY_MODEL,
+    "V2": "claude-opus-5-5",
+    "V3": "claude-opus-5-5",
 }
+SOL_REVIEWER_FALLBACK_BY_PROFILE = {"V1": SOL_FALLBACK_MODEL}
+CLAUDE_REVIEWER_FALLBACK_BY_PROFILE = {"V2": "claude-opus-5", "V3": "claude-opus-5"}
+REVIEWER_FALLBACK_BY_PROFILE = dict(CLAUDE_REVIEWER_FALLBACK_BY_PROFILE)
 ALLOWED_MODELS = {
     "gpt-6-luna",
-    "gpt-6-sol",
+    SOL_PRIMARY_MODEL,
+    SOL_FALLBACK_MODEL,
     "gpt-6-astra",
     "gemini-3.8-flash",
+    "claude-opus-5-5",
     "claude-opus-5",
     "agy",
     "hermes-delegate-task",
@@ -291,7 +301,7 @@ def task_class_promotion(history: Iterable[dict[str, Any]], task_class: str) -> 
     sol_rows = [
         row
         for row in rows
-        if row.get("reviewer") in {"gpt-6-sol", "gpt-5.6-sol", "sol"} and row.get("status") == "done"
+        if row.get("reviewer") in {SOL_PRIMARY_MODEL, SOL_FALLBACK_MODEL, "gpt-5.6-sol", "sol"} and row.get("status") == "done"
     ]
     for row in sol_rows:
         if str(row.get("failureClass", "")).casefold().startswith("sol_miss") and _severity(row) == "high":
@@ -315,8 +325,12 @@ def select_review_route(metadata: dict[str, Any], history: Iterable[dict[str, An
     gate_satisfied = profile != "V3"
     return {
         "verificationProfile": profile,
-        "route": "astra_advisory" if advisory else ("terminal_closure" if terminal else ("deterministic_only" if profile == "V0" else ("sol" if profile == "V1" else "claude-opus-5"))),
+        "route": "astra_advisory" if advisory else ("terminal_closure" if terminal else ("deterministic_only" if profile == "V0" else ("sol" if profile == "V1" else "claude-opus-5-5"))),
         "reviewer": reviewer,
+        "fallbackReviewer": (
+            SOL_REVIEWER_FALLBACK_BY_PROFILE.get(profile)
+            or CLAUDE_REVIEWER_FALLBACK_BY_PROFILE.get(profile)
+        ),
         "specialistGateRequired": profile == "V3",
         "specialistGateSatisfied": gate_satisfied,
         "reasons": reasons,
@@ -383,7 +397,7 @@ def validate_routing_metadata(
         raise RoutingError("routing.reasoningEffort is not supported")
     if metadata["verificationProfile"] not in PROFILES:
         raise RoutingError("routing.verificationProfile must be V0, V1, V2, or V3")
-    if metadata["reviewer"] not in {"none", "gpt-6-sol", "claude-opus-5"}:
+    if metadata["reviewer"] not in {"none", SOL_PRIMARY_MODEL, SOL_FALLBACK_MODEL, "claude-opus-5-5", "claude-opus-5"}:
         raise RoutingError("routing.reviewer is not a supported reviewer route")
     reasons = metadata.get("reasons")
     if not isinstance(reasons, list) or not reasons or not all(isinstance(item, str) and item.strip() for item in reasons):
@@ -395,10 +409,11 @@ def validate_routing_metadata(
 
     executor = metadata["executor"]
     model = metadata["model"]
-    if executor == "codex" and model not in {"gpt-6-luna", "gpt-6-sol", "gpt-6-astra"}:
+    explicit_sol_fallback = SOL_FALLBACK_REASON in reasons
+    if executor == "codex" and model not in {"gpt-6-luna", SOL_PRIMARY_MODEL, SOL_FALLBACK_MODEL, "gpt-6-astra"}:
         raise RoutingError("codex routing.model must be a supported GPT-6 model")
-    if executor == "claude" and model != "claude-opus-5":
-        raise RoutingError("claude routing.model must be claude-opus-5")
+    if executor == "claude" and model != "claude-opus-5-5":
+        raise RoutingError("claude routing.model must be claude-opus-5-5")
     if executor == "agy" and model not in {"agy", "gemini-3.8-flash"}:
         raise RoutingError("agy routing.model must be agy or gemini-3.8-flash")
     if model == "gemini-3.8-flash":
@@ -415,6 +430,16 @@ def validate_routing_metadata(
     execution_profile = metadata["executionProfile"]
     if model == "gemini-3.8-flash" and execution_profile != "implementation":
         raise RoutingError("gemini-3.8-flash may only run as an implementation executor")
+    if (
+        model == SOL_FALLBACK_MODEL
+        and metadata["verificationProfile"] != "V0"
+        and not explicit_sol_fallback
+        and not (execution_profile == "terminal_review" and metadata["reviewer"] != "none")
+    ):
+        raise RoutingError(
+            "gpt-6-sol is fallback-only; select it only after verified pre-side-effect "
+            "unavailability of gpt-6.1-sol (active promotions enforce hard floor V2)"
+        )
     if (model == "gpt-6-astra") != (execution_profile == "advisory"):
         raise RoutingError("gpt-6-astra is limited to the advisory execution profile")
     profile = metadata["verificationProfile"]
@@ -422,8 +447,24 @@ def validate_routing_metadata(
     floor, _ = _effective_profile(metadata, history)
     if PROFILE_RANK[profile] < PROFILE_RANK[floor]:
         raise RoutingError(f"routing profile {profile} violates hard floor {floor}")
+    legacy_sol_reviewer = (
+        metadata["reviewer"] == SOL_FALLBACK_MODEL
+        and executor in {"claude", "other"}
+        and model not in {SOL_PRIMARY_MODEL, SOL_FALLBACK_MODEL}
+    )
+    if (
+        (model == SOL_FALLBACK_MODEL and profile != "V0" and not (execution_profile == "terminal_review" and metadata["reviewer"] != "none"))
+        or (metadata["reviewer"] == SOL_FALLBACK_MODEL and not legacy_sol_reviewer)
+    ):
+        if not explicit_sol_fallback:
+            raise RoutingError(
+                "gpt-6-sol is fallback-only; select it only after verified pre-side-effect "
+                "unavailability of gpt-6.1-sol (active promotions enforce hard floor V2)"
+            )
+    elif explicit_sol_fallback:
+        raise RoutingError("Sol fallback reason requires selecting gpt-6-sol")
     if executor == "codex" and model == "gpt-6-luna" and _requires_sol(metadata):
-        raise RoutingError("codex routing.model requires gpt-6-sol for complex, uncertain, or consequential work")
+        raise RoutingError(f"codex routing.model requires {SOL_PRIMARY_MODEL} for complex, uncertain, or consequential work")
     if executor == "codex":
         minimum_effort = _minimum_codex_effort(metadata)
         if EFFORT_RANK[metadata["reasoningEffort"]] < EFFORT_RANK[minimum_effort]:
@@ -449,7 +490,9 @@ def validate_routing_metadata(
             raise RoutingError("V0 has no reviewer order")
         if metadata["reviewer"] != "none":
             raise RoutingError("terminal review orders cannot select another reviewer")
-        expected_model = "gpt-6-sol" if profile == "V1" else "claude-opus-5"
+        expected_model = SOL_PRIMARY_MODEL if profile == "V1" else "claude-opus-5-5"
+        if profile == "V1" and explicit_sol_fallback:
+            expected_model = SOL_FALLBACK_MODEL
         if model != expected_model:
             raise RoutingError(f"{profile} terminal review must run {expected_model}")
         expected_executor = "codex" if profile == "V1" else "claude"
@@ -463,6 +506,8 @@ def validate_routing_metadata(
         ):
             raise RoutingError("routing above the deterministic floor requires a promotion: or escalation: reason")
         expected_reviewer = REVIEWER_BY_PROFILE[profile]
+        if profile == "V1" and (explicit_sol_fallback or legacy_sol_reviewer):
+            expected_reviewer = SOL_FALLBACK_MODEL
         if model == expected_reviewer:
             raise RoutingError("implementation model cannot act as its own independent reviewer")
         if metadata["reviewer"] != expected_reviewer:

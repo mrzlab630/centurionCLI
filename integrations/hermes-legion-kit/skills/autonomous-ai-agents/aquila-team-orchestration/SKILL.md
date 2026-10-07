@@ -62,7 +62,7 @@ fresh order; it cannot be inferred from a failure.
 | Need | Executor surface | Notes |
 | --- | --- | --- |
 | Production code, repo edits, tests, refactors | codex | Default implementation executor. Require a namespaced `CODEX_RESULT.json` or equivalent AGENT_RESULT_JSON_V1. |
-| Independent review and findings | claude | Pin `claude-opus-5`. Return corrections to the implementation owner through Aquila. |
+| Independent review and findings | claude | Pin `claude-opus-5-5` with explicit `claude-opus-5` fallback. Return corrections to the implementation owner through Aquila. |
 | UI, design, text, creative production | agy | Pin `gemini-3.8-flash` and `--effort low|medium|high`; preserve the selected specialty owner, browser/layout proof for UI, and namespaced `AGY_RESULT.json`. |
 | Small isolated parallel reasoning | Hermes `delegate_task` | Good for bounded research/review. Require structured final output mappable to AGENT_RESULT_JSON_V1. |
 | Durable multi-step work, restart-safe handoffs, human interjection | Hermes Kanban | Use explicit board/card state and owner. |
@@ -101,9 +101,9 @@ For orders created at or after `2026-08-03T11:00:42Z`, add exactly one compact `
 | Profile | Terminal reviewer | Rule |
 | --- | --- | --- |
 | V0 | none | Deterministic proof only; low-risk, local, fully observable work. |
-| V1 | `gpt-6-sol` | Recoverable work with a meaningful proof gap. |
-| V2 | `claude-opus-5` | Medium consequence, shared contract, ambiguity, architecture, or hidden-failure risk. |
-| V3 | Currently blocked by the runner pending a trusted approval verifier; intended route is `claude-opus-5` plus specialist/Boss gate | Security, auth, secrets, money, production, dependencies, public endpoints, or infrastructure. |
+| V1 | `gpt-6.1-sol` | Recoverable work with a meaningful proof gap; `gpt-6-sol` is fallback-only after verified pre-side-effect unavailability and starts a fresh route. |
+| V2 | `claude-opus-5-5` with explicit `claude-opus-5` fallback | Medium consequence, shared contract, ambiguity, architecture, or hidden-failure risk. |
+| V3 | Currently blocked by the runner pending a trusted approval verifier; intended route is `claude-opus-5-5` with explicit `claude-opus-5` fallback plus specialist/Boss gate | Security, auth, secrets, money, production, dependencies, public endpoints, or infrastructure. |
 
 The terminal review never delegates a review of itself. After its model gate, Aquila performs only deterministic identity, schema, hash, path, artifact, and proof closure. Record escaped V0 defects and Sol misses in the append-only attempt ledger; the history promotions in the policy elevate future task-class routes without retrospective review of unrelated objectives. See `references/review-routing-ladder-and-cost-control.md` and the installed `agent-contract-runner` skill for the enforceable runner and regressions.
 

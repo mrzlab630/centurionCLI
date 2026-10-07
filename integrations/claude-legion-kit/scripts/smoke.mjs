@@ -83,6 +83,32 @@ function smokeInstallerRollback() {
   }
 }
 
+function smokeCanonicalClaudeRouting() {
+  const surfaces = [
+    path.join(KIT_ROOT, 'README.md'),
+    path.join(REPO_ROOT, 'docs', 'CLAUDE_LEGION_KIT.md'),
+    path.join(REPO_ROOT, 'docs', 'LOCAL_TOOLING_BASELINE.md'),
+    path.join(REPO_ROOT, 'integrations', 'hermes-legion-kit', 'overrides', 'SOUL_CLAUDE_ROLE_RULE.md'),
+    path.join(REPO_ROOT, 'integrations', 'hermes-legion-kit', 'overrides', 'ADAPTIVE_MODEL_ROUTING_POLICY.md')
+  ].map((file) => fs.readFileSync(file, 'utf8'));
+  for (const [primary, fallback] of [
+    ['claude-opus-5-5', 'claude-opus-5'],
+    ['claude-sonnet-5-5', 'claude-sonnet-5'],
+    ['claude-fable-5-1', 'claude-fable-5']
+  ]) {
+    assert(surfaces.some((text) => {
+      const primaryAt = text.indexOf(primary);
+      const fallbackAt = primaryAt >= 0 ? text.indexOf(fallback, primaryAt + primary.length) : -1;
+      return primaryAt >= 0 && fallbackAt > primaryAt;
+    }), `missing canonical Claude route pair: ${primary} -> ${fallback}`);
+  }
+  const fableText = surfaces.find((text) => text.includes('claude-fable-5-1') && text.includes('claude-fable-5'));
+  assert(/dormant\/manual/i.test(fableText) && /no executable Fable integration/i.test(fableText), 'Fable route must remain dormant/manual');
+  const proxyText = fs.readFileSync(path.join(KIT_ROOT, 'scripts', 'proxy-env.sh.example'), 'utf8');
+  assert(proxyText.includes('claude-opus-5-5') && proxyText.includes('claude-sonnet-5-5'), 'proxy example missing canonical Claude primary defaults');
+  assert(!proxyText.includes('ANTHROPIC_DEFAULT_FABLE_MODEL'), 'proxy example must not activate a Fable runtime default');
+}
+
 function smokeGuard() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-order-guard-'));
   const guard = path.join(KIT_ROOT, 'scripts', 'claude-order-guard.mjs');
@@ -471,6 +497,7 @@ function main() {
   }
 
   smokeGuard();
+  smokeCanonicalClaudeRouting();
   smokeLegionContracts();
   smokeExternalSkillScan();
   smokeFrontendSweepPlan();

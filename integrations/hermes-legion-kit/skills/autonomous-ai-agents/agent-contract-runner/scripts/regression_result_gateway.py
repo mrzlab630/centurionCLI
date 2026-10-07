@@ -66,11 +66,11 @@ def routing_metadata(order_id: str, executor: str, **overrides: Any) -> dict[str
         "reversibility": "high",
         "evidenceNeed": "medium",
         "executor": executor,
-        "model": "claude-opus-5" if executor == "claude" else "gpt-6-luna",
+        "model": "claude-opus-5-5" if executor == "claude" else "gpt-6-luna",
         "reasoningEffort": "medium",
         "executionProfile": "implementation",
         "verificationProfile": "V1" if executor == "claude" else "V2",
-        "reviewer": "gpt-6-sol" if executor == "claude" else "claude-opus-5",
+        "reviewer": "gpt-6-sol" if executor == "claude" else "claude-opus-5-5",
         "confidence": "high",
         "reasons": ["deterministic gateway regression proof"],
     }
@@ -135,6 +135,10 @@ if Path(sys.argv[0]).name == "codex" and args[:1] == ["exec"]:
     args = args[5:]
     if args[:1] == ["--sandbox"]:
         args = args[7:]  # sandbox, cwd, output-last-message, and --json
+elif Path(sys.argv[0]).name == "claude" and args[:4] == [
+    "--model", "claude-opus-5-5", "--fallback-model", "claude-opus-5",
+]:
+    args = args[4:]
 mode, candidate_value, order_id, executor, status, side_effect_value, sleep_value, exit_value = args
 candidate = Path(candidate_value)
 side_effect = Path(side_effect_value) if side_effect_value != "NONE" else None
@@ -173,12 +177,12 @@ def claude_terminal(inner=None, **overrides):
         "type": "result", "subtype": "success", "is_error": False,
         "result": json.dumps(payload) if inner is None else inner,
         "permission_denials": [],
-        "modelUsage": {"claude-opus-5": {"inputTokens": 1, "outputTokens": 1}},
+        "modelUsage": {"claude-opus-5-5": {"inputTokens": 1, "outputTokens": 1}},
     }
     event.update(overrides)
     return event
 
-def claude_events(terminal=None, *, model="claude-opus-5"):
+def claude_events(terminal=None, *, model="claude-opus-5-5"):
     return [
         {"type": "system", "subtype": "init", "model": model},
         {"type": "assistant", "message": {"model": model, "content": []}},
@@ -196,7 +200,7 @@ def claude_tool_exchange(tool_use_id, *, no_progress):
     tool_use = {
         "type": "assistant",
         "message": {
-            "model": "claude-opus-5",
+            "model": "claude-opus-5-5",
             "content": [{
                 "type": "tool_use", "id": tool_use_id, "name": "Read",
                 "input": {"file_path": "fixture.txt"},
@@ -265,7 +269,7 @@ if mode.startswith("stdout-"):
         events = claude_events()
         output = json.dumps(events + [claude_terminal()])
     elif stdout_mode == "claude-nonfinal-terminal":
-        output = json.dumps([claude_terminal(), {"type": "assistant", "message": {"model": "claude-opus-5"}}])
+        output = json.dumps([claude_terminal(), {"type": "assistant", "message": {"model": "claude-opus-5-5"}}])
     elif stdout_mode == "claude-malformed-inner":
         output = json.dumps(claude_events(claude_terminal("{not-json")))
     elif stdout_mode == "claude-empty-inner":
@@ -289,7 +293,7 @@ if mode.startswith("stdout-"):
     elif stdout_mode == "claude-is-error":
         output = json.dumps(claude_events(claude_terminal(is_error=True)))
     elif stdout_mode == "claude-wrong-model":
-        output = json.dumps(claude_events(model="claude-sonnet-5"))
+        output = json.dumps(claude_events(model="claude-sonnet-5-5"))
     elif stdout_mode == "claude-wrapper-missing-model-metadata":
         terminal = claude_terminal()
         terminal.pop("modelUsage")
@@ -537,7 +541,10 @@ def gateway_command(
 
 def environment() -> dict[str, str]:
     env = dict(os.environ)
-    env["PATH"] = f"{BIN}{os.pathsep}{env.get('PATH', '')}"
+    env["PATH"] = (
+        f"{BIN}{os.pathsep}{Path(sys.executable).parent}"
+        f"{os.pathsep}{env.get('PATH', '')}"
+    )
     env["RESULT_GATEWAY_TEST_COUNT"] = str(COUNT)
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     env["HOME"] = str(ROOT / "isolated-home")
@@ -1539,7 +1546,7 @@ raise SystemExit(gateway.main())
             "wrong-model",
             lambda order: set_routing(
                 order,
-                routing_metadata(order["orderId"], order["executor"], model="claude-opus-5"),
+                routing_metadata(order["orderId"], order["executor"], model="claude-opus-5-5"),
             ),
             "codex routing.model",
         ),
@@ -1564,13 +1571,13 @@ raise SystemExit(gateway.main())
                         reasoningEffort="xhigh",
                         risk="high",
                         verificationProfile="V3",
-                        reviewer="claude-opus-5",
+                        reviewer="claude-opus-5-5",
                         reasons=["security boundary requires specialist approval"],
                         specialistGate={"required": True, "approved": True, "approver": "Boss"},
                     ),
                 ),
             ),
-            "V3 requires independently verified approval evidence; no trusted verification source configured",
+            "gpt-6-sol is fallback-only; select it only after verified pre-side-effect unavailability of gpt-6.1-sol (active promotions enforce hard floor V2)",
         ),
         (
             "terminal-recursive",
@@ -1586,7 +1593,7 @@ raise SystemExit(gateway.main())
                     reasoningEffort="high",
                 ),
             ),
-            "cannot select another reviewer",
+            "gpt-6-sol is fallback-only; select it only after verified pre-side-effect unavailability of gpt-6.1-sol (active promotions enforce hard floor V2)",
         ),
     ]
     for name, mutate, expected_error in routing_rejections:

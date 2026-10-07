@@ -58,13 +58,18 @@ permissions state, trusted projects, or other private config state.
 ## Claude Code
 
 - Version: `2.1.204 (Claude Code)`.
-- Default model baseline: `claude-opus-5`.
+- Default model baseline: `claude-opus-5-5`.
+- Independent review launches use `--model claude-opus-5-5 --fallback-model claude-opus-5`.
 - Settings summary: effort level and dangerous-mode prompt controls are present; raw settings are not copied.
 - MCP servers observed in sanitized settings: solanaMcp, brave-search, context7, playwright, sequential-thinking, memoria, github, and serena where present in host-level Claude JSON.
 - Installed `~/.claude/skills` entries include `centurion-legion` plus 37 Legionaries: aedilis, aleator, architect, artifex, augur, capabilities, censor, coder, context-optimizer, documenter, error-handler, evocate-ad-opus, git-master, glossator, haruspex, indagator, ludifex, mercator, nomenclator, orator, orchestrator, pictor, planner, pontifex, praeco, praemonitor, prompt-engineer, quaestor, refactorer, researcher, reviewer, security, sicarius, skill-quartermaster, tabularius, tester, velites.
 - `~/.claude/plugins` exists with installed plugin metadata.
 - `~/.claude/agents` absent in the sanitized baseline.
-- Non-interactive proxy defaults: `ANTHROPIC_BASE_URL=http://127.0.0.1:8317`, placeholder `ANTHROPIC_API_KEY`, default opus `claude-opus-5`, default sonnet `claude-sonnet-5`, default haiku `claude-haiku-4-5-20251001`, `NO_PROXY=127.0.0.1,localhost`.
+- Non-interactive proxy defaults: `ANTHROPIC_BASE_URL=http://127.0.0.1:8317`, placeholder `ANTHROPIC_API_KEY`, default opus `claude-opus-5-5`, default sonnet `claude-sonnet-5-5`, default haiku `claude-haiku-4-5-20251001`, `NO_PROXY=127.0.0.1,localhost`.
+- Canonical Claude routes are `claude-opus-5-5` primary -> `claude-opus-5`
+  fallback and `claude-sonnet-5-5` primary -> `claude-sonnet-5` fallback.
+  `claude-fable-5-1` -> `claude-fable-5` is dormant/manual documentation
+  only because no executable Fable integration is owned here.
 
 Do not commit raw Claude settings, OAuth state, permission allowlists, project
 history, credentials, or machine identifiers.

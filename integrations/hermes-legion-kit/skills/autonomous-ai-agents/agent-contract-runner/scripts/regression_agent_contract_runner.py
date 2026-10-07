@@ -56,6 +56,19 @@ def install_fake_executor() -> None:
         "executor_name = pathlib.Path(sys.argv[0]).name\n"
         "if executor_name == 'codex' and len(sys.argv) > 4 and sys.argv[1] == 'exec':\n"
         "    del sys.argv[1:6]\n"
+        "if executor_name == 'claude':\n"
+        "    filtered = []\n"
+        "    index = 1\n"
+        "    while index < len(sys.argv):\n"
+        "        if sys.argv[index] in {'--model', '--fallback-model'} and index + 1 < len(sys.argv):\n"
+        "            index += 2\n"
+        "            continue\n"
+        "        if sys.argv[index].startswith('--model=') or sys.argv[index].startswith('--fallback-model='):\n"
+        "            index += 1\n"
+        "            continue\n"
+        "        filtered.append(sys.argv[index])\n"
+        "        index += 1\n"
+        "    sys.argv[1:] = filtered\n"
         "result_path = pathlib.Path(sys.argv[1])\n"
         "artifact_path = pathlib.Path(sys.argv[2])\n"
         "proof_status = sys.argv[3]\n"
@@ -586,7 +599,7 @@ def main() -> int:
         routing_metadata,
         risk="high",
         verificationProfile="V3",
-        reviewer="claude-opus-5",
+        reviewer="claude-opus-5-5",
         reasons=["security boundary requires specialist approval"],
         specialistGate={"required": True, "approved": True, "approver": "Boss"},
     )
@@ -649,6 +662,25 @@ def main() -> int:
     }
     advisory_order["notesForExecutor"] = ["AQUILA_ROUTING_JSON_V1:" + json.dumps(advisory_routing, separators=(",", ":"))]
     runner_module = load_runner_module()
+    claude_commands = {
+        "accepted explicit fallback": "claude --model claude-opus-5-5 --fallback-model claude-opus-5 --print Review",
+        "accepted attached flags": "claude --model=claude-opus-5-5 --fallback-model=claude-opus-5 --print Review",
+    }
+    for command in claude_commands.values():
+        runner_module.validate_claude_launch(command, "claude-opus-5-5", "claude-opus-5")
+    for label, command, expected in (
+        ("missing fallback", "claude --model claude-opus-5-5 --print Review", "exactly one --fallback-model"),
+        ("wrong fallback", "claude --model claude-opus-5-5 --fallback-model claude-opus-5-5 --print Review", "ordered reviewer fallback"),
+        ("duplicate fallback", "claude --model claude-opus-5-5 --fallback-model claude-opus-5 --fallback-model claude-opus-5 --print Review", "exactly one --fallback-model"),
+        ("prompt-only fallback", "claude --model claude-opus-5-5 Review --fallback-model claude-opus-5", "exactly one --fallback-model"),
+    ):
+        try:
+            runner_module.validate_claude_launch(command, "claude-opus-5-5", "claude-opus-5")
+        except runner_module.RunnerError as exc:
+            assert_case(expected in str(exc), f"{label} must fail with a focused fallback error: {exc}")
+        else:
+            raise AssertionError(f"{label} Claude launch must fail closed")
+    print("PASS Claude launch validator enforces explicit primary/fallback models and attached forms")
     with mock.patch.dict(os.environ, {"HOME": str(FIXTURE_ROOT / "isolated-home")}, clear=False):
         runner_module.validate_order(advisory_order)
         def reject_advisory(mutator: Any, expected: str) -> None:
@@ -765,7 +797,7 @@ def main() -> int:
     promoted_metadata = dict(
         v0_metadata,
         verificationProfile="V2",
-        reviewer="claude-opus-5",
+        reviewer="claude-opus-5-5",
         reasons=["promotion: medium/high escaped V0 defect promotes task class to V2"],
     )
     promotion_payload["notesForExecutor"] = [
@@ -782,7 +814,7 @@ def main() -> int:
         capture_output=True,
     )
     assert_case(accepted_promotion.returncode == 0, f"canonical promoted V2 route must pass: {accepted_promotion.stderr}")
-    assert_case("aquila_routing_validated:V2:claude-opus-5:implementation" in events_text(promoted_events), "promoted route must retain the expected reviewer")
+    assert_case("aquila_routing_validated:V2:claude-opus-5-5:implementation" in events_text(promoted_events), "promoted route must retain the expected reviewer")
 
     malformed_ledger = promotion_dir / "malformed.jsonl"
     malformed_ledger.write_text("{not-json\n", encoding="utf-8")
@@ -890,11 +922,12 @@ def main() -> int:
 
     terminal_payload["executor"] = "claude"
     terminal_command[0:6] = ["claude"]
+    terminal_command[1:1] = ["--model", "claude-opus-5-5", "--fallback-model", "claude-opus-5"]
     terminal_payload["launch"]["command"] = shlex.join(terminal_command)
     promoted_terminal_metadata = dict(
         terminal_metadata,
         executor="claude",
-        model="claude-opus-5",
+        model="claude-opus-5-5",
         verificationProfile="V2",
         reasons=["promotion: medium/high escaped V0 defect promotes task class to V2"],
     )
@@ -916,6 +949,24 @@ def main() -> int:
     assert_case("aquila_routing_validated:V2:none:terminal_review" in promoted_terminal_events_text, "promoted terminal route must not appoint a recursive reviewer")
     assert_case(sum("dispatch_started" in line for line in promoted_terminal_events_text.splitlines()) == 1, "promoted terminal V2 route must dispatch exactly once")
     assert_case(terminal_result.exists() and terminal_artifact.exists(), "promoted terminal V2 route must produce executor outputs")
+
+    with mock.patch.dict(os.environ, promotion_env, clear=False):
+        runner_module = load_runner_module()
+        runner_module.validate_order(terminal_payload)
+        for label, command, expected in (
+            ("missing fallback", "claude --model claude-opus-5-5 --print Review", "exactly one --fallback-model"),
+            ("wrong fallback", "claude --model claude-opus-5-5 --fallback-model claude-opus-5-5 --print Review", "ordered reviewer fallback"),
+            ("duplicate fallback", "claude --model claude-opus-5-5 --fallback-model claude-opus-5 --fallback-model claude-opus-5 --print Review", "exactly one --fallback-model"),
+        ):
+            altered = json.loads(json.dumps(terminal_payload))
+            altered["launch"]["command"] = command
+            try:
+                runner_module.validate_order(altered)
+            except runner_module.RunnerError as exc:
+                assert_case(expected in str(exc), f"{label} validate_order rejection must identify fallback enforcement: {exc}")
+            else:
+                raise AssertionError(f"{label} Claude launch must fail through validate_order")
+    print("PASS validate_order enforces Claude V2 fallback argv on admission and rejection")
 
     malformed_terminal_events = artifact_namespace(terminal_dir, "regression-post-cutover-terminal-promotion") / "malformed-ledger-events.jsonl"
     malformed_terminal = subprocess.run(
@@ -1203,7 +1254,7 @@ def main() -> int:
                     "reasoningEffort": "medium",
                     "executionProfile": "implementation",
                     "verificationProfile": "V3",
-                    "reviewer": "claude-opus-5",
+                    "reviewer": "claude-opus-5-5",
                     "confidence": "high",
                     "reasons": ["security boundary requires specialist approval"],
                     "specialistGate": {"required": True, "approved": True, "approver": "Boss"},

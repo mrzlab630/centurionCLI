@@ -76,9 +76,9 @@ Use `scripts/review_ladder.py` to select V3, V2, V1, or V0 deterministically:
 | Profile | Terminal route |
 | --- | --- |
 | V0 | Deterministic controller proof only, with every pre-execution trust predicate true. The legacy post-execution fields remain schema-compatible claims and never replace observed controller checks. |
-| V1 | `gpt-6-sol` review for recoverable proof gaps in non-Codex implementations; Codex implementations with proof gaps require V2/Claude. |
-| V2 | `claude-opus-5` for medium consequence, ambiguity, shared contracts, or hidden failure modes. |
-| V3 | Currently blocked by the runner pending a trusted approval verifier; intended route is `claude-opus-5` plus an approved specialist/Boss gate for security, auth, secrets, money, production, dependencies, public endpoints, or infrastructure. |
+| V1 | `gpt-6.1-sol` review for recoverable proof gaps in non-Codex implementations; `gpt-6-sol` is an explicit fallback only after verified pre-side-effect unavailability; Codex implementations with proof gaps require V2/Claude. |
+| V2 | `claude-opus-5-5` with explicit `claude-opus-5` fallback for medium consequence, ambiguity, shared contracts, or hidden failure modes. |
+| V3 | Currently blocked by the runner pending a trusted approval verifier; intended route is `claude-opus-5-5` with explicit `claude-opus-5` fallback plus an approved specialist/Boss gate for security, auth, secrets, money, production, dependencies, public endpoints, or infrastructure. |
 
 Evaluate V3 first. V2/V3 never downgrade to `none` or Sol. A terminal reviewer uses `executionProfile:"terminal_review"`, `terminalGate:true`, and `reviewer:"none"`; it cannot appoint another reviewer. After that terminal gate, only deterministic identity, schema, hash, path, artifact, and proof checks remain—never review-of-review recursion.
 

@@ -37,7 +37,38 @@ if [[ -z "$schema_path" ]]; then
   fi
 fi
 
-python3 - "$order_path" "$result_path" "$start_receipt_path" "$closure_path" "$schema_path" <<'PY'
+python_interpreter=""
+python_candidates=()
+if [[ -n "${PYTHON:-}" ]]; then
+  python_candidates+=("$PYTHON")
+fi
+if [[ -n "${PYTHON3:-}" ]]; then
+  python_candidates+=("$PYTHON3")
+fi
+if [[ -n "${VIRTUAL_ENV:-}" ]]; then
+  python_candidates+=("$VIRTUAL_ENV/bin/python3")
+fi
+
+IFS=: read -r -a path_entries <<< "${PATH:-}"
+for path_entry in "${path_entries[@]}"; do
+  [[ -n "$path_entry" ]] || path_entry="."
+  python_candidates+=("$path_entry/python3" "$path_entry/python")
+done
+
+for candidate in "${python_candidates[@]}"; do
+  [[ -x "$candidate" ]] || continue
+  if "$candidate" -c 'import jsonschema' >/dev/null 2>&1; then
+    python_interpreter="$candidate"
+    break
+  fi
+done
+
+if [[ -z "$python_interpreter" ]]; then
+  echo "error: no compatible Python interpreter with jsonschema is available" >&2
+  exit 1
+fi
+
+"$python_interpreter" - "$order_path" "$result_path" "$start_receipt_path" "$closure_path" "$schema_path" <<'PY'
 import hashlib
 import json
 import math

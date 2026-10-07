@@ -49,6 +49,19 @@ const REQUIRED_PROTOCOL_LINKS = [
   { file: 'plugin/SKILL.md', phrase: 'references/opus-5-profile.md' }
 ];
 
+const CLAUDE_ROUTING_SURFACES = [
+  ['Claude Legion Kit README', path.join(KIT_ROOT, 'README.md')],
+  ['Claude Legion Kit documentation', path.resolve(REPO_ROOT, 'docs', 'CLAUDE_LEGION_KIT.md')],
+  ['local tooling baseline', path.resolve(REPO_ROOT, 'docs', 'LOCAL_TOOLING_BASELINE.md')],
+  ['Hermes Claude role rule', path.resolve(REPO_ROOT, 'integrations', 'hermes-legion-kit', 'overrides', 'SOUL_CLAUDE_ROLE_RULE.md')],
+  ['Hermes adaptive routing policy', path.resolve(REPO_ROOT, 'integrations', 'hermes-legion-kit', 'overrides', 'ADAPTIVE_MODEL_ROUTING_POLICY.md')]
+];
+const CLAUDE_ROUTE_PAIRS = [
+  ['claude-opus-5-5', 'claude-opus-5'],
+  ['claude-sonnet-5-5', 'claude-sonnet-5'],
+  ['claude-fable-5-1', 'claude-fable-5']
+];
+
 const ROUTING_EVALS = [
   { id: 'orchestrate-complex-task', owner: 'orchestrator', handoffs: ['planner','researcher','praemonitor'] },
   { id: 'durable-plan', owner: 'planner', handoffs: ['orchestrator','tester'] },
@@ -267,12 +280,45 @@ function addWarning(report, message, details = {}) {
   report.warnings.push({ message, ...details });
 }
 
+function auditClaudeRoutingPolicy(report) {
+  const surfaces = CLAUDE_ROUTING_SURFACES
+    .filter(([, file]) => fs.existsSync(file))
+    .map(([label, file]) => ({ label, file, text: readText(file) }));
+  report.repo.claudeRoutingSurfaces = surfaces.map(({ label, file }) => ({
+    label,
+    file: normalizeSlash(path.relative(REPO_ROOT, file))
+  }));
+  for (const [primary, fallback] of CLAUDE_ROUTE_PAIRS) {
+    const owner = surfaces.find(({ text }) => {
+      const primaryAt = text.indexOf(primary);
+      const fallbackAt = primaryAt >= 0 ? text.indexOf(fallback, primaryAt + primary.length) : -1;
+      return primaryAt >= 0 && fallbackAt > primaryAt;
+    });
+    if (!owner) addFailure(report, 'canonical Claude route pair missing or out of order', { primary, fallback });
+  }
+  const fableOwner = surfaces.find(({ text }) => text.includes('claude-fable-5-1') && text.includes('claude-fable-5'));
+  if (!fableOwner || !/dormant\/manual/i.test(fableOwner.text) || !/no executable Fable integration/i.test(fableOwner.text)) {
+    addFailure(report, 'Fable route must remain explicitly dormant/manual without an executable integration');
+  }
+  const proxyFile = path.join(KIT_ROOT, 'scripts', 'proxy-env.sh.example');
+  if (!fs.existsSync(proxyFile)) addFailure(report, 'Claude proxy environment example missing', { file: normalizeSlash(path.relative(REPO_ROOT, proxyFile)) });
+  else {
+    const proxyText = readText(proxyFile);
+    for (const marker of ['claude-opus-5-5', 'claude-sonnet-5-5']) {
+      if (!proxyText.includes(marker)) addFailure(report, 'Claude proxy defaults missing canonical primary route', { marker });
+    }
+    if (/ANTHROPIC_DEFAULT_FABLE_MODEL/.test(proxyText)) addFailure(report, 'Fable must not be exported as an executable runtime default');
+  }
+}
+
 function auditRepo(options, report) {
   const pluginManifest = path.join(PLUGIN_ROOT, '.claude-plugin', 'plugin.json');
   const rootSkill = path.join(PLUGIN_ROOT, 'SKILL.md');
   const claudeOrder = path.join(PLUGIN_ROOT, 'skills', 'claude-order', 'SKILL.md');
   const outputStyle = path.join(PLUGIN_ROOT, 'output-styles', 'centurion-legion.md');
   const agentsDir = path.join(PLUGIN_ROOT, 'agents');
+
+  auditClaudeRoutingPolicy(report);
 
   for (const file of [pluginManifest, rootSkill, claudeOrder, outputStyle]) {
     if (!fs.existsSync(file)) addFailure(report, 'required plugin file missing', { file: normalizeSlash(path.relative(KIT_ROOT, file)) });

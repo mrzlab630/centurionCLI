@@ -21,7 +21,7 @@ def route(**changes):
     result = {
         "objectiveId": "handoff-objective", "attempt": 1, "taskClass": "ui_implementation",
         "complexity": "medium", "risk": "low", "ambiguity": "low", "reversibility": "high",
-        "evidenceNeed": "high", "executor": "claude", "model": "claude-opus-5",
+        "evidenceNeed": "high", "executor": "claude", "model": "claude-opus-5-5",
         "reasoningEffort": "high", "executionProfile": "terminal_review",
         "verificationProfile": "V2", "reviewer": "none", "confidence": "high",
         "reasons": ["escalation: independent review of UI work"], "terminalGate": True,
@@ -62,7 +62,7 @@ class HandoffTests(unittest.TestCase):
             "candidate": {**self.contract["candidate"],
                 "resultSha256": hashlib.sha256(self.candidate.read_bytes()).hexdigest(),
                 "reviewContract": {"objectiveId": "handoff-objective", "taskClass": "ui_implementation",
-                    "verificationProfile": "V2", "reviewer": "claude-opus-5"}},
+                    "verificationProfile": "V2", "reviewer": "claude-opus-5-5"}},
             "verification": {"status": "pending"}, "failures": [], "transitions": [],
         }
         self.order = {"orderId": "review-order-001", "createdAt": "2026-09-24T00:00:00Z",
@@ -81,7 +81,7 @@ class HandoffTests(unittest.TestCase):
         self.assertEqual(decision["verificationProfile"], "V2")
 
     def test_child_cannot_lower_parent_review_floor(self):
-        set_route(self.order, route(executor="codex", model="gpt-6-sol", verificationProfile="V1"))
+        set_route(self.order, route(executor="codex", model="gpt-6.1-sol", verificationProfile="V1"))
         with self.assertRaisesRegex(runner.RunnerError, "cannot lower"):
             runner.prepare_loop_dispatch(self.order, self.policy)
 
@@ -131,7 +131,7 @@ class HandoffTests(unittest.TestCase):
 
     def test_execution_saves_binding_and_review_completes(self):
         self.contract["phase"] = "execute"
-        implementation = route(executor="agy", model="gemini-3.8-flash", executionProfile="implementation", reviewer="claude-opus-5")
+        implementation = route(executor="agy", model="gemini-3.8-flash", executionProfile="implementation", reviewer="claude-opus-5-5")
         implementation.pop("terminalGate")
         set_route(self.order, implementation)
         self.order["roleForTask"] = "PICTOR"
@@ -140,7 +140,7 @@ class HandoffTests(unittest.TestCase):
             "loopId": "handoff-loop", "phase": "execute", "workItemId": "item-001", "iteration": 1}}}
         runner.update_loop_state_after_result(self.order, self.policy, result, self.candidate, None)
         self.state = json.loads(self.state_path.read_text())
-        self.assertEqual(self.state["candidate"]["reviewContract"]["reviewer"], "claude-opus-5")
+        self.assertEqual(self.state["candidate"]["reviewContract"]["reviewer"], "claude-opus-5-5")
         self.contract["phase"] = "verify"
         self.order["orderId"] = "review-order-001"
         self.order["roleForTask"] = "REVIEWER"
@@ -177,7 +177,7 @@ class HandoffTests(unittest.TestCase):
             self.assertTrue(any("terminal_review" in error for error in errors), errors)
 
     def test_explicit_escalation_not_lost_and_executor_alias_rejected(self):
-        implementation = route(executor="agy", model="gemini-3.8-flash", executionProfile="implementation", reviewer="claude-opus-5")
+        implementation = route(executor="agy", model="gemini-3.8-flash", executionProfile="implementation", reviewer="claude-opus-5-5")
         implementation.pop("terminalGate")
         self.assertEqual(select_review_route(implementation)["verificationProfile"], "V2")
         set_route(self.order, route(executor="other"))
@@ -197,6 +197,7 @@ class HandoffTests(unittest.TestCase):
         set_route(order, route())
         command = shlex.split(order["launch"]["command"])
         command[0] = "claude"
+        command[1:1] = ["--model", "claude-opus-5-5", "--fallback-model", "claude-opus-5"]
         order["launch"]["command"] = shlex.join(command)
         fixtures.write_json(order_path, order)
         env = {**os.environ, "PATH": f"{fixtures.BIN_DIR}:{os.environ.get('PATH', '')}",

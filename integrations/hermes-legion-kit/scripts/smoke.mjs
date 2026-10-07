@@ -216,6 +216,11 @@ function runPackagedPythonRegressions(scriptRoot) {
     HERMES_HOME: path.join(path.dirname(scriptRoot), 'nonexistent-hermes-home'),
     PYTHONDONTWRITEBYTECODE: '1'
   };
+  const userSite = spawnSync('python3', ['-c', 'import site; print(site.getusersitepackages())'], { encoding: 'utf8' });
+  assert(userSite.status === 0, `could not locate active Python user-site: ${userSite.stderr || userSite.stdout}`);
+  const userSitePath = userSite.stdout.trim();
+  assert(userSitePath, 'active Python user-site path is empty');
+  isolatedEnvironment.PYTHONPATH = [userSitePath, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
   delete isolatedEnvironment.PYTHONOPTIMIZE;
   delete isolatedEnvironment.AQUILA_AGENT_RESULT_SCHEMA;
   for (const script of scripts) {
@@ -401,6 +406,10 @@ function assertOverrides() {
   const claudeRoleText = readText(claudeRoleRule);
   for (const marker of [
     'Principal independent reviewer',
+    'Claude Sonnet 5-5',
+    'Claude Fable 5-1',
+    'GPT-6.1 Sol',
+    'GPT-6 Sol is fallback-only',
     'Codex remains the default implementation owner',
     'Claude is not allowed to self-approve',
     'Corrections return to Luna/Sol',
@@ -410,18 +419,24 @@ function assertOverrides() {
   }
   assert(fs.existsSync(adaptivePolicy), 'missing adaptive model routing policy note');
   const policyText = readText(adaptivePolicy);
-  assert(policyText.includes('GPT-6 Astra') && policyText.includes('Opus 5 review'), 'adaptive policy missing bounded Astra route');
+  assert(policyText.includes('GPT-6 Astra') && policyText.includes('Opus 5-5 review'), 'adaptive policy missing bounded Astra route');
   for (const marker of [
-    'gpt-6-luna', 'gpt-6-sol', 'Luna work at `medium`',
+    'gpt-6-luna', 'gpt-6.1-sol', 'gpt-6-sol', 'fallback-only', 'Luna work at `medium`',
     'none|low|medium|high|xhigh|max',
     'independently for every DAG node', 'Aquila retains final judgment',
     'No executor self-approves', 'not automatically installed',
     'Runtime/launcher evidence overrides stale static summaries',
-    'Claude Opus 5',
+    'Claude Opus 5', 'claude-opus-5-5', 'claude-opus-5',
+    'claude-sonnet-5-5', 'claude-sonnet-5',
+    'claude-fable-5-1', 'claude-fable-5', 'dormant/manual',
+    'no executable Fable integration',
+    'GPT-6 Astra is an explicit, read-only ARCHITECTUS consultation',
+    'never the default implementation or reviewer route',
     'Luna at `medium` is the routine bounded default',
     'can raise but never lower',
     'prose does not activate effort'
   ]) assert(policyText.includes(marker), `adaptive policy missing marker: ${marker}`);
+  assert(!/\bgpt-5\.6-terra\b/i.test(policyText), 'adaptive policy must not advertise Terra as an active route');
   assert(/Codex\s+personality remains a valid CLI enum/.test(policyText), 'adaptive policy missing marker: Codex personality remains a valid CLI enum');
   for (const [label, file] of STALE_ROUTING_SURFACES) {
     assert(fs.existsSync(file), `missing stale-routing surface: ${label}`);

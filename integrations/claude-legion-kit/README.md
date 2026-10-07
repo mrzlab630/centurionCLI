@@ -12,7 +12,8 @@ The namespaced `CLAUDE_RESULT.json` uses canonical `AGENT_RESULT_JSON_V1` by def
 
 - Sanitized baseline date: 2026-07-09. Raw Claude settings, OAuth state, credentials, project history, permission allowlists, and machine identifiers are intentionally not copied into this repository.
 - Claude CLI: `2.1.204 (Claude Code)`.
-- Default model baseline: `claude-opus-5`.
+- Default model baseline: `claude-opus-5-5`.
+- Independent review launches use `--model claude-opus-5-5 --fallback-model claude-opus-5`.
 - Local model access uses the proxy default `http://127.0.0.1:8317`; non-interactive shells may not inherit this from `~/.bashrc` because that file returns early when not interactive.
 - Native control surfaces confirmed by `claude --help`: `--agent`, `--agents`, `--allowedTools`, `--disallowedTools`, `--tools`, `--permission-mode`, `--mcp-config`, `--strict-mcp-config`, `--plugin-dir`, `--settings`, `--system-prompt`, `--json-schema`, `--safe-mode`, and `--bare`.
 - Claude Code supports plugin scaffolding and validation via `claude plugin init` and `claude plugin validate`.
@@ -20,7 +21,18 @@ The namespaced `CLAUDE_RESULT.json` uses canonical `AGENT_RESULT_JSON_V1` by def
 - MCP servers observed in sanitized settings include solanaMcp, brave-search, context7, playwright, sequential-thinking, memoria, github, and serena where present in host-level Claude JSON.
 - `~/.claude/plugins` exists with installed plugin metadata; raw registry details are not copied.
 - No `~/.claude/agents` directory was present in the sanitized baseline.
-- Non-interactive proxy defaults remain `ANTHROPIC_BASE_URL=http://127.0.0.1:8317`, placeholder `ANTHROPIC_API_KEY`, default opus `claude-opus-5`, default sonnet `claude-sonnet-5`, default haiku `claude-haiku-4-5-20251001`, and `NO_PROXY=127.0.0.1,localhost`.
+- Non-interactive proxy defaults remain `ANTHROPIC_BASE_URL=http://127.0.0.1:8317`, placeholder `ANTHROPIC_API_KEY`, default opus `claude-opus-5-5`, default sonnet `claude-sonnet-5-5`, default haiku `claude-haiku-4-5-20251001`, and `NO_PROXY=127.0.0.1,localhost`.
+
+### Canonical Claude route pairs
+
+- Independent review uses `claude-opus-5-5` as the primary route with
+  `claude-opus-5` as its explicit fallback.
+- Sonnet work uses `claude-sonnet-5-5` as the primary route with
+  `claude-sonnet-5` as its explicit fallback.
+- Fable is a dormant/manual route pair: `claude-fable-5-1` primary and
+  `claude-fable-5` fallback. This kit owns no executable Fable integration, so
+  the pair is documented for manual dispatch only and is not exported as a
+  runtime default.
 
 Secrets were not copied into this kit. The installer does not edit `~/.claude/settings.json`, `~/.claude/settings.local.json`, or `~/.claude.json`.
 

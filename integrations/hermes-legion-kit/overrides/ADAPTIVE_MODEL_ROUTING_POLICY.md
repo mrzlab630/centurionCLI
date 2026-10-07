@@ -11,10 +11,12 @@ config, plugins, hooks, or MCP.
 - Model tiers: `gpt-6-luna` with `none`/`low` for exact mechanical work,
   and `medium` for routine bounded implementation. Use `high` for non-trivial
   implementation, review, or raised evidence/risk needs.
-  Choose `gpt-6-sol` for coding that requires judgment or an uncertain
+  Choose `gpt-6.1-sol` for coding that requires judgment or an uncertain
   brief; use at least `high` for complex, consequential, or long-horizon work
   and `xhigh` for hard debugging, security, architecture, cross-service
   reasoning, or high ambiguity.
+  `gpt-6-sol` is fallback-only, selected only after verified pre-side-effect
+  unavailability of `gpt-6.1-sol`; fallback selection starts a fresh route.
   High complexity, material ambiguity, cross-service/architecture/security,
   hard debugging, or long-horizon work requires Sol rather than Luna.
 - The effort enum is exactly `none|low|medium|high|xhigh|max`.
@@ -28,25 +30,25 @@ config, plugins, hooks, or MCP.
 - Risk, ambiguity, reversibility, and evidence need can raise but never lower
   routing or effort floors.
 - Start routine bounded Luna work at `medium` effort; compare quality, latency, and
-  cost on representative tasks. If the scope or proof is unclear, select Sol
-  rather than raising Luna's effort to compensate for model choice.
+  cost on representative tasks. If the scope or proof is unclear, select
+  `gpt-6.1-sol` rather than raising Luna's effort to compensate for model choice.
 - Eligible low-risk micro work may omit independent review. Meaningful
   non-trivial or medium-risk work requires independent review. High-risk work
   retains specialist gates and Boss approval. The current runner blocks all V3
   dispatch until a trusted approval verifier is available.
 - No executor self-approves; Aquila retains final judgment.
 - GPT-6 Astra is an explicit, read-only ARCHITECTUS consultation for a named
-  architecture trigger; it is never the default implementation or reviewer
-  route. Its existing contract uses `executionProfile: advisory`, xhigh or
+  architecture trigger; it is never the default implementation or reviewer route.
+  Its existing contract uses `executionProfile: advisory`, xhigh or
   higher effort, a read-only sandbox, and no product files. The recorded V2/V3
-  floor, independent Opus 5 review, and V3 specialist/Boss gate remain.
+  floor, independent Opus 5-5 review, and V3 specialist/Boss gate remain.
 - A Codex implementation (Luna or Sol) with a meaningful deterministic-proof
   gap requires the V2 Claude review floor; fully proved low-risk Codex work may
   use V0. V1 Sol remains the terminal reviewer only for non-Codex executors.
-- Claude Opus 5 is the principal independent reviewer for the current model
+- Claude Opus 5-5 is the principal independent reviewer for the current model
   policy. Corrections return to Luna/Sol in a fresh implementation order.
   Codex remains the implementation default;
-  Luna at `medium` is the routine bounded default; Sol handles work requiring
+  Luna at `medium` is the routine bounded default; `gpt-6.1-sol` handles work requiring
   judgment with the task-appropriate effort floor above.
 - Gemini `gemini-3.8-flash` executes bounded UI, design, language, and creative
   work through `agy`. Select the existing specialty (PICTOR, AEDILIS,
@@ -60,3 +62,7 @@ config, plugins, hooks, or MCP.
   the selected model and effort explicitly in the Codex launch command and
   verify the observed runtime model before accepting the result. Routing
   metadata alone is not proof of which model executed.
+- Claude route pairs are explicit: `claude-opus-5-5` primary ->
+  `claude-opus-5` fallback and `claude-sonnet-5-5` primary ->
+  `claude-sonnet-5` fallback. `claude-fable-5-1` -> `claude-fable-5` is a
+  dormant/manual pair because no executable Fable integration is owned here.

@@ -52,20 +52,23 @@ def make_stage(name: str, profile: str, *, inputs: list[dict[str, Any]] | None =
         ])
     elif profile == "terminal_review":
         order.update(roleForTask="REVIEWER", riskLevel="medium")
+        command = shlex.split(order["launch"]["command"])
+        command[1:1] = ["--model", "claude-opus-5-5", "--fallback-model", "claude-opus-5"]
+        order["launch"]["command"] = shlex.join(command)
         route = fixture.routing_metadata(
-            order["orderId"], executor, risk="medium", model="claude-opus-5",
+            order["orderId"], executor, risk="medium", model="claude-opus-5-5",
             executionProfile="terminal_review", verificationProfile="V2", reviewer="none",
             terminalGate=True, reasoningEffort="high",
         )
     else:
         order.update(roleForTask="CODER", riskLevel="medium")
         route = fixture.routing_metadata(
-            order["orderId"], executor, risk="medium", model="gpt-6-sol",
+            order["orderId"], executor, risk="medium", model="gpt-6.1-sol",
             reasoningEffort="high", executionProfile="implementation", verificationProfile="V2",
-            reviewer="claude-opus-5",
+            reviewer="claude-opus-5-5",
         )
         command = shlex.split(order["launch"]["command"])
-        command[command.index("--model") + 1] = "gpt-6-sol"
+        command[command.index("--model") + 1] = "gpt-6.1-sol"
         command[command.index("-c") + 1] = "model_reasoning_effort=high"
         order["launch"]["command"] = shlex.join(command)
     fixture.set_routing(order, route)

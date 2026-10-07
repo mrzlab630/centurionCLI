@@ -24,7 +24,8 @@ OAuth state, credentials, raw permission allowlists, project history, or machine
 identifiers into this repository.
 
 - `claude --version` reported `2.1.204 (Claude Code)`.
-- Default model baseline: `claude-opus-5`.
+- Default model baseline: `claude-opus-5-5`.
+- Independent review launches use `--model claude-opus-5-5 --fallback-model claude-opus-5`.
 - Settings contain effort and dangerous-mode prompt controls, but raw values are intentionally not copied.
 - `claude --help` confirmed `--agent`, `--agents`, `--allowedTools`, `--disallowedTools`, `--tools`, `--permission-mode`, `--mcp-config`, `--strict-mcp-config`, `--plugin-dir`, `--settings`, `--system-prompt`, `--json-schema`, `--safe-mode`, and `--bare`.
 - `claude agents --help` confirmed default model, effort, permission mode, settings, MCP config, plugin dir, and strict MCP config controls for dispatched sessions.
@@ -34,7 +35,12 @@ identifiers into this repository.
 - Installed `~/.claude/skills` entries include `centurion-legion` plus 37 Legionaries: aedilis, aleator, architect, artifex, augur, capabilities, censor, coder, context-optimizer, documenter, error-handler, evocate-ad-opus, git-master, glossator, haruspex, indagator, ludifex, mercator, nomenclator, orator, orchestrator, pictor, planner, pontifex, praeco, praemonitor, prompt-engineer, quaestor, refactorer, researcher, reviewer, security, sicarius, skill-quartermaster, tabularius, tester, and velites.
 - `~/.claude/plugins` exists with installed plugin metadata; raw plugin registry details are not copied.
 - No `~/.claude/agents` directory was present in the sanitized baseline.
-- Non-interactive local proxy defaults remain: `ANTHROPIC_BASE_URL=http://127.0.0.1:8317`, placeholder `ANTHROPIC_API_KEY`, default opus `claude-opus-5`, default sonnet `claude-sonnet-5`, default haiku `claude-haiku-4-5-20251001`, and `NO_PROXY=127.0.0.1,localhost`.
+- Non-interactive local proxy defaults remain: `ANTHROPIC_BASE_URL=http://127.0.0.1:8317`, placeholder `ANTHROPIC_API_KEY`, default opus `claude-opus-5-5`, default sonnet `claude-sonnet-5-5`, default haiku `claude-haiku-4-5-20251001`, and `NO_PROXY=127.0.0.1,localhost`.
+- Canonical Claude route pairs are `claude-opus-5-5` primary ->
+  `claude-opus-5` fallback and `claude-sonnet-5-5` primary ->
+  `claude-sonnet-5` fallback. The `claude-fable-5-1` -> `claude-fable-5`
+  pair is dormant/manual because this repository owns no executable Fable
+  integration; it is not a runtime default.
 - If print-mode returns `Not logged in`, treat that as a missing proxy environment first.
 
 ## Design

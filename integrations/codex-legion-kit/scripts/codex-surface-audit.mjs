@@ -15,8 +15,12 @@ const CANONICAL_SKILLS = path.join(REPO_ROOT, 'skills');
 const OPEN_DESIGN_BRIDGE = path.join(REPO_ROOT, 'integrations', 'open-design-bridge');
 
 const REQUIRED_CONFIG = [
-  { key: 'model', value: 'gpt-6-sol', severity: 'failure' },
+  { key: 'model', value: 'gpt-6.1-sol', severity: 'failure' },
   { key: 'model_reasoning_effort', value: 'xhigh', severity: 'warning' }
+];
+const GPT_ROUTING_POLICY_SURFACES = [
+  ['Codex Legion Kit README', path.join(KIT_ROOT, 'README.md')],
+  ['Hermes adaptive routing policy', path.resolve(REPO_ROOT, 'integrations', 'hermes-legion-kit', 'overrides', 'ADAPTIVE_MODEL_ROUTING_POLICY.md')]
 ];
 
 const REQUIRED_FEATURES = [
@@ -201,7 +205,32 @@ function addWarning(report, message, details = {}) {
   report.warnings.push({ message, ...details });
 }
 
+function auditGptRoutingPolicy(report) {
+  const surfaces = GPT_ROUTING_POLICY_SURFACES
+    .filter(([, file]) => fs.existsSync(file))
+    .map(([label, file]) => ({ label, file, text: readText(file) }));
+  const requiredMarkers = [
+    'gpt-6.1-sol',
+    'gpt-6-sol',
+    'fallback-only',
+    'gpt-6-luna',
+    'GPT-6 Astra',
+    'read-only ARCHITECTUS'
+  ];
+  report.repo.gptRoutingSurfaces = surfaces.map(({ label, file }) => ({
+    label,
+    file: normalizeSlash(path.relative(REPO_ROOT, file))
+  }));
+  for (const marker of requiredMarkers) {
+    if (!surfaces.some(({ text }) => text.includes(marker))) addFailure(report, 'GPT routing policy marker missing', { marker });
+  }
+  for (const { label, text } of surfaces) {
+    if (/\bgpt-5\.6-terra\b/i.test(text)) addFailure(report, 'GPT routing policy advertises Terra as an active route', { label });
+  }
+}
+
 function auditRepo(report) {
+  auditGptRoutingPolicy(report);
   const allSkills = listSkillSlugs(CANONICAL_SKILLS);
   const canonical = allSkills.filter((slug) => !SHARED_CAPABILITIES.includes(slug));
   report.repo.canonicalSkillCount = canonical.length;
