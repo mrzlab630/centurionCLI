@@ -1,0 +1,31 @@
+{
+  "orderId": "centurion-v3-coverage-review-20261016",
+  "context": {
+    "ExecutionDecision": {
+      "taskClass": "plan_coverage_review",
+      "complexity": "high",
+      "risk": "low",
+      "ambiguity": "medium",
+      "reversibility": "high",
+      "evidenceNeed": "high",
+      "executor": "claude",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "high",
+      "executionProfile": "read_only_advisory_review",
+      "verificationProfile": "owner_document_review",
+      "confidence": "high",
+      "reasons": [
+        "User requested Claude review through local provider and audit of complete plan coverage.",
+        "Review supplied documents only; no tools, implementation, extra agents or credentials."
+      ]
+    }
+  },
+  "inputHashes": {
+    "docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md": "1ef3b0e1ed25829f4279090ade8ce47bdcc392b9d4b62d68fe6a9cde723ef8ea",
+    "docs/CENTURION_3_0_COVERAGE_AUDIT_2026-10-16.md": "8f6b45b7ce189cb85b84964f6e62b9a7c9a85f705d60ab1ed7f1e2c2f0744709"
+  },
+  "outputContract": {
+    "resultPath": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-gpt6-main/docs/reviews/centurion-3.0-plan/coverage-review-response.json"
+  },
+  "scope": "Advisory API consultation of supplied documents only, not runtime AGENT_RESULT acceptance."
+}

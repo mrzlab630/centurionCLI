@@ -1,0 +1,98 @@
+{
+  "acceptanceVersion": "OWNER_PLAN_ACCEPTANCE_V1",
+  "orderId": "centurion-v3-coverage-review-20261016",
+  "status": "accepted_by_owner",
+  "acceptedAt": "2026-10-16",
+  "scope": "Документарная приёмка полноты плана CENTURION 3.0; runtime, установка и live-пилот не принимаются.",
+  "branch": "feat/centurioncli/v3-autonomous-team",
+  "headBeforeDocumentationCommit": "5eb966713fc95f6a97e732b99f0f03465cdf9500",
+  "plan": {
+    "path": "docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md",
+    "version": "1.4",
+    "sha256": "988d38b8f31e3003c2bd976904dd623b72f4b796083aa94fe3842634f6fec4cd"
+  },
+  "coverageAudit": {
+    "path": "docs/CENTURION_3_0_COVERAGE_AUDIT_2026-10-16.md",
+    "sha256": "489d8af7c83d4c592f1319818bfc56b5a9d630d83815e51a57271ea8870e04a7"
+  },
+  "planReview": {
+    "path": "docs/CENTURION_3_0_PLAN_REVIEW.md",
+    "sha256": "ac86c82368cf811a2c9aba91de1fe4a4c8401af3c229322a8d9f601660c636ab"
+  },
+  "supportingAudits": {
+    "skillsTools": "94fcac783f56ccf407b503efb135427f52553cd16c6af8dce5bf14fc53ad67fd",
+    "executorTunnel": "1f972fcbca73fba44f2d0a09ee34983eafb121d6feb9385a326660a89bf3b9df"
+  },
+  "coverage": {
+    "registeredProblems": {
+      "R": 25,
+      "ST": 17,
+      "CT": 12,
+      "total": 54
+    },
+    "additionalBoundaryGroups": 6,
+    "acceptanceScenarios": 30,
+    "pilotScenarios": 6,
+    "implementationStages": 8,
+    "historicalStages": 12,
+    "historicalScenarios": 14,
+    "claudeFindingsProcessed": ["D1", "D2", "D3", "D4", "D5"]
+  },
+  "claudeReview": {
+    "candidateVersion": "1.3",
+    "verdict": "REVISE",
+    "provider": "local_anthropic_api",
+    "model": "claude-opus-5-5",
+    "effort": "high",
+    "responsePath": "docs/reviews/centurion-3.0-plan/coverage-review-response.json",
+    "responseSha256": "c7d53179baa4f4040bd0d69d301b4f1ae77ae6679e211261c029c701ef29afd7",
+    "receiptPath": "docs/reviews/centurion-3.0-plan/coverage-review-receipt.json",
+    "finalBytesAcceptedByClaude": false,
+    "notes": [
+      "Claude reviewed the plan 1.3 and coverage audit and returned REVISE with D1-D5.",
+      "Owner applied and checked D1-D5 in plan 1.4.",
+      "A later Claude CLI attempt ended with aborted_streaming and empty modelUsage; it is not a review verdict.",
+      "No Claude ACCEPT is claimed for the final bytes."
+    ]
+  },
+  "ownerReview": {
+    "decision": "Документы принимаются как единый план для начала N1.",
+    "basis": [
+      "Каждый зарегистрированный R/ST/CT пункт имеет решение, этап, владельца, acceptance и proof boundary.",
+      "G01-G06 закрыты решениями в существующих N-этапах и сценариями A25-A30.",
+      "D1-D5 обработаны без добавления моделей, этапов, второго контроллера или расширения пилота.",
+      "Нумерация, ссылки, входные хеши Claude-кандидата и сохранность девяти dirty runtime-файлов проверены."
+    ],
+    "runtimeAccepted": false,
+    "implementationStarted": false,
+    "liveProviderProof": false,
+    "liveInstallProof": false,
+    "remainingBoundaries": [
+      "N1-N8 не выполнены.",
+      "Live model/tool round-trips, no-write isolation, recovery, cold install/upgrade/rollback и loaded runtime surface не доказаны.",
+      "Полный построчный аудит всех внешних/domain references не заявляется.",
+      "Рабочая 2.6 и глобальные настройки не менялись."
+    ]
+  },
+  "dirtyRuntimeBaseline": {
+    "filesPreservedOutsideDocumentationCommit": 9,
+    "sha256ByPath": {
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/references/autonomy-authority.schema.json": "5865a69b2140025961da09e4770dbc51e7a1b98e8280211dff80f14640b36b29",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/references/autonomy-trust-contract-design.md": "4b1ce7b873d6b8e3edbac3c28a4e8bde4c9ee943b5d7a3d185bcfa94d7d45aec",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/blocker_packet_projection.py": "230a72d946c2843b7c2fb8d7b21f139c03e3d5b2956e808ff993247c34be50dc",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/order_preflight.py": "324c1d10543464a429380dc7b83d760431e680fae5c0a2e82ea1052a8c93064a",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/progress_drift_detector.py": "ebd15933f34ed6fb9f80b8c6b56d2429cf1063a2b5334f4321c59f7b30b6e8cb",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_blocker_packet_projection.py": "6d947ac60cb5273e3423f7be4c92d2100d6ff9681e5dde236b2a0f9c317a1f9d",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_order_preflight.py": "07f9d3c37ac59eeef364856e91065d396b88e79518e83b705cf1c75ee5ddb3ac",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_progress_drift_detector.py": "35505ceba62f597a1feeaa2b2dc030a40bb7e5d92378a23d0b48a0387f28d35e",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": "32816da3e30d4e6f847edf03d3ed7d674cdcbec5ca9461d09e3be6ca185230c7"
+    },
+    "verification": "SHA-256 каждого файла совпал с read-only baseline непосредственно перед фиксацией."
+  },
+  "proof": {
+    "offlineRegressions": "12 bounded regression scripts passed before documentation finalization; this does not accept runtime 3.0.",
+    "diffCheck": "git diff --check passed.",
+    "traceability": "R/ST/CT, A/P/N/G and historical T/S numbering and mappings passed scripted validation.",
+    "linkCheck": "Relative Markdown targets and referenced heading anchors were checked, including the owner acceptance artifact."
+  }
+}
