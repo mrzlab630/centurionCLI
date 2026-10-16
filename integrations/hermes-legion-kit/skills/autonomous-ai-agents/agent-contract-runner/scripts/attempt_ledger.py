@@ -93,6 +93,18 @@ def normalize_attempt_row(candidate: dict[str, Any]) -> dict[str, Any]:
             raise LedgerError(f"{field} must be a non-negative number or unmeasured")
     if any(row[field] == "unmeasured" for field in USAGE_FIELDS) and row["telemetryStatus"] != "unmeasured":
         raise LedgerError("telemetryStatus must be unmeasured when any usage field is absent")
+    if "policyVersion" in row:
+        if row["policyVersion"] != "3.0":
+            raise LedgerError("unknown mission ledger policyVersion")
+        for key in ("missionId", "taskId", "dispatchIntentId", "attemptKind"):
+            _nonempty_string(row, key)
+        if row["attemptKind"] not in {"product", "review", "advisory", "report"}:
+            raise LedgerError("invalid mission attemptKind")
+        for key in ("modelLaunchesUsed", "productAttemptsUsed", "reportAttemptsUsed"):
+            if type(row.get(key)) is not int or row[key] < 0:
+                raise LedgerError(f"invalid observed mission counter {key}")
+        if row["modelLaunchesUsed"] < 1 or row["reportAttemptsUsed"] > 1:
+            raise LedgerError("invalid observed mission launch/report counters")
     return row
 
 
@@ -120,6 +132,11 @@ def _read_existing_rows(fd: int, ledger_path: Path) -> list[dict[str, Any]]:
 
 
 def validate_attempt_lineage(existing: list[dict[str, Any]], row: dict[str, Any]) -> None:
+    if row.get("policyVersion") == "3.0" and any(
+        item.get("missionId") == row["missionId"] and item.get("dispatchIntentId") == row["dispatchIntentId"]
+        for item in existing
+    ):
+        raise LedgerError("mission dispatch intent already observed in ledger")
     if any(item.get("orderId") == row["orderId"] for item in existing):
         raise LedgerError(f"orderId already exists in ledger: {row['orderId']}")
     if any(item.get("resultPath") == row["resultPath"] for item in existing):
