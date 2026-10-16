@@ -26,14 +26,15 @@ class PreflightError(ValueError):
 def controller_context(order: dict[str, Any], *, required: bool = False) -> dict[str, Any] | None:
     """Read the one policy-bearing controller context; never infer authority."""
     values = order.get("context", [])
-    contexts = [item for item in values if isinstance(item, dict) and "policyVersion" in item] if isinstance(values, list) else []
+    contexts = [item for item in values if isinstance(item, dict) and
+                any(key in item for key in ("policyVersion", "missionId", "intentId"))] if isinstance(values, list) else []
     if len(contexts) > 1:
         raise PreflightError("ambiguous controller policy context")
     if not contexts:
-        if required:
+        if required or "policyVersion" in order:
             raise PreflightError("controller context policyVersion 3.0 is required")
         return None
-    if contexts[0]["policyVersion"] != "3.0":
+    if contexts[0].get("policyVersion") != "3.0":
         raise PreflightError("unsupported controller policyVersion")
     return contexts[0]
 
@@ -60,10 +61,12 @@ def review_binding(order: dict[str, Any], routing: dict[str, Any] | None) -> dic
     validate_order_id(binding["reviewedOrderId"])
     if any(not isinstance(binding[key], str) or not _SHA256.fullmatch(binding[key]) for key in keys - {"reviewedOrderId"}):
         raise PreflightError("reviewBinding requires SHA-256 result and product snapshot digests")
-    inputs = order.get("inputResults", [])
-    matches = [item for item in inputs if isinstance(item, dict) and item.get("orderId") == binding["reviewedOrderId"]] if isinstance(inputs, list) else []
-    if len(matches) != 1 or matches[0].get("resultSha256") != binding["reviewedResultSha256"]:
-        raise PreflightError("reviewBinding must name exactly one original accepted input result")
+    # A terminal reviewer consumes a captured candidate, before product acceptance.
+    # Ordinary inputResults still pass the accepted-input verifier unchanged.
+    # Historical schema fixtures may exercise projection with no mission state;
+    # active Gateway review orders must carry the controller candidate binding.
+    if not context.get("candidateIntentId") and context.get("missionId"):
+        raise PreflightError("reviewBinding requires controller candidateIntentId")
     return binding
 
 
@@ -105,7 +108,7 @@ def validate_tunnel_launch(order: dict[str, Any], policy: Any, candidate: Path, 
     handoff_errors = validate_handoff_order(order, routing)
     if "handoff" not in order.get("outputContract", {}) or handoff_errors:
         raise PreflightError("3.0 requires exact AGENT_HANDOFF_V1: " + "; ".join(handoff_errors))
-    plan = plan_order(order, policy)
+    plan = plan_order(order, policy, check_fresh_outputs=False)
     if not plan["valid"]:
         raise PreflightError("; ".join(f"{item['code']}: {item['message']}" for item in plan["diagnostics"] if item["severity"] == "error"))
     launch = order["launch"]
@@ -132,7 +135,7 @@ def validate_tunnel_launch(order: dict[str, Any], policy: Any, candidate: Path, 
         if len(schemas) > 1:
             raise PreflightError("ambiguous Codex output schema")
         if schemas:
-            schema_file = policy.order_path(schemas[0], "Codex output schema")
+            schema_file = policy.control_path(schemas[0], "Codex output schema")
             raw, complete = read_bounded_file(schema_file, MAX_ORDER_BYTES)
             if not complete or strict_json_load_bytes(raw, "native schema") != expected_schema:
                 raise PreflightError("Codex native schema is not the canonical order projection")
@@ -401,7 +404,7 @@ def plan_order(order: dict[str, Any], policy: Any, *, check_fresh_outputs: bool 
                         diagnostics.append(_diagnostic("ARTIFACT_PREVIEW_DIGEST_MISMATCH", "error",
                             f"expectedArtifacts[{index}]", "supplied preview digest does not match current bytes"))
     for index, proof in enumerate(order.get("proofCommands", [])):
-        if isinstance(proof, dict):
+        if isinstance(proof, dict) and controller_context(order) is None:
             add(f"proofCommands[{index}].cwd", proof.get("cwd"))
 
     if candidate_backed:

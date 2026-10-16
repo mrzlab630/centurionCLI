@@ -451,6 +451,9 @@ def mission_regressions() -> None:
         reservation.before_spawn()
         if review is None:
             target.write_text("final product\n")
+        else:
+            target = result_path.parent / "review.txt"
+            target.write_text("review evidence\n")
         value = {"resultVersion": "AGENT_RESULT_JSON_V1", "orderId": reservation.order["orderId"], "executor": reservation.order["executor"],
             "status": "done", "summary": "bounded result", "filesChanged": [] if review else [{"path": str(target), "action": "added"}],
             "artifacts": [{"path": str(target), "exists": True, "type": "fixture", "note": "product"}],
@@ -462,7 +465,7 @@ def mission_regressions() -> None:
         write_json(result_path, value)
         reservation.observe_result(value, result_path, process_stopped=True)
         proof = {}
-        runner.run_verification_gate(reservation.order, result_path, None, reservation.policy, "fixture-proof", evidence=proof)
+        runner.run_verification_gate(reservation.order, result_path, None, reservation.policy, "fixture-proof", evidence=proof, reservation=reservation)
         acceptance = reservation.policy.control_namespace / "controller-acceptance.json"
         write_json(acceptance, {"status": "passed", "orderId": reservation.order["orderId"], "canonicalResultSha256": runner.result_digest(result_path)})
         return proof, acceptance
@@ -582,14 +585,17 @@ def mission_regressions() -> None:
     product.close()
     review_order = copy.deepcopy(order)
     review_order.update(orderId="independent-review", executor="claude")
-    review_order["launch"]["command"] = "claude --model claude-opus-5-5 fixture"
+    review_order["launch"]["command"] = "claude --model claude-opus-5-5 --effort high fixture"
     review_route = json.loads(review_order["notesForExecutor"][0][len(ROUTING_PREFIX):])
     review_route.update(executor="claude", model="claude-opus-5-5", executionProfile="terminal_review", terminalGate=True, reviewer="none")
     review_order["notesForExecutor"] = [ROUTING_PREFIX + json.dumps(review_route, separators=(",", ":"))]
     review_order["context"][0].update(intentId="review-1", action="review", candidateIntentId="product-1")
     namespace = artifact_namespace(policy.repo_path, review_order["orderId"])
     namespace.mkdir(parents=True)
-    review_order["allowedPaths"] = [str(target.parent / "**"), str(namespace / "**")]
+    review_order["allowedPaths"] = [str(namespace / "**")]
+    review_order["proofCommands"], review_order["expectedArtifacts"] = [], []
+    review_order["context"][0]["reviewBinding"] = {"reviewedOrderId":order["orderId"],
+        "reviewedResultSha256":runner.result_digest(result), "productSnapshotSha256":proof["productSnapshotSha256"]}
     review_result = namespace / "result.json"
     review_order["outputContract"]["resultPath"] = str(review_result)
     review_order["launch"]["resultJsonPath"] = str(review_result)
@@ -612,14 +618,17 @@ def mission_regressions() -> None:
     product.close()
     review_order = copy.deepcopy(order)
     review_order.update(orderId="passing-review", executor="claude")
-    review_order["launch"]["command"] = "claude --model claude-opus-5-5 fixture"
+    review_order["launch"]["command"] = "claude --model claude-opus-5-5 --effort high fixture"
     route = json.loads(review_order["notesForExecutor"][0][len(ROUTING_PREFIX):])
     route.update(executor="claude", model="claude-opus-5-5", executionProfile="terminal_review", terminalGate=True, reviewer="none")
     review_order["notesForExecutor"] = [ROUTING_PREFIX + json.dumps(route, separators=(",", ":"))]
     review_order["context"][0].update(intentId="review-pass", action="review", candidateIntentId="product-1")
     namespace = artifact_namespace(policy.repo_path, review_order["orderId"])
     namespace.mkdir(parents=True)
-    review_order["allowedPaths"] = [str(target.parent / "**"), str(namespace / "**")]
+    review_order["allowedPaths"] = [str(namespace / "**")]
+    review_order["proofCommands"], review_order["expectedArtifacts"] = [], []
+    review_order["context"][0]["reviewBinding"] = {"reviewedOrderId":order["orderId"],
+        "reviewedResultSha256":runner.result_digest(result), "productSnapshotSha256":proof["productSnapshotSha256"]}
     review_result = namespace / "result.json"
     review_order["outputContract"]["resultPath"] = str(review_result)
     review_order["launch"]["resultJsonPath"] = str(review_result)
@@ -932,15 +941,30 @@ def main() -> int:
     print("PASS runner rejects duplicate keys, NaN, Infinity, -Infinity, and 1e999 orders")
 
     for mode in ("duplicate_key", "non_finite", "infinity", "negative_infinity", "overflow_non_finite"):
-        completed, _, _, _, _, events_path = run_case(
-            f"strict-result-{mode}",
-            "pass",
-            True,
-            "python3 -c 'print(\"proof ok\")'",
-            result_mode=mode,
+        case_dir = FIXTURE_ROOT / f"strict-result-{mode}"
+        case_dir.mkdir(parents=True)
+        order_path, result_path, _, _, _, events_path = make_order(
+            case_dir, f"strict-result-{mode}", "pass", True, "python3 -c 'print(\"proof ok\")'"
         )
-        assert_case(completed.returncode != 0 and "strict JSON" in completed.stderr, f"runner must reject {mode} result JSON")
-        assert_case("dispatch_started" in events_text(events_path), "strict result fixture must exercise post-dispatch result loading")
+        order = json.loads(order_path.read_text(encoding="utf-8"))
+        valid = json.dumps({"resultVersion":"AGENT_RESULT_JSON_V1", "orderId":order["orderId"], "executor":"other",
+            "status":"done", "summary":"fixture", "filesChanged":[], "artifacts":[],
+            "proof":[], "selfReview":{"performed":True,"findings":[],"fixesApplied":[]},
+            "scopeDeviations":[], "forbiddenPatternHits":[], "remainingRisks":[], "questions":[], "errors":[],
+            "stdoutSummary":"", "stderrSummary":""})
+        literal = {"duplicate_key": '"orderId":"ambiguous"', "non_finite":"\"ambiguous\":NaN",
+                   "infinity":"\"ambiguous\":Infinity", "negative_infinity":"\"ambiguous\":-Infinity",
+                   "overflow_non_finite":"\"ambiguous\":1e999"}[mode]
+        raw = (valid[:-1] + ',' + literal + '}').encode()
+        result_path.write_bytes(raw)
+        module = load_runner_module()
+        policy = module.PathPolicy(Path(order["workspace"]["repoPath"]), order["allowedPaths"], order["forbiddenPaths"], order["orderId"])
+        try:
+            module.verify_result(result_path, order, policy)
+        except (module.RunnerError, module.StrictJSONError) as exc:
+            assert_case("strict JSON" in str(exc), f"runner must reject {mode} result JSON")
+        else:
+            raise AssertionError(f"runner accepted {mode} result JSON")
     print("PASS runner rejects duplicate keys, NaN, Infinity, -Infinity, and 1e999 results")
 
     post_cutover_dir = FIXTURE_ROOT / "post-cutover-routing"
@@ -1068,10 +1092,10 @@ def main() -> int:
     for command in claude_commands.values():
         runner_module.validate_claude_launch(command, "claude-opus-5-5", "claude-opus-5")
     for label, command, expected in (
-        ("missing fallback", "claude --model claude-opus-5-5 --print Review", "exactly one --fallback-model"),
-        ("wrong fallback", "claude --model claude-opus-5-5 --fallback-model claude-opus-5-5 --print Review", "ordered reviewer fallback"),
-        ("duplicate fallback", "claude --model claude-opus-5-5 --fallback-model claude-opus-5 --fallback-model claude-opus-5 --print Review", "exactly one --fallback-model"),
-        ("prompt-only fallback", "claude --model claude-opus-5-5 Review --fallback-model claude-opus-5", "exactly one --fallback-model"),
+        ("missing fallback", "claude --model claude-opus-5-5 --print Review", "explicit legacy contract"),
+        ("wrong fallback", "claude --model claude-opus-5-5 --fallback-model claude-opus-5-5 --print Review", "explicit legacy contract"),
+        ("duplicate fallback", "claude --model claude-opus-5-5 --fallback-model claude-opus-5 --fallback-model claude-opus-5 --print Review", "explicit legacy contract"),
+        ("prompt-only fallback", "claude --model claude-opus-5-5 Review --fallback-model claude-opus-5", "explicit legacy contract"),
     ):
         try:
             runner_module.validate_claude_launch(command, "claude-opus-5-5", "claude-opus-5")
@@ -1110,7 +1134,7 @@ def main() -> int:
         cwd=ROOT, env={**os.environ, "HOME": str(FIXTURE_ROOT / "isolated-home")},
         check=False, text=True, capture_output=True,
     )
-    assert_case(direct_advisory.returncode != 0 and "requires result_gateway.py" in direct_advisory.stderr,
+    assert_case(direct_advisory.returncode != 0 and "direct runner dispatch is disabled" in direct_advisory.stderr,
                 "Astra advisory direct runner dispatch must fail before child launch")
     assert_case(not advisory_candidate.exists() and not advisory_result.exists() and not direct_advisory_events.exists(),
                 "Astra advisory direct runner rejection must not create custody artifacts")
@@ -1347,10 +1371,10 @@ def main() -> int:
         capture_output=True,
     )
     promoted_terminal_events_text = events_text(promoted_terminal_events)
-    assert_case(accepted_terminal.returncode == 0, f"canonical promoted terminal V2 route must pass: {accepted_terminal.stderr}")
-    assert_case("aquila_routing_validated:V2:none:terminal_review" in promoted_terminal_events_text, "promoted terminal route must not appoint a recursive reviewer")
-    assert_case(sum("dispatch_started" in line for line in promoted_terminal_events_text.splitlines()) == 1, "promoted terminal V2 route must dispatch exactly once")
-    assert_case(terminal_result.exists() and terminal_artifact.exists(), "promoted terminal V2 route must produce executor outputs")
+    assert_case(accepted_terminal.returncode != 0 and "direct runner dispatch is disabled" in accepted_terminal.stderr,
+                "legacy promoted terminal fixture must remain read-only after Gateway cutover")
+    assert_case("dispatch_started" not in promoted_terminal_events_text, "legacy promoted terminal must not bypass Gateway")
+    assert_case(not terminal_result.exists() and not terminal_artifact.exists(), "legacy promoted terminal must not produce executor outputs")
 
     with mock.patch.dict(os.environ, promotion_env, clear=False):
         runner_module = load_runner_module()

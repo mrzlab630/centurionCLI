@@ -1,0 +1,80 @@
+{
+  "context": {
+    "ExecutionDecision": {
+      "taskClass": "final_report_recovery_review",
+      "complexity": "high",
+      "risk": "medium",
+      "ambiguity": "medium",
+      "reversibility": "high",
+      "evidenceNeed": "high",
+      "executor": "claude_messages_api",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "high",
+      "executionProfile": "read_only_terminal_review",
+      "verificationProfile": "owner_source_and_test_readback",
+      "confidence": "high",
+      "reasons": [
+        "User requested independent Claude verification.",
+        "Previous final request timed out and its input hash predates the current Gateway; one bounded retry reviews current source."
+      ]
+    }
+  },
+  "inputHashes": {
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": "b6e874204334a16b740dc8d9c97f6e349fdab0f97d3af037161cd9afd23bfc49",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": "c62e97fb3dfa6bd9864b7d99baf5461427b24db00bd34337fe3033624e953a33",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py": "d923ad06d570355c5bf9b8e7d37e330744da9c441c10af54f6deb251ef096ffb"
+  },
+  "ranges": {
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": [
+      [
+        1161,
+        1164
+      ],
+      [
+        1167,
+        1190
+      ],
+      [
+        1193,
+        1252
+      ],
+      [
+        1255,
+        1283
+      ],
+      [
+        1286,
+        1297
+      ],
+      [
+        1300,
+        1448
+      ],
+      [
+        1451,
+        1475
+      ],
+      [
+        1547,
+        1562
+      ]
+    ],
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": [
+      [
+        1487,
+        1692
+      ],
+      [
+        1695,
+        1766
+      ]
+    ],
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py": [
+      [
+        260,
+        440
+      ]
+    ]
+  },
+  "scope": "Current report-capture recovery and affected dispatch/reservation paths only; no release approval"
+}

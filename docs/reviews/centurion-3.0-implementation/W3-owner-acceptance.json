@@ -1,0 +1,64 @@
+{
+  "package": "W3",
+  "status": "accepted_for_integration_only",
+  "workerCommit": "cb5b4d72032912b638a2a62de5c744bb42c1507a",
+  "integrationCommit": "36807ce",
+  "ownerProof": {
+    "command": "python3 -B integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_contract_runner.py --mission-only",
+    "status": "pass",
+    "evidence": "PASS 3.0 restart, duplicate delivery, single lock and stable intent identity (no child replay)\nPASS 3.0 unknown effect and state-write failures preserve budget and prohibit replay\nPASS 3.0 post-replace state failure records unknown commit without refund or launch\nPASS 3.0 advisory shares mission launch budget without product attempt authority\nPASS 3.0 scope narrowing, criterion/proof preservation, acceptance write failure and final mission completion\nPASS 3.0 independent review required, verdict fail rejects, shared reviewer launch accounting\nPASS 3.0 positive bound independent review, final controller proof and observed ledger counters\nPASS 3.0 criterion-bound correction, new order accounting, product attempt exhaustion and unintegrated Gateway denial\nPASS 3.0 accepted dependency revision gate and explicit cancellation before spawn\nPASS 3.0 consumed budget, no-progress after success and one bounded strategy switch\nPASS 3.0 cutoff, terminal closure, disabled report, old/missing policy and missing/corrupt state\nPASS 3.0 actual direct-run denial and pinned owned-process termination without signalling foreign identity\n"
+  },
+  "scopeDeviations": [],
+  "remainingRisks": [
+    "Gateway integration, actual workspace diff and reviewer candidate admission remain open in INTEGRATION_TASK.md.",
+    "Report-only recovery is disabled in this kernel slice; A23/P6 is not accepted.",
+    "Independent final Opus review, isolated candidate proof and N7 remain required."
+  ],
+  "candidateSha256": [
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+      "action": "modified",
+      "sha256": "5b94531c68302c52136b432afcef7e7fe5e995b8a7c19d1afc9968b37b0286a4"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/execution_state.py",
+      "action": "modified",
+      "sha256": "9f8ff49b79e2ec5c995b0bb48c0e88ea66a31c68ab78167c58b8c763007c9a7d"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/attempt_ledger.py",
+      "action": "modified",
+      "sha256": "8da168685969ab3634dcea15002e4101e13b48e7cfe7ac5b87b94462a34eda1c"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/progress_drift_detector.py",
+      "action": "added",
+      "sha256": "57e97fed6a95b50184ce0c7de31cbbc32c55fdeaa1c2979a51ca9c0b7a1f7eee"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/blocker_packet_projection.py",
+      "action": "added",
+      "sha256": "d07dceecf0455e6422680c0f9bff7ae60fb41326f828816c1ae04c3398d5b809"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_contract_runner.py",
+      "action": "modified",
+      "sha256": "3ccb78ff865f0cb4c955beffeee6dabc033c5101c169923269a36a9c7af3b42a"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_execution_state.py",
+      "action": "modified",
+      "sha256": "2738245df66d0016d30754dc1a050434a9c118bb5c4d4c0894ba4fccd8304e37"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_progress_drift_detector.py",
+      "action": "added",
+      "sha256": "6c677af87f8e31ea01ae929c28fa4acbf83db737e0b7c53a39aff21807530cba"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_blocker_packet_projection.py",
+      "action": "added",
+      "sha256": "88d9e3d99c0f4ff5e57500d4eb9452e11b6d0c6d3f646870dcd5093a76bf9e15"
+    }
+  ]
+}

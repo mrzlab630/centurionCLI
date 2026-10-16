@@ -1,0 +1,69 @@
+{
+  "package": "W2",
+  "status": "accepted_for_integration_only",
+  "workerCommit": "20eba75",
+  "integrationCommit": "309b3f2",
+  "ownerProof": {
+    "command": "PYTHONDONTWRITEBYTECODE=1 python3 scripts/regression_result_gateway_v3.py",
+    "status": "pass",
+    "evidence": "PASS 3.0 valid/failed author output, malformed/identity/oversize protocol receipts, raw input binding and zero product replay\nPASS Codex accepts the generated canonical --output-schema projection\nPASS wrong ingress/identity/transport, missing prompt, env/stdin and stale native schema rejected before child\nPASS native Claude review pass/fail/blocked, missing verdict and stale snapshot binding; done alone cannot authorize acceptance\nPASS ENOSPC receipt failure preserves raw/start custody, rejects acceptance and restart replay\nPASS streaming byte and newline-free JSONL frame limits terminate with partial capture\n"
+  },
+  "scopeDeviations": [],
+  "remainingRisks": [
+    "Full W3 integration and independent Opus review pending.",
+    "Report-only recovery currently disabled; this does not close A23/P6.",
+    "Candidate review admission cycle and proof cwd/write scope distinction need integration correction."
+  ],
+  "candidateSha256": [
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/references/agent-result.schema.json",
+      "action": "modified",
+      "sha256": "c3c3fbc96486184a8c373359fe24558d8f7558a1ee445be631f1b6832e49c66a"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py",
+      "action": "modified",
+      "sha256": "379490d923a84eea963bbd63a881b8f623b3c86fd3c529e581c9d5e0dbed06af"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_result_builder.py",
+      "action": "modified",
+      "sha256": "3f00daa1c459729a26481a54bff840b321fa6c0bf4b18943dd64b843be275c74"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/order_preflight.py",
+      "action": "added",
+      "sha256": "a4a1bf78aaa7c623064eb9c20c8c85c32c4092a7f413135ec0b4675dde27b637"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_result_builder.py",
+      "action": "modified",
+      "sha256": "acd1967c10cfa5e4482e30362b9c34d729d644d90b7072d0523d52d9c6950ae1"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_order_preflight.py",
+      "action": "added",
+      "sha256": "bf88615cccb90ce29d5d2158e5bb25a4c563075090417ca229741bf2af095ad3"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_response_envelope.py",
+      "action": "modified",
+      "sha256": "faf58996e85fac5c2c40e068b1b096630eea13705ebabf5fc4aa160a59bc541d"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+      "action": "added",
+      "sha256": "7c9573c68ca761e6cc6ecb91226112abf9903c81c46d5ee5a56cbd4760b4f1ee"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/response_envelope.py",
+      "action": "modified",
+      "sha256": "ba0122665c498e23cdf89ea69011b3dcd75c88ee0eda15c4e8fb905365479dd0"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+      "action": "modified",
+      "sha256": "4b262766e23aa8a46a9403000efcf12269add261043d2c17d677cd45ccc5cf38"
+    }
+  ]
+}

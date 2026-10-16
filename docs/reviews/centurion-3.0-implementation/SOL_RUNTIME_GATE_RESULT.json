@@ -1,0 +1,151 @@
+{
+  "resultVersion": "AGENT_RESULT_JSON_V1",
+  "orderId": "centurion-v3-runtime-gate-20261016",
+  "executor": "sol_runtime_gate",
+  "status": "done",
+  "summary": "F2 and F3 are not confirmed against the current four-file runtime snapshot. No product code or regression file changed. Six stopped-negative-review/rejection-receipt restart cases and 36 mission state-write/file-fsync/directory-fsync cases passed; no spent budget was lost and no product replay occurred. Active policy-3.0 mission and Gateway regressions pass. The default runner command fails on its retained legacy direct-dispatch fixture; legacy dispatch was not restored. Root retains acceptance authority.",
+  "filesChanged": [
+    {
+      "path": "docs/reviews/centurion-3.0-implementation/SOL_RUNTIME_GATE_RESULT.json",
+      "action": "added"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/sol-runtime-gate/probe_runtime.py",
+      "exists": true,
+      "type": "temporary-gate-probe",
+      "note": "Focused F2/F3 proof; no repository source edits.",
+      "mediaType": "text/plain",
+      "sha256": "599fcce5af3e45cf66015a3345d42437bb6c6a3aa5090aa52eb0824a771e950e"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/sol-runtime-gate/fault-evidence.json",
+      "exists": true,
+      "type": "runtime-gate-evidence",
+      "note": "Focused F2/F3 proof; no repository source edits.",
+      "mediaType": "application/json",
+      "sha256": "ae8d727681f58c3670a92eeb6ea12a92848c481f926ddada7de0c7ca363f6312"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/sol-runtime-gate/fault-run.log",
+      "exists": true,
+      "type": "runtime-gate-evidence",
+      "note": "Focused F2/F3 proof; no repository source edits.",
+      "mediaType": "text/plain",
+      "sha256": "a6374ae0e4f2040c46cda71e4b3f235e6b1345d428cd4c8412c1b9af4dc77bf2"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/sol-runtime-gate/runner-mission-regression.log",
+      "exists": true,
+      "type": "runtime-gate-evidence",
+      "note": "Focused F2/F3 proof; no repository source edits.",
+      "mediaType": "text/plain",
+      "sha256": "271c294848d0007e59f32d884368acb0c3ae3d94d382365f12eadcf1313318be"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/sol-runtime-gate/gateway-regression.log",
+      "exists": true,
+      "type": "runtime-gate-evidence",
+      "note": "Focused F2/F3 proof; no repository source edits.",
+      "mediaType": "text/plain",
+      "sha256": "4db8f5d989196724d0f9f9a85023bda0f3a0b5351f12e5c4bd3a6b3574015542"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/sol-runtime-gate/byte-integrity.json",
+      "exists": true,
+      "type": "runtime-gate-evidence",
+      "note": "Focused F2/F3 proof; no repository source edits.",
+      "mediaType": "application/json",
+      "sha256": "42984c39679a23ed92c8f8b18257ca43471be0696c9cd218979da10eb8e645c8"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/sol-runtime-gate/status-before.txt",
+      "exists": true,
+      "type": "runtime-gate-evidence",
+      "note": "Focused F2/F3 proof; no repository source edits.",
+      "mediaType": "text/plain",
+      "sha256": "ebf915211ce1cfb6c4147f7635e44ab7906311fd397c4251c0d94bdec3145721"
+    }
+  ],
+  "proof": [
+    {
+      "command": "python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_contract_runner.py --mission-only",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "12 policy-3.0 PASS groups: reservation/restart identity and counters, unknown effect, pre/post-replace failure, acceptance write failure, negative/positive review binding, bounded correction and exhausted budget, cutoff/cancellation and direct-run denial.",
+      "logPath": "/tmp/centurion-v3-implementation-hjr_gs82/sol-runtime-gate/runner-mission-regression.log"
+    },
+    {
+      "command": "python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "8 PASS groups using local fake native CLIs, including pass/fail/blocked reviews, raw/protocol custody, report collection without product replay, scope snapshots and ENOSPC receipt failure.",
+      "logPath": "/tmp/centurion-v3-implementation-hjr_gs82/sol-runtime-gate/gateway-regression.log"
+    },
+    {
+      "command": "python3 /tmp/centurion-v3-implementation-hjr_gs82/sol-runtime-gate/probe_runtime.py",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "42/42 additional targeted cases passed. F2: fail and blocked review each tested with normal receipt, rejection-receipt ENOSPC, and BaseException interruption after rejected state save before receipt; all preserve rejected/observed/stopped review plus blocked mission, launch budget 2 and product-attempt budget 1, no product acceptance, no unknown review effect, no duplicate child, and new-order/new-intent product dispatch denied. F3: reserve, before_spawn, record_process, capture, capture-ready and accept each tested with pre-write ENOSPC, real file-fsync failure and real directory-fsync failure, transient and persistent (36 cases). Every already-reserved attempt retained budget 1 on restart; no additional product child/effect occurred. Four initial pre-commit reservation failures left budget 0 with zero authorized/spawned children, and a fresh successful reservation launched exactly once. Post-replace reservation failure retained budget 1 and prohibited launch. Captured state may complete acceptance on restart without product/proof replay; ambiguous commit state remains closed/unknown_effect.",
+      "logPath": "/tmp/centurion-v3-implementation-hjr_gs82/sol-runtime-gate/fault-run.log",
+      "evidencePath": "/tmp/centurion-v3-implementation-hjr_gs82/sol-runtime-gate/fault-evidence.json"
+    },
+    {
+      "command": "python3 -m py_compile integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_contract_runner.py integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "All four allowed Python files compile."
+    },
+    {
+      "command": "python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_contract_runner.py",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation",
+      "status": "fail",
+      "exitCode": 1,
+      "summary": "Initial broad invocation stopped at regression_agent_contract_runner.py:1489: AssertionError: structured argv proof should pass: error: direct runner dispatch is disabled; legacy orders are read-only; use policy 3.0 result_gateway.py. The retained fixture expects retired direct dispatch; focused --mission-only succeeds. No dispatch behavior was changed to satisfy this fixture."
+    },
+    {
+      "command": "for f in agent_contract_runner.py result_gateway.py regression_agent_contract_runner.py regression_result_gateway_v3.py; do target=\"integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/$f\"; before=\"/tmp/centurion-v3-implementation-hjr_gs82/sol-runtime-gate/before/$f\"; printf '%s ' \"$f\"; sha256sum \"$before\" \"$target\" | awk '{print $1}' | paste -sd' '; done",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "Each allowed source/regression file is byte-identical to its entry snapshot. SHA-256: agent_contract_runner.py c62e97fb3dfa6bd9864b7d99baf5461427b24db00bd34337fe3033624e953a33; result_gateway.py 220e40fb0fc90424e82b37de3ed5290effd2c6a468df19b0f2e412dd188799a7; regression_agent_contract_runner.py b592f9713447e86938387e1ec0a0719b841befb0f097af1b64e777a34231eb6d; regression_result_gateway_v3.py f486eca6a3bcc0ff7c844f7ba07b59cf6222fbc983c567ecbb3fc057dc640166.",
+      "evidencePath": "/tmp/centurion-v3-implementation-hjr_gs82/sol-runtime-gate/byte-integrity.json"
+    }
+  ],
+  "selfReview": {
+    "performed": true,
+    "findings": [
+      "F2 not confirmed: result_gateway.py:1785-1790 observes a valid stopped rejected/negative-review result before rejection. MissionReservation.fail at agent_contract_runner.py:1611-1622 saves rejected/observed plus mission blocked in the same state replacement, before result_gateway.py:1883-1885 attempts the rejection receipt. Thus the review's alleged gap before a separate legacy block_loop_state_after_dispatch_failure call does not authorize dispatch. Same intent is closed; new intent hits mission_work_timeout's blocked-state guard. Missing rejected receipt remains a conservative blocked outcome. Product resume reports awaiting_review with replayAllowed=false; it does not create a passing receipt.",
+      "F3 not confirmed: atomic_write_loop_state at agent_contract_runner.py:982-1001 fsyncs the file, replaces it, and fsyncs its directory; exceptions propagate. reserve_mission_dispatch at :1754-1766 persists counters/intent before returning launch authority and releases the lock on failure. before_spawn saves the dispatch barrier before Popen. MissionReservation.save at :1499-1520 marks the object unusable, preserves spent counters, attempts a conservative unknown-effect state, and re-raises on OSError. Persistent write failure leaves the prior reserved/running/captured state, which blocks new product dispatch rather than refunding its reservation or replaying the child.",
+      "F2/F3 were assessed only against the four current file byte hashes recorded in byte-integrity.json and the supplied review artifact. No claim that all review findings, full-suite compatibility, or live rollout gates pass.",
+      "Temporary probe first failed because its helper incorrectly assumed order.repoPath existed. The helper was corrected to use persisted mission.workspace and assert the specific expected dispatch-denial reasons, preventing a false-positive rejection check. The completed 42-case run passed without product changes."
+    ],
+    "fixesApplied": []
+  },
+  "scopeDeviations": [
+    "Read-only overreach during final artifact preparation: W2-result.json, W3-result.json, W4-result.json and the repository copy code-review-runtime.json were opened although the task limited inspection to the four runtime/regression files and supplied review artifact. They were not edited, and no F2/F3 conclusion depends on those extra reads."
+  ],
+  "forbiddenPatternHits": [],
+  "remainingRisks": [
+    "Proof uses real local child processes running deterministic fake native CLIs and injected syscall errors. No actual Codex/Claude model invocation, live Hermes installation/deployment, physical power loss, disk corruption or kernel SIGKILL-at-write-boundary campaign was performed. Successful filesystem syscalls/fsync are assumed to honor their documented semantics; silent storage rollback is not established.",
+    "On rejection-receipt interruption, rejected/observed state and blocked mission remain durable, but controller-acceptance.json can be absent. Restart is conservatively blocked; this task does not add automated receipt reconstruction.",
+    "F3 deliberately permits unknown_effect after ambiguous persistence. This is a closed reconciliation state, not acceptance or replay authority. Persistent pre-replace acceptance-write failure can leave a complete captured candidate that later finishes acceptance from saved proof without rerunning product.",
+    "The default regression_agent_contract_runner.py command does not pass against the Gateway-only cutover because retained legacy fixtures expect direct dispatch. Only the active --mission-only branch and focused Gateway regression are reported passing. Legacy dispatch was not restored.",
+    "F1, report-model capability verification, final completion write faults, unrelated helpers/suites, and production acceptance were outside this bounded gate. Root owner remains responsible for final integration acceptance.",
+    "No writable heartbeat path was supplied for this contract; no heartbeat helper was invoked outside the sandbox's authorized write roots. The required result path was writable.",
+    "Other controller-created untracked runtime-review artifacts appeared concurrently in git status and were left untouched."
+  ],
+  "questions": [],
+  "errors": [
+    "Initial broad runner regression failed on a retained legacy direct-dispatch fixture; see failed proof entry.",
+    "Temporary probe setup initially raised KeyError: 'repoPath'; corrected locally before the passing 42-case run.",
+    "Initial optional skill lookup used the wrong root under ~/.codex/skills; corrected to the catalogued ~/.agents/skills paths."
+  ],
+  "stdoutSummary": "F2/F3 not reproduced against current bytes. Active runner mission regression: 12 PASS groups. Gateway V3 regression: 8 PASS groups. Additional fault gate: 42/42 PASS (6 F2, 36 F3), zero product replay, spent counters preserved. Four source/regression files unchanged byte-for-byte. No commit.",
+  "stderrSummary": "Expected injected ENOSPC/EIO errors were captured per case. Default retained legacy runner fixture fails because direct runner dispatch is disabled. Initial disposable probe/skill-path lookup errors were corrected; no unresolved active focused regression failure."
+}

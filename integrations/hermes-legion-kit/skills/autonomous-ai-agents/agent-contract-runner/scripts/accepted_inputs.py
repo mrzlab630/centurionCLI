@@ -279,6 +279,8 @@ def _verify_one(repo: Path, current_order_id: str, item: dict[str, Any], index: 
         _path_equal(repo, output.get("resultPath"), result_path, "predecessor outputContract.resultPath")
 
     result, result_digest = _json(repo, result_path, "predecessor result")
+    if "reporting" in acceptance:
+        closure = _verify_reporting(repo, predecessor_id, acceptance, closure, result_digest, order_digest)
     if result_digest != item["resultSha256"]:
         raise AcceptedInputError(f"inputResults[{index}] canonical result digest mismatch")
     if result.get("resultVersion") != RESULT_VERSION or result.get("orderId") != predecessor_id or result.get("status") != "done" or result.get("executor") != executor:
@@ -336,7 +338,7 @@ def _verify_one(repo: Path, current_order_id: str, item: dict[str, Any], index: 
             review = result.get("executorExtensions", {}).get("review")
             if review is not None and review.get("verdict") != "pass":
                 raise AcceptedInputError("predecessor review verdict is not pass")
-            if "reporting" in acceptance or "protocolFailure" in closure or closure.get("canonicalFinalized") is not True:
+            if "protocolFailure" in closure or closure.get("canonicalFinalized") is not True:
                 raise AcceptedInputError("report recovery is disabled without a proven no-write capability")
             for label in ("stdout", "stderr", "candidate"):
                 capture = closure.get(label)
@@ -407,6 +409,67 @@ def _verify_one(repo: Path, current_order_id: str, item: dict[str, Any], index: 
         "artifacts": expected_artifacts,
         "nested": nested,
     }
+
+
+def _verify_reporting(repo: Path, order_id: str, acceptance: dict[str, Any], original: dict[str, Any],
+                      result_digest: str, order_digest: str) -> dict[str, Any]:
+    """Verify both immutable chains, then project the collected report closure.
+
+    Original malformed closure/raw is never rewritten to masquerade as success.
+    """
+    ref = acceptance["reporting"]
+    path = _control_path(repo, order_id, ref.get("path"), "report recovery closure")
+    report, digest = _json(repo, path, "report recovery closure")
+    if digest != ref.get("sha256") or report.get("version") != "CENTURION_REPORT_RECOVERY_V1" or report.get("status") != "passed" or report.get("orderId") != order_id or report.get("canonicalResultSha256") != result_digest:
+        raise AcceptedInputError("report recovery closure/result binding failed")
+    refs = report.get("originalRefs", {})
+    for name, saved in refs.items():
+        saved_path = _control_path(repo, order_id, saved.get("path"), "original recovery " + name)
+        raw, digest = _read_bytes(repo, saved_path, "original recovery " + name)
+        if digest != saved.get("sha256") or len(raw) != saved.get("bytes"):
+            raise AcceptedInputError("original report recovery custody changed")
+    if (set(refs) != {"order", "start", "closure", "protocol", "candidate"} or refs["order"]["sha256"] != order_digest
+            or refs["closure"]["sha256"] != acceptance["closureSha256"] or refs["start"]["sha256"] != acceptance["startReceiptSha256"]):
+        raise AcceptedInputError("report recovery lacks original order/launch/raw binding")
+    protocol, _ = _json(repo, Path(refs["protocol"]["path"]), "original protocol failure")
+    if (protocol.get("candidate", {}).get("sha256") != refs["candidate"]["sha256"] or
+            protocol.get("candidate", {}).get("complete") is not True or protocol.get("orderSha256") != order_digest):
+        raise AcceptedInputError("report recovery original raw is incomplete or changed")
+    if original.get("canonicalFinalized") is not False or original.get("childStarted") is not True or original.get("exitCode") != 0 or original.get("timedOut") or original.get("drainTimedOut"):
+        raise AcceptedInputError("report recovery cannot cover an unknown product effect")
+    report_start, _ = _json(repo, Path(report["startRef"]["path"]), "report start")
+    for key in ("originalRefs", "capabilityRef", "snapshot", "idempotencyKey"):
+        if report_start.get(key) != report.get(key):
+            raise AcceptedInputError("report start/closure binding mismatch")
+    key = report.get("idempotencyKey")
+    if not isinstance(key, list) or len(key) != 4 or key[-1] != 1:
+        raise AcceptedInputError("report idempotency ordinal must be one")
+    captures = {}
+    for label, name in (("candidate", "candidateRef"), ("stdout", "stdoutRef"), ("stderr", "stderrRef"), ("start", "startRef")):
+        saved = report[name]
+        saved_path = _control_path(repo, order_id, saved.get("path"), "report " + label)
+        raw, digest = _read_bytes(repo, saved_path, "report " + label)
+        if digest != saved.get("sha256") or len(raw) != saved.get("bytes"):
+            raise AcceptedInputError("report capture binding changed")
+        captures[label] = dict(saved, complete=True)
+    cap_ref = report["capabilityRef"]
+    cap_path = _lexical_path(repo, cap_ref["path"], "report capability")
+    cap, cap_hash = _json(repo, cap_path, "report capability")
+    if cap_hash != cap_ref["sha256"] or cap.get("version") != "CENTURION_NO_TOOLS_REPORT_V1" or cap.get("probe", {}).get("status") != "passed":
+        raise AcceptedInputError("report capability binding invalid")
+    for row in report["snapshot"]["files"]:
+        product = _lexical_path(repo, row["path"], "recovery product snapshot")
+        if row["sha256"] is None:
+            if product.exists():
+                raise AcceptedInputError("recovery deleted product reappeared")
+        else:
+            raw, digest = _read_bytes(repo, product, "recovery product")
+            if digest != row["sha256"] or len(raw) != row["bytes"]:
+                raise AcceptedInputError("recovery product snapshot changed")
+    projected = dict(original, canonicalResultSha256=result_digest, canonicalStatus="done", canonicalFinalized=True,
+                     controllerErrors=[], candidate=captures["candidate"], stdout=captures["stdout"], stderr=captures["stderr"])
+    projected.pop("protocolFailure", None)
+    return projected
 
 
 def _verify_order_inputs(repo: Path, order: Mapping[str, Any], seen_orders: set[str], depth: int) -> list[dict[str, Any]]:

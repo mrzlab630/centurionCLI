@@ -1,0 +1,191 @@
+{
+  "resultVersion": "AGENT_RESULT_JSON_V1",
+  "orderId": "centurion-v3-W3",
+  "executor": "codex",
+  "status": "done",
+  "summary": "W3 bounded lifecycle kernel implemented and focused regressions pass. One explicitly prepared policy-3.0 mission state owns authority, counters, intents, task/dependency acceptance and final proof. Gateway integration is specified and remains root-owned; unintegrated 3.0 dispatch fails closed.",
+  "filesChanged": [
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/execution_state.py",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/attempt_ledger.py",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/progress_drift_detector.py",
+      "action": "added"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/blocker_packet_projection.py",
+      "action": "added"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_contract_runner.py",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_execution_state.py",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_progress_drift_detector.py",
+      "action": "added"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_blocker_packet_projection.py",
+      "action": "added"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W3_INTERFACE.md",
+      "exists": true,
+      "type": "gateway-integration-contract",
+      "note": "Exact W2/root call sites, preparation shape and proof boundary."
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W3_BLOCKER_PROOF.log",
+      "exists": true,
+      "type": "regression-log",
+      "note": "Actual focused offline proof output."
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W3_DETECTOR_PROOF.log",
+      "exists": true,
+      "type": "regression-log",
+      "note": "Actual focused offline proof output."
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W3_MISSION_PROOF.log",
+      "exists": true,
+      "type": "regression-log",
+      "note": "Actual focused offline proof output."
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W3_OWNER_PROOF.log",
+      "exists": true,
+      "type": "regression-log",
+      "note": "Actual focused offline proof output."
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W3_RUNNER_PROOF.log",
+      "exists": true,
+      "type": "regression-log",
+      "note": "Actual focused offline proof output."
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W3_STATE_PROOF.log",
+      "exists": true,
+      "type": "regression-log",
+      "note": "Actual focused offline proof output."
+    }
+  ],
+  "proof": [
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_contract_runner.py",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-lifecycle",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "70 PASS output groups, including legacy runner and 12 policy-3.0 groups. Passed before final cutoff persistence amendment; final affected mission branch rerun separately.",
+      "evidencePath": "/tmp/centurion-v3-implementation-hjr_gs82/W3_RUNNER_PROOF.log"
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_contract_runner.py --mission-only",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-lifecycle",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "12 policy-3.0 groups pass on final code: explicit init CLI, lock/restart/duplicate intent, persistent budgets, unknown effect, pre/post-replace state write failure, scope/proof preservation, review fail/pass, criterion-bound correction, dependency revisions, cancel/cutoff, direct launch rejection and pidfd process identity.",
+      "evidencePath": "/tmp/centurion-v3-implementation-hjr_gs82/W3_MISSION_PROOF.log"
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_execution_state.py",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-lifecycle",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "PASS strict projection/schema/provenance/bounds; 3.0 worker done remains awaiting_verification; mutable mission cannot be overwritten by projection.",
+      "evidencePath": "/tmp/centurion-v3-implementation-hjr_gs82/W3_STATE_PROOF.log"
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_progress_drift_detector.py",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-lifecycle",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "PASS safe path inclusion and traversal/empty-scope rejection, immutable criteria/proof, no-progress after success, controller-verified progress, owner decision boundary.",
+      "evidencePath": "/tmp/centurion-v3-implementation-hjr_gs82/W3_DETECTOR_PROOF.log"
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_blocker_packet_projection.py",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-lifecycle",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "PASS category/strict JSON/redaction and internal controller versus external authority decisions.",
+      "evidencePath": "/tmp/centurion-v3-implementation-hjr_gs82/W3_BLOCKER_PROOF.log"
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 (AST parse of the 9 W3 files and git status scope inventory)",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-lifecycle",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "All 9 Python files parse; exactly 9 W3-owned changed paths; no W2 file changes."
+    },
+    {
+      "command": "git diff --check",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-lifecycle",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "No whitespace errors."
+    },
+    {
+      "command": "SHA-256 comparison of the four original detector/blocker files against baseline.json",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-lifecycle",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "Original progress_drift_detector.py, blocker_packet_projection.py and their two regression files remain byte-identical to recorded baseline."
+    },
+    {
+      "command": "Canonical AGENT_RESULT_JSON_V1 schema validation and artifact path readback",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-lifecycle",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "Result identity, required fields/arrays, canonical schema and all artifact files verified; unrun parent integration/review checks are explicitly recorded in remainingRisks."
+    }
+  ],
+  "selfReview": {
+    "performed": true,
+    "findings": [
+      "Full Gateway execution proof and independent implementation review remain outside this slice; no claim of production/runtime acceptance."
+    ],
+    "fixesApplied": [
+      "Explicit versioned one-store preparation and no implicit reset/migration.",
+      "Atomic launch reservation, stable intent identity, open/unknown/accepted replay prohibition and direct-runner denial.",
+      "Immutable authority/criteria/proof, dependency revisions, independent review and final byte proof gates.",
+      "Deadline/cancel/termination reserve and state-write ambiguity handling.",
+      "Adapted original detector/blocker logic and W1 canonical active model fixtures without weakening V3 or no-replay assertions."
+    ]
+  },
+  "scopeDeviations": [],
+  "forbiddenPatternHits": [],
+  "remainingRisks": [
+    "Root must integrate W2 accepted order_preflight into runner ingress and replace Gateway legacy Loop dispatch with reserve_mission_dispatch before enabling policy 3.0. No W2-owned product file was edited.",
+    "Gateway must handle open/accepted/closed dispositions before output collision checks, persist before_spawn then PID identity, poll cancellation/cutoff, apply bounded termination, preserve raw protocol failures, and never roll back consumed counters.",
+    "Gateway must leave V1+ products captured while review runs, check require_acceptance_ready before writing passing terminal receipt, then accept using the exact independent review intent/result/product snapshot binding. Full Gateway A24/A27/A30 ordering proof remains unrun.",
+    "Root must supply complete task.productPaths inventories; final completion rejects stale accepted slice bytes and runs final controller proof. Incompatible merged bytes require explicit correction/reproof/review and cannot be silently accepted.",
+    "Report-only/native correction remains disabled until an actual trusted no-write capability is proven. reportAttemptsUsed is separately persisted as 0/1 and is never charged as a product attempt; no report inference was enabled or fabricated.",
+    "Process proof covers pinned local PIDs, not escaped descendants or remote provider cancellation; Gateway signal-loop and live runtime capability enforcement are not exercised here.",
+    "Persistent state storage failure remains a hard stop. Best-effort unknown-effect poisoning cannot promise durable bytes when the filesystem rejects all writes.",
+    "Heartbeat helper attempted once and could not write its configured live-home location: mkdir: Read-only file system. No live-home workaround was attempted; final state is reported by this writable result artifact.",
+    "Independent implementation review, root acceptance, live homes/configs, installation/deployment, and live model pilot were not run in this slice.",
+    "UNRUN CHECK: Root W2/W3 Gateway integration and end-to-end 3.0 spawn/capture/cancel/acceptance proof. Explicitly outside W3 file ownership; W2-owned Gateway is untouched and its legacy Loop entrypoint now fails closed for 3.0. Exact call sites are in W3_INTERFACE.md.",
+    "UNRUN CHECK: Independent Opus implementation review and root final acceptance. Retained parent verification gates; this executor cannot self-approve and was forbidden to launch additional models/subagents."
+  ],
+  "questions": [],
+  "errors": [],
+  "stdoutSummary": "Focused runner/state/detector/blocker regressions, AST parse, original helper SHA-256 and diff/scope checks passed. W3_INTERFACE.md is ready for root integration.",
+  "stderrSummary": "Heartbeat helper could not write live-home path (Read-only file system). Earlier focused fixture failures were corrected; final required focused checks pass."
+}

@@ -16,7 +16,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +35,19 @@ from agent_contract_runner import (
     validate_codex_launch,
     validate_loop_order,
     validate_order,
+    reserve_mission_dispatch,
+    verify_workspace_diff,
+    workspace_snapshot,
+    _mission_file_ref,
+    _mission_process_identity,
+    _mission_time,
+    mission_snapshot,
+    MissionReservation,
+    run_proof_commands,
+    verify_required_proof_checks,
+    verify_result,
+    check_expected_artifacts,
+    verify_required_artifact_checks,
 )
 from agent_artifact_namespace import ArtifactNamespaceError, require_control_path
 from artifact_lineage import LineageError, finalize_lineage, preflight_lineage
@@ -446,6 +459,8 @@ def _run_child_streaming(
     max_stderr: int = MAX_STDERR_BYTES,
     max_frame: int = MAX_FRAME_BYTES,
     detect_claude_tool_loop: bool = True,
+    reservation: Any = None,
+    owned_identity: dict[str, Any] | None = None,
 ) -> tuple[bytes, bytes, bool, bool, str | None, str | None, bool]:
     selector = selectors.DefaultSelector()
     streams: dict[int, str] = {}
@@ -477,14 +492,23 @@ def _run_child_streaming(
             tool_loop_error = reason
         if termination_signal is None:
             termination_signal = "SIGTERM"
+            if reservation is not None:
+                reservation.terminate_owned_process(owned_identity)
+                drain_deadline = time.monotonic() + max(0, (_mission_time(reservation.state["stopDeadlineAt"]) - datetime.now(timezone.utc)).total_seconds())
+                return
             signal_group(signal.SIGTERM)
             drain_deadline = time.monotonic() + grace_seconds
 
     while streams or process.poll() is None:
         now = time.monotonic()
+        if reservation is not None and reservation.stop_requested() and termination_signal is None:
+            request_stop("mission cancelled or work cutoff reached", timeout_stop=True)
         if drain_deadline is None and now >= deadline:
             request_stop(f"launcher timed out after {timeout}s", timeout_stop=True)
         if drain_deadline is not None and now >= drain_deadline:
+            if reservation is not None:
+                drain_timed_out = bool(streams) or process.poll() is None
+                break
             if not killed:
                 killed = True
                 termination_signal = "SIGKILL"
@@ -560,6 +584,10 @@ def _run_child_streaming(
         if stream is not None:
             stream.close()
     if process.poll() is None:
+        if reservation is not None:
+            drain_timed_out = True
+            return (bytes(chunks["stdout"]), bytes(chunks["stderr"]), timed_out,
+                    drain_timed_out, termination_signal, tool_loop_error, capture_limited)
         try:
             process.wait(timeout=grace_seconds)
         except subprocess.TimeoutExpired:
@@ -587,9 +615,15 @@ def run_child(
     *,
     detect_claude_tool_loop: bool = False,
     environment: dict[str, str] | None = None,
+    reservation: Any = None,
+    auxiliary: bool = False,
 ) -> dict[str, Any]:
     started_at = utc_now()
     monotonic_started = time.monotonic()
+    if reservation is not None:
+        timeout = reservation.work_timeout(timeout)
+        if not auxiliary:
+            reservation.before_spawn()
     try:
         process = subprocess.Popen(
             argv,
@@ -615,6 +649,28 @@ def run_child(
             "error": f"executor command failed to start: {exc}",
         }
 
+    identity = None
+    if reservation is not None:
+        try:
+            identity = _mission_process_identity(process.pid)
+            if identity is None and process.poll() is not None:
+                if not auxiliary:
+                    reservation.intent.update(status="running", processStopped=True)
+                    reservation.save()
+            else:
+                reservation.record_process(process.pid, auxiliary=auxiliary)
+                identity = _mission_process_identity(process.pid) or identity
+        except BaseException:
+            # Popen is our exact unreaped child even if persistence failed.
+            # Bound emergency cleanup by the original wall deadline.
+            from agent_contract_runner import _terminate_mission_process
+            if identity is not None:
+                deadline = min(_mission_time(reservation.state["budget"]["deadlineAt"]), datetime.now(timezone.utc) + timedelta(seconds=30))
+                _terminate_mission_process(identity, deadline.isoformat())
+            process.poll()
+            for pipe in (process.stdout, process.stderr):
+                pipe.close()
+            raise
     timed_out = False
     drain_timed_out = False
     termination_signal = None
@@ -653,13 +709,23 @@ def run_child(
             stdout, stderr, timed_out, drain_timed_out, termination_signal,
             tool_loop_error, capture_limited,
         ) = _run_child_streaming(process, timeout, grace_seconds, signal_group,
-                                 detect_claude_tool_loop=detect_claude_tool_loop)
+                                 detect_claude_tool_loop=detect_claude_tool_loop,
+                                 reservation=reservation, owned_identity=identity)
     except OSError as exc:
         capture_error = f"executor stream capture failed: {exc}"
         termination_signal = "SIGKILL"
-        signal_group(signal.SIGKILL)
-        close_pipes()
-        bounded_wait()
+        if reservation is not None:
+            from agent_contract_runner import _terminate_mission_process
+            deadline = min(_mission_time(reservation.state.get("stopDeadlineAt", reservation.state["budget"]["deadlineAt"])),
+                           datetime.now(timezone.utc) + timedelta(seconds=30))
+            if identity is not None:
+                _terminate_mission_process(identity, deadline.isoformat())
+            close_pipes()
+            process.poll()
+        else:
+            signal_group(signal.SIGKILL)
+            close_pipes()
+            bounded_wait()
     errors = []
     if timed_out:
         errors.append(f"launcher timed out after {timeout}s")
@@ -684,6 +750,7 @@ def run_child(
         "stderr": stderr or b"",
         "error": "; ".join(errors) if errors else None,
         "captureLimited": capture_limited,
+        "processStopped": process.poll() is not None,
     }
 
 
@@ -775,6 +842,7 @@ def extract_stdout_candidate(
     schema_path: Path | None,
     routing: dict[str, Any] | None,
     extraction: dict[str, Any] | None = None,
+    native_override: bool | None = None,
 ) -> tuple[bytes | None, list[str]]:
     transport, parse_errors = parse_claude_transport(content)
     if parse_errors:
@@ -835,7 +903,7 @@ def extract_stdout_candidate(
         transport_errors.append("Claude terminal permission_denials must be empty")
     structured = terminal.get("structured_output")
     text_result = terminal.get("result")
-    native = bool(_option_values(shlex.split(order.get("launch", {}).get("command", "")), {"--json-schema"}))
+    native = bool(_option_values(shlex.split(order.get("launch", {}).get("command", "")), {"--json-schema"})) if native_override is None else native_override
     if extraction is not None:
         extraction.update(field="structured_output" if native else "result", eventIndex=terminal_index)
     if structured is not None and text_result is not None and (not isinstance(text_result, str) or text_result.strip()):
@@ -1086,7 +1154,325 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--events", type=Path)
     parser.add_argument("--schema", type=Path)
     parser.add_argument("--termination-grace-seconds", type=float, default=3.0)
+    parser.add_argument("--recover-report", action="store_true", help="Collect one Q6-authorized no-tools report turn; never rerun product")
     return parser
+
+
+def _accepted_review(reservation: Any) -> str | None:
+    return next((key for key, intent in reservation.state["intents"].items()
+                 if intent.get("candidateIntentId") == reservation.meta["intentId"] and
+                 intent["action"] == "review" and intent["status"] == "accepted"), None)
+
+
+def _report_capture_resumable(reservation: Any) -> bool:
+    """Recognize only the post-observation, pre-verification report boundary."""
+    intent = reservation.intent
+    report_id = reservation.meta["intentId"] + ":report:1"
+    report = reservation.state["intents"].get(report_id)
+    child = report.get("child") if isinstance(report, dict) else None
+    return bool(
+        intent.get("status") == "captured"
+        and "verification" not in intent
+        and "terminalTemplate" not in intent
+        and intent.get("reportIntentId") == report_id
+        and intent.get("reportAttemptsUsed") == 1
+        and intent.get("processStopped") is True
+        and "protocolRefs" in intent and "recoveryProof" in intent
+        and isinstance(report, dict)
+        and report.get("action") == "report"
+        and report.get("originalIntentId") == reservation.meta["intentId"]
+        and report.get("status") == "running"
+        and report.get("processStopped") is True
+        and isinstance(child, dict)
+        and child.get("processStopped") is True
+        and child.get("exitCode") == 0
+        and not any(child.get(key) for key in ("timedOut", "drainTimedOut", "captureLimited"))
+    )
+
+
+def report_capability(reservation: Any) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Only an explicitly approved, pinned Q6 receipt enables this adapter.
+
+    The integration fixture supplies a fake CLI. Root supplies a real deny-probe
+    receipt in mission authority after Q6; a worker context claim is ignored.
+    """
+    ref = reservation.state["authority"].get("reportCapabilityRef")
+    if not isinstance(ref, dict) or _mission_file_ref(Path(ref["path"])) != ref:
+        raise GatewayError("report recovery disabled: no pinned Q6 capability receipt")
+    raw, complete = read_bounded_file(Path(ref["path"]), 1024 * 1024)
+    cap = strict_json_load_bytes(raw, "report capability")
+    if not complete or cap.get("version") != "CENTURION_NO_TOOLS_REPORT_V1" or cap.get("probe") != {
+            "status": "passed", "toolsDenied": True, "mcpDisabled": True, "hooksDisabled": True,
+            "isolatedConfig": True, "productUnchanged": True}:
+        raise GatewayError("report capability lacks the required Q6 deny proof")
+    for key in ("cliRef", "configRef"):
+        if _mission_file_ref(Path(cap[key]["path"])) != cap[key]:
+            raise GatewayError("report CLI/config changed since capability probe")
+    if cap.get("route") != {"executor": "claude", "model": "claude-opus-5-5", "effort": "high"}:
+        raise GatewayError("unsupported report capability route")
+    config, complete = read_bounded_file(Path(cap["configRef"]["path"]), 1024 * 1024)
+    if not complete or strict_json_load_bytes(config, "isolated report settings") != {"disableAllHooks": True}:
+        raise GatewayError("report settings must disable all hooks and contain no other settings")
+    # `configRef` is immutable input settings. Claude owns the runtime scratch
+    # directory and may persist native state there even with --bare; recovery
+    # must validate the capability and scratch boundary without relaunching or
+    # requiring that directory to be empty.
+    scratch_dir = Path(cap.get("scratchDir", cap.get("configDir", "")))
+    if not scratch_dir.is_dir() or scratch_dir.is_symlink():
+        raise GatewayError("report runtime scratch directory is unavailable")
+    try:
+        for index, path in enumerate(scratch_dir.rglob("*")):
+            if index >= 4096:
+                raise GatewayError("report runtime scratch inspection limit exceeded")
+            if path.is_symlink():
+                raise GatewayError("report runtime scratch contains a symlink")
+            if path.name.lower() in {"settings.json", "settings.local.json"} or any(
+                marker in path.name.lower() for marker in ("hook", "mcp", "plugin")
+            ):
+                raise GatewayError("report runtime scratch contains a hooks/MCP/plugin entry")
+            if not (path.is_file() or path.is_dir()):
+                raise GatewayError("report runtime scratch contains an unsupported entry")
+            if path.is_file() and path.suffix == ".json":
+                raw, complete = read_bounded_file(path, 1024 * 1024)
+                if not complete:
+                    raise GatewayError("report runtime scratch JSON inspection limit exceeded")
+                pending = [strict_json_load_bytes(raw, "report runtime scratch JSON")]
+                while pending:
+                    item = pending.pop()
+                    if isinstance(item, dict):
+                        if any(key in {"hooks", "mcpServers", "enabledPlugins", "extraKnownMarketplaces", "pluginDirs"}
+                               and value not in (None, False, {}, []) for key, value in item.items()):
+                            raise GatewayError("report runtime scratch contains hooks/MCP/plugin configuration")
+                        pending.extend(item.values())
+                    elif isinstance(item, list):
+                        pending.extend(item)
+    except OSError as exc:
+        raise GatewayError(f"report runtime scratch cannot be inspected: {exc}") from exc
+    cap["scratchDir"] = str(scratch_dir)
+    return cap, ref
+
+
+def report_projection(reservation: Any) -> dict[str, Any]:
+    """Allowlisted facts only: raw/provider errors/env never enter this prompt."""
+    order, intent = reservation.order, reservation.intent
+    before, after = intent["workspaceBaseline"], intent["workspaceAfter"]
+    changes = [{"path": path, "action": "added" if path not in before else "deleted" if path not in after else "modified"}
+               for path in sorted(before.keys() | after.keys()) if before.get(path) != after.get(path)]
+    artifact_paths = {row["path"] for row in intent["snapshot"]["files"] if row["sha256"] is not None}
+    artifact_paths.update(item["path"] for item in order["expectedArtifacts"]
+                          if reservation.policy.resolve_under_repo(item["path"]) != reservation.policy.resolve_under_repo(order["outputContract"]["resultPath"]))
+    artifacts = []
+    for value in sorted(artifact_paths):
+        path = reservation.policy.order_path(value, "report artifact fact")
+        if not path.is_file():
+            continue  # Required missing artifacts are rejected by controller proof.
+        ref = _mission_file_ref(path)
+        artifacts.append({"path": ref["path"], "exists": True, "sha256": ref["sha256"],
+                          "type": "observed-product", "mediaType": "application/octet-stream",
+                          "note": "Controller-observed artifact; report executor did not create it."})
+    checks = [{key: check[key] for key in ("command", "cwd", "status", "exitCode")}
+              | {"summary": "Previously observed controller check; not rerun by report executor."}
+              for check in intent["recoveryProof"]]
+    return {"mode": "report_only_no_tools", "instruction": "Report the saved product only. Do not implement or invent evidence.",
+            "order": {key: order[key] for key in ("orderId", "executor", "objective", "acceptanceCriteria", "nonGoals")},
+            "handoff": order["outputContract"]["handoff"], "productSnapshot": intent["snapshot"],
+            "filesChanged": changes, "artifacts": artifacts,
+            "workspaceDiff": [{"path": row["path"], "before": before.get(row["path"]), "after": after.get(row["path"])} for row in changes],
+            "proofArgv": [check["argv"] for check in order["proofCommands"]],
+            "originalOrderSha256": intent["orderRef"]["sha256"], "rawSha256": intent["protocolCandidateSha256"],
+            "controllerProof": checks}
+
+
+def validate_report_facts(result: dict[str, Any], projection: dict[str, Any]) -> None:
+    """The report may phrase a summary; it cannot invent execution facts."""
+    if result["filesChanged"] != projection["filesChanged"]:
+        raise GatewayError("report filesChanged differs from observed workspace diff")
+    keys = ("command", "cwd", "status", "exitCode")
+    if [{k: row.get(k) for k in keys} for row in result["proof"]] != [{k: row[k] for k in keys} for row in projection["controllerProof"]]:
+        raise GatewayError("report proof differs from saved controller observations")
+    keys = ("path", "exists", "sha256", "type", "mediaType")
+    expected = {row["path"]: {k: row[k] for k in keys} for row in projection["artifacts"]}
+    actual = {row["path"]: {k: row.get(k) for k in keys} for row in result["artifacts"]}
+    if len(actual) != len(result["artifacts"]) or actual != expected:
+        raise GatewayError("report artifacts differ from saved controller observations")
+
+
+def recover_report(reservation: Any, args: Any, paths: dict[str, Any], routing: Any) -> int:
+    """One persisted report turn in the shared launch budget, never product replay."""
+    intent = reservation.intent
+    capture_resume = _report_capture_resumable(reservation)
+    if intent["status"] not in {"reportable", "captured"} or (intent["status"] == "captured" and not capture_resume):
+        raise GatewayError("report recovery requires a saved complete product protocol failure")
+    cap, cap_ref = report_capability(reservation)
+    for ref in intent["protocolRefs"].values():
+        if _mission_file_ref(Path(ref["path"])) != ref:
+            raise GatewayError("original recovery custody changed")
+    if workspace_snapshot(reservation.state) != intent["workspaceAfter"]:
+        raise GatewayError("product changed before report recovery")
+    ordinal_key = reservation.meta["intentId"] + ":report:1"
+    namespace = reservation.policy.control_namespace / "report-1"
+    report = reservation.state["intents"].get(ordinal_key)
+    if report is None:
+        if capture_resume:
+            raise GatewayError("report capture custody is incomplete")
+        if any(Path(cap["scratchDir"]).iterdir()):
+            raise GatewayError("report first launch requires fresh runtime scratch")
+        reservation.work_timeout(1)
+        if intent["reportAttemptsUsed"] or reservation.state["budget"]["modelLaunchesUsed"] >= reservation.state["budget"]["maxModelLaunches"]:
+            raise GatewayError("report launch budget exhausted")
+        namespace.mkdir(mode=0o700, exist_ok=False)
+        from agent_result_builder import native_result_schema
+        projection = report_projection(reservation)
+        report = {"intentId": ordinal_key, "taskId": reservation.meta["taskId"], "action": "report",
+            "orderId": reservation.order["orderId"], "orderSha256": intent["orderSha256"], "executor": "claude",
+            "status": "reserved", "effect": "not_started", "processStopped": False, "reportAttemptsUsed": 0,
+            "idempotencyKey": [reservation.state["missionId"], reservation.meta["taskId"],
+                               reservation.state["tasks"][reservation.meta["taskId"]]["productAttemptsUsed"], 1],
+            "capabilityRef": cap_ref, "originalIntentId": reservation.meta["intentId"],
+            "snapshot": intent["snapshot"], "beforeSnapshot": intent["snapshot"], "projection": projection}
+        reservation.state["intents"][ordinal_key] = report
+        intent.update(reportAttemptsUsed=1, reportIntentId=ordinal_key)
+        reservation.state["budget"]["modelLaunchesUsed"] += 1
+        reservation.save()  # no refund after this point, including a spawn failure
+        prompt = json.dumps(projection, sort_keys=True)
+        argv = [cap["cliRef"]["path"], "--bare", "--model", "claude-opus-5-5", "--effort", "high",
+                "--tools", "", "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
+                "--settings", cap["configRef"]["path"], "--setting-sources", "", "--no-session-persistence",
+                "--output-format", "json", "--json-schema", json.dumps(native_result_schema(reservation.order, routing)), "-p", prompt]
+        atomic_create(namespace / "start.json", (json.dumps({"version":"CENTURION_REPORT_START_V1", "orderId":reservation.order["orderId"],
+            "originalRefs":intent["protocolRefs"], "capabilityRef":cap_ref, "snapshot":intent["snapshot"],
+            "idempotencyKey":report["idempotencyKey"], "projectionSha256":sha256_bytes(prompt.encode())})+"\n").encode())
+        # The original command is never consulted for this report dispatch.
+        rr = MissionReservation(reservation.order, reservation.policy, reservation.state, reservation.path, reservation.lock, "launch")
+        rr.meta = dict(reservation.meta, intentId=ordinal_key, action="report")
+        rr.intent = report
+        env = executor_environment("claude", dict(os.environ))
+        for key in ("HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "CLAUDE_CONFIG_DIR"):
+            env[key] = cap["scratchDir"]
+        child = run_child(argv, Path(cap["scratchDir"]), rr.work_timeout(120), 10,
+                          environment=env, reservation=rr, detect_claude_tool_loop=True)
+        atomic_create(namespace / "stdout.bin", child["stdout"])
+        atomic_create(namespace / "stderr.bin", child["stderr"])
+        stopped = child.get("processStopped", False)
+        report.update(processStopped=stopped, effect="observed" if stopped else "unknown_effect")
+        report["child"] = {key: child.get(key) for key in ("exitCode", "timedOut", "drainTimedOut", "captureLimited", "processStopped")}
+        atomic_create(namespace / "child.json", (json.dumps(report["child"], sort_keys=True)+"\n").encode())
+        reservation.save()
+        if child["error"] or child["exitCode"] != 0 or not stopped:
+            report["status"] = "rejected" if stopped else "unknown_effect"
+            reservation.save()
+            raise GatewayError("report turn failed; no second report or product replay")
+    else:
+        if report.get("capabilityRef") != cap_ref:
+            raise GatewayError("saved report capability binding changed")
+        if report["status"] in {"running", "dispatching"} and (namespace / "child.json").exists():
+            saved = json.loads((namespace / "child.json").read_bytes())
+            if report.get("process") and _mission_process_identity(report["process"]["pid"]) == report["process"]:
+                raise GatewayError("report child still open; never relaunch")
+            report.update(child=saved, processStopped=saved.get("processStopped"))
+        if report["status"] not in {"running", "dispatching"} or not report.get("processStopped") or report["child"].get("exitCode") != 0 or any(report["child"].get(k) for k in ("timedOut", "drainTimedOut", "captureLimited")):
+            raise GatewayError("report already reserved/open/failed; collect existing custody only, never relaunch")
+    # Revalidate immutable inputs and reject configuration injected by the CLI
+    # itself before accepting its output, as well as on restart collection.
+    report_capability(reservation)
+    # Restart can collect these exact saved bytes, never create a second turn.
+    stdout, complete = read_bounded_file(namespace / "stdout.bin", MAX_STDOUT_BYTES)
+    if not complete:
+        raise GatewayError("report raw capture incomplete")
+    candidate_path = namespace / "candidate.json"
+    extracted, errors = extract_stdout_candidate(stdout, reservation.order, args.schema, dict(routing, model="claude-opus-5-5"), {}, native_override=True)
+    if errors or extracted is None:
+        report["status"] = "rejected"
+        reservation.save()
+        raise GatewayError("report response invalid; no second report")
+    validate_report_facts(strict_json_load_bytes(extracted, "report facts"), report["projection"])
+    if not candidate_path.exists():
+        if capture_resume:
+            raise GatewayError("saved report candidate is missing")
+        atomic_create(candidate_path, extracted)
+    elif candidate_path.read_bytes() != extracted:
+        raise GatewayError("saved report candidate changed")
+    if workspace_snapshot(reservation.state) != intent["workspaceAfter"]:
+        raise GatewayError("report changed product workspace")
+    result_path = paths["result"]
+    if capture_resume and intent.get("resultRef") != _mission_file_ref(result_path):
+        raise GatewayError("saved canonical result observation changed")
+    if not result_path.exists():
+        result = finalize_candidate(args.order, candidate_path, result_path, paths["evidence"], args.schema,
+                                    expected_order_sha256=intent["orderRef"]["sha256"], expected_candidate_sha256=sha256_bytes(extracted))
+    else:
+        result, _ = verify_result(result_path, reservation.order, reservation.policy)
+    candidate_result = strict_json_load_bytes(extracted, "saved report candidate")
+    canonical_result = {key: value for key, value in result.items() if key != "responseEnvelope"}
+    if canonical_result != candidate_result:
+        raise GatewayError("canonical result differs from saved report candidate")
+    if capture_resume:
+        if intent.get("resultStatus") != result.get("status"):
+            raise GatewayError("saved canonical result observation changed")
+    else:
+        reservation.observe_result(result, result_path, process_stopped=True)
+    verification = {}
+    verify_workspace_diff(reservation, result)
+    _, artifacts = verify_result(result_path, reservation.order, reservation.policy)
+    checks = check_expected_artifacts(reservation.order, reservation.policy, artifacts, result_path)
+    verify_required_artifact_checks(checks)
+    verification.update(artifacts=checks, proof=intent["recoveryProof"],
+        inputResults=verify_input_results(reservation.order, reservation.policy.repo_path), resultSha256=intent["resultRef"]["sha256"],
+        productSnapshotSha256=intent["snapshot"]["sha256"], criteria=reservation.order["acceptanceCriteria"])
+    report["status"] = "captured"
+    report.update(resultRef=intent["resultRef"], resultStatus=result["status"], effect="observed", snapshot=intent["snapshot"])
+    reporting = {"version":"CENTURION_REPORT_RECOVERY_V1", "orderId":reservation.order["orderId"],
+        "originalRefs":intent["protocolRefs"], "capabilityRef":cap_ref, "snapshot":intent["snapshot"],
+        "idempotencyKey":report["idempotencyKey"], "candidateRef":_mission_file_ref(candidate_path),
+        "stdoutRef":_mission_file_ref(namespace/"stdout.bin"), "stderrRef":_mission_file_ref(namespace/"stderr.bin"),
+        "startRef":_mission_file_ref(namespace/"start.json"), "canonicalResultSha256":intent["resultRef"]["sha256"], "status":"passed"}
+    reporting_path = namespace / "closure.json"
+    if not reporting_path.exists():
+        atomic_create(reporting_path, (json.dumps(reporting, sort_keys=True)+"\n").encode())
+    elif json.loads(reporting_path.read_bytes()) != reporting:
+        raise GatewayError("report closure collision")
+    original_start = json.loads(paths["start"].read_bytes())
+    terminal = {"version":"AQUILA_CONTROLLER_ACCEPTANCE_V1", "orderId":reservation.order["orderId"],
+        "runId":original_start["runId"], "orderSha256":intent["orderRef"]["sha256"],
+        "startReceiptSha256":_mission_file_ref(paths["start"])["sha256"],
+        "closureSha256":_mission_file_ref(paths["closure"])["sha256"], "canonicalResultSha256":intent["resultRef"]["sha256"],
+        "status":"passed", "reason":None, "completedAt":utc_now(), "reporting":_mission_file_ref(reporting_path)}
+    proof = dict(terminal, version="AQUILA_CONTROLLER_VERIFICATION_V1", scope="post_execution_proof", observedChecks=verification)
+    proof_path = reservation.policy.control_namespace / "controller-proof.json"
+    if not proof_path.exists():
+        atomic_create(proof_path, (json.dumps(proof,sort_keys=True)+"\n").encode())
+    terminal["proofReceiptSha256"] = _mission_file_ref(proof_path)["sha256"]
+    intent.update(verification=verification, terminalTemplate=terminal,
+                  captureRefs={"proof":_mission_file_ref(proof_path), "reporting":_mission_file_ref(reporting_path), **intent["protocolRefs"]})
+    reservation.save()
+    return _resume_captured(reservation, reservation.policy.control_namespace / "controller-acceptance.json")
+
+
+def _resume_captured(reservation: Any, acceptance_path: Path) -> int:
+    """Collect persisted proof/review; never rerun implementation or proof."""
+    intent = reservation.intent
+    if intent["status"] != "captured" or "verification" not in intent:
+        print(json.dumps({"status": intent["status"], "replayAllowed": False}))
+        return 1
+    for ref in intent["captureRefs"].values():
+        if _mission_file_ref(Path(ref["path"])) != ref:
+            raise GatewayError("captured custody changed before review acceptance")
+    if workspace_snapshot(reservation.state) != intent["workspaceAfter"]:
+        raise GatewayError("workspace changed while awaiting review; refreshed criterion proof required")
+    review = _accepted_review(reservation)
+    if reservation.meta["action"] == "product" and reservation.state["tasks"][reservation.meta["taskId"]]["verificationProfile"] != "V0" and review is None:
+        print(json.dumps({"status": "awaiting_review", "replayAllowed": False}))
+        return 0
+    reservation.require_acceptance_ready(review)
+    terminal = intent["terminalTemplate"]
+    if acceptance_path.exists():
+        if json.loads(acceptance_path.read_bytes()) != terminal:
+            raise GatewayError("existing terminal acceptance differs from captured candidate")
+    else:
+        atomic_create(acceptance_path, (json.dumps(terminal, indent=2, sort_keys=True) + "\n").encode())
+    reservation.accept(intent["verification"], acceptance_path, review)
+    print(json.dumps({"status": "accepted", "path": intent["resultRef"]["path"], "replayed": False}))
+    return 0
 
 
 def main() -> int:
@@ -1101,11 +1487,15 @@ def main() -> int:
     child_started = False
     loop_lock: LoopStateLock | None = None
     loop_snapshot: LoopStateSnapshot | None = None
+    reservation = None
+    old_signals = {}
     try:
         if not math.isfinite(args.termination_grace_seconds) or args.termination_grace_seconds <= 0:
             raise GatewayError("--termination-grace-seconds must be a finite positive number")
         order, order_bytes = load_order(args.order)
         is_v3 = controller_context(order) is not None
+        if not is_v3:
+            raise GatewayError("Gateway-only active entrypoint requires policyVersion=3.0")
         try:
             _, policy = validate_order(order)
         except RunnerError as exc:
@@ -1134,21 +1524,6 @@ def main() -> int:
         proof_path = require_control_path(
             policy.control_namespace / "controller-proof.json", policy.control_namespace, "controller proof"
         )
-        try:
-            lineage_config = preflight_lineage(order, policy.repo_path)
-        except LineageError as exc:
-            raise GatewayError(f"lineage preflight failed: {exc}") from exc
-        if lineage_config is not None:
-            if loop_contract(order) is not None:
-                raise GatewayError("lineage orders cannot use Loop V1 until its final acceptance path is integrated")
-            if not any(isinstance(proof, dict) and proof.get("required") is True for proof in order["proofCommands"]):
-                raise GatewayError("lineage requires at least one required controller proof command")
-            for path in (*lineage_config["artifactPaths"], *lineage_config["deletedPaths"]):
-                policy.order_path(path, "order.lineage product path")
-            for name in ("lineage-manifest.json", "lineage-anchor.json"):
-                target = policy.control_namespace / name
-                if target.exists() or target.is_symlink():
-                    raise GatewayError(f"lineage output already exists before launch: {target}")
         if len({path for path in (result_path, candidate_path, start_receipt_path, closure_path, evidence_dir, events_path, stdout_path, stderr_path, proof_path, acceptance_path) if path is not None}) != len([path for path in (result_path, candidate_path, start_receipt_path, closure_path, evidence_dir, events_path, stdout_path, stderr_path, proof_path, acceptance_path) if path is not None]):
             raise GatewayError("controller proof and acceptance paths must be distinct from gateway outputs")
         if evidence_dir in acceptance_path.parents or evidence_dir in proof_path.parents:
@@ -1165,12 +1540,39 @@ def main() -> int:
         if is_v3:
             policy.control_cli_path(args.order, "3.0 original order")
             validate_tunnel_launch(order, policy, candidate_path, args.candidate_source, args.schema, routing)
-            if (evidence_dir / "protocol-failure.json").exists():
-                raise GatewayError("protocol failure receipt already exists; product replay is disabled")
         try:
             _load_schema(resolve_schema_path(args.schema))
         except BuilderError as exc:
             raise GatewayError(str(exc)) from exc
+        reservation = reserve_mission_dispatch(order, policy)
+        def cancel_handler(signum, frame):
+            reservation.cancel(f"Gateway signal {signum}")
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            old_signals[sig] = signal.signal(sig, cancel_handler)
+        if reservation.disposition == "accepted":
+            print(json.dumps({"status": "accepted", "acceptance": reservation.intent["acceptanceRef"], "replayed": False}))
+            return 0
+        if reservation.disposition == "open":
+            if args.recover_report and (reservation.intent["status"] == "reportable" or _report_capture_resumable(reservation)):
+                return recover_report(reservation, args, {"result":result_path, "evidence":evidence_dir, "events":events_path,
+                    "start":start_receipt_path, "closure":closure_path}, routing)
+            return _resume_captured(reservation, acceptance_path)
+        if reservation.disposition != "launch":
+            print(json.dumps({"status": reservation.intent["status"], "replayAllowed": False}))
+            return 1
+        try:
+            lineage_config = preflight_lineage(order, policy.repo_path)
+        except LineageError as exc:
+            raise GatewayError(f"lineage preflight failed: {exc}") from exc
+        if lineage_config is not None:
+            if not any(isinstance(proof, dict) and proof.get("required") is True for proof in order["proofCommands"]):
+                raise GatewayError("lineage requires at least one required controller proof command")
+            for path in (*lineage_config["artifactPaths"], *lineage_config["deletedPaths"]):
+                policy.order_path(path, "order.lineage product path")
+            for name in ("lineage-manifest.json", "lineage-anchor.json"):
+                target = policy.control_namespace / name
+                if target.exists() or target.is_symlink():
+                    raise GatewayError(f"lineage output already exists before launch: {target}")
         preflight_outputs(
             result_path,
             candidate_path,
@@ -1183,7 +1585,7 @@ def main() -> int:
             acceptance_path,
             proof_path,
         )
-        if loop_contract(order) is not None:
+        if not is_v3 and loop_contract(order) is not None:
             if events_path is None:
                 raise GatewayError("--events is required for Loop V1 gateway dispatch")
             state_path = validate_loop_order(order, policy)
@@ -1233,6 +1635,7 @@ def main() -> int:
             args.termination_grace_seconds,
             detect_claude_tool_loop=order["executor"] == "claude",
             environment=executor_environment(order["executor"], dict(os.environ)) if is_v3 else None,
+            reservation=reservation,
         )
         child_started = child["childStarted"]
         append_event_best_effort(
@@ -1264,6 +1667,8 @@ def main() -> int:
                 except (GatewayError, OSError) as exc:
                     controller_errors.append(f"stdout candidate materialization failed at {candidate_path}: {exc}")
         candidate, candidate_bytes = candidate_record(candidate_path)
+        if candidate.get("exists") and not candidate_path.is_symlink():
+            candidate_path.chmod(0o600)
         candidate["source"] = args.candidate_source
         if args.candidate_source == "stdout":
             candidate["extraction"] = extraction
@@ -1339,6 +1744,30 @@ def main() -> int:
         closure_sha256 = sha256_bytes(closure_bytes)
         atomic_create(closure_path, closure_bytes)
         if result is None:
+            identity_mismatch = False
+            if candidate_bytes is not None:
+                parsed, parse_errors = parse_strict_candidate(candidate_bytes, "recovery identity")
+                if not parse_errors and isinstance(parsed, dict):
+                    identity_mismatch = any(parsed.get(key, order[key]) != order[key] for key in ("orderId", "executor"))
+            if (child.get("processStopped") and not child["error"] and child["exitCode"] == 0 and not identity_mismatch
+                    and candidate.get("complete") and reservation.meta["action"] == "product"):
+                reservation.intent.update(status="reportable", processStopped=True, effect="observed_protocol_failure",
+                    snapshot=mission_snapshot(reservation.state, [reservation.meta["taskId"]]),
+                    workspaceAfter=workspace_snapshot(reservation.state), orderRef=_mission_file_ref(args.order),
+                    protocolCandidateSha256=candidate["sha256"],
+                    protocolRefs={key:_mission_file_ref(path) for key,path in (("order",args.order), ("start",start_receipt_path),
+                        ("closure",closure_path), ("protocol",protocol_receipt), ("candidate",candidate_path))})
+                reservation.state["status"] = "verifying"
+                reservation.save()
+                # Controller proof is observed before report-only recovery, not invented by the report model.
+                recovery_proof = run_proof_commands(order, policy, reservation)
+                verify_required_proof_checks(recovery_proof)
+                if workspace_snapshot(reservation.state) != reservation.intent["workspaceAfter"]:
+                    raise GatewayError("workspace changed during recovery proof")
+                reservation.intent["recoveryProof"] = recovery_proof
+                reservation.save()
+            else:
+                reservation.fail("protocol failure; no product replay", process_stopped=child.get("processStopped", False))
             if loop_lock is not None and events_path is not None:
                 block_loop_state_after_dispatch_failure(order, policy, events_path, RunnerError("protocol failure; no product replay"))
             append_event_best_effort(events_path, "protocol_failure", orderId=order["orderId"], runId=run_id,
@@ -1371,10 +1800,15 @@ def main() -> int:
             rejection_reason = f"review verdict {result['executorExtensions']['review']['verdict']}"
         else:
             try:
+                reservation.observe_result(result, result_path, process_stopped=child.get("processStopped", False))
+                verification["workspaceDiff"] = verify_workspace_diff(reservation, result)
                 run_verification_gate(
                     order, result_path, events_path, policy, "verification_passed", verification,
                     event_sink=append_event_best_effort,
+                    reservation=reservation,
                 )
+                if workspace_snapshot(reservation.state) != reservation.intent["workspaceAfter"]:
+                    raise RunnerError("workspace changed during proof")
                 if verification["resultSha256"] != closure["canonicalResultSha256"]:
                     raise RunnerError("canonical result changed after Gateway closure")
                 if sha256_bytes(args.order.read_bytes()) != order_sha256:
@@ -1385,6 +1819,18 @@ def main() -> int:
                     raise RunnerError("closure receipt changed after Gateway finalization")
             except (RunnerError, RoutingError) as exc:
                 rejection_reason = str(exc)
+        # A valid, fully captured result that fails acceptance is still a known
+        # effect. Persist its identity and observed workspace before rejecting
+        # the intent, so a bounded correction can be issued without replaying
+        # an unknown child effect. Protocol failures remain reportable/unknown.
+        if (rejection_reason is not None and child.get("processStopped") and child["exitCode"] == 0
+                and not child["timedOut"] and not controller_errors):
+            try:
+                if reservation.intent["status"] in {"dispatching", "running"}:
+                    reservation.observe_result(result, result_path, process_stopped=True)
+                    verification["workspaceDiff"] = verify_workspace_diff(reservation, result)
+            except (RunnerError, RoutingError) as exc:
+                rejection_reason = f"{rejection_reason}; rejected-result custody failed: {exc}"
         proof_receipt = {
             "version": "AQUILA_CONTROLLER_VERIFICATION_V1",
             "orderId": order["orderId"],
@@ -1467,6 +1913,15 @@ def main() -> int:
             "reason": rejection_reason,
             "completedAt": utc_now(),
         }
+        if rejection_reason is None:
+            reservation.intent.update(verification=verification, terminalTemplate=terminal_acceptance,
+                captureRefs={name: _mission_file_ref(path) for name, path in
+                    (("order", args.order), ("start", start_receipt_path), ("closure", closure_path),
+                     ("proof", proof_path), ("result", result_path), ("candidate", candidate_path),
+                     ("stdout", stdout_path), ("stderr", stderr_path)) if path is not None})
+            reservation.save()
+            return _resume_captured(reservation, acceptance_path)
+        reservation.fail("controller rejected candidate", process_stopped=child.get("processStopped", False))
         try:
             atomic_create(acceptance_path, (json.dumps(terminal_acceptance, indent=2, sort_keys=True) + "\n").encode("utf-8"))
         except (GatewayError, OSError, AcceptedInputError):
@@ -1498,6 +1953,11 @@ def main() -> int:
             return 1 if result["status"] == "done" else 2
         return 0
     except (GatewayError, BuilderError, PreflightError, ResponseEnvelopeError, StrictJSONError, RunnerError, RoutingError, LineageError, AcceptedInputError, OSError) as exc:
+        if reservation is not None and reservation.disposition == "launch" and not reservation.write_failed:
+            try:
+                reservation.fail("Gateway custody or verification failed", process_stopped=locals().get("child", {}).get("processStopped", False))
+            except (RunnerError, OSError):
+                pass
         if child_started and loop_lock is not None and order is not None and events_path is not None and "policy" in locals():
             try:
                 block_loop_state_after_dispatch_failure(order, policy, events_path, RunnerError(str(exc)))
@@ -1517,6 +1977,10 @@ def main() -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     finally:
+        for sig, handler in old_signals.items():
+            signal.signal(sig, handler)
+        if reservation is not None:
+            reservation.close()
         if loop_lock is not None:
             loop_lock.release()
 

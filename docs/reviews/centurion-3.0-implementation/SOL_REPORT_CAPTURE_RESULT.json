@@ -1,0 +1,86 @@
+{
+  "resultVersion": "AGENT_RESULT_JSON_V1",
+  "orderId": "centurion-v3-report-capture-20261016",
+  "executor": "codex",
+  "status": "done",
+  "summary": "Added bounded A23 recovery for the exact post-observation, pre-verification report-capture state. Restart collects the persisted report, validates canonical-result equality, completes verification and acceptance, and never replays product or report inference.",
+  "filesChanged": [
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+      "action": "modified"
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+      "action": "modified"
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/SOL_REPORT_CAPTURE_RESULT.json",
+      "action": "added"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/report-capture-probe.json",
+      "exists": true,
+      "type": "owner-focused-probe",
+      "mediaType": "application/json",
+      "note": "restartCode=0, productStatus=accepted, productLaunchCount=1, reportLaunchCount=1"
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/SOL_REPORT_CAPTURE_RESULT.json",
+      "exists": true,
+      "type": "agent-result",
+      "mediaType": "application/json",
+      "note": "AGENT_RESULT_JSON_V1 bounded implementation report"
+    }
+  ],
+  "proof": [
+    {
+      "command": "python3 -B integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "Focused V3 regression passed, including interruption before and after real durable observe_result, canonical create-only preservation, exact candidate equality, downstream binding, modelLaunchesUsed=2, productAttemptsUsed=1, reportAttemptsUsed=1, and no second product/report launch."
+    },
+    {
+      "command": "python3 -B /tmp/centurion-v3-implementation-hjr_gs82/probe_report_capture.py",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "Owner focused probe passed with restartCode=0, status=accepted, productStatus=accepted, productLaunchCount=1, reportLaunchCount=1."
+    },
+    {
+      "command": "python3 -B -m py_compile integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "Both changed Python files compile."
+    },
+    {
+      "command": "git diff --check",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "No whitespace errors in the working diff."
+    }
+  ],
+  "selfReview": {
+    "performed": true,
+    "findings": [],
+    "fixesApplied": [
+      "Recovery accepts only the exact captured report-capture boundary and preserves the existing reportable path.",
+      "Existing canonical result is verified and compared semantically with the saved report candidate before acceptance.",
+      "Regression covers pre-observation and post-observation interruption on one report fixture and asserts no replay."
+    ]
+  },
+  "scopeDeviations": [],
+  "forbiddenPatternHits": [],
+  "remainingRisks": [
+    "Independent final review and N7 remain root-owned as requested and were not performed by this bounded executor.",
+    "The required heartbeat helper could not write under the managed read-only ~/.hermes/heartbeat path; proof and result artifact were written successfully."
+  ],
+  "questions": [],
+  "errors": [],
+  "stdoutSummary": "Focused V3 regression passed all listed checks. Owner probe returned restartCode=0, status=accepted, productStatus=accepted, productLaunchCount=1, reportLaunchCount=1.",
+  "stderrSummary": ""
+}

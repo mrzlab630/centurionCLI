@@ -56,7 +56,7 @@ LOOP_VERIFICATION_STATUSES = {"pending", "pass", "fail", "blocked"}
 MISSION_STATE_VERSION = "CENTURION_MISSION_STATE_V1"
 MISSION_POLICY = "3.0"
 MISSION_TERMINAL = {"completed", "failed", "stopped"}
-MISSION_OPEN_INTENTS = {"reserved", "dispatching", "running", "captured"}
+MISSION_OPEN_INTENTS = {"reserved", "dispatching", "running", "captured", "reportable"}
 MISSION_RESERVE_SECONDS = 30
 ATTEMPT_LEDGER_ENV = "AQUILA_ATTEMPT_LEDGER"
 REQUIRED_ORDER_FIELDS = [
@@ -416,7 +416,7 @@ def validate_codex_launch(command: str, model: str, effort: str, *, advisory: bo
             index += 1  # This argv element is prompt text; later options still apply.
             continue
         name, separator, attached = token.partition("=")
-        if advisory and name not in {"--model", "-m", "-c", "--config", "-s", "--sandbox", "-C", "--cd", "-o", "--output-last-message", "--json"} and not token.startswith(("-m", "-c", "-s", "-C", "-o")):
+        if advisory and name not in {"--model", "-m", "-c", "--config", "-s", "--sandbox", "-C", "--cd", "-o", "--output-last-message", "--output-schema", "--json"} and not token.startswith(("-m", "-c", "-s", "-C", "-o")):
             raise RunnerError(f"Astra advisory launch has an unsupported option: {token}")
         if name in {"--oss", "--local-provider", "--profile", "-p", "--ignore-user-config"} or token.startswith("-p"):
             raise RunnerError("Codex launch.command must not override the selected provider or profile")
@@ -532,7 +532,7 @@ def validate_gemini_launch(command: str, model: str, effort: str) -> None:
         raise RunnerError("Gemini launch --model and --effort must match the recorded route exactly")
 
 
-def validate_claude_launch(command: str, model: str, fallback_model: str) -> None:
+def validate_claude_launch(command: str, model: str, fallback_model: str | None, effort: str | None = None) -> None:
     """Bind Claude's primary and ordered fallback models to the actual argv."""
     try:
         argv = shlex.split(command)
@@ -541,7 +541,7 @@ def validate_claude_launch(command: str, model: str, fallback_model: str) -> Non
     if not argv or Path(argv[0]).name != "claude":
         raise RunnerError("Claude launch.command must start with claude")
 
-    values = {"--model": [], "--fallback-model": []}
+    values = {"--model": [], "--fallback-model": [], "--effort": []}
     prompt_started = False
     index = 1
     while index < len(argv):
@@ -568,10 +568,12 @@ def validate_claude_launch(command: str, model: str, fallback_model: str) -> Non
 
     if values["--model"] != [model]:
         raise RunnerError("Claude launch.command must contain exactly one --model matching routing.model")
-    if values["--fallback-model"] != [fallback_model]:
+    if values["--fallback-model"] != ([] if fallback_model is None else [fallback_model]):
         raise RunnerError(
-            "Claude launch.command must contain exactly one --fallback-model matching the ordered reviewer fallback"
+            "Claude fallback must match the explicit legacy contract; active 3.0 has no fallback"
         )
+    if effort is not None and values["--effort"] != [effort]:
+        raise RunnerError("Claude launch.command requires exactly one --effort matching routing.reasoningEffort")
 
 
 def validate_files_changed(items: list[Any], policy: PathPolicy) -> None:
@@ -806,7 +808,7 @@ def validate_order(order: dict[str, Any]) -> tuple[list[str], PathPolicy]:
         proof_obj = require_object(proof, f"proofCommands[{index}]")
         require_nonempty_string(proof_obj, "command", f"proofCommands[{index}].command")
         require_nonempty_string(proof_obj, "cwd", f"proofCommands[{index}].cwd")
-        cwd = policy.order_path(proof_obj["cwd"], f"proofCommands[{index}].cwd")
+        cwd = _mission_path({"workspace":str(policy.repo_path)}, proof_obj["cwd"]) if mission is not None else policy.order_path(proof_obj["cwd"], f"proofCommands[{index}].cwd")
         if not cwd.is_dir():
             raise RunnerError(f"proofCommands[{index}].cwd must be an existing directory: {cwd}")
         if not isinstance(proof_obj.get("required"), bool):
@@ -825,11 +827,12 @@ def validate_order(order: dict[str, Any]) -> tuple[list[str], PathPolicy]:
     if routing is not None:
         if routing["model"] == "gemini-3.8-flash":
             validate_gemini_launch(launch["command"], routing["model"], routing["reasoningEffort"])
-        if order["executor"] == "claude" and routing["verificationProfile"] in REVIEWER_FALLBACK_BY_PROFILE:
+        if order["executor"] == "claude":
             validate_claude_launch(
                 launch["command"],
                 routing["model"],
-                REVIEWER_FALLBACK_BY_PROFILE[routing["verificationProfile"]],
+                None if mission is not None else REVIEWER_FALLBACK_BY_PROFILE.get(routing["verificationProfile"]),
+                routing["reasoningEffort"] if mission is not None else None,
             )
         if order["executor"] == "codex":
             advisory = routing["executionProfile"] == "advisory"
@@ -1000,15 +1003,13 @@ def atomic_write_loop_state(state_path: Path, state: dict[str, Any]) -> None:
 
 def mission_context(order: dict[str, Any], *, required: bool = False) -> dict[str, Any] | None:
     """Controller metadata, never inferred from executor text or routing policy."""
-    rows = [row for row in order.get("context", []) if isinstance(row, dict) and
-            any(key in row for key in ("policyVersion", "missionId", "intentId"))]
-    if not rows:
-        if required or "policyVersion" in order:
-            raise RunnerError("explicit controller context policyVersion=3.0 is required")
+    from order_preflight import controller_context, PreflightError
+    try:
+        meta = controller_context(order, required=required)
+    except PreflightError as exc:
+        raise RunnerError(str(exc)) from exc
+    if meta is None:
         return None
-    if len(rows) != 1 or rows[0].get("policyVersion") != MISSION_POLICY:
-        raise RunnerError("missing, duplicate or unknown mission policyVersion")
-    meta = rows[0]
     for key in ("missionId", "approvalRef", "taskId", "intentId", "action", "strategyId"):
         require_nonempty_string(meta, key, f"mission context.{key}")
     if meta["action"] not in {"product", "review", "advisory", "report"}:
@@ -1160,8 +1161,8 @@ def validate_mission_state(state: dict[str, Any], state_path: Path) -> None:
             if not isinstance(proof, dict) or proof.get("required") is not True:
                 raise RunnerError("task requiredProof must be required")
             canonical_proof_argv(proof, "task.requiredProof", required=True)
-            if not _mission_path_subset(state, [proof["cwd"]], task["allowedPaths"]):
-                raise RunnerError("proof cwd outside task scope")
+            if not _mission_path(state, proof["cwd"]).is_dir():
+                raise RunnerError("proof cwd must be an existing workspace directory")
     if covered != set(authority["criteria"]) or not tasks:
         raise RunnerError("all mission criteria must retain task coverage")
     def walk(task_id: str, visiting: set[str]) -> None:
@@ -1188,7 +1189,8 @@ def validate_mission_state(state: dict[str, Any], state_path: Path) -> None:
         if intent["status"] == "accepted":
             _check_mission_refs(intent)
     if state["status"] == "completed" and (any(t["status"] != "accepted" for t in tasks.values()) or
-            any(i["status"] in {*MISSION_OPEN_INTENTS, "unknown_effect"} for i in intents.values()) or not state.get("completion")):
+            any(i["status"] in {*MISSION_OPEN_INTENTS, "unknown_effect"} for i in intents.values()) or
+            any(_mission_process_identity(p["pid"]) == p for i in intents.values() for p in i.get("proofProcesses", [])) or not state.get("completion")):
         raise RunnerError("completed mission has unaccepted criteria/open effects or missing final proof")
 
 
@@ -1274,6 +1276,91 @@ def mission_snapshot(state: dict[str, Any], task_ids: list[str] | None = None) -
     return {"files": rows, "sha256": _mission_digest(rows)}
 
 
+def workspace_snapshot(state: dict[str, Any]) -> dict[str, Any]:
+    """Dirty baseline using the existing guard walk/exclusion approach.
+
+    Hash chunks, lstat modes and symlink targets; never follow directory links.
+    Control custody and the explicit mission store are not product bytes.
+    """
+    root = Path(state["workspace"])
+    ignored = {".git", "node_modules", "dist", "build", "coverage", ".venv", "vendor", "__pycache__"}
+    control = root / ".centurion" / "agents_results"
+    store = Path(state["statePath"])
+    # Generated directories are skipped only when they contain no tracked product
+    # path. A dirty baseline may deliberately keep source under `build/` or `dist/`.
+    tracked: set[Path] = set()
+    # Only the declared workspace root establishes the fail-closed Git scope;
+    # temporary fixture parents may themselves live under another repository.
+    known_git = (root / ".git").exists()
+    try:
+        # Bound both Git wall time and bytes retained in controller memory.
+        with tempfile.TemporaryFile() as output:
+            completed = subprocess.run(["git", "-C", str(root), "ls-files", "-z"],
+                stdout=output, stderr=subprocess.DEVNULL, timeout=5, check=False)
+            output.seek(0)
+            raw = output.read(8 * 1024 * 1024 + 1)
+        if completed.returncode:
+            if known_git:
+                raise RunnerError("workspace Git inspection failed; scope snapshot unavailable")
+        elif len(raw) > 8 * 1024 * 1024:
+            raise RunnerError("workspace Git inspection byte limit exceeded")
+        else:
+            tracked = {root / os.fsdecode(value) for value in raw.split(b"\0") if value}
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        if known_git:
+            raise RunnerError(f"workspace Git inspection failed; scope snapshot unavailable: {exc}") from exc
+    scoped = {root / value if not Path(value).is_absolute() else Path(value)
+              for task in state.get("tasks", {}).values() for value in task.get("productPaths", [])}
+    included = tracked | scoped
+    rows = {}
+    for directory, dirs, files in os.walk(root, followlinks=False):
+        base = Path(directory)
+        dirs[:] = sorted(name for name in dirs if (
+            name not in ignored
+            or any(path == base / name or path.is_relative_to(base / name) or (base / name).is_relative_to(path)
+                   for path in included)
+        ) and name != ".git" and base / name != control)
+        links = [name for name in dirs if (base / name).is_symlink()]
+        dirs[:] = [name for name in dirs if name not in links]
+        for name in sorted(files + links):
+            path = base / name
+            if path in {store, loop_lock_path(store)} or (path.parent == store.parent and path.name.startswith(store.name + ".")):
+                continue
+            st = path.lstat()
+            if path.is_symlink():
+                digest = hashlib.sha256(os.readlink(path).encode()).hexdigest()
+                kind = "symlink"
+            elif path.is_file():
+                hasher = hashlib.sha256()
+                with path.open("rb") as stream:
+                    for chunk in iter(lambda: stream.read(65536), b""):
+                        hasher.update(chunk)
+                digest, kind = hasher.hexdigest(), "file"
+            else:
+                raise RunnerError("unsupported workspace entry")
+            rows[str(path)] = {"sha256": digest, "mode": st.st_mode, "kind": kind}
+    return rows
+
+
+def verify_workspace_diff(reservation: Any, result: dict[str, Any]) -> list[dict[str, Any]]:
+    before = reservation.intent["workspaceBaseline"]
+    after = workspace_snapshot(reservation.state)
+    changed = sorted(path for path in before.keys() | after.keys() if before.get(path) != after.get(path))
+    declared = {str(reservation.policy.resolve_under_repo(item["path"])) for item in result["filesChanged"]
+                if reservation.policy.control_namespace not in reservation.policy.resolve_under_repo(item["path"]).parents}
+    if reservation.meta["action"] != "product" and changed:
+        raise RunnerError("non-product dispatch changed workspace")
+    rows = []
+    for value in changed:
+        reservation.policy.order_path(value, "observed workspace diff")
+        if value not in declared:
+            raise RunnerError(f"unreported workspace change: {value}")
+        rows.append({"path": value, "before": before.get(value), "after": after.get(value)})
+    reservation.intent["workspaceAfter"] = after
+    reservation.intent["workspaceDiff"] = rows
+    return rows
+
+
 def _mission_file_ref(path: Path) -> dict[str, Any]:
     try:
         require_no_symlink_components(path)
@@ -1323,7 +1410,7 @@ def _validate_mission_scope(order: dict[str, Any], policy: PathPolicy, state: di
         if base == policy.control_namespace or policy.control_namespace in base.parents:
             continue
         product_rules.append(value)
-    advisory = meta["action"] == "advisory"
+    advisory = meta["action"] in {"advisory", "review"}
     if advisory:
         if product_rules or order["proofCommands"]:
             raise RunnerError("advisory cannot write product scope or run product proof")
@@ -1467,17 +1554,20 @@ class MissionReservation:
         self.intent.update(status="dispatching", effect="unknown_effect")
         self.save()
 
-    def record_process(self, pid: int) -> None:
-        if self.intent["status"] != "dispatching":
+    def record_process(self, pid: int, *, auxiliary: bool = False) -> None:
+        if self.intent["status"] not in ({"captured", "reportable", "accepted"} if auxiliary else {"dispatching"}):
             raise RunnerError("process requires persisted dispatch barrier")
         identity = _mission_process_identity(pid)
         if identity is None:
             raise RunnerError("child identity unavailable; do not accept or replay")
-        self.intent.update(status="running", process=identity, processStopped=False)
+        if auxiliary:
+            self.intent.setdefault("proofProcesses", []).append(identity)
+        else:
+            self.intent.update(status="running", process=identity, processStopped=False)
         self.save()
 
-    def terminate_owned_process(self) -> bool:
-        identity = self.intent.get("process")
+    def terminate_owned_process(self, identity: dict[str, Any] | None = None) -> bool:
+        identity = identity or self.intent.get("process")
         if "stopDeadlineAt" not in self.state:
             self.state["stopDeadlineAt"] = min(_mission_time(self.state["budget"]["deadlineAt"]),
                                                 datetime.now(timezone.utc) + timedelta(seconds=30)).isoformat()
@@ -1499,7 +1589,7 @@ class MissionReservation:
         self.save()
 
     def observe_result(self, result: dict[str, Any], result_path: Path, *, process_stopped: bool) -> None:
-        if self.intent["status"] not in {"dispatching", "running"}:
+        if self.intent["status"] not in {"dispatching", "running", "reportable"}:
             raise RunnerError("result observation requires an open dispatch")
         if not process_stopped or (self.intent.get("process") and _mission_process_identity(self.intent["process"]["pid"]) == self.intent["process"]):
             raise RunnerError("child stop is unconfirmed")
@@ -1551,6 +1641,10 @@ class MissionReservation:
         if self.meta["action"] == "review":
             self.intent["review"] = self._validated_review()
         self.intent.update(status="accepted", acceptanceRef=_mission_file_ref(acceptance_path), proof=proof_checks)
+        if self.intent.get("reportIntentId"):
+            report = self.state["intents"][self.intent["reportIntentId"]]
+            report.update(status="accepted", processStopped=True, effect="observed", resultRef=self.intent["resultRef"],
+                          acceptanceRef=self.intent["acceptanceRef"], snapshot=self.intent["snapshot"])
         _check_mission_refs(self.intent)
         if self.meta["action"] == "product":
             task.update(status="accepted", acceptance={"intentId": self.meta["intentId"], "revision": snapshot["sha256"],
@@ -1566,7 +1660,11 @@ class MissionReservation:
         _validate_mission_scope(self.order, self.policy, self.state)
         if mission_snapshot(self.state, [self.meta["taskId"]]) != self.intent["snapshot"]:
             raise RunnerError("product changed after capture; acceptance/review must be refreshed")
+        if "workspaceAfter" in self.intent and workspace_snapshot(self.state) != self.intent["workspaceAfter"]:
+            raise RunnerError("workspace bytes changed after controller proof")
         task = self.state["tasks"][self.meta["taskId"]]
+        if any(_mission_process_identity(p["pid"]) == p for p in self.intent.get("proofProcesses", [])):
+            raise RunnerError("proof process remains open")
         if self.meta["action"] == "review":
             self._validated_review()
         if self.meta["action"] == "product" and task["verificationProfile"] != "V0":
@@ -1648,13 +1746,18 @@ def reserve_mission_dispatch(order: dict[str, Any], policy: PathPolicy) -> Missi
                 raise RunnerError("review requires captured candidate intent")
             if candidate["executor"] == order["executor"] or mission_snapshot(state, [meta["taskId"]]) != candidate["snapshot"]:
                 raise RunnerError("review requires independent executor and current candidate bytes")
+            from order_preflight import review_binding
+            binding = review_binding(order, validate_order_routing(order))
+            if binding != {"reviewedOrderId": candidate["orderId"], "reviewedResultSha256": candidate["resultRef"]["sha256"],
+                           "productSnapshotSha256": candidate["snapshot"]["sha256"]}:
+                raise RunnerError("review controller candidate binding mismatch")
         state["budget"]["modelLaunchesUsed"] += 1
         state["status"] = "verifying" if meta["action"] == "review" else "running"
         state["intents"][meta["intentId"]] = {"intentId": meta["intentId"], "taskId": meta["taskId"], "action": meta["action"],
             "orderId": order["orderId"], "orderSha256": _mission_digest(order), "executor": order["executor"],
             "candidateIntentId": meta.get("candidateIntentId"), "status": "reserved", "effect": "not_started",
             "reservedAt": utc_now(), "reportAttemptsUsed": 0, "processStopped": False,
-            "beforeSnapshot": mission_snapshot(state, [meta["taskId"]])}
+            "beforeSnapshot": mission_snapshot(state, [meta["taskId"]]), "workspaceBaseline": workspace_snapshot(state)}
         validate_mission_state(state, path)
         atomic_write_loop_state(path, state)
         return MissionReservation(order, policy, state, path, lock, "launch")
@@ -1675,13 +1778,17 @@ def _validate_mission_proof(checks: dict[str, Any], required: list[dict[str, Any
             raise RunnerError("required controller proof did not pass")
 
 
-def _run_final_mission_proof(state: dict[str, Any], proofs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _run_final_mission_proof(state: dict[str, Any], proofs: list[dict[str, Any]], reservation: Any) -> list[dict[str, Any]]:
     checks = []
     for proof in proofs:
         timeout = mission_work_timeout(state, 3600)
         try:
-            completed = subprocess.run(proof["argv"], cwd=_mission_path(state, proof["cwd"]), timeout=timeout,
-                                       check=False, text=True, capture_output=True)
+            from result_gateway import run_child
+            observed = run_child(proof["argv"], _mission_path(state, proof["cwd"]), timeout, 10,
+                                 reservation=reservation, auxiliary=True)
+            if observed["error"] or not observed.get("processStopped"):
+                raise RunnerError("final controller proof incomplete")
+            completed = subprocess.CompletedProcess(proof["argv"], observed["exitCode"])
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise RunnerError(f"final integration proof incomplete: {exc}") from exc
         mission_work_timeout(state, 1)
@@ -1708,10 +1815,20 @@ def complete_mission(order: dict[str, Any], policy: PathPolicy, final_proof: dic
                 raise RunnerError("accepted task bytes changed after review; integration reproof/review required")
         if any(i["status"] in {*MISSION_OPEN_INTENTS, "unknown_effect"} for i in state["intents"].values()):
             raise RunnerError("mission has open/unknown effect intents")
+        if any(_mission_process_identity(p["pid"]) == p for i in state["intents"].values() for p in i.get("proofProcesses", [])):
+            raise RunnerError("mission has open proof processes")
         snapshot = mission_snapshot(state)
         proofs = [proof for task in state["tasks"].values() for proof in task["requiredProof"]]
         _validate_mission_proof(final_proof, proofs, snapshot["sha256"], state["authority"]["criteria"])
-        observed = _run_final_mission_proof(state, proofs)
+        final_reservation = MissionReservation(order, policy, state, path, lock, "open")
+        previous_signals = {}
+        try:
+            for sig in (signal.SIGTERM, signal.SIGINT):
+                previous_signals[sig] = signal.signal(sig, lambda signum, frame: final_reservation.cancel(f"final proof signal {signum}"))
+            observed = _run_final_mission_proof(state, proofs, final_reservation)
+        finally:
+            for sig, handler in previous_signals.items():
+                signal.signal(sig, handler)
         if mission_snapshot(state) != snapshot:
             raise RunnerError("final proof changed product bytes; acceptance/review must be refreshed")
         mission_work_timeout(state, 1)
@@ -2081,8 +2198,7 @@ def finalize_direct_response(order_path: Path, paths: tuple[Path, Path] | None, 
 
 
 def run_command(order: dict[str, Any], argv: list[str], policy: PathPolicy) -> subprocess.CompletedProcess[str]:
-    if mission_context(order) is not None:
-        raise RunnerError("policy 3.0 direct runner dispatch is disabled; use result_gateway.py")
+    raise RunnerError("direct runner dispatch is disabled; legacy orders are read-only; use policy 3.0 result_gateway.py")
     timeout = order["launch"]["timeoutSeconds"]
     try:
         return subprocess.run(
@@ -2143,7 +2259,9 @@ def check_expected_artifacts(
     return checks
 
 
-def run_proof_commands(order: dict[str, Any], policy: PathPolicy) -> list[dict[str, Any]]:
+def run_proof_commands(order: dict[str, Any], policy: PathPolicy, reservation: Any = None) -> list[dict[str, Any]]:
+    if mission_context(order) is not None and reservation is None:
+        raise RunnerError("3.0 proof dispatch is closed without the locked Gateway mission reservation")
     launch_timeout = order["launch"]["timeoutSeconds"]
     checks = []
     for index, proof in enumerate(order["proofCommands"]):
@@ -2151,7 +2269,7 @@ def run_proof_commands(order: dict[str, Any], policy: PathPolicy) -> list[dict[s
             state, _ = load_mission_state(order, policy)
             launch_timeout = mission_work_timeout(state, order["launch"]["timeoutSeconds"])
         command = proof["command"]
-        cwd_path = policy.order_path(proof["cwd"], f"proofCommands[{index}].cwd")
+        cwd_path = _mission_path({"workspace":str(policy.repo_path)}, proof["cwd"]) if mission_context(order) is not None else policy.order_path(proof["cwd"], f"proofCommands[{index}].cwd")
         required = proof["required"]
         proof_argv = proof.get("argv")
         if loop_contract(order) is not None and proof_argv is None:
@@ -2169,7 +2287,14 @@ def run_proof_commands(order: dict[str, Any], policy: PathPolicy) -> list[dict[s
             check["summary"] = f"cwd does not exist: {cwd_path}"
         else:
             try:
-                if proof_argv is None:
+                if reservation is not None:
+                    from result_gateway import run_child
+                    observed = run_child(proof_argv, cwd_path, reservation.work_timeout(launch_timeout), 10,
+                                         reservation=reservation, auxiliary=True)
+                    if observed["error"] or not observed.get("processStopped"):
+                        raise RunnerError("controller proof incomplete")
+                    completed = subprocess.CompletedProcess(proof_argv, observed["exitCode"], observed["stdout"].decode(errors="replace"), observed["stderr"].decode(errors="replace"))
+                elif proof_argv is None:
                     # Deprecated compatibility path for legacy non-loop orders only.
                     completed = subprocess.run(
                         command,
@@ -2290,6 +2415,7 @@ def run_verification_gate(
     passed_event: str,
     evidence: dict[str, Any] | None = None,
     event_sink: Callable[..., None] | None = None,
+    reservation: Any = None,
 ) -> dict[str, Any]:
     emit = event_sink or append_event
     result_sha256 = result_digest(result_path)
@@ -2305,7 +2431,7 @@ def run_verification_gate(
         evidence["artifacts"] = artifact_checks
     emit(events_path, "expected_artifacts_checked", orderId=order["orderId"], artifacts=artifact_checks)
     verify_required_artifact_checks(artifact_checks)
-    proof_checks = run_proof_commands(order, policy)
+    proof_checks = run_proof_commands(order, policy, reservation)
     if evidence is not None:
         evidence["proof"] = proof_checks
     emit(events_path, "proof_commands_checked", orderId=order["orderId"], proof=proof_checks)
@@ -2437,8 +2563,8 @@ def main() -> int:
         order = require_object(load_json(args.order), "order")
         notes, policy = validate_order(order)
         mission = mission_context(order)
-        if mission is not None and args.mode == "run" and not args.validate_only:
-            raise RunnerError("policy 3.0 direct runner dispatch is disabled; use result_gateway.py")
+        if args.mode == "run" and not args.validate_only:
+            raise RunnerError("direct runner dispatch is disabled; legacy orders are read-only; use policy 3.0 result_gateway.py")
         result_path, events_path = validate_runtime_paths(order, policy, args.result, args.events)
         try:
             verify_input_results(order, policy.repo_path)

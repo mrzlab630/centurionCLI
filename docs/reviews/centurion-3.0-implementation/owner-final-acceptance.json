@@ -1,0 +1,195 @@
+{
+  "recordedAt": "2026-10-16T18:35:00.400573+00:00",
+  "baseCommit": "444bb851505fa5e027afc28edc181c74cfc131ee",
+  "branch": "feat/centurioncli/v3-implementation",
+  "status": "accepted_for_offline_integration",
+  "releaseStatus": "blocked",
+  "productVersion": "3.0.0-rc.1",
+  "planSha256": "3af4c35493fbd80f8739c0916c64a5e77b374f4e8a0f4eaae34c3741bb48750a",
+  "changedSourceHashes": {
+    "integrations/hermes-legion-kit/scripts/smoke.mjs": "2707a766b02b7cb85d47ba14e753b14daa9f366d2e573ad0227f7d2d3d03adb3",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py": "e475fd9e73d400042f6a0d4bfda1160ac45b920f5b4b774852d4df602eec0789",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": "c62e97fb3dfa6bd9864b7d99baf5461427b24db00bd34337fe3033624e953a33",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/order_preflight.py": "8f4311bdb74303146f373ee7c6a4d4936e399a0cb505644666d90705fff76926",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_accepted_inputs_gateway.py": "97d6c1e4da2c14dbbec7c2c7c5233fc9c17a2bc82991e581ae9762ef59246718",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_contract_runner.py": "b592f9713447e86938387e1ec0a0719b841befb0f097af1b64e777a34231eb6d",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_legion_handoffs.py": "2b4d3ac738505f83fea88cd54c6f583dccbbe5139800633463c7fc7e5baf56b8",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_response_envelope.py": "d642d5c78d626edad79c7359bf7dd9896948a6d03afac2b3e4c26ce4eaaa0eb9",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway.py": "62befcace0a51b3e3f63fd51b1cb10bab2ce236a281da4beace162265d6c39d2",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py": "d923ad06d570355c5bf9b8e7d37e330744da9c441c10af54f6deb251ef096ffb",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": "b6e874204334a16b740dc8d9c97f6e349fdab0f97d3af037161cd9afd23bfc49"
+  },
+  "independentReviews": {
+    "code-review-current": {
+      "verdict": "ACCEPT",
+      "inputFiles": 3,
+      "hashMismatches": [],
+      "requestedModel": "claude-opus-5-5",
+      "reportedModel": "claude-opus-5-5",
+      "effort": "high",
+      "scope": "Current report-capture recovery and affected dispatch/reservation paths only; no release approval"
+    },
+    "code-review-n5": {
+      "verdict": "ACCEPT",
+      "inputFiles": 23,
+      "hashMismatches": [],
+      "requestedModel": "claude-opus-5-5",
+      "reportedModel": "claude-opus-5-5",
+      "effort": "high",
+      "scope": "N5 active core/install authority and selected domain entrypoints; no all-skills, live loading or release approval"
+    }
+  },
+  "proof": {
+    "packagedHermesSmoke": {
+      "ok": true,
+      "installedFixture": "pass",
+      "packagedRuntimeRegressions": "pass",
+      "historicalDispatchMains": "not run: retired direct runner and Loop V1 Gateway dispatch",
+      "liveCapability": "unverified"
+    },
+    "gatewayV3GroupsPassed": 8,
+    "missionGroupsPassed": 12,
+    "compileChangedPython": {
+      "status": "pass",
+      "files": [
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py",
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/order_preflight.py",
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_accepted_inputs_gateway.py",
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_contract_runner.py",
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_legion_handoffs.py",
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_response_envelope.py",
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway.py",
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py"
+      ]
+    },
+    "compoundSourceHashes": {
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/references/agent-result.schema.json": "c3c3fbc96486184a8c373359fe24558d8f7558a1ee445be631f1b6832e49c66a",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py": "e475fd9e73d400042f6a0d4bfda1160ac45b920f5b4b774852d4df602eec0789",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_artifact_namespace.py": "aac87e5969869cb5000dc9d897781e8fba3831c4ebcc3b744d3c6dbc1bac1165",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": "c62e97fb3dfa6bd9864b7d99baf5461427b24db00bd34337fe3033624e953a33",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_result_builder.py": "3f00daa1c459729a26481a54bff840b321fa6c0bf4b18943dd64b843be275c74",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/artifact_lineage.py": "e724fe013f008738d4b1dc13df52b1965ac7d5313b391a584e4b3edd2ae2db30",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/attempt_ledger.py": "8da168685969ab3634dcea15002e4101e13b48e7cfe7ac5b87b94462a34eda1c",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/direct_custody.py": "ec211ce8508913294af7fe1cc8072ae33d7a1fddb2b631c4bcc5b862e21eb195",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/order_preflight.py": "8f4311bdb74303146f373ee7c6a4d4936e399a0cb505644666d90705fff76926",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_contract_runner.py": "b592f9713447e86938387e1ec0a0719b841befb0f097af1b64e777a34231eb6d",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway.py": "62befcace0a51b3e3f63fd51b1cb10bab2ce236a281da4beace162265d6c39d2",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py": "d923ad06d570355c5bf9b8e7d37e330744da9c441c10af54f6deb251ef096ffb",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/response_envelope.py": "ba0122665c498e23cdf89ea69011b3dcd75c88ee0eda15c4e8fb905365479dd0",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": "b6e874204334a16b740dc8d9c97f6e349fdab0f97d3af037161cd9afd23bfc49",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/review_ladder.py": "aaeaf5af9772d9f4c32ec84efec9a323e0a58a1fe41e6eac3893e4535a461705",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/strict_json.py": "3c851c428a492ae31dc169b67d3508ac862571420fcd589a831e1badc1069bed"
+    },
+    "compoundObservations": [
+      {
+        "case": "a25-incompatible",
+        "passed": true,
+        "missionStatus": "verifying",
+        "completionExitCode": 1,
+        "acceptedTasks": {
+          "a": "accepted",
+          "b": "accepted"
+        },
+        "productAttemptsUsed": {
+          "a": 1,
+          "b": 1
+        },
+        "modelLaunchesUsed": 2
+      },
+      {
+        "case": "a25-compatible",
+        "passed": true,
+        "missionStatus": "completed",
+        "completionExitCode": 0,
+        "acceptedTasks": {
+          "a": "accepted",
+          "b": "accepted"
+        },
+        "productAttemptsUsed": {
+          "a": 1,
+          "b": 1
+        },
+        "modelLaunchesUsed": 2
+      },
+      {
+        "case": "a27-primary-cutoff",
+        "passed": true,
+        "missionStatus": "blocked",
+        "productAttemptsUsed": 1,
+        "modelLaunchesUsed": 1,
+        "ownedProcessStopped": true,
+        "foreignCanaryAliveAndNoSignals": true,
+        "launchCountBeforeAndAfterRestart": 1,
+        "restartExitCode": 1,
+        "intentStatus": "unknown_effect"
+      },
+      {
+        "case": "a27-proof-cancel",
+        "passed": true,
+        "missionStatus": "stopped",
+        "productAttemptsUsed": 1,
+        "modelLaunchesUsed": 1,
+        "ownedProcessStopped": true,
+        "foreignCanaryAliveAndNoSignals": true,
+        "launchCountBeforeAndAfterRestart": 1,
+        "restartExitCode": 1,
+        "intentStatus": "rejected"
+      }
+    ],
+    "workerArtifactChecks": [
+      {
+        "result": "SOL_COMPOUND_PROOF_RESULT.json",
+        "status": "done",
+        "declaredArtifactHashMismatches": []
+      },
+      {
+        "result": "SOL_RUNTIME_GATE_RESULT.json",
+        "status": "done",
+        "declaredArtifactHashMismatches": []
+      },
+      {
+        "result": "SOL_REPORT_CAPTURE_RESULT.json",
+        "status": "done",
+        "declaredArtifactHashMismatches": []
+      },
+      {
+        "result": "W2-result.json",
+        "status": "done",
+        "declaredArtifactHashMismatches": []
+      },
+      {
+        "result": "W3-result.json",
+        "status": "done",
+        "declaredArtifactHashMismatches": []
+      },
+      {
+        "result": "W4-result.json",
+        "status": "done",
+        "declaredArtifactHashMismatches": []
+      }
+    ],
+    "baselinePreservation": {
+      "originalDirtyCount": 9,
+      "liveConfigCount": 4,
+      "sourceMismatch": [],
+      "liveMismatch": []
+    }
+  },
+  "reportingCorrections": [
+    "First compound harness command exited 1 and is not a command-level pass; two A25 observations are accepted independently; corrected A27-only command exited 0.",
+    "Claude current review limitation N7 review-based verification is inaccurate: the cited runner line disables V3 without a trusted approval verifier, not V1/V2 review.",
+    "Coverage audit and W2/W3/W4 package receipts are historical snapshots and do not supersede current integration evidence."
+  ],
+  "remainingGates": [
+    "N7: Q6 CLI refused before API, no no-write capability receipt; capability deadline expired; Q1-Q5/Q7-Q8 and P1-P6 unrun.",
+    "Native instruction loading, model/tool/vision round trips and provider model identity unproven by offline proof.",
+    "N8: no live install, deploy, push, tag or publication; separate exact scope authorization required."
+  ],
+  "limitations": [
+    "Independent reviews cover supplied source scopes, not a complete line-by-line review of all repository files.",
+    "The 42 F2/F3 fault cases are tied to their recorded pre-A23 snapshot; later recovery changes have separate proof.",
+    "Same-UID receipt hashes do not prove remote authorship or escaped descendant control."
+  ]
+}

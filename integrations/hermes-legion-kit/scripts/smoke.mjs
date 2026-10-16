@@ -9,7 +9,11 @@ const KIT_ROOT=path.join(REPO_ROOT,'integrations/hermes-legion-kit');
 function assert(condition,message){if(!condition)throw new Error(message);}
 function runPackagedPythonRegressions(scriptRoot) {
   assert(!process.env.PYTHONOPTIMIZE, 'PYTHONOPTIMIZE must be unset so packaged regression assertions cannot be stripped');
-  const scripts = ['regression_review_ladder.py', 'regression_agent_contract_runner.py', 'regression_agent_result_builder.py', 'regression_result_gateway.py', 'regression_response_envelope.py', 'regression_artifact_lineage.py', 'regression_accepted_inputs.py', 'regression_accepted_inputs_gateway.py', 'regression_execution_state.py', 'regression_legion_handoffs.py'];
+  // V3 lifecycle has its own entrypoint. The old runner/Gateway mains exercise
+  // retired direct-dispatch and Loop V1 execution; they remain historical
+  // fixtures, not active launch authority. Their shared parsers are covered by
+  // the builder/envelope/lineage suites and the real V3 Gateway chain below.
+  const scripts = ['regression_review_ladder.py', 'regression_agent_contract_runner.py', 'regression_agent_result_builder.py', 'regression_result_gateway_v3.py', 'regression_response_envelope.py', 'regression_artifact_lineage.py', 'regression_accepted_inputs.py', 'regression_accepted_inputs_gateway.py', 'regression_execution_state.py', 'regression_legion_handoffs.py', 'regression_order_preflight.py', 'regression_progress_drift_detector.py', 'regression_blocker_packet_projection.py'];
   const isolatedEnvironment = {
     ...process.env,
     HOME: path.join(path.dirname(scriptRoot), 'nonexistent-home'),
@@ -24,7 +28,8 @@ function runPackagedPythonRegressions(scriptRoot) {
   delete isolatedEnvironment.PYTHONOPTIMIZE;
   delete isolatedEnvironment.AQUILA_AGENT_RESULT_SCHEMA;
   for (const script of scripts) {
-    const result = spawnSync('python3', [script], { cwd: scriptRoot, encoding: 'utf8', env: isolatedEnvironment });
+    const args = script === 'regression_agent_contract_runner.py' ? [script, '--mission-only'] : [script];
+    const result = spawnSync('python3', args, { cwd: scriptRoot, encoding: 'utf8', env: isolatedEnvironment, timeout: 240_000 });
     assert(result.status === 0, `${script} failed: ${result.stderr || result.stdout}`);
   }
 }
@@ -42,5 +47,5 @@ try {
    runPackagedPythonRegressions(path.join(home,'skills/autonomous-ai-agents/agent-contract-runner/scripts'));
   }finally{fs.rmSync(home,{recursive:true,force:true});}
  }
- console.log(JSON.stringify({ok:true,installedFixture:'pass',packagedRuntimeRegressions:skillsOnly?'not run: W2/W3 integration required':'pass',liveCapability:'unverified'}));
+ console.log(JSON.stringify({ok:true,installedFixture:'pass',packagedRuntimeRegressions:skillsOnly?'not run: skills-only selection':'pass',historicalDispatchMains:'not run: retired direct runner and Loop V1 Gateway dispatch',liveCapability:'unverified'}));
 }catch(e){console.error(e.message);process.exitCode=1;}

@@ -21,7 +21,7 @@ from jsonschema import Draft202012Validator
 
 from agent_artifact_namespace import ArtifactNamespaceError, artifact_namespace
 from artifact_lineage import LineageError, verify_anchor
-from agent_contract_runner import prepare_order_namespace, validate_codex_launch, validate_order, verify_result
+from agent_contract_runner import initialize_mission, prepare_order_namespace, validate_codex_launch, validate_order, verify_result
 
 
 SCRIPT_ROOT = Path(__file__).resolve().parent
@@ -44,9 +44,8 @@ def monitor_path() -> Path:
     raise RuntimeError("packaged monitor-delegation.sh was not found")
 
 
-MONITOR = monitor_path()
 BIN = ROOT / "bin"
-COUNT = ROOT / "launch-count.txt"
+COUNT = ROOT / ".centurion" / "agents_results" / "launch-count.txt"
 ROUTING_PREFIX = "AQUILA_ROUTING_JSON_V1:"
 
 
@@ -60,14 +59,14 @@ def routing_metadata(order_id: str, executor: str, **overrides: Any) -> dict[str
         "objectiveId": order_id,
         "attempt": 1,
         "taskClass": "result_gateway_regression",
-        "complexity": "medium",
+        "complexity": "low",
         "risk": "low",
         "ambiguity": "low",
         "reversibility": "high",
         "evidenceNeed": "medium",
         "executor": executor,
         "model": "claude-opus-5-5" if executor == "claude" else "gpt-6-luna",
-        "reasoningEffort": "medium",
+        "reasoningEffort": "high",
         "executionProfile": "implementation",
         "verificationProfile": "V1" if executor == "claude" else "V2",
         "reviewer": "gpt-6-sol" if executor == "claude" else "claude-opus-5-5",
@@ -131,21 +130,23 @@ import time
 from pathlib import Path
 
 args = sys.argv[1:]
-if Path(sys.argv[0]).name == "codex" and args[:1] == ["exec"]:
-    args = args[5:]
-    if args[:1] == ["--sandbox"]:
-        args = args[7:]  # sandbox, cwd, output-last-message, and --json
-elif Path(sys.argv[0]).name == "claude" and args[:4] == [
-    "--model", "claude-opus-5-5", "--fallback-model", "claude-opus-5",
-]:
-    args = args[4:]
+if args[:1] == ["exec"]: args = args[1:]
+while args and args[0].startswith("-"):
+    flag = args.pop(0)
+    if flag in {"--model", "-c", "--sandbox", "-C", "--output-last-message", "--output-format", "--effort"}: args.pop(0)
+order = {}
+if len(args) == 1 and Path(args[0]).is_file():
+    order = json.loads(Path(args[0]).read_bytes())
+    args = order["context"][0]["fixtureArgs"]
 mode, candidate_value, order_id, executor, status, side_effect_value, sleep_value, exit_value = args
 candidate = Path(candidate_value)
 side_effect = Path(side_effect_value) if side_effect_value != "NONE" else None
 required_evidence = os.environ.get("RESULT_GATEWAY_TEST_EVIDENCE")
 if required_evidence and not Path(required_evidence).is_dir():
     raise SystemExit("controller evidence directory missing before child startup")
-count = Path(os.environ["RESULT_GATEWAY_TEST_COUNT"])
+order_path = candidate.parent / "order.json"
+order = json.loads(order_path.read_bytes()) if order_path.is_file() else order
+count = Path(order.get("context", [{}])[0].get("fixtureCount", str(candidate.parent/"count.txt")))
 count.parent.mkdir(parents=True, exist_ok=True)
 with count.open("a", encoding="utf-8") as handle:
     handle.write("launch\\n")
@@ -168,6 +169,16 @@ payload = {
     "scopeDeviations": [], "forbiddenPatternHits": [], "remainingRisks": [], "questions": [], "errors": [],
     "stdoutSummary": "", "stderrSummary": ""
 }
+if order_path.is_file():
+    order = json.loads(order_path.read_bytes())
+    if "handoff" in order["outputContract"]: payload["handoff"] = order["outputContract"]["handoff"]
+    if side_effect is not None:
+        payload["filesChanged"] = [{"path":str(side_effect), "action":"added"}]
+        payload["artifacts"].append({"path":str(side_effect), "exists":True, "type":"fixture", "note":"product"})
+    for artifact in payload["artifacts"]:
+        artifact.update(mediaType="text/markdown" if Path(artifact["path"]).suffix == ".md" else "text/plain", sha256=__import__("hashlib").sha256(Path(artifact["path"]).read_bytes()).hexdigest())
+    if order["context"][0].get("action") == "review":
+        payload["executorExtensions"] = {"review":dict(order["context"][0]["reviewBinding"], verdict="pass", findings=[])}
 loop_metadata = os.environ.get("RESULT_GATEWAY_TEST_LOOP_METADATA")
 if loop_metadata:
     payload["executorExtensions"] = {"aquilaLoop": json.loads(loop_metadata)}
@@ -463,7 +474,9 @@ def make_case(
     side_effect_path = case / "side-effect.txt" if side_effect else Path("NONE")
     command = [executor, mode, str(candidate), order_id, executor, status, str(side_effect_path), str(sleep_seconds), str(exit_code)]
     if executor == "codex":
-        command[1:1] = ["exec", "--model", "gpt-6-luna", "-c", "model_reasoning_effort=medium"]
+        command[1:1] = ["exec", "--model", "gpt-6-luna", "-c", "model_reasoning_effort=high", "--output-last-message", str(candidate)]
+    else:
+        command[1:1] = ["--model", "claude-opus-5-5", "--effort", "high", "--output-format", "json"]
     order = {
         "orderVersion": "AGENT_ORDER_JSON_V1",
         "orderId": order_id,
@@ -489,12 +502,13 @@ def make_case(
         "nonGoals": [],
         "acceptanceCriteria": ["gateway behavior is deterministic"],
         "expectedArtifacts": [],
-        "proofCommands": [],
+        "proofCommands": [{"command":shlex.join([sys.executable,"-c","pass"]), "argv":[sys.executable,"-c","pass"], "cwd":str(ROOT), "required":True}],
         "outputContract": {"resultVersion": "AGENT_RESULT_JSON_V1", "resultPath": str(result), "stdoutAllowed": True, "proseAllowedAfterJson": False},
         "stopConditions": [],
         "notesForExecutor": [],
     }
-    set_routing(order, routing_metadata(order_id, executor))
+    set_routing(order, routing_metadata(order_id, executor, verificationProfile="V0", reviewer="none",
+        trustPredicates={key: True for key in ("localNarrowBlastRadius", "cheapReversal", "deterministicFailureOracle", "noSensitiveOrExternalSideEffects", "requiredArtifactsPass", "requiredProofsPass", "noUncertainty", "noScopeOrAssumptionIssues")}))
     order_path = case / "order.json"
     write_json(order_path, order)
     _, policy = validate_order(order)
@@ -513,7 +527,61 @@ def make_case(
         "stderr": stderr,
         "side_effect": side_effect_path,
         "candidate_source": candidate_source,
+        "test_count": control_dir / "count.txt",
+        "fixture_mode": mode,
     }
+
+
+def activate_mission(paths: dict[str, Any], *, action: str | None = None) -> None:
+    """Prepare explicit approved 3.0 state for an active offline fixture.
+
+    Historical routing/transport validators continue to use the unmodified order
+    directly; only process scenarios call this fixture constructor.
+    """
+    order_path = Path(paths["order"])
+    order = read_json(order_path)
+    if any(isinstance(row, dict) and "policyVersion" in row for row in order["context"]):
+        return
+    control = artifact_namespace(ROOT, order["orderId"])
+    destination = control / "order.json"
+    if order_path != destination:
+        order_path.unlink()
+        paths["order"] = destination
+    route = json.loads(next(row[len(ROUTING_PREFIX):] for row in order["notesForExecutor"] if row.startswith(ROUTING_PREFIX)))
+    selected_action = action or ("advisory" if route["executionProfile"] == "advisory" else "product")
+    product = Path(paths["side_effect"]) if paths["side_effect"] != Path("NONE") else Path(paths["case"]) / "product.txt"
+    state_path = Path(paths["case"]) / "mission-state.json"
+    order["context"].insert(0, {"policyVersion":"3.0", "missionId":order["orderId"], "approvalRef":"offline-approved",
+        "taskId":"task", "intentId":"product-1", "action":selected_action, "strategyId":"initial", "dependencyRevisions":{},
+        "fixtureCount":str(paths.get("test_count", control/"count.txt")), "fixtureArgs":[paths.get("fixture_mode", "valid"), str(paths["candidate"]), order["orderId"], order["executor"], "done", str(product) if paths["side_effect"] != Path("NONE") else "NONE", "0", "0"]})
+    order["allowedPaths"] = [str(product), str(control / "**")] if selected_action != "advisory" else [str(control / "**")]
+    if selected_action == "product" and isinstance(order.get("lineage"), dict):
+        order["allowedPaths"].extend(order["lineage"].get("artifactPaths", []))
+    order["loopContract"] = {"version":"AQUILA_LOOP_V1", "loopId":order["orderId"], "controller":"Aquila",
+        "phase":"execute", "statePath":str(state_path), "workItem":{"workItemId":"task","project":"offline","objective":order["objective"]},
+        "iteration":{"current":1,"max":3}, "budgets":{"maxWallSeconds":300}, "executorStateWrites":False,
+        "scheduleNextIteration":False, "selfApprove":False}
+    order["launch"]["candidateJsonPath"] = str(paths["candidate"])
+    argv = shlex.split(order["launch"]["command"])
+    if len(argv) >= 8 and argv[-6] == order["orderId"]:
+        order["context"][0]["fixtureArgs"] = argv[-8:]
+        prefix = argv[:-8]
+        if order["executor"] == "codex":
+            order["launch"]["command"] = shlex.join([*prefix, *([] if "--output-last-message" in prefix else ["--output-last-message", str(paths["candidate"])]), str(destination)])
+        else:
+            order["launch"]["command"] = shlex.join([*prefix, "-p", str(destination)])
+    order["outputContract"]["handoff"] = {"version":"AGENT_HANDOFF_V1", "schemaId":"AGENT_RESULT_JSON_V1", "inReplyTo":order["orderId"],
+        "senderRole":order["roleForTask"], "recipientRole":"Aquila"}
+    proofs = order["proofCommands"] or [{"command":shlex.join([sys.executable,"-c","pass"]), "argv":[sys.executable,"-c","pass"], "cwd":str(ROOT), "required":True}]
+    order["proofCommands"] = proofs if selected_action != "advisory" else []
+    initialize_mission({"policyVersion":"3.0", "missionId":order["orderId"], "workspace":str(ROOT), "strategyId":"initial",
+        "authority":{"approvalRef":"offline-approved", "goal":order["objective"], "nonGoals":order["nonGoals"], "criteria":order["acceptanceCriteria"],
+            "allowedActions":["product","review","advisory","report"], "allowedPaths":[str(ROOT / "**")], "forbiddenPaths":[]},
+        "budget":{"maxModelLaunches":8, "deadlineAt":(datetime.now(timezone.utc)+timedelta(seconds=300)).isoformat()},
+        "tasks":{"task":{"objective":order["objective"], "acceptanceCriteria":order["acceptanceCriteria"], "allowedPaths":[str(ROOT / "**")],
+            "productPaths":[str(product)], "dependencies":[], "maxProductAttempts":3, "verificationProfile":route["verificationProfile"],
+            "requiredProof":proofs,"expectedArtifacts":order["expectedArtifacts"]}}}, state_path)
+    write_json(Path(paths["order"]), order)
 
 
 def gateway_command(
@@ -539,6 +607,31 @@ def gateway_command(
     return command
 
 
+def independent_review(paths: dict[str, Any]) -> dict[str, Any]:
+    original = read_json(Path(paths["order"]))
+    state = read_json(Path(original["loopContract"]["statePath"]))
+    candidate = state["intents"][original["context"][0]["intentId"]]
+    review = make_case(original["orderId"]+"-review", "stdout-claude-wrapper", executor="claude", candidate_source="stdout")
+    old = Path(review["order"])
+    order = read_json(old)
+    review["order"] = Path(review["result"]).parent/"order.json"
+    old.unlink()
+    order.update(objective=original["objective"], acceptanceCriteria=original["acceptanceCriteria"], roleForTask="REVIEWER", riskLevel="medium",
+        loopContract=original["loopContract"], inputResults=original.get("inputResults", []))
+    order["context"] = [dict(original["context"][0], action="review", intentId="review-1", candidateIntentId="product-1",
+        fixtureCount=str(review["test_count"]), fixtureArgs=["stdout-claude-wrapper", str(review["candidate"]), order["orderId"], "claude", "done", "NONE", "0", "0"],
+        reviewBinding={"reviewedOrderId":original["orderId"],"reviewedResultSha256":candidate["resultRef"]["sha256"],"productSnapshotSha256":candidate["snapshot"]["sha256"]})]
+    order["allowedPaths"] = [str(Path(review["result"]).parent/"**")]
+    order["expectedArtifacts"] = []; order["proofCommands"] = []
+    order["launch"].update(candidateJsonPath=str(review["candidate"]), command=shlex.join(["claude","--model","claude-opus-5-5","--effort","high","--output-format","json","-p",str(review["order"])]))
+    order["outputContract"]["handoff"] = {"version":"AGENT_HANDOFF_V1","schemaId":"AGENT_RESULT_JSON_V1","inReplyTo":order["orderId"],"senderRole":"REVIEWER","recipientRole":"Aquila"}
+    set_routing(order,routing_metadata(order["orderId"],"claude",risk="medium",executionProfile="terminal_review",verificationProfile="V2",reviewer="none",terminalGate=True))
+    write_json(Path(review["order"]),order)
+    completed = run_gateway(review)
+    assert completed.returncode == 0, completed.stderr+completed.stdout
+    return review
+
+
 def environment() -> dict[str, str]:
     env = dict(os.environ)
     env["PATH"] = (
@@ -558,6 +651,7 @@ def run_gateway(
     explicit_schema: bool = True,
     grace_seconds: str = "0.2",
 ) -> subprocess.CompletedProcess[str]:
+    activate_mission(paths)
     env = environment()
     if "test_count" in paths:
         env["RESULT_GATEWAY_TEST_COUNT"] = str(paths["test_count"])
@@ -575,7 +669,7 @@ def run_gateway(
 
 def run_monitor(paths: dict[str, Path | dict[str, str]], *, explicit_schema: bool = True) -> subprocess.CompletedProcess[str]:
     command = [
-        "bash", str(MONITOR),
+        "bash", str(monitor_path()),
         "--order", str(paths["order"]),
         "--result", str(paths["result"]),
         "--start-receipt", str(paths["start_receipt"]),
@@ -600,7 +694,8 @@ def load_valid_result(path: Path) -> dict[str, Any]:
 
 
 def launch_count() -> int:
-    return len(COUNT.read_text(encoding="utf-8").splitlines()) if COUNT.exists() else 0
+    return sum(len(path.read_text(encoding="utf-8").splitlines()) for path in
+               {*ROOT.glob(".centurion/agents_results/*/count.txt"), COUNT} if path.is_file())
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -717,10 +812,9 @@ def main() -> int:
         assert not evidence.exists()
         order = read_json(Path(case["order"]))
         if mode == "run":
-            argv = shlex.split(order["launch"]["command"])
-            argv[argv.index(str(case["candidate"]))] = str(case["result"])
-            order["launch"]["command"] = shlex.join(argv)
-            write_json(Path(case["order"]), order)
+            activate_mission(case)
+            _, policy = validate_order(read_json(Path(case["order"])))
+            prepare_order_namespace(policy)
         command = [
             sys.executable, str(RUNNER), "--order", str(case["order"]),
             "--mode", "dry-run" if mode == "dry-run" else "run",
@@ -729,13 +823,16 @@ def main() -> int:
         ]
         if mode == "validate-only":
             command.append("--validate-only")
+        if mode == "run":
+            command = gateway_command(case)
         env = environment()
+        if mode == "run": env["RESULT_GATEWAY_TEST_COUNT"] = str(case["test_count"])
         env["RESULT_GATEWAY_TEST_EVIDENCE"] = str(evidence)
         before = launch_count()
         completed = subprocess.run(command, cwd=ROOT, env=env, text=True, capture_output=True, check=False)
         if mode == "run":
             assert completed.returncode == 0, completed.stderr or completed.stdout
-            assert evidence.is_dir() and launch_count() == before + 1
+            assert evidence.is_dir() and Path(case["test_count"]).read_text() == "launch\n"
             assert load_valid_result(Path(case["result"]))["status"] == "done"
         else:
             assert completed.returncode == (1 if mode == "invalid-preflight" else 0), completed.stderr or completed.stdout
@@ -785,12 +882,11 @@ def main() -> int:
     write_json(Path(malformed_advisory["order"]), malformed_order)
     completed = run_gateway(malformed_advisory)
     assert completed.returncode != 0
-    failed = load_valid_result(Path(malformed_advisory["result"]))
-    assert failed["status"] == "failed" and failed["filesChanged"] == []
-    assert failed["artifacts"][0]["type"] == "malformed-result-evidence"
-    _, malformed_policy = validate_order(malformed_order)
-    verify_result(Path(malformed_advisory["result"]), malformed_order, malformed_policy)
-    assert run_monitor(malformed_advisory).returncode == 0
+    assert not Path(malformed_advisory["result"]).exists()
+    receipt = read_json(Path(malformed_advisory["evidence"])/"protocol-failure.json")
+    assert receipt["canonicalFinalized"] is False and receipt["reportRecovery"]["productReplayAllowed"] is False
+    assert read_json(Path(malformed_advisory["closure"]))["canonicalFinalized"] is False
+    assert run_monitor(malformed_advisory).returncode != 0
 
     mismatched_advisory = make_case("astra-candidate-mismatch", "valid")
     mismatched_order = json.loads(json.dumps(advisory_order))
@@ -842,7 +938,7 @@ def main() -> int:
         completed = run_gateway(case)
         assert completed.returncode != 0
         assert launch_count() == before
-        assert "expected control artifact namespace" in completed.stderr
+        assert "namespace" in completed.stderr, (key,completed.stderr)
         assert not root_path.exists()
         for control_key in ("candidate", "result", "start_receipt", "closure", "stdout", "stderr", "events"):
             if control_key != key or key in {"result", "stdout", "stderr"}:

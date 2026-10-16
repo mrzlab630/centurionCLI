@@ -1,0 +1,11 @@
+{
+  "verdict": "ACCEPT",
+  "summary": "CENTURION 3.0.0-rc.1 passes N5 authority review. Core contract enforces one team lead (orchestrator), workers cannot assign agents, reviewer reports findings only, result_gateway.py owns dispatch. Active selections via surface-config.mjs are correct. Model routing (Sol/Luna/Astra/Opus) lives in controller layer, not skill instructions. Roman names are display aliases without authority. Archive/override files correctly marked as adapter notes with no live patching authority. No reachable contradictions found in installer selection or active entrypoints.",
+  "findings": [],
+  "limitations": [
+    "N7 live-loaded chain evidence not provided; liveLoadedChainProven=false in receipt correctly reflects this.",
+    "Capability binding receipts are evidence-only; they grant no automatic authority or dispatch probes as stated in install-owned-files.mjs:202.",
+    "Deep-search/browse/Perplexity adapters excluded per researcher SKILL.md and surface-config.mjs COMPATIBILITY.excluded; their absence from active installation was not independently verified beyond source declarations.",
+    "This review covered installer selection logic and active skill/integration entrypoints as specified; did not audit excluded/maintenance skills, backup recovery paths, or client-side MCP registration behavior."
+  ]
+}

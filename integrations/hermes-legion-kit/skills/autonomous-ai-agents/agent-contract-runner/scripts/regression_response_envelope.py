@@ -202,12 +202,25 @@ def main():
                 argv = [sys.executable, str(SCRIPTS / "agent_contract_runner.py"), "--order", str(control / "order.json"),
                         "--mode", "run", "--events", str(control / "events.jsonl"), "--result", str(control / "result.json")]
                 completed = subprocess.run(argv, env=env, capture_output=True, text=True, timeout=20)
-                assert (completed.returncode == 0) == (mode == "fenced"), completed.stderr + completed.stdout
-                result_bytes = (control / "result.json").read_bytes()
+                assert completed.returncode != 0 and "direct runner dispatch is disabled" in completed.stderr
+                assert not count.exists() and not (control / "result.json").exists()
+                # Historical transport support is a parser/builder unit contract;
+                # it never authorizes a legacy production dispatch.
+                Path(order["launch"]["candidateJsonPath"]).write_bytes(content)
+                if mode == "fenced":
+                    result = build_result(control / "order.json", Path(order["launch"]["candidateJsonPath"]), control / "result.json", control / "evidence")
+                    assert result["orderId"] == order["orderId"] and result["executor"] == executor
+                    result_bytes = (control / "result.json").read_bytes()
+                    rejects(lambda: build_result(control / "order.json", Path(order["launch"]["candidateJsonPath"]), control / "result.json", control / "evidence"), "collision")
+                    assert (control / "result.json").read_bytes() == result_bytes
+                else:
+                    rejects(lambda: parse_response_bytes(content), "RESPONSE_FORMAT_ERROR")
+                    failed = build_result(control / "order.json", Path(order["launch"]["candidateJsonPath"]), control / "result.json", control / "evidence")
+                    assert failed["status"] == "failed"
+                    assert content == Path(failed["artifacts"][0]["path"]).read_bytes()
                 replay = subprocess.run(argv, env=env, capture_output=True, text=True, timeout=20)
-                assert replay.returncode != 0 and count.read_text() == "effect\n"
-                assert (control / "result.json").read_bytes() == result_bytes
-        print("PASS direct Hermes/AGY candidate adapters accept fences, reject prose, never replay or overwrite")
+                assert replay.returncode != 0 and not count.exists()
+        print("PASS historical Hermes/AGY parser fixtures accept fences, reject prose and collisions; legacy dispatch never launches")
     return 0
 
 

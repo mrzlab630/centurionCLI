@@ -131,7 +131,7 @@ class HandoffTests(unittest.TestCase):
 
     def test_execution_saves_binding_and_review_completes(self):
         self.contract["phase"] = "execute"
-        implementation = route(executor="agy", model="gemini-3.8-flash", executionProfile="implementation", reviewer="claude-opus-5-5")
+        implementation = route(executor="codex", model="gpt-6.1-sol", executionProfile="implementation", reviewer="claude-opus-5-5")
         implementation.pop("terminalGate")
         set_route(self.order, implementation)
         self.order["roleForTask"] = "PICTOR"
@@ -142,6 +142,8 @@ class HandoffTests(unittest.TestCase):
         self.state = json.loads(self.state_path.read_text())
         self.assertEqual(self.state["candidate"]["reviewContract"]["reviewer"], "claude-opus-5-5")
         self.contract["phase"] = "verify"
+        self.contract["candidate"]["executor"] = "codex"
+        self.contract["verification"]["candidateExecutor"] = "codex"
         self.order["orderId"] = "review-order-001"
         self.order["roleForTask"] = "REVIEWER"
         set_route(self.order, route())
@@ -181,7 +183,7 @@ class HandoffTests(unittest.TestCase):
         implementation.pop("terminalGate")
         self.assertEqual(select_review_route(implementation)["verificationProfile"], "V2")
         set_route(self.order, route(executor="other"))
-        with self.assertRaisesRegex(RoutingError, "requires executor=claude"):
+        with self.assertRaisesRegex(RoutingError, "executor must be codex or claude"):
             validate_order_routing(self.order)
 
     def test_terminal_product_edit_closes_direct_custody_as_rejected(self):
@@ -197,7 +199,7 @@ class HandoffTests(unittest.TestCase):
         set_route(order, route())
         command = shlex.split(order["launch"]["command"])
         command[0] = "claude"
-        command[1:1] = ["--model", "claude-opus-5-5", "--fallback-model", "claude-opus-5"]
+        command[1:1] = ["--model", "claude-opus-5-5"]
         order["launch"]["command"] = shlex.join(command)
         fixtures.write_json(order_path, order)
         env = {**os.environ, "PATH": f"{fixtures.BIN_DIR}:{os.environ.get('PATH', '')}",
@@ -210,14 +212,14 @@ class HandoffTests(unittest.TestCase):
             env=env, cwd=self.repo, capture_output=True, text=True, timeout=20,
         )
         self.assertNotEqual(completed.returncode, 0)
-        self.assertIn("terminal_review", completed.stderr)
+        self.assertIn("direct runner dispatch is disabled", completed.stderr)
         self.assertNotIn("Traceback", completed.stderr)
         namespace = result.parent
         paths = [list(namespace.glob(f"direct-{kind}-*.json"))
                  for kind in ("start", "closure", "acceptance")]
-        self.assertEqual([len(items) for items in paths], [1, 1, 1])
-        terminal = verify_direct_terminal(*(items[0] for items in paths), order_path, result)
-        self.assertEqual(terminal["status"], "rejected")
+        self.assertEqual([len(items) for items in paths], [0, 0, 0])
+        self.assertFalse(result.exists())
+        self.assertFalse((self.repo / "artifact.txt").exists())
 
 
 if __name__ == "__main__":
