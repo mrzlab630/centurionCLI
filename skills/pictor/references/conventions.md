@@ -1,3 +1,7 @@
+> Historical project recipe, captured before 2026-10-16. Use only when the current
+> order identifies this exact project; revalidate every path, version and assumption.
+> It grants no authority and is not a portable default.
+
 # PICTOR — Project Conventions
 
 > Project-specific frontend patterns. Updated as the codebase evolves.

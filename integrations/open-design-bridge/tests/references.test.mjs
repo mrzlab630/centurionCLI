@@ -226,7 +226,7 @@ test('reference TTL removes only expired cache directories', () => {
 
 test('accepted design bundle preserves portable reference evidence', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-reference-design-'));
-  const mockOd = path.resolve('tests/fixtures/mock-od.mjs');
+  const mockOd = path.join(here, 'fixtures', 'mock-od.mjs');
   try {
     const snippet = path.join(root, '.reference-cache', 'one', 'snippets', 'one.html');
     fs.mkdirSync(path.dirname(snippet), { recursive: true });
@@ -273,7 +273,7 @@ test('accepted design bundle preserves portable reference evidence', async () =>
 
 test('design production rejects a snippet changed after request normalization', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-reference-toctou-'));
-  const mockOd = path.resolve('tests/fixtures/mock-od.mjs');
+  const mockOd = path.join(here, 'fixtures', 'mock-od.mjs');
   try {
     const snippet = path.join(root, '.reference-cache', 'one', 'snippets', 'one.html');
     fs.mkdirSync(path.dirname(snippet), { recursive: true });
@@ -317,7 +317,7 @@ test('design production rejects a snippet changed after request normalization', 
 test('reference snippet read fails closed if the manifest cache is replaced after validation', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-reference-parent-race-'));
   const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'centurion-reference-parent-race-outside-'));
-  const mockOd = path.resolve('tests/fixtures/mock-od.mjs');
+  const mockOd = path.join(here, 'fixtures', 'mock-od.mjs');
   try {
     const cache = path.join(root, '.reference-cache', 'one');
     const snippet = path.join(cache, 'snippets', 'one.html');

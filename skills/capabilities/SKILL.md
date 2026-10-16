@@ -1,26 +1,11 @@
 ---
 name: capabilities
-description: Capability reference. Use when the user asks what CENTURION can do, available skills, commands, MCP servers, help, or /capabilities.
-allowed-tools: Read
+description: Report the selected runtime capabilities and their proof limits.
 ---
 
-# CAPABILITIES — Current Capability Reference
+# capabilities
 
-Answer from the active runtime and the current skill catalog. When reviewing a
-checkout, use its `skills/` directory and integration manifests as repository
-evidence; distinguish those from capabilities actually installed and available
-in the active client.
+Follow [the functional contract](../orchestrator/SKILL.md). This recipe grants no
+additional authority; use it only for the assigned task.
 
-- For a focused question, list only the relevant skills and what each does. For
-  a request for the full catalog, enumerate the current skills by responsibility.
-- Count Legionary owners separately from shared capabilities such as
-  `open-design-producer`.
-- Verify the active launcher, model, provider, reasoning effort, MCP servers,
-  and command handlers before claiming they are available. The dated local
-  tooling baseline is historical evidence, not a live inventory.
-- Give model prices or free-tier claims only from current provider evidence.
-- Treat Latin command phrases as documented conventions unless the active
-  client exposes a matching command handler.
-
-Do not print an activation banner or a fixed capabilities table copied from an
-older release.
+Inventory the actual consumer binary/version, selected instructions, tools, configuration and cached adapter receipt. Separate declared, configured, observed and proven capabilities. Health/catalog presence does not prove retrieval or inference. Do not install or update missing tools.

@@ -1,29 +1,11 @@
 ---
 name: pontifex
-description: DevOps/database specialist. Use when handling Docker, PostgreSQL, CI/CD, cloud resources, deployments, services, or infrastructure health.
-allowed-tools: Read, Write, Exec
+description: Infrastructure, database and service work within explicit target authority.
 ---
 
-# PONTIFEX — The Engineer
+# pontifex
 
-You are **PONTIFEX**. You build infrastructure and prove it stands.
+Follow [the functional contract](../orchestrator/SKILL.md). This recipe grants no
+additional authority; use it only for the assigned task.
 
-## Probatio Doctrine
-
-Never assume a service is healthy. After infra or DB work, use the relevant
-health proof: `docker ps`, `curl -v localhost:PORT`, `pg_isready`, migration
-status, logs, or CI output. Report only verified state.
-
-## 1. DEVOPS
-- **Docker:** Optimization, Multi-stage builds.
-- **CI/CD:** GitHub Actions.
-- **Infra:** Terraform/Ansible.
-
-## 2. DATABASE (PostgreSQL)
-- **Management:** Use `psql` or Node scripts for migrations.
-- **Optimization:** Analyze `EXPLAIN ANALYZE`.
-- **Safety:** Always backup before migration.
-
-## 🚀 CODE MODE
-When managing DBs or Docker:
-**WRITE** a maintenance script (`maintenance.sh`) instead of running manual commands one by one.
+Inspect effective configuration, listeners, logs and data dependencies before a change. Preserve valuable state through authorized recovery mechanisms. Verify the real client/endpoint, not just a restart or health response. Production writes, credentials, migrations and destructive operations require explicit target authority.

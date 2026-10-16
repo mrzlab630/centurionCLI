@@ -1,113 +1,31 @@
-# Codex Legion Kit
+# Codex Legion Kit 1.0.0 — CENTURION 3.0.0-rc.1
 
-CENTURION surface audit and synchronization guards for Codex CLI.
+This native instruction adapter uses the [single functional contract](../../skills/orchestrator/SKILL.md)
+and [load map](../codex-legion-kit/scripts/lib/surface-config.mjs).
+The kit version changes for the breaking explicit-selection installer API; it is
+separate from product acceptance and does not introduce a new order schema.
 
-This kit keeps Codex aligned with the current Legion structure without adding more Legionaries. It audits the repository skill source, the active `~/.agents/skills` surface, and the host-local Codex configuration.
-
-## Local Baseline
-
-- Sanitized baseline date: 2026-07-09. Raw `~/.codex/config.toml`, provider credentials, memories, permission state, and trusted project lists are intentionally not copied into this repository.
-- Codex CLI observed on this workstation: `codex-cli 0.146.0`.
-- Codex model in the dated 2026-07-09 baseline: `gpt-5.6-sol` with provider `cliproxyapi`, `model_reasoning_effort = "xhigh"`, and `personality = "pragmatic"`.
-- Current repository audit target: `gpt-6.1-sol`; `gpt-6-sol` is an explicit fallback only after verified pre-side-effect provider/model unavailability; the dated baseline below remains historical.
-- Host model configuration is not installed by this repository. After separately
-  approving a local Codex profile update, set its `model` to `gpt-6.1-sol` and
-  confirm the proxy serves that ID; until then `audit:surface` may fail its
-  model check. This repository change alone does not prove a live model switch.
-- Local provider endpoint: `http://127.0.0.1:8317/v1` using the Responses wire API.
-- `features.memories = true` is enabled; memories remain a recall layer and are not copied into the repo.
-- `features.multi_agent_v2.enabled = true` is enabled with spawn-agent metadata hidden.
-- Active Legion skill root: `~/.agents/skills`.
-- Canonical repository skill root: `skills/` in this repository.
-- No `~/.codex/agents` directory or `~/.codex/hooks.json` file was present in the sanitized baseline.
-- Installed `~/.codex/skills` entries observed: `.system`, `camofox-browser`, and `migrate-to-codex`.
-- Current Codex plugin validation is not used by this kit because this CLI version does not expose a dedicated `codex plugin validate` subcommand.
-
-## What It Provides
-
-- `scripts/codex-surface-audit.mjs`: read-only audit for Codex model/config, active skill drift, protocol pointers, hooks, custom agents, plugins, and MCP risk warnings.
-- `scripts/sync-agents.mjs`: dry-run-first synchronization from repository `skills/` to active `~/.agents/skills`; writes only with `--write`.
-- `scripts/smoke.mjs`: regression proof for audit, sync behavior, shared Legion result-contract validation, and Legion routing evals.
-- `scripts/lib/surface-config.mjs`: the shared canonical skill list and generated-artifact ignore rules used by audit, sync, and smoke checks.
-- `installer/install-open-design.mjs`: installs the shared Open Design skill, bridge discovery config, and local stdio MCP without creating a new Legionary owner.
-- `skills/camofox-browser`: optional explicit Codex skill for bounded Camofox/Camoufox browser snapshots and screenshots when normal browser tooling is blocked.
-
-Codex uses `../legion-contracts` for neutral `LEGION_ORDER_V1`, `LEGION_RESULT_V1`, and `LEGION_REVIEW_V1` validation when a bounded delegation artifact needs machine checking. Normal discussion, research notes, and WAR ROOM reasoning stay in Markdown.
-
-New executor results use `AGENT_RESULT_JSON_V1`. The shared `normalize-response`
-ingress accepts raw JSON or one clean lowercase `json` fence and preserves raw
-and normalized SHA-256 evidence. Echo a declared `AGENT_HANDOFF_V1` unchanged;
-never emit controller-owned `responseEnvelope`. Hermes-managed Codex uses the
-Gateway candidate file and builder; see `docs/LEGION_CONTRACTS.md` and the
-`agent-contract-runner` skill. Formatting failures never authorize product replay.
-
-It does not install external GitHub skill packs or create new Legionary owners.
-The Open Design installer changes only the named `centurion-open-design` MCP
-entry and uses staged replacement with rollback for the installed skill, bridge
-config, and Codex MCP configuration. It uses the native Codex CLI and preserves
-unrelated config.
-
-The Camofox skill is intentionally not an MCP server and has `allow_implicit_invocation: false`; use it explicitly only for public web pages where Playwright or Chrome DevTools are insufficient.
-
-## Quick Start
+Install only to an explicitly authorized isolated home:
 
 ```bash
-cd integrations/codex-legion-kit
-npm run audit:surface
-npm run smoke
-npm run sync:agents -- --json
-npm run install:open-design:dry-run
+node integrations/codex-legion-kit/scripts/sync-agents.mjs --write --profile domain --skill coder --agents-home /tmp/centurion-fixture/agents --codex-home /tmp/centurion-fixture/codex
 ```
 
-If `audit:surface` reports active skill drift, inspect the report first. To sync all canonical skills intentionally:
+Choose `core`, `domain` or `maintenance`; domain and maintenance require explicit
+`--skill` values from the map. There is no automatic full-library installation.
+Use `--dry-run` to inspect selection and target paths. Unknown settings/instructions
+or a modified owned file are reported as conflicts without changing them. Prior
+owned manifests enable transactional upgrade, retirement and rollback. Existing
+legacy homes without ownership evidence need a separate reviewed migration.
 
-```bash
-npm run sync:agents -- --write
-npm run audit:surface
-```
+Read `<native-home>/centurion/installed-chain.json` for every source/installed
+hash, selected instruction and adapter evidence. Missing or changed binary/config/
+route/adapter capability binding excludes that adapter. Installation runs no live
+client CLI, update, dependency sync, external model or automatic MCP registration.
+New dispatch remains Gateway-only; native agents are bounded projections. No
+copied upstream delegation skills or alternate queues are part of the bundle.
 
-The drift comparator ignores generated local directories such as `node_modules`, build output, coverage output, virtual environments, vendored dependency trees, and runtime `reports/`. It still compares durable skill instructions, references, scripts, and manifests.
-
-To sync one owner:
-
-```bash
-npm run sync:agents -- --skill tester --write
-```
-
-Optional live Camofox proof, when the local PM2 server is online:
-
-```bash
-node /home/mrz/.codex/skills/camofox-browser/scripts/camofox-smoke.mjs --health --json
-node /home/mrz/.codex/skills/camofox-browser/scripts/camofox-smoke.mjs --screenshot /tmp/camofox-example.png https://example.com/
-```
-
-Run those commands sequentially. Parallel Camofox tab creation can time out on this host.
-
-## Guard Philosophy
-
-- One task still has one primary Legionary owner.
-- Codex `gpt-6.1-sol` is treated as the primary judgment-heavy executor, not permission to broaden roles; `gpt-6-sol` is fallback-only under the verified pre-side-effect policy.
-- Large context is reserve capacity; CURATOR keeps dossiers compact.
-- Subagents are for bounded read-heavy work and review lanes, not uncontrolled write fan-out.
-- Hooks and plugins are power tools. They must be audited before being trusted in broad workflows.
-- External GitHub skills are discovery inputs. ARMARIUS discovers, GUARDIAN gates, ARTIFEX adapts only selected ideas.
-
-## Validation
-
-```bash
-node --check scripts/lib/surface-config.mjs
-node --check scripts/codex-surface-audit.mjs
-node --check scripts/sync-agents.mjs
-node --check scripts/smoke.mjs
-npm run audit:surface
-npm run smoke
-```
-
-Expected green audit on this host:
-
-- repository canonical skills: `37`;
-- active `~/.agents/skills`: `38` (37 owners plus `open-design-producer`);
-- active skill drift dirs: `0`;
-- Codex model: `gpt-6.1-sol`;
-- Codex custom agents: low or zero unless intentionally configured;
-- warnings may appear for inline secret-like config values or broad MCP servers; these are security visibility signals, not automatic blockers unless `--strict-secrets` is used.
+Optional Open Design is explicitly selected as a domain capability and configured
+for the requested isolated target. Camofox and document conversion require their
+own requested task and proven adapter; they are not automatic MCP installs.
+See the [root README](../../README.md) for proof commands and N5/N6 limitations.

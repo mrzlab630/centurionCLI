@@ -1,6 +1,6 @@
 ---
 name: solana-program-engineering
-description: Use when designing, implementing, debugging, testing, releasing, or security-auditing Solana on-chain programs in Rust, including native Solana, Anchor, version-aware Pinocchio, PDAs, CPI, SPL Token or Token-2022, account invariants, compute optimization, verifiable builds, and adversarial review.
+description: Solana program engineering and invariant review for explicitly authorized on-chain Rust tasks.
 ---
 
 # Solana Program Engineering
