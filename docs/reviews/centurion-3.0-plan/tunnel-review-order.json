@@ -1,0 +1,31 @@
+{
+  "orderId": "centurion-v3-tunnel-review-20261016",
+  "context": {
+    "ExecutionDecision": {
+      "taskClass": "executor_tunnel_plan_review",
+      "complexity": "high",
+      "risk": "low",
+      "ambiguity": "medium",
+      "reversibility": "high",
+      "evidenceNeed": "high",
+      "executor": "claude",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "high",
+      "executionProfile": "read_only_advisory_review",
+      "verificationProfile": "owner_document_review",
+      "confidence": "high",
+      "reasons": [
+        "User requested Claude review of unified new-version plan; current addition covers executor interoperability",
+        "One bounded consultation of supplied documents; no tools, secrets, filesystem access or implementation"
+      ]
+    }
+  },
+  "inputHashes": {
+    "docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md": "72463a7daac63b287a585f80d471f8ba27745da4eeb0f0f56a22e02b06928819",
+    "docs/CENTURION_3_0_EXECUTOR_TUNNEL_AUDIT_2026-10-16.md": "edad8c763b103db9b678d254aeff984c20af07715e98e189bb8c6c16a752e7d6"
+  },
+  "outputContract": {
+    "resultPath": "/tmp/centurion-tunnel-review-20261016/response-text.json"
+  },
+  "scope": "Review these supplied documents only. No tools, other agents, project changes, credentials or deployment."
+}

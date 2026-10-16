@@ -1,0 +1,32 @@
+{
+  "requestedModel": "claude-opus-5-5",
+  "requestedEffort": "high",
+  "inputHashes": {
+    "docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md": "72463a7daac63b287a585f80d471f8ba27745da4eeb0f0f56a22e02b06928819",
+    "docs/CENTURION_3_0_EXECUTOR_TUNNEL_AUDIT_2026-10-16.md": "edad8c763b103db9b678d254aeff984c20af07715e98e189bb8c6c16a752e7d6"
+  },
+  "tools": [],
+  "credentialsSent": false,
+  "maxOutputTokens": 24000,
+  "httpStatus": 200,
+  "reportedModel": "claude-opus-5-5",
+  "stopReason": "end_turn",
+  "elapsedSeconds": 278.99,
+  "responseSha256": "aaa1549e38910e547a267154a21d5f28b154558f99ec0bc815cb0acd16edd48d",
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 33546,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 33546,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 16197,
+    "output_tokens_details": {
+      "thinking_tokens": 12915
+    },
+    "service_tier": "standard",
+    "inference_geo": "global"
+  },
+  "hasText": true
+}

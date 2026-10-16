@@ -1,8 +1,8 @@
 # CENTURION 3.0 — проверка данных и независимое ревью плана
 
-Дата: 2026-10-16. Ветка: `feat/centurioncli/v3-autonomous-team`. Объект: [план реализации 3.0, версия 1.1](CENTURION_3_0_IMPLEMENTATION_PLAN.md). Разделы 1–4 описывают историческую проверку 1.0; §5 — новый аудит skills/tools и проверку дополнения 1.1. Реализация и рабочая установка в эту проверку не входят.
+Дата: 2026-10-16. Ветка: `feat/centurioncli/v3-autonomous-team`. Объект: [план реализации 3.0, версия 1.2](CENTURION_3_0_IMPLEMENTATION_PLAN.md). Разделы 1–4 описывают историческую проверку 1.0; §5 — аудит skills/tools; §6 — аудит туннеля исполнителей и повторная проверка уточнения. Реализация и рабочая установка в эту проверку не входят.
 
-Статус: baseline 1.0 зафиксирован в `7d1bd86`. Дополнение 1.1 прошло отдельную проверку Claude Opus: шесть замечаний обработаны владельцем, результаты внесены в план и аудит. Итоговые bytes не получали повторного ACCEPT Claude. Реализация не начата; заказчик не объявляется утвердившим отдельный deploy или live-пилот самим фактом этого отчёта.
+Статус: baseline 1.0 зафиксирован в `7d1bd86`. Дополнение 1.1 прошло отдельную проверку Claude Opus; tunnel candidate 1.2 получил отдельную проверку Claude Opus, а пять замечаний были обработаны владельцем. Итоговые bytes после этих правок не получали повторного полного Claude ACCEPT; это явно не объявляется. Реализация не начата; заказчик не объявляется утвердившим отдельный deploy или live-пилот самим фактом этого отчёта.
 
 ## 1. Перепроверка собранных данных
 
@@ -80,7 +80,7 @@
 
 Сохраняемые доказательства: [замороженный r1](reviews/centurion-3.0-plan/candidate-r1.md), [исходный текстовый ответ r1](reviews/centurion-3.0-plan/claude-r1-response.json), [проверенный кандидат r3](reviews/centurion-3.0-plan/candidate-reviewed.md), [канонический результат Claude](reviews/centurion-3.0-plan/claude-result.json), [receipts и проверки](reviews/centurion-3.0-plan/review-evidence.json), [решение владельца](reviews/centurion-3.0-plan/controller-acceptance.json). Полные HTML-страницы и временные scripts не являются runtime-зависимостью и в поставку не включаются. Внутренние thinking-блоки в публикуемые документы не переносятся.
 
-Документационный commit содержит только план, отчёт, необходимые review evidence и три исследовательских документа с явными ссылками на новый единственный план. Девять исходных изменений реализации сохраняются вне commit. Команды установки, push, tag и реализация N1–N8 на этом этапе не выполняются.
+Документационный commit содержит только план, отчёт, необходимые review evidence и исследовательские документы с явными ссылками на новый единственный план. Девять исходных изменений реализации сохраняются вне commit. Команды установки, push, tag и реализация N1–N8 на этом этапе не выполняются.
 
 ## 5. Дополнение 1.1: skills/tools
 
@@ -120,7 +120,7 @@ missing cross-skill ссылка и неполный optional paper override) и
 шаблонов не записаны как обязательные broken dependencies.
 
 Owner validation финальной редакции: покрытие 38/38 строк, 12 integration
-entrypoints, наличие A01–A20 и N1–N8, ссылки/Markdown diff, согласованность
+entrypoints, наличие A01–A24 и N1–N8, ссылки/Markdown diff, согласованность
 слоёв/бюджетов, сохранность SHA-256 девяти исходных dirty файлов. Новые
 проверки реализации 3.0 не запускались, поскольку менялись только документы.
 Ранее выполненные tool probes и ограничения Open Design/Hermes/researcher
@@ -130,4 +130,46 @@ entrypoints, наличие A01–A20 и N1–N8, ссылки/Markdown diff, с
 повторный полный Claude review не запускался. Ни положительные фразы Claude,
 ни этот отчёт не доказывают готовность runtime 3.0 или сравнительное
 превосходство моделей. Runtime files, глобальные settings и девять исходных
-runner изменений не входят в документационный commit 1.1.
+runner изменений не входят в документационный commit 1.2.
+
+## 6. Дополнение 1.2: туннель исполнителей
+
+После аудита актуальных поверхностей Hermes/Codex/Claude был отправлен отдельный
+read-only пакет Claude Opus. До вызова зафиксировано новое `ExecutionDecision`;
+входом были только план 1.2 и [аудит туннеля](CENTURION_3_0_EXECUTOR_TUNNEL_AUDIT_2026-10-16.md),
+tools не передавались, credentials не отправлялись. Вызов занял 278.99 секунд,
+завершился `end_turn`, provider сообщил `claude-opus-5-5`, `effort=high`,
+`max_tokens=24000`; ответ содержал пять существенных findings. Это advisory
+review документов, а не runtime acceptance.
+
+Кандидат до правок Claude:
+
+```text
+docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md 72463a7daac63b287a585f80d471f8ba27745da4eeb0f0f56a22e02b06928819
+docs/CENTURION_3_0_EXECUTOR_TUNNEL_AUDIT_2026-10-16.md edad8c763b103db9b678d254aeff984c20af07715e98e189bb8c6c16a752e7d6
+```
+
+Вердикт Claude: **REVISE**. Все findings обработаны в плане и аудите:
+
+| ID | Finding Claude | Решение владельца |
+| --- | --- | --- |
+| F1 | N3/N6 ссылались на live no-write proof N7, создавая обратную зависимость; обязательная correction-ветка была недостижима | Offline correction/disabled ветка теперь проверяется в N3/N6; одна harmless capability probe назначена preflight N2/N3 из прежнего бюджета. Live report-only включается только при capability receipt; иначе deterministic recovery и protocol failure без product replay |
+| F2 | Native schema могла пройти без обязательного reviewer verdict/findings binding | Зафиксирован `executorExtensions.review` только для review projection: `verdict`, `findings`, `reviewedOrderId`, `reviewedResultSha256`, `productSnapshotSha256`; missing binding — protocol failure, не повтор продукта |
+| F3 | Два create-only конверта report-attempt не имели canonical/idempotency semantics | Malformed candidate теперь protocol-failure receipt; canonical result создаётся один раз после валидного ответа; report attempt сохраняет исходный logical orderId, имеет отдельный namespace/receipt, downstream использует исходный result/acceptance, ключ `(mission, task, productAttempt, reportOrdinal=1)` защищает restart |
+| F4 | «8 запусков» смешивались с provider API calls и не имели проверяемых полей | В state добавлены именованные `modelLaunchesUsed`, `deadlineAt`, `productAttemptsUsed`, `reportAttemptsUsed`; launch резервируется до spawn, status check не расходует launch, API calls/tokens — telemetry без заявленного cap |
+| F5 | No-write мог породить второй enforcement/guard и не был связан с реальным CLI режимом | Назначены штатные CLI sandbox/tools как единственный no-write механизм, guard остаётся allowlist/diff; одна harmless deny-проба и capability manifest, новый framework не создаётся |
+
+Ответ Claude, receipt и order сохранены в
+`reviews/centurion-3.0-plan/tunnel-review-response.json`,
+`tunnel-review-receipt.json` и `tunnel-review-order.json`. SHA-256 итоговых
+документов после owner fixes фиксируются ниже. Повторный полный Claude review
+итоговых bytes не запускался; поэтому этот раздел не утверждает Claude ACCEPT
+финальной редакции. Acceptance — владельческое решение с перечисленными
+ограничениями и будущими N1–N7 proof.
+
+Итоговые bytes после owner fixes:
+
+```text
+docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md 73aa2e91b1a73f7426107f4599aaea6b39346f309c9ea2d5fa2b52820090ffff
+docs/CENTURION_3_0_EXECUTOR_TUNNEL_AUDIT_2026-10-16.md 1f972fcbca73fba44f2d0a09ee34983eafb121d6feb9385a326660a89bf3b9df
+```
