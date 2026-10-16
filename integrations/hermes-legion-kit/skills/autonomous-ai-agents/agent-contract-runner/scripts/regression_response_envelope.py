@@ -14,8 +14,8 @@ import tempfile
 from pathlib import Path
 
 from agent_contract_runner import PathPolicy, RunnerError, direct_response_paths, validate_order, verify_result
-from agent_result_builder import BuilderError, build_result
-from response_envelope import ResponseEnvelopeError, parse_response_bytes, validate_handoff_order, validate_response_handoff
+from agent_result_builder import BuilderError, build_result, native_result_schema, validate_review_binding
+from response_envelope import MAX_CANDIDATE_BYTES, ResponseEnvelopeError, parse_response_bytes, validate_handoff_order, validate_response_handoff
 from result_gateway import extract_stdout_candidate
 
 
@@ -84,6 +84,21 @@ def main():
         rejects(lambda: parse_response_bytes(content), "RESPONSE_FORMAT_ERROR")
     rejects(lambda: parse_response_bytes(b'```json\n{}\n```', allowed_transports=["raw_json"]), "RESPONSE_FORMAT_ERROR")
     print("PASS raw/fence/CRLF exact bytes and ambiguous, duplicate, nonfinite, UTF-8, surrogate, truncation rejection")
+    rejects(lambda: parse_response_bytes(b"x" * (MAX_CANDIDATE_BYTES + 1)), "RESPONSE_LIMIT_ERROR")
+
+    binding = {"reviewedOrderId": "original-order", "reviewedResultSha256": "1" * 64, "productSnapshotSha256": "2" * 64}
+    review_order = {"orderId": "review-order", "executor": "claude", "context": [{"policyVersion": "3.0", "reviewBinding": binding}],
+                    "inputResults": [{"orderId": binding["reviewedOrderId"], "resultSha256": binding["reviewedResultSha256"]}]}
+    route = {"executionProfile": "terminal_review"}
+    projection = native_result_schema(review_order, route)
+    assert "executorExtensions" in projection["required"]
+    assert projection["properties"]["executorExtensions"]["required"] == ["review"]
+    assert validate_review_binding({}, review_order, route)
+    review_payload = {"executorExtensions": {"review": {**binding, "verdict": "pass", "findings": []}}}
+    assert not validate_review_binding(review_payload, review_order, route)
+    review_payload["executorExtensions"]["review"]["productSnapshotSha256"] = "3" * 64
+    assert validate_review_binding(review_payload, review_order, route)
+    print("PASS derived native review projection requires exact original order/result/product binding")
 
     with tempfile.TemporaryDirectory(prefix="response-envelope-regression-") as directory:
         root = Path(directory)
@@ -147,6 +162,24 @@ def main():
             candidate, errors = extract_stdout_candidate(encoded(value), order, None, None)
             assert candidate is None and any(code in entry for entry in errors)
         print("PASS unsolicited role elevation, objective mismatch, and Claude inner surrogate fail closed")
+
+        order, payload, _, _ = fixture(root, "native-claude")
+        order["executor"] = payload["executor"] = "claude"
+        order["launch"]["command"] = "claude -p --json-schema '{}' --output-format json 'order prompt'"
+        terminal = {"type": "result", "subtype": "success", "is_error": False,
+                    "permission_denials": [], "structured_output": payload,
+                    "modelUsage": {"claude-opus-5-5": {"inputTokens": 1}}}
+        native_route = {"model": "claude-opus-5-5"}
+        candidate, errors = extract_stdout_candidate(encoded(terminal), order, None, native_route)
+        assert not errors and json.loads(candidate) == payload, errors
+        terminal["result"] = json.dumps(payload)
+        candidate, errors = extract_stdout_candidate(encoded(terminal), order, None, native_route)
+        assert candidate is None and any("ambiguous" in item for item in errors)
+        terminal.pop("result")
+        terminal["structured_output"]["orderId"] = "stale-order"
+        candidate, errors = extract_stdout_candidate(encoded(terminal), order, None, native_route)
+        assert candidate is None and any("orderId" in item for item in errors)
+        print("PASS Claude selected structured_output accepts valid identity and rejects dual/stale candidates")
 
         for executor in ("hermes_delegate_task", "agy"):
             for mode in ("fenced", "malformed"):

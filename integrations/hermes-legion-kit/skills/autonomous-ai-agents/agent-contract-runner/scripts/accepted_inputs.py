@@ -307,6 +307,60 @@ def _verify_one(repo: Path, current_order_id: str, item: dict[str, Any], index: 
         raise AcceptedInputError(f"inputResults[{index}] controller proof does not bind Gateway receipts")
     if proof.get("scope") != "post_execution_proof" or not isinstance(proof.get("observedChecks"), dict):
         raise AcceptedInputError(f"inputResults[{index}] controller proof lacks observed post-execution checks")
+    # V3 cannot inherit a pinned-but-malformed author response or a review of
+    # different attempt bytes. Imports stay local to avoid the runner boundary.
+    from order_preflight import controller_context
+    try:
+        context = controller_context(order)
+        if context is not None:
+            from agent_result_builder import PACKAGED_SCHEMA, _load_schema, validate_candidate
+            _, validator = _load_schema(PACKAGED_SCHEMA)
+            candidate_errors = validate_candidate(result, order, validator)
+            if candidate_errors:
+                raise AcceptedInputError("predecessor response validation failed: " + "; ".join(candidate_errors))
+            from response_envelope import parse_response_bytes
+            envelope = result.get("responseEnvelope")
+            if not isinstance(envelope, dict):
+                raise AcceptedInputError("predecessor lacks controller response envelope")
+            raw_path = _control_path(repo, predecessor_id, envelope.get("rawEvidencePath"), "response raw evidence")
+            normalized_path = _control_path(repo, predecessor_id, envelope.get("normalizedCandidatePath"), "normalized candidate")
+            raw, raw_hash = _read_bytes(repo, raw_path, "response raw evidence")
+            normalized, normalized_hash = _read_bytes(repo, normalized_path, "normalized candidate")
+            parsed = parse_response_bytes(raw, allowed_transports=order["outputContract"].get("acceptedTransports"))
+            author = {key: value for key, value in result.items() if key != "responseEnvelope"}
+            if (envelope.get("version") != "AGENT_RESPONSE_ENVELOPE_V1" or envelope.get("transport") != parsed.transport
+                or envelope.get("rawSha256") != raw_hash or envelope.get("normalizedSha256") != normalized_hash
+                or envelope.get("rawBytes") != len(raw) or envelope.get("normalizedBytes") != len(normalized)
+                or parsed.normalized_bytes != normalized or parsed.value != author):
+                raise AcceptedInputError("predecessor raw/candidate/result envelope binding mismatch")
+            review = result.get("executorExtensions", {}).get("review")
+            if review is not None and review.get("verdict") != "pass":
+                raise AcceptedInputError("predecessor review verdict is not pass")
+            if "reporting" in acceptance or "protocolFailure" in closure or closure.get("canonicalFinalized") is not True:
+                raise AcceptedInputError("report recovery is disabled without a proven no-write capability")
+            for label in ("stdout", "stderr", "candidate"):
+                capture = closure.get(label)
+                if not isinstance(capture, dict) or capture.get("complete") is not True:
+                    raise AcceptedInputError(f"predecessor {label} capture is incomplete")
+                capture_path = _control_path(repo, predecessor_id, capture.get("path"), f"closure.{label}.path")
+                content, capture_hash = _read_bytes(repo, capture_path, f"predecessor {label} capture")
+                if capture_hash != capture.get("sha256") or len(content) != capture.get("bytes"):
+                    raise AcceptedInputError(f"predecessor {label} capture digest/size mismatch")
+            if closure["candidate"]["sha256"] != raw_hash or closure["candidate"]["bytes"] != len(raw):
+                raise AcceptedInputError("predecessor captured candidate is not the original author envelope")
+            extraction = closure["candidate"].get("extraction")
+            if extraction is not None and extraction.get("rawSha256") != closure["stdout"].get("sha256"):
+                raise AcceptedInputError("predecessor extraction is not bound to raw stdout")
+            from review_ladder import validate_order_routing
+            import json
+            routing = validate_order_routing(order)
+            route_hash = hashlib.sha256(json.dumps(routing, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode()).hexdigest()
+            if start.get("routing") != routing or closure.get("routing") != routing or start.get("routingSha256") != route_hash or closure.get("routingSha256") != route_hash:
+                raise AcceptedInputError("predecessor routing binding mismatch")
+    except AcceptedInputError:
+        raise
+    except (ValueError, OSError, KeyError) as exc:
+        raise AcceptedInputError(f"predecessor 3.0 contract validation failed: {exc}") from exc
     if len({result_path, acceptance_path, proof_path, closure_path, start_path, order_path}) != 6:
         raise AcceptedInputError(f"inputResults[{index}] control paths must be distinct")
 
@@ -336,6 +390,8 @@ def _verify_one(repo: Path, current_order_id: str, item: dict[str, Any], index: 
                 matches.append(reported)
         if len(matches) != 1 or matches[0].get("exists") is not True:
             raise AcceptedInputError(f"inputResults[{index}] artifact is not reported as existing: {artifact_path}")
+        if context is not None and (matches[0].get("sha256") != expected["sha256"] or matches[0].get("mediaType") != expected["mediaType"]):
+            raise AcceptedInputError(f"inputResults[{index}] selected artifact metadata is not bound to original result")
         expected_artifacts.append({"path": str(artifact_path), "sha256": actual_hash, "mediaType": expected["mediaType"]})
 
     seen_orders.add(predecessor_id)

@@ -16,7 +16,7 @@ from unittest.mock import patch
 from jsonschema import Draft202012Validator, ValidationError
 
 import agent_result_builder as builder
-from agent_result_builder import BuilderError, build_result, resolve_schema_path
+from agent_result_builder import BuilderError, ProtocolFailure, build_result, resolve_schema_path
 
 
 ROOT = Path(tempfile.mkdtemp(prefix="agent-result-builder-regression-"))
@@ -283,6 +283,31 @@ def main() -> int:
         built, _, _, _ = finalized(f"preserve-{status}", status=status)
         assert built["status"] == status, f"valid {status} candidate must not be promoted"
     print("PASS blocked and failed candidate verdicts are preserved")
+
+    for name, raw in (("prose", b'prefix {}'), ("duplicate", b'{"a":1,"a":2}'), ("oversize", b'x' * (builder.MAX_CANDIDATE_BYTES + 1))):
+        order, candidate, result, evidence, product, _ = make_case(f"v3-{name}")
+        document = json.loads(order.read_bytes())
+        document.update(controller="Aquila", roleForTask="CODER", context=[{"policyVersion": "3.0"}])
+        document["outputContract"]["handoff"] = {
+            "version": "AGENT_HANDOFF_V1", "schemaId": "AGENT_RESULT_JSON_V1", "inReplyTo": document["orderId"],
+            "senderRole": "CODER", "recipientRole": "Aquila",
+        }
+        write_json(order, document)
+        candidate.write_bytes(raw)
+        before = product.read_bytes()
+        try:
+            build_result(order, candidate, result, evidence)
+        except ProtocolFailure as exc:
+            receipt = json.loads(exc.receipt.read_bytes())
+            assert receipt["canonicalFinalized"] is False
+            assert receipt["candidate"]["complete"] == (name != "oversize")
+            assert Path(receipt["candidate"]["path"]).read_bytes() == raw[:builder.MAX_CANDIDATE_BYTES]
+            assert receipt["reportRecovery"]["enabled"] is False
+            assert receipt["reportRecovery"]["productReplayAllowed"] is False
+        else:
+            raise AssertionError("3.0 malformed content must produce protocol failure")
+        assert not result.exists() and product.read_bytes() == before
+    print("PASS 3.0 malformed/oversized candidate retains bounded raw receipt without synthetic result or replay")
 
     order, candidate, result, evidence, product, _ = make_case("collision")
     result.write_text("existing result bytes\n", encoding="utf-8")

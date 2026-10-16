@@ -38,9 +38,10 @@ from agent_contract_runner import (
 )
 from agent_artifact_namespace import ArtifactNamespaceError, require_control_path
 from artifact_lineage import LineageError, finalize_lineage, preflight_lineage
-from agent_result_builder import BuilderError, _load_schema, _schema_errors, build_result, create_only_finalize, resolve_schema_path, validate_candidate
+from agent_result_builder import BuilderError, ProtocolFailure, _load_schema, _schema_errors, build_result, create_only_finalize, record_protocol_failure, resolve_schema_path, validate_candidate
+from order_preflight import PreflightError, _option_values, controller_context, executor_environment, load_tunnel_order, validate_tunnel_launch
 from review_ladder import RoutingError, validate_order_routing
-from response_envelope import ResponseEnvelopeError, parse_response_bytes, response_state_errors
+from response_envelope import MAX_CANDIDATE_BYTES, MAX_FRAME_BYTES, MAX_STDERR_BYTES, MAX_STDOUT_BYTES, ResponseEnvelopeError, parse_response_bytes, read_bounded_file, response_state_errors
 from accepted_inputs import AcceptedInputError, verify_input_results
 from strict_json import StrictJSONError, strict_json_load_bytes
 
@@ -79,9 +80,8 @@ def parse_timestamp(value: Any, label: str) -> datetime:
 
 def load_order(path: Path) -> tuple[dict[str, Any], bytes]:
     try:
-        content = path.read_bytes()
-        value = strict_json_load_bytes(content, "order")
-    except (OSError, StrictJSONError) as exc:
+        value, content = load_tunnel_order(path)
+    except (OSError, StrictJSONError, PreflightError, ResponseEnvelopeError) as exc:
         raise GatewayError(f"could not load order: {exc}") from exc
     if not isinstance(value, dict):
         raise GatewayError("order must be a JSON object")
@@ -442,16 +442,21 @@ def _run_child_streaming(
     timeout: int,
     grace_seconds: float,
     signal_group: Any,
-) -> tuple[bytes, bytes, bool, bool, str | None, str | None]:
+    max_stdout: int = MAX_STDOUT_BYTES,
+    max_stderr: int = MAX_STDERR_BYTES,
+    max_frame: int = MAX_FRAME_BYTES,
+    detect_claude_tool_loop: bool = True,
+) -> tuple[bytes, bytes, bool, bool, str | None, str | None, bool]:
     selector = selectors.DefaultSelector()
     streams: dict[int, str] = {}
-    chunks: dict[str, list[bytes]] = {"stdout": [], "stderr": []}
+    chunks: dict[str, bytearray] = {"stdout": bytearray(), "stderr": bytearray()}
     line_buffers: dict[str, bytes] = {"stdout": b"", "stderr": b""}
     tool_state = _claude_tool_event_state()
     tool_loop_error: str | None = None
     timed_out = False
     drain_timed_out = False
     termination_signal = None
+    capture_limited = False
 
     for label, stream in (("stdout", process.stdout), ("stderr", process.stderr)):
         if stream is None:
@@ -507,18 +512,35 @@ def _run_child_streaming(
                 chunk = os.read(stream.fileno(), 65536)
             except BlockingIOError:
                 continue
-            except OSError:
+            except OSError as exc:
+                tool_loop_error = f"executor stream capture failed: {exc}"
+                request_stop(tool_loop_error)
                 chunk = b""
             if not chunk:
                 selector.unregister(stream)
                 streams.pop(stream.fileno(), None)
                 continue
-            chunks[label].append(chunk)
-            if label != "stdout" or tool_loop_error is not None:
+            limit = max_stdout if label == "stdout" else max_stderr
+            if len(chunks[label]) + len(chunk) > limit:
+                allowed = max(0, limit - len(chunks[label]))
+                if allowed:
+                    chunks[label].extend(chunk[:allowed])
+                capture_limited = True
+                request_stop(f"{label} capture exceeded {limit} bytes", timeout_stop=False)
+                continue
+            chunks[label].extend(chunk)
+            if label != "stdout" or tool_loop_error is not None or capture_limited:
                 continue
             line_buffers[label] += chunk
             while b"\n" in line_buffers[label]:
                 line, line_buffers[label] = line_buffers[label].split(b"\n", 1)
+                if len(line) > max_frame:
+                    capture_limited = True
+                    request_stop("stdout frame limit exceeded")
+                    line_buffers[label] = b""
+                    break
+                if not detect_claude_tool_loop:
+                    continue
                 try:
                     event = strict_json_load_bytes(line, "Claude stream event")
                 except StrictJSONError:
@@ -529,7 +551,14 @@ def _run_child_streaming(
                 if loop_error is not None:
                     request_stop(loop_error)
                     break
+            if len(line_buffers[label]) > max_frame:
+                capture_limited = True
+                line_buffers[label] = b""
+                request_stop("stdout frame limit exceeded without newline")
     selector.close()
+    for stream in (process.stdout, process.stderr):
+        if stream is not None:
+            stream.close()
     if process.poll() is None:
         try:
             process.wait(timeout=grace_seconds)
@@ -540,12 +569,13 @@ def _run_child_streaming(
             except subprocess.TimeoutExpired:
                 drain_timed_out = True
     return (
-        b"".join(chunks["stdout"]),
-        b"".join(chunks["stderr"]),
+        bytes(chunks["stdout"]),
+        bytes(chunks["stderr"]),
         timed_out,
         drain_timed_out,
         termination_signal,
         tool_loop_error,
+        capture_limited,
     )
 
 
@@ -556,6 +586,7 @@ def run_child(
     grace_seconds: float,
     *,
     detect_claude_tool_loop: bool = False,
+    environment: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     started_at = utc_now()
     monotonic_started = time.monotonic()
@@ -563,6 +594,8 @@ def run_child(
         process = subprocess.Popen(
             argv,
             cwd=cwd,
+            stdin=subprocess.DEVNULL,
+            env=environment,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             start_new_session=True,
@@ -586,6 +619,7 @@ def run_child(
     drain_timed_out = False
     termination_signal = None
     capture_error = None
+    capture_limited = False
     tool_loop_error = None
     stdout = b""
     stderr = b""
@@ -615,34 +649,11 @@ def run_child(
                 pass
 
     try:
-        if detect_claude_tool_loop:
-            (
-                stdout,
-                stderr,
-                timed_out,
-                drain_timed_out,
-                termination_signal,
-                tool_loop_error,
-            ) = _run_child_streaming(process, timeout, grace_seconds, signal_group)
-        else:
-            stdout, stderr = process.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired as timeout_exc:
-        timed_out = True
-        termination_signal = "SIGTERM"
-        signal_group(signal.SIGTERM)
-        try:
-            stdout, stderr = process.communicate(timeout=grace_seconds)
-        except subprocess.TimeoutExpired as term_exc:
-            termination_signal = "SIGKILL"
-            signal_group(signal.SIGKILL)
-            try:
-                stdout, stderr = process.communicate(timeout=grace_seconds)
-            except subprocess.TimeoutExpired as kill_exc:
-                drain_timed_out = True
-                stdout = kill_exc.output or term_exc.output or timeout_exc.output or b""
-                stderr = kill_exc.stderr or term_exc.stderr or timeout_exc.stderr or b""
-                close_pipes()
-                bounded_wait()
+        (
+            stdout, stderr, timed_out, drain_timed_out, termination_signal,
+            tool_loop_error, capture_limited,
+        ) = _run_child_streaming(process, timeout, grace_seconds, signal_group,
+                                 detect_claude_tool_loop=detect_claude_tool_loop)
     except OSError as exc:
         capture_error = f"executor stream capture failed: {exc}"
         termination_signal = "SIGKILL"
@@ -658,6 +669,8 @@ def run_child(
         errors.append(capture_error)
     if tool_loop_error:
         errors.append(tool_loop_error)
+    if capture_limited:
+        errors.append("executor output capture exceeded the bounded frame/stream limit; captured bytes are incomplete")
     return {
         "childStarted": True,
         "startedAt": started_at,
@@ -670,17 +683,21 @@ def run_child(
         "stdout": stdout or b"",
         "stderr": stderr or b"",
         "error": "; ".join(errors) if errors else None,
+        "captureLimited": capture_limited,
     }
 
 
 def candidate_record(path: Path) -> tuple[dict[str, Any], bytes | None]:
     try:
-        content = path.read_bytes()
+        content, complete = read_bounded_file(path, MAX_CANDIDATE_BYTES)
     except FileNotFoundError:
         return {"path": str(path), "exists": False, "sha256": sha256_bytes(b""), "bytes": 0}, None
-    except OSError as exc:
+    except (OSError, ResponseEnvelopeError) as exc:
         return {"path": str(path), "exists": False, "sha256": None, "bytes": None, "error": str(exc)}, None
-    return {"path": str(path), "exists": True, "sha256": sha256_bytes(content), "bytes": len(content)}, content
+    record = {"path": str(path), "exists": True, "sha256": sha256_bytes(content), "bytes": len(content), "complete": complete}
+    if not complete:
+        record["error"] = "RESPONSE_LIMIT_ERROR: candidate capture is incomplete or changed while reading"
+    return record, content
 
 
 def parse_strict_candidate(content: bytes, label: str) -> tuple[Any, list[str]]:
@@ -694,6 +711,8 @@ def parse_claude_transport(content: bytes) -> tuple[Any, list[str]]:
     # A provider may return the complete canonical response in one clean JSON
     # fence.  Try the shared envelope parser before interpreting Claude's
     # structured event stream so the same boundary semantics apply to both.
+    if len(content) > MAX_STDOUT_BYTES:
+        return None, ["RESPONSE_LIMIT_ERROR: stdout exceeds byte limit"]
     try:
         parsed = parse_response_bytes(content, "stdout candidate")
         if parsed.transport == "json_fence" and not (isinstance(parsed.value, dict) and "resultVersion" in parsed.value):
@@ -709,6 +728,8 @@ def parse_claude_transport(content: bytes) -> tuple[Any, list[str]]:
             return None, [str(document_error)]
         events = []
         for line_number, line in enumerate(lines, start=1):
+            if len(line.encode("utf-8")) > MAX_FRAME_BYTES:
+                return None, ["RESPONSE_LIMIT_ERROR: JSONL frame exceeds byte limit"]
             if not line.strip():
                 return None, [f"stdout JSONL line {line_number} is empty"]
             try:
@@ -753,6 +774,7 @@ def extract_stdout_candidate(
     order: dict[str, Any],
     schema_path: Path | None,
     routing: dict[str, Any] | None,
+    extraction: dict[str, Any] | None = None,
 ) -> tuple[bytes | None, list[str]]:
     transport, parse_errors = parse_claude_transport(content)
     if parse_errors:
@@ -766,7 +788,13 @@ def extract_stdout_candidate(
         raise GatewayError(str(exc)) from exc
 
     if isinstance(transport, dict) and "resultVersion" in transport:
+        if "structured_output" in transport or "result" in transport:
+            return None, ["Claude stdout contains ambiguous canonical and wrapper candidates"]
+        if _option_values(shlex.split(order.get("launch", {}).get("command", "")), {"--json-schema"}):
+            return None, ["Claude native mode requires the selected structured_output wrapper"]
         validation_errors = validate_candidate(transport, order, validator)
+        if extraction is not None:
+            extraction.update(field="document", eventIndex=None)
         return content if not validation_errors else None, [
             f"stdout candidate validation failed: {error}" for error in validation_errors
         ]
@@ -805,13 +833,32 @@ def extract_stdout_candidate(
         transport_errors.append("Claude terminal permission_denials must be an array")
     elif permission_denials:
         transport_errors.append("Claude terminal permission_denials must be empty")
-    inner = terminal.get("result")
-    if not isinstance(inner, str) or not inner.strip():
+    structured = terminal.get("structured_output")
+    text_result = terminal.get("result")
+    native = bool(_option_values(shlex.split(order.get("launch", {}).get("command", "")), {"--json-schema"}))
+    if extraction is not None:
+        extraction.update(field="structured_output" if native else "result", eventIndex=terminal_index)
+    if structured is not None and text_result is not None and (not isinstance(text_result, str) or text_result.strip()):
+        transport_errors.append("Claude terminal has ambiguous structured_output and result candidates")
+    if native:
+        if not isinstance(structured, dict):
+            transport_errors.append("Claude native mode requires structured_output object")
+            inner_bytes = None
+        else:
+            try:
+                inner_bytes = json.dumps(structured, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            except UnicodeEncodeError:
+                transport_errors.append("Claude structured_output contains invalid Unicode")
+                inner_bytes = None
+    elif structured is not None:
+        transport_errors.append("Claude structured_output was not selected before launch")
+        inner_bytes = None
+    elif not isinstance(text_result, str) or not text_result.strip():
         transport_errors.append("Claude terminal result must be a non-empty JSON string")
         inner_bytes = None
     else:
         try:
-            inner_bytes = inner.encode("utf-8")
+            inner_bytes = text_result.encode("utf-8")
         except UnicodeEncodeError as exc:
             transport_errors.append(f"Claude terminal result is not valid UTF-8: {exc}")
             inner_bytes = None
@@ -919,9 +966,15 @@ def finalize_candidate(
     result_path: Path,
     evidence_dir: Path,
     schema_path: Path | None,
+    *, protocol_binding: dict[str, Any] | None = None, expected_order_sha256: str | None = None,
+    expected_candidate_sha256: str | None = None,
 ) -> dict[str, Any]:
     try:
-        return build_result(order_path, candidate_path, result_path, evidence_dir, schema_path)
+        return build_result(order_path, candidate_path, result_path, evidence_dir, schema_path,
+                            protocol_binding=protocol_binding, expected_order_sha256=expected_order_sha256,
+                            expected_candidate_sha256=expected_candidate_sha256)
+    except ProtocolFailure:
+        raise
     except (BuilderError, OSError) as exc:
         raise GatewayError(str(exc)) from exc
 
@@ -977,7 +1030,7 @@ def closure_payload(
     argv: list[str],
     child: dict[str, Any],
     result_path: Path,
-    result: dict[str, Any],
+    result: dict[str, Any] | None,
     candidate: dict[str, Any],
     stdout_record: dict[str, Any],
     stderr_record: dict[str, Any],
@@ -985,7 +1038,7 @@ def closure_payload(
     routing: dict[str, Any] | None,
     routing_sha256: str | None,
 ) -> dict[str, Any]:
-    result_bytes = result_path.read_bytes()
+    result_bytes = result_path.read_bytes() if result is not None else None
     command_fingerprint = sha256_bytes("\0".join(argv).encode("utf-8")) if argv else None
     return {
         "closureVersion": CLOSURE_VERSION,
@@ -999,7 +1052,7 @@ def closure_payload(
         "startReceiptSha256": start_receipt_sha256,
         "state": "closed",
         "launcherClosed": True,
-        "canonicalFinalized": True,
+        "canonicalFinalized": result is not None,
         "childStarted": child["childStarted"],
         "startedAt": gateway_started_at,
         "childStartedAt": child["startedAt"],
@@ -1014,8 +1067,8 @@ def closure_payload(
         "stdout": stdout_record,
         "stderr": stderr_record,
         "canonicalResultPath": str(result_path),
-        "canonicalResultSha256": sha256_bytes(result_bytes),
-        "canonicalStatus": result["status"],
+        "canonicalResultSha256": sha256_bytes(result_bytes) if result_bytes is not None else None,
+        "canonicalStatus": result["status"] if result is not None else None,
         "controllerErrors": errors,
         "routing": routing,
         "routingSha256": routing_sha256,
@@ -1052,6 +1105,7 @@ def main() -> int:
         if not math.isfinite(args.termination_grace_seconds) or args.termination_grace_seconds <= 0:
             raise GatewayError("--termination-grace-seconds must be a finite positive number")
         order, order_bytes = load_order(args.order)
+        is_v3 = controller_context(order) is not None
         try:
             _, policy = validate_order(order)
         except RunnerError as exc:
@@ -1108,6 +1162,11 @@ def main() -> int:
             if policy.control_path(output_path, "Astra advisory --output-last-message") != candidate_path:
                 raise GatewayError("Astra advisory output-last-message must match gateway candidate path")
         argv = plan_command(order)
+        if is_v3:
+            policy.control_cli_path(args.order, "3.0 original order")
+            validate_tunnel_launch(order, policy, candidate_path, args.candidate_source, args.schema, routing)
+            if (evidence_dir / "protocol-failure.json").exists():
+                raise GatewayError("protocol failure receipt already exists; product replay is disabled")
         try:
             _load_schema(resolve_schema_path(args.schema))
         except BuilderError as exc:
@@ -1173,6 +1232,7 @@ def main() -> int:
             order["launch"]["timeoutSeconds"],
             args.termination_grace_seconds,
             detect_claude_tool_loop=order["executor"] == "claude",
+            environment=executor_environment(order["executor"], dict(os.environ)) if is_v3 else None,
         )
         child_started = child["childStarted"]
         append_event_best_effort(
@@ -1188,9 +1248,12 @@ def main() -> int:
         )
         stdout_record, stdout_error = write_stream(stdout_path, child["stdout"], evidence_dir, "stdout")
         stderr_record, stderr_error = write_stream(stderr_path, child["stderr"], evidence_dir, "stderr")
+        for stream in (stdout_record, stderr_record):
+            stream["complete"] = not child.get("captureLimited", False) and not child["drainTimedOut"] and stream.get("captured") is True
         controller_errors = [error for error in (child.get("error"), stdout_error, stderr_error) if error]
+        extraction = {"version": "CLAUDE_OUTPUT_V1", "rawSha256": stdout_record["sha256"]}
         if args.candidate_source == "stdout" and not controller_errors:
-            extracted_candidate, stdout_errors = extract_stdout_candidate(child["stdout"], order, args.schema, routing)
+            extracted_candidate, stdout_errors = extract_stdout_candidate(child["stdout"], order, args.schema, routing, extraction)
             if stdout_errors:
                 controller_errors.extend(stdout_errors)
             else:
@@ -1202,6 +1265,8 @@ def main() -> int:
                     controller_errors.append(f"stdout candidate materialization failed at {candidate_path}: {exc}")
         candidate, candidate_bytes = candidate_record(candidate_path)
         candidate["source"] = args.candidate_source
+        if args.candidate_source == "stdout":
+            candidate["extraction"] = extraction
         strict_evidence_path = None
         if candidate.get("error"):
             controller_errors.append(f"candidate result could not be read at {candidate_path}: {candidate['error']}")
@@ -1212,7 +1277,18 @@ def main() -> int:
             if file_parse_errors:
                 strict_evidence_path = preserve_bytes(candidate_bytes, evidence_dir, "candidate-result")
                 controller_errors.extend(file_parse_errors)
-        if controller_errors:
+        protocol_receipt = None
+        protocol_binding = {"runId": run_id, "startReceiptPath": str(start_receipt_path),
+                            "startReceiptSha256": start_receipt_sha256, "routingSha256": routing_sha256}
+        if controller_errors and is_v3:
+            raw = child["stdout"] if args.candidate_source == "stdout" else candidate_bytes or b""
+            protocol_receipt = record_protocol_failure(
+                order, order_bytes, evidence_dir, raw, controller_errors,
+                complete=(stdout_record["complete"] if args.candidate_source == "stdout" else bool(candidate.get("complete", False))),
+                binding=protocol_binding,
+            )
+            result = None
+        elif controller_errors:
             failed_payload = synthetic_failed_result(
                 order,
                 candidate,
@@ -1222,7 +1298,21 @@ def main() -> int:
             )
             result = finalize_synthetic(args.order, order, result_path, evidence_dir, args.schema, failed_payload)
         else:
-            result = finalize_candidate(args.order, candidate_path, result_path, evidence_dir, args.schema)
+            try:
+                result = finalize_candidate(args.order, candidate_path, result_path, evidence_dir, args.schema,
+                                            protocol_binding=protocol_binding, expected_order_sha256=order_sha256,
+                                            expected_candidate_sha256=candidate["sha256"])
+            except ProtocolFailure as exc:
+                protocol_receipt = exc.receipt
+                controller_errors.append("candidate failed strict protocol validation")
+                result = None
+            except GatewayError as exc:
+                if not is_v3:
+                    raise
+                controller_errors.append(str(exc))
+                protocol_receipt = record_protocol_failure(order, order_bytes, evidence_dir, candidate_bytes or b"",
+                    controller_errors, complete=bool(candidate.get("complete", False)), binding=protocol_binding)
+                result = None
         closure = closure_payload(
             args.order,
             order,
@@ -1243,8 +1333,19 @@ def main() -> int:
             routing_sha256,
         )
         closure_bytes = (json.dumps(closure, indent=2, sort_keys=True) + "\n").encode("utf-8")
+        if protocol_receipt is not None:
+            closure["protocolFailure"] = {"path": str(protocol_receipt), "sha256": sha256_bytes(protocol_receipt.read_bytes())}
+            closure_bytes = (json.dumps(closure, indent=2, sort_keys=True) + "\n").encode("utf-8")
         closure_sha256 = sha256_bytes(closure_bytes)
         atomic_create(closure_path, closure_bytes)
+        if result is None:
+            if loop_lock is not None and events_path is not None:
+                block_loop_state_after_dispatch_failure(order, policy, events_path, RunnerError("protocol failure; no product replay"))
+            append_event_best_effort(events_path, "protocol_failure", orderId=order["orderId"], runId=run_id,
+                                     receiptPath=str(protocol_receipt), canonicalFinalized=False)
+            print(json.dumps({"status": "protocol_failure", "receiptPath": str(protocol_receipt),
+                              "closurePath": str(closure_path), "canonicalFinalized": False}, sort_keys=True))
+            return 124 if child["timedOut"] else 1
         append_event_best_effort(
             events_path,
             "canonical_finalized",
@@ -1266,6 +1367,8 @@ def main() -> int:
             rejection_reason = f"executor exit code {child['exitCode']}"
         elif result["status"] != "done":
             rejection_reason = f"executor result status {result['status']}"
+        elif is_v3 and routing is not None and routing["executionProfile"] == "terminal_review" and result["executorExtensions"]["review"]["verdict"] != "pass":
+            rejection_reason = f"review verdict {result['executorExtensions']['review']['verdict']}"
         else:
             try:
                 run_verification_gate(
@@ -1337,6 +1440,11 @@ def main() -> int:
                     raise GatewayError("result changed before terminal acceptance")
                 if sha256_bytes(proof_path.read_bytes()) != proof_sha256:
                     raise GatewayError("proof receipt changed before terminal acceptance")
+                if is_v3:
+                    for record, limit in ((candidate, MAX_CANDIDATE_BYTES), (stdout_record, MAX_STDOUT_BYTES), (stderr_record, MAX_STDERR_BYTES)):
+                        raw, complete = read_bounded_file(Path(record["path"]), limit)
+                        if not complete or sha256_bytes(raw) != record["sha256"] or len(raw) != record["bytes"]:
+                            raise GatewayError("raw capture changed before terminal acceptance")
             except (GatewayError, OSError, AcceptedInputError) as exc:
                 rejection_reason = str(exc)
                 if loop_snapshot is not None:
@@ -1389,7 +1497,7 @@ def main() -> int:
         if rejection_reason is not None:
             return 1 if result["status"] == "done" else 2
         return 0
-    except (GatewayError, RunnerError, RoutingError, LineageError, AcceptedInputError, OSError) as exc:
+    except (GatewayError, BuilderError, PreflightError, ResponseEnvelopeError, StrictJSONError, RunnerError, RoutingError, LineageError, AcceptedInputError, OSError) as exc:
         if child_started and loop_lock is not None and order is not None and events_path is not None and "policy" in locals():
             try:
                 block_loop_state_after_dispatch_failure(order, policy, events_path, RunnerError(str(exc)))
