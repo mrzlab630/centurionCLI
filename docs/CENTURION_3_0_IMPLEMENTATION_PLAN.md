@@ -2,7 +2,7 @@
 
 Дата: 2026-10-16. Целевая основная версия: **3.0**; текущая основная версия в README: 2.6. Ветка: `feat/centurioncli/v3-autonomous-team`; исходный HEAD: `ab1c851749baf4d6deb354c12c2f609498ca678a`.
 
-Версия плана: **1.0**. Реализация не начата. Статус независимой проверки и фиксации: [отчёт ревью](CENTURION_3_0_PLAN_REVIEW.md). Этот документ объединяет прежний план T1–T12, исследование моделей и аудит skills. После фиксации он становится единственным планом реализации 3.0; прежние документы остаются исследовательскими материалами, а не параллельными инструкциями.
+Версия плана: **1.1**. Реализация не начата. Статус независимой проверки и фиксации: [отчёт ревью](CENTURION_3_0_PLAN_REVIEW.md). Полный аудит skills/tools и toolchain находится в [CENTURION_3_0_SKILLS_TOOLS_AUDIT_2026-10-16.md](CENTURION_3_0_SKILLS_TOOLS_AUDIT_2026-10-16.md). Этот документ объединяет прежний план T1–T12, исследование моделей и аудит skills/tools. После фиксации он становится единственным планом реализации 3.0; прежние документы остаются исследовательскими материалами, а не параллельными инструкциями.
 
 ## 1. Результат версии и границы работы
 
@@ -19,6 +19,10 @@
 - Все восемь ошибочных назначений `mission-prep.mjs` воспроизведены повторно. В `review_ladder.minimum_profile` безопасный baseline даёт V0, а `no production changes`, `no dependency changes`, `no security impact` дают V3. Сужение путей в detector по-прежнему даёт `replan`.
 - Исторические a10–a12 имеют содержательный ACCEPT и controller rejection; a13 принят. Заказ `centurioncli-custody-preflight-legacy-adapter-20261010-a2` остановлен из-за bytecode при четырёх успешных проверках.
 - 38/38 корневых `SKILL.md` совпадают с установленными `~/.agents/skills`. Два управляющих Hermes SKILL.md расходятся с репозиторием; `review_ladder.py` совпадает. Это проверка файлов, не свидетельство фактически выбранной модели.
+- Полный surface-аудит: 38 корневых skills, 279 043 bytes/8 143 строк, 0 duplicate names и 0 drifted duplicates в охваченных roots. Это размер библиотеки, а не измеренный расход каждого запроса: активная загрузка должна быть progressive и conditional.
+- Инструментальный аудит выявил: Brave Search, Context7 и Playwright отвечают на безопасные capability probes; Camofox отвечает health, но browser не запущен; `researcher/check-deps.js` не находит `playwright-core` в собственном dependency path; HTTP 503 fixture для `deep-search.js` ошибочно завершает обработку как `No response` с кодом 0.
+- Repo surface audits Claude/Codex и Python script tests проходят. Open Design basic smoke проходит; полный cross-client/reference run из корня дал 61/64 из-за cwd-зависимости и изолированной Hermes install. Эти проверки не являются доказательством live model route или качества всех tools.
+- Принятое решение по surface: короткий core contract, остальные engineering/review/research/domain recipes подключаются по задаче; maintenance/legacy paths не входят в обычный dispatch. Полная матрица 38 skills и реестр ST01–ST17 определяют применимые изменения N5/N6; исключённые tools не становятся обязательными работами.
 - Повторно прошли пять существующих наборов: `regression_review_ladder.py`, `regression_order_preflight.py`, `regression_progress_drift_detector.py`, `regression_blocker_packet_projection.py`, `regression_legion_handoffs.py`. Они не доказывают отсутствие найденных ошибок: часть случаев не покрыта либо закрепляет прежнее поведение.
 - Перепроверены официальные OpenAI model/effort/API указания и источники прежнего исследования. Sol 6.1 с инструментами требует Responses; Luna с инструментами и выбранными `high/xhigh` также требует Responses. Поддержка у поставщика проверяется отдельным реальным вызовом, а не переносится из документации автоматически.
 - Публичные тесты не являются рейтингом тимлидов, гарантией независимости пары моделей или доказательством превосходства названий ролей. Официальные цены не участвуют в решении. Состав команды и предпочтение Opus для дизайна — исходная проектная политика, проверяемая пилотом.
@@ -43,6 +47,57 @@
 В рабочей копии сохранены девять исходных изменений runner/preflight/detector/blocker/schema. Их не считать принятыми автоматически. В N1 каждому назначается решение: переиспользовать после focused proof, адаптировать либо оставить вне поставки. Design-only trust schema не входит в минимальную 3.0. Ничего из этих исходных файлов не удаляется при фиксации плана.
 
 Версии различаются: **product 3.0.0** обозначает релиз, **policyVersion 3.0** — применяемые полномочия и routing, **stateVersion** — форму сохраняемого controller state, **kit version** — совместимость устанавливаемого пакета. Существующие order/result V1 не обязаны менять номер. Несовместимое обязательное поле, новый формат state или изменение authority/acceptance требуют явного перехода; багфикс не даёт старому order новых прав. Старый runtime может не понимать новый metadata: поэтому 3.0 dispatcher проверяет объявленную capability runtime до передачи заказа, а не надеется, что старый бинарник сам его отвергнет. Upgrade/rollback fixture проверяет эту границу.
+
+### 3.1. Активная поверхность skills и tools
+
+В 3.0 применяется одна карта загрузки:
+
+| Слой | Содержимое | Правило |
+| --- | --- | --- |
+| Core | Короткий контракт тимлида/исполнителя/reviewer, scope/result/proof, filesystem/git/terminal tools | Один controller; даже reviewer запускается только по §5. Планирование/context discipline не отдельные агенты |
+| On-demand | Engineering recipes (debug/test/refactor/git/docs), research, architecture, infra/security lenses, UI/design/Open Design, Telegram, i18n, game, marketing/content, SEO, on-chain/Solana, recon/SAST | Тимлид подключает только подходящие instructions/tools. Domain rules не меняют authority; общий учебник модели не нужен |
+| Maintenance | `artifex`, `skill-quartermaster`, `aquila-harness-audit`, `aquila-executor-eval`, `aquila-self-debug`, surface sync/install tools | Только release/maintenance order, не обычная миссия |
+| Legacy/excluded | Sonnet/Fable/Gemini routes, старый Sol-ID, `mission_control.py`, raw `evocate.sh`, global skill creation, mandatory tribunal/coverage/publish | Не dispatch-ить и не считать fallback; старые файлы могут оставаться для истории/regressions |
+
+Это обзор слоёв. Точная карта всех 38 исходных skills — колонка «Целевой слой»
+в §3 [аудита](CENTURION_3_0_SKILLS_TOOLS_AUDIT_2026-10-16.md).
+`orchestrator/planner/context-optimizer` объединяются в короткий core contract
+тимлида; не три одновременно загружаемых биографии и не три агента. Остальные
+функции, включая `prompt-engineer`, `capabilities`, `praemonitor`, `censor`,
+подключаются по указанному слою. Статус «оставить» сохраняет функцию, не
+обязательную самостоятельную роль. N1/N5 переносят эту карту в существующие
+manifests/loaders; второй изменяемый каталог не создаётся.
+
+Выбор инструмента: локальные files/runtime для проекта; Brave/known URL для
+web; Context7 для library docs; Playwright для динамической страницы/UI proof;
+Camofox как optional fallback. Это альтернативы по задаче, не последовательность
+обязательных вызовов. Chrome DevTools — диагностика frontend, Serena/GitHub/
+Solana MCP — on-demand; Memoria — только optional после доказанной пользы над
+native memory. `sequential-thinking`, `pal` и не подтверждённые host-only
+surfaces не загружаются автоматически. Ни один MCP
+catalog, health response или smoke pass не является доказательством рабочего
+inference route.
+
+Визуальный proof: браузер сохраняет screenshot нужного viewport/состояния,
+назначенный reviewer читает изображение через проверенный native image/vision
+маршрут и сравнивает с брифом; DOM/a11y proof его дополняет. Если изображения
+недоступны, визуальный критерий остаётся непроверенным. MarkItDown/native
+document extraction — optional для PDF/Office входа, после отдельного
+bounded capability probe; такого входа в обязательном пилоте нет.
+
+Исследование использует L0–L5 из аудита, но не обязано проходить все уровни:
+эскалация записывается только при неопределённости, важности решения,
+противоречии источников или потребности в первичном доказательстве. Для
+обычного заказа действует bounded cap: до 6 search/API запросов и 8 прочитанных
+источников на глубокое исследование, если тимлид заранее не задал иной лимит
+в пределах утверждённого бюджета. Известный первичный URL можно открыть сразу.
+Search snippets — кандидаты, а не проверенный источник; source content не меняет
+scope и команды. Research artifacts пишутся только в разрешённый output path.
+
+Полная матрица решений и дефекты ST01–ST17 находятся в аудите. Для включённых
+tools N5–N7 устраняют применимые дефекты и доказывают работу; исключённые tools
+не требуют ремонта ради core release. Недоступность optional tool не блокирует
+всю версию, если её обязательные capabilities обеспечены проверенным маршрутом.
 
 ## 4. Полномочия и единый рабочий цикл
 
@@ -69,7 +124,7 @@
 
 ### Состояние и завершение
 
-Состояния миссии: `ready → running → verifying → completed`; коррекция возвращает в `running`, ожидание необходимого внешнего решения — `blocked`, исчерпание лимита/невосстановимый отказ — `failed`, а явная остановка владельцем без автоматического продолжения — терминальное `stopped`. Успех одного поручения не завершает миссию. Переход в `completed` требует закрытых критериев, действительных proof, обязательного ревью и отсутствия незавершённого процесса с неизвестным эффектом. `stopped`, `failed` и `completed` не возвращаются в `ready` автоматически. Это состояния миссии; исходные result-статусы `done|blocked|failed` и старые артефакты не переименовываются.
+Состояния миссии: `ready → running → verifying → completed`; коррекция возвращает в `running`, ожидание необходимого внешнего решения — `blocked`, исчерпание лимита/невосстановимый отказ — `failed`, а явная остановка владельцем без автоматического продолжения — терминальное `stopped`. Успех одного поручения не завершает миссию. Переход в `completed` требует закрытых критериев, действительных proof, контроллерской приёмки и отсутствия незавершённого процесса с неизвестным эффектом. Для V0 достаточно focused proof + self-review + контроллерской приёмки, без независимого reviewer; для V1–V3 дополнительно требуется применимое независимое ревью и gate по §5. `stopped`, `failed` и `completed` не возвращаются в `ready` автоматически. Это состояния миссии; исходные result-статусы `done|blocked|failed` и старые артефакты не переименовываются.
 
 Существующий `execution_state.py` — **read-only projection из order/result/receipts**, а не хранилище событий или владелец миссии. Изменяемое состояние принадлежит controller в `agent_contract_runner.py`; переиспользуются `loopContract.statePath`, `LoopStateLock` и `atomic_write_loop_state`. В N1 выбранный файл состояния расширяется необходимыми mission metadata, а projection остаётся производной. Минимально требуются: mission ID, policy/state version, ссылка на утверждение, цель/non-goals, критерии, разрешённые действия/пути, лимиты, задания и зависимости, attempts, evidence, acceptance. Детальная JSON-форма фиксируется N1 внутри этого единственного источника; новая БД и дублирующая изменяемая mission state запрещены. Ledger — журнал наблюдений, не второй центр выдачи полномочий.
 
@@ -92,6 +147,13 @@
 | Визуальный дизайн | `claude-opus-5-5` `high` | Для первой 3.0 — ограниченный низкорисковый дизайн по фиксированному брифу, с допустимой V1-проверкой `gpt-6.1-sol`. Если фактический риск/неопределённость требует V2/V3, маршрут Opus не объявляется доступным без независимого gate; нельзя понижать классификацию ради запуска |
 | Независимое ревью реализации Sol/Luna | `claude-opus-5-5` `high`; выше — по конкретному риску | Отдельная сессия и исходные доказательства; неизменный результат не отправлять на повторное полное ревью |
 | Проверка низкорискового материала Opus | `gpt-6.1-sol` `high/xhigh` в отдельном запуске для автора `executor=claude`, `model=claude-opus-5-5`, при допустимом V1 | Не открывать обход medium/high-risk gate. Реализация Opus с обязательным V2/V3 остаётся вне первой 3.0 до отдельного доказанного независимого маршрута |
+
+Предпочтение Opus для дизайна не означает запрет Sol на UI. Если UI требует
+V2, применяется обычная реализация Sol по утверждённому брифу и независимое
+ревью Opus; Opus при этом не автор принимаемого дизайна/материала. V3 требует
+своего разрешения и остаётся закрытым без verifier. Уже созданный Opus
+кандидат V2/V3 нельзя переименовать в «авторство Sol» ради обхода gate: при
+отсутствии независимого маршрута задача блокируется с точной причиной.
 
 Sonnet и Fable исключены из целевого состава. Gemini и старые Sol/Opus не являются активными fallback 3.0. Отказ поставщика не разрешает понижать effort, менять семейство или модель молча. Можно повторить безопасный pre-side-effect запрос либо выбрать другой уже разрешённый маршрут, сохраняя scope и verification floor; после начала неизвестного побочного действия сначала recovery.
 
@@ -175,17 +237,22 @@ Sonnet и Fable исключены из целевого состава. Gemini 
 
 - Зависимости: N2–N4; конфликтующее правило править синхронно с соответствующим этапом, не ждать N5.
 - Владелец: тимлид/редактор; Opus проверяет конкретные authority-противоречия.
-- Короткие entrypoints: назначение, результат, границы, применимые действия. Общие recipes в references. Один исполнитель использует несколько skills; отдельные agents только по назначению.
-- Убрать перечисленные R13–R20 противоречия: reviewer fixes, любой failed test → fix, обязательные WAR ROOM/tribunal, coverage 80%, test/commit/revert каждой правки, автоматические helper/publish, стиль поверх брифа. Исправить обещание Ferrata/SICARIUS и неописанного Legatus описанием фактического workflow.
-- Пути: активные orchestrator/coder/reviewer/tester/refactorer/praemonitor/censor/prompt-engineer/aedilis/pictor/pontifex/error-handler/tabularius entrypoints, `CLAUDE.md`, kit templates/overrides. Все 38 entrypoints проверить на конфликт с authority; доменные references не переписывать массово без найденной проблемы.
-- Приёмка: один функциональный словарь; нет двух активных копий skills; модельная политика не дублируется в биографиях; optional improvement не порождает работу. Терминальный reviewer не правит продукт и не назначает следующего reviewer.
-- Proof: focused instruction search, skill surface/drift/eval, `regression_legion_handoffs.py`, acceptance fixtures. Размер библиотеки не подменяет измерение реально загружаемого контекста.
-- Результат: согласованный активный каталог и короткие управляющие инструкции; R13–R20 не остаются обязательными правилами в поставке.
+- Короткие entrypoints: назначение, результат, границы, применимые действия. Общие recipes в references. Один исполнитель использует несколько skills; отдельные agents только по назначению. Core/domain/maintenance/legacy карта из §3.1 становится единственным allowlist.
+- Убрать перечисленные R13–R20 и ST08/ST12 противоречия: reviewer fixes, любой failed test → fix, обязательные WAR ROOM/tribunal, coverage 80%, test/commit/revert каждой правки, автоматические helper/publish, абсолютные UI-догмы, стиль поверх брифа и старые model routes. Security/exploit/recon tools оставить только gated.
+- Перевести researcher на доступный native web/Brave/Context7/Playwright и L0–L5. `deep-search.js`/Perplexity и `browse.js` не обязательны: если выбран их optional adapter, до включения нужны один dependency manifest, status/schema/timeout/size handling, разрешённый output/cache и отсутствие общего `browse-latest.html` overwrite. `findskills --help`/deadline исправлять при включении maintenance discovery, а не как условие core release.
+- Обновить surface audits на integration skills и installed consumer roots; исключить `node_modules`, generated files и backups. `legion-skill-eval` должен проверять trigger-noise/mandatory-ceremony, комплектность активных references и active allowlist, а не только наличие строк. Portable skills не должны навязывать пути чужого проекта или его исторические constants.
+- Убрать отдельный `mission_control.py`/raw `evocate.sh` из нового entrypoint. Не включать Sonnet/Fable/Gemini/старый Sol-ID, sequential-thinking, `pal` и не подтверждённые host-only tools. Не переносить весь Antigravity toolkit; Open Design и Camofox остаются узкими adapters.
+- Пути: активные core entrypoints, domain packs, Claude/Codex/Hermes/Antigravity overrides и существующие audits. Все 38 root entrypoints и integration contracts проверить на authority; доменные references не переписывать массово без найденной проблемы.
+- Приёмка: один функциональный словарь и active allowlist; нет двух active copies; модельная политика не дублируется в skill biographies; optional improvement не порождает работу; research escalation bounded; reviewer не правит продукт и не назначает reviewer.
+- Proof: focused instruction search, skill surface/drift/eval, dependency/error fixtures включённых tools (например HTTP 503/empty output), `regression_legion_handoffs.py`, acceptance fixtures. Для отложенного adapter проверять отсутствие в поставке, не чинить его ради pass. Размер библиотеки не подменяет измерение реально загружаемого контекста.
+- Результат: согласованный active catalog, выборочное использование существующих native skill loaders и честные capability claims; новый loader framework не создавать. R13–R20/ST01–ST17 не остаются обязательными или скрытыми legacy правилами. Для исключённого tool достаточно отсутствия из active dispatch/install; отложенный ремонт не входит в acceptance релиза.
 
 ### N6. Подготовить единую поставку 3.0 в изолированной среде
 
 - Зависимости: N3–N5. Владелец: инженер/специалист поставки; Opus проверяет итоговый срез.
 - Direct/Gateway используют одно проверяющее ядро; старые завершённые артефакты доступны только как история. В installer fixture собрать полный активный комплект без старого conflicting override и без v2 fallback для новых миссий.
+- Installer allowlist разделяет core/domain/maintenance; не регистрирует автоматически Memoria, sequential-thinking, Gemini/agy или другие host-only routes. Package lockfiles и model IDs читаются обратно из установленного набора.
+- Изолировать Open Design cross-client fixture от реального auto-update/install Hermes и устранить cwd-зависимость fixture paths (ST13). Реальная установка проверяется отдельно; не чинить глобальное окружение или Matrix/python-olm как незапрошенную предпосылку аудита.
 - Version metadata: основное имя 3.0.0/rc до релиза; версии отдельных kits менять по фактическим breaking changes, сохраняя один manifest совместимости. Номер продукта не диктует новую JSON schema без необходимости.
 - Пути: существующие installers/smoke/package metadata, README/docs; exact install manifest фиксируется перед N8. Не трогать live homes на этом этапе.
 - Приёмка: cold install и upgrade fixture выбирают только политику 3.0; старые миссии не продолжаются автоматически; новый результат проходит полный цикл, включая одну коррекцию, formatting recovery и restart.
@@ -198,20 +265,22 @@ Sonnet и Fable исключены из целевого состава. Gemini 
 - Использовать существующий `aquila-executor-eval`; никаких новых benchmark/dashboard. Сначала весь набор §8 offline, затем шесть реальных миссий: micro; bugfix с новым файлом/тестом; UI по брифу; сложный анализ Astra; исправление после reviewer; работа с восстановлением/блокером.
 - До пилота проверить реальный supported route каждого выбранного провайдера, model/effort и tool round-trip. Для Sol/Luna применять Responses. Фактическое ограничение записи доказать harmless deny-case в выбранной среде. Не менять глобальный sandbox для имитации успеха.
 - Начальный предел пилота: до 8 capability/tool проб плюс шесть миссий по §4 (до 48 запусков); **общий максимум 56 inference-запусков и 5 часов wall time**, включая ранние пробы N2 и любые повторы. Внутри миссии остаются 8 запусков/45 минут; никаких дополнительных recovery-запусков вне лимита. При обходе authority или потере контроля — ранняя остановка. Неполный набор честно отмечается, не считается принятым пилотом.
+- Пробы имеют сублимит 30 минут/8 inference-запусков, включая ранние N2; далее P1–P6 по порядку, каждая до 45 минут/8 запусков: 30 + 6×45 = 300 минут. Сначала обязательные route/tool round-trip четырёх моделей, затем research retrieval и image/vision proof; harmless deny-case включается в соответствующую пробу. Optional Camofox/MarkItDown/Perplexity не вытесняют обязательные доказательства. Исчерпан сублимит или обязательный маршрут не подтверждён → остановка зависимой части; пилот неполон и не принят. Лимиты задают конечность, не гарантируют успех или максимальную длительность каждого API-вызова.
 - Приёмка: все критерии выбранных миссий выполнены, нет незапрошенных функций/обычных вопросов/пропущенных заложенных дефектов/неизвестных повторённых эффектов. Зафиксированы реальные остановки, latency и число повторов; цена у поставщика только если известна.
 - Для сравнения накладных расходов использовать доступные существующие baseline задачи; не запускать всю v2 заново и не объявлять процент экономии без сопоставимого baseline. Пилот проверяет пригодность, не статистическое лидерство моделей.
-- Proof/результат: один отчёт существующего eval с шестью строками миссий, exact inputs/model/effort, артефактами, решениями и счётчиками; отказ, timeout или непроведённый случай остаётся непрошедшим.
+- Включить в эти же 8 capability/tool probes исследование search → первичный source, Context7 docs и screenshot → native vision для P3; несколько наблюдений можно получить одним round-trip. Browser fallback только при trigger и остатке лимита. Зафиксировать dependency failures, tool round-trips и provenance; отсутствие `playwright-core` у выбранного CLI, HTTP/schema error или Camofox health без page extraction — непрошедшее capability. Отказ невыбранного optional tool не проваливает рабочий основной маршрут.
+- Proof/результат: один отчёт существующего eval с шестью строками миссий, exact inputs/model/effort, активными skills/tools, артефактами, решениями и счётчиками; отказ, timeout или непроведённый случай остаётся непрошедшим.
 
 | Миссия пилота | Фиксированный результат и проверка | Сценарии |
 | --- | --- | --- |
 | P1: опечатка | Одна заданная замена в README, никакого другого diff, Luna high/V0 | A01/A04/A16 |
 | P2: bugfix | Заданная ошибка локального endpoint; исправлен конкретный вход, необходимый новый файл/focused test, исходная чужая правка сохранена | A02/A04/A06 |
-| P3: UI | Форма по утверждённому брифу и референсу; проверены оговорённые состояния и viewport, нет нового OAuth/анимации/дизайн-фичи от reviewer | A03/A11/A12 |
+| P3: UI | Фиксированная низкорисковая локальная форма без backend/auth/payments: автор Opus high, отдельный reviewer Sol high/V1. Screenshot + vision сравнение с брифом и DOM/a11y proof состояний/viewport. Нет новых OAuth/анимации/дизайн-фич. Выявлен риск V2/V3 → этот маршрут не запускается, критерии не понижаются | A03/A11/A12/A19 |
 | P4: Astra | Read-only анализ специально подготовленной противоречивой зависимости; указана причина и проверяемый способ решения, продукт не изменён | A15/A16 и R21 |
 | P5: коррекция | Кандидат с известным нарушением критерия; Opus находит его, Sol исправляет, изменённое условие перепроверено, пожелание вне scope не реализовано | A03/A11/A12 |
 | P6: recovery | Безопасная fixture с прерыванием после intent/result и отсутствующим внешним разрешением; повтор неизвестного эффекта исключён, blocker адресован правильно | A07–A10/A13/A14 |
 
-Точные fixture bytes/брифы фиксируются перед первым запуском и не меняются ради зелёного результата. Таблица задаёт минимальный сценарий, а не разрешение строить шесть полноценных проектов. Полный A01–A16 остаётся offline proof; шесть live миссий не заменяют все комбинации recovery.
+Точные fixture bytes/брифы фиксируются перед первым запуском и не меняются ради зелёного результата. Таблица задаёт минимальный сценарий, а не разрешение строить шесть полноценных проектов. Полный A01–A20 остаётся offline proof; шесть live миссий не заменяют все комбинации recovery и tool failure. Research probes входят в существующие восемь проб; седьмой миссии и дополнительного бюджета не появляется.
 
 ### N8. Выпустить и отдельно внедрить проверенную версию
 
@@ -227,7 +296,7 @@ Sonnet и Fable исключены из целевого состава. Gemini 
 
 | ID | Сценарий | Ожидаемый результат |
 | --- | --- | --- |
-| A01 | Micro с точным oracle | Luna high, V0, один focused proof, без отдельного reviewer и вопросов |
+| A01 | Micro с точным oracle | Luna high, V0, один focused proof + self-review + контроллерская приёмка; completed без отдельного reviewer и вопросов |
 | A02 | Заказанной функции нужен новый файл и тест | Тимлид разрешает технический шаг, заказ завершён без нового Boss approval |
 | A03 | Дополнительная функция внутри разрешённого файла | Отклонена по смыслу заказа; путь не заменяет scope |
 | A04 | Неуказанный файл/rename/delete плюс dirty baseline | Фактическое изменение обнаружено; чужие правки сохранены |
@@ -243,6 +312,10 @@ Sonnet и Fable исключены из целевого состава. Gemini 
 | A14 | Старый order, отсутствующая policy, старый override | Новые полномочия не выданы; старая политика не активируется в 3.0 |
 | A15 | Недоступная модель, неверный effort, скрытый fallback | Нет молчаливой замены/понижения; requested/reported route виден |
 | A16 | Готовая работа и незакрытая задача | Готовая миссия завершается; незакрытый критерий не маскируется отчётом/exit code |
+| A17 | Skill/tool trigger не соответствует заказу | Domain/maintenance skill и tool не запускаются; micro проходит через core без лишних handoffs |
+| A18 | Research escalation | L1/L2 достаточны для простого факта; L3/L4/L5 включаются только с причиной, лимитом и provenance; snippets не принимаются за source |
+| A19 | Provider/tool error | HTTP error, missing dependency, timeout, empty/schema-invalid output и health-only response блокируют acceptance или переводят в честный fallback; нет `No response` success |
+| A20 | Legacy surface/model alias | Sonnet/Fable/Gemini/старый Sol-ID, `mission_control`, raw `evocate`, sequential-thinking и unverified MCP не получают active 3.0 authority |
 
 Каждый A-сценарий относится к существующему regression/eval, не создаёт новую универсальную suite. Невыполненный обязательный сценарий не отмечается pass. Старые S1–S14 покрываются A01–A16, а дополнительные случаи относятся к новой границе версии и реальным маршрутам.
 
@@ -260,10 +333,14 @@ Sonnet и Fable исключены из целевого состава. Gemini 
 | R22: source/installed drift | N6/N8; A14 и live canary |
 | R23–R24: обещания ролей/безопасности шире механизмов | N1/N3/N5; A03/A04/A13 и проверка границы записи |
 | R25: недостаточность smoke/model evidence | N7; полный offline набор и шесть реальных миссий |
+| ST01–ST07: audit/research/memory/legacy toolchain | N3/N5/N7; A17–A19 |
+| ST08–ST12: mandatory ceremonies, stale docs/routes, weak security claims | N2/N5/N6; A06/A17/A20 |
+| ST13–ST15: cwd/install/config drift and unproven host tools | N6/N7/N8; A14/A19/A20 |
+| ST16–ST17: broken references and project-specific data in portable skills | N5/N6; A17/A20 |
 
 ## 10. Фиксация плана и правило завершения работы
 
-В рамках текущего запроса: перепроверка данных → независимый Claude review → разбор замечаний и корректировка → фиксация документов в Git. Не начинать N1–N8 автоматически из факта фиксации плана. Пользовательские исходные изменения остаются вне документационного коммита; push/install/release не выполняются.
+В рамках текущего запроса: перепроверка данных → аудит skills/tools → независимый Claude review обновлённого кандидата → разбор замечаний и корректировка → фиксация документов в Git. Не начинать N1–N8 автоматически из факта фиксации плана. Пользовательские исходные изменения остаются вне документационного коммита; push/install/release не выполняются.
 
 Ревью получает ограниченный пакет: этот план, утверждённые пользовательские ограничения, реестр проблем и проверенные исходные фрагменты. Claude не правит проект, не запускает других агентов и не использует secrets. Точное содержимое кандидата связывается SHA-256 с результатом; ответ сохраняется отдельно от controller acceptance. Замечания принимаются по доказательствам, а не по авторитету модели.
 

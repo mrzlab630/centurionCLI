@@ -1,0 +1,117 @@
+{
+  "evidenceVersion": "CENTURION_SKILLS_TOOLS_REVIEW_V1",
+  "date": "2026-10-16",
+  "baseCommit": "7d1bd864a2d358c23f7249f869b54acc9d340883",
+  "orderId": "centurion-v3-skills-tools-review-20261016",
+  "context": {
+    "ExecutionDecision": {
+      "taskClass": "skills_tools_plan_review",
+      "complexity": "high",
+      "risk": "low",
+      "ambiguity": "medium",
+      "reversibility": "high",
+      "evidenceNeed": "high",
+      "executor": "claude",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "high",
+      "executionProfile": "read_only_advisory_review",
+      "verificationProfile": "owner_document_review",
+      "confidence": "high",
+      "reasons": [
+        "User requested Claude review of unified new-version plan and a complete skill/tool audit",
+        "One bounded consultation, no tool access, no filesystem writes by the model, no model changes"
+      ]
+    }
+  },
+  "scope": "Review supplied documentation only. Do not execute tools, change project files, install software, contact others, or request credentials.",
+  "receipt": {
+    "requestedModel": "claude-opus-5-5",
+    "requestedEffort": "high",
+    "inputHashes": {
+      "docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md": "07be8d45b1847ed7af704a319a1a1f4547d1128ee0298f0d11da4f1f353c30e7",
+      "docs/CENTURION_3_0_SKILLS_TOOLS_AUDIT_2026-10-16.md": "0334c513f9153cc352f33b2a43af093d025f1f7be5e183c331ec218f2d6a5eff"
+    },
+    "tools": [],
+    "credentialsSent": false,
+    "httpStatus": 200,
+    "reportedModel": "claude-opus-5-5",
+    "stopReason": "end_turn",
+    "elapsedSeconds": 314.6,
+    "responseSha256": "6d4c02a93593ce803ffb674dd3e84f4cf5be916d523ea9f2e33045b9c164a539",
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 30678,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+        "ephemeral_5m_input_tokens": 30678,
+        "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 19999,
+      "output_tokens_details": {
+        "thinking_tokens": 16578
+      },
+      "service_tier": "standard",
+      "inference_geo": "global"
+    },
+    "hasText": true
+  },
+  "responseText": "{\"verdict\":\"revise\",\"findings\":[{\"id\":\"F1\",\"severity\":\"high\",\"location\":\"docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md §3.1 vs docs/CENTURION_3_0_SKILLS_TOOLS_AUDIT_2026-10-16.md §3\",\"problem\":\"§3.1 объявляет четырёхслойную карту единственным allowlist, но она не размещает по слоям минимум десять решений аудита: planner, context-optimizer, praemonitor, censor, capabilities, prompt-engineer, error-handler, documenter. При этом Core §3.1 прямо утверждает, что планирование и context discipline не являются отдельными агентами, а аудит §3 оставляет planner в статусе оставить и context-optimizer в статусе обновить как активные skills. Два документа дают разный active set, поэтому приёмка N5 (один функциональный словарь и active allowlist) непроверяема, а ссылка плана на полную матрицу в аудите не устраняет расхождение, так как слой там не указан.\",\"fix\":\"Добавить в §3.1 явную таблицу 38 решений аудита с колонкой целевого слоя (core/on-demand/maintenance/legacy) либо указать слой в таблице аудита, и однозначно зафиксировать судьбу planner и context-optimizer: либо они встраиваются в короткий контракт тимлида и помечаются on-demand/не включать, либо остаются загружаемыми, что требует правки формулировки Core.\"},{\"id\":\"F2\",\"severity\":\"medium\",\"location\":\"docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md §4 (Состояние и завершение) vs §5 (Пропорциональная проверка) и §8 A01\",\"problem\":\"§4 делает переход в completed зависимым от обязательного ревью, тогда как V0 требует ровно обратного: независимый reviewer не нужен, достаточно focused proof, self-review и контроллерской приёмки (A01: без отдельного reviewer). Ни один пункт не говорит, что при V0 приёмка контроллера засчитывается как обязательное ревью, поэтому формально ни одна V0-миссия не может выполнить предикат завершения, а §5 добавляет рассогласование: reviewer=none при terminalGate.\",\"fix\":\"Сделать требование ревью уровнезависимым: при V0 обязательным ревью считается self-review плюс контроллерская приёмка, независимый reviewer обязателен начиная с V1; синхронно поправить формулировку §4 и A01, чтобы предикат completed был достижим без нового слоя классификации.\"},{\"id\":\"F3\",\"severity\":\"medium\",\"location\":\"docs/CENTURION_3_0_SKILLS_TOOLS_AUDIT_2026-10-16.md §5 (Остальные исполняемые компоненты) vs docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md §3.1\",\"problem\":\"Аудит назначает этапы N5/N6 исключённым из core инструментам: sicarius/scripts/exploit_verify.py, velites/scripts/recon.py (всегда семь COMMON_PORTS), haruspex/scripts/scan_code.py (bounded scope), artifex/scripts/init.js (жёсткий home output). Это противоречит принципу плана, что исключённые tools не требуют ремонта ради core release, и создаёт неявные работы внутри N1–N8, которых нет в §7 и §9, то есть объём ремонта не ограничен строгим scope.\",\"fix\":\"Вынести эти строки в отдельный отложенный список (только явный maintenance- или security-заказ), исключив их из состава и приёмки N1–N8; если какая-то из них нужна core release, обосновать это в §9 и показать соответствующую приёмку.\"},{\"id\":\"F4\",\"severity\":\"medium\",\"location\":\"docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md §5 (таблица маршрутов) vs §7 N7 P3 и §1\",\"problem\":\"Дизайн закреплён за Opus, и §5 запрещает обратный V1-маршрут Sol выше V1, а также объявляет Opus-работу с обязательным V2/V3 вне первой 3.0 без независимого gate. Другой дизайн-способной модели в составе нет, поэтому заказ UI/дизайна со средним риском не имеет маршрута до completed, хотя P3 пилота предполагает UI-миссию по брифу, а §1 оставляет дизайн в объёме версии. Риск: понижение классификации ради запуска Opus либо молчаливый обход floor.\",\"fix\":\"Зафиксировать честное поведение для этого класса: либо такие заказы уходят в blocked с конкретным внешним блокером, либо определить разрешённый маршрут без добавления моделей (автор Sol/Astra, независимый reviewer Opus), и в P3 явно указать, какой маршрут и какой V-уровень фактически проверяются.\"},{\"id\":\"F5\",\"severity\":\"medium\",\"location\":\"docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md §3.1 (выбор инструментов) и §7 N7 P3 vs docs/CENTURION_3_0_SKILLS_TOOLS_AUDIT_2026-10-16.md §5 (строки vision и markitdown)\",\"problem\":\"Перечень инструментов §3.1 не содержит native vision (screenshot review) и markitdown, тогда как приёмка P3 требует проверенных оговорённых состояний и viewport. Playwright даёт DOM/a11y snapshot, но не визуальное доказательство состояния, а markitdown закрывает вход PDF/Office. Ни один маршрут для этого не назван и ни один такой probe не заявлен, то есть полезная capability либо потеряна, либо будет предъявлена без доказательства.\",\"fix\":\"Назвать маршрут визуального proof (native screenshot плюс vision при необходимости) и определить markitdown как optional только при PDF/Office входе, добавив соответствующий проб в уже предусмотренные восемь; либо прямо записать, что для P3 принимаемым доказательством является DOM/a11y-уровень, без обещания визуальной проверки.\"},{\"id\":\"F6\",\"severity\":\"low\",\"location\":\"docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md §4 (плановая политика пилота) и §7 N7 (пределы пилота)\",\"problem\":\"Арифметика бюджета не сводится: шесть миссий по 45 минут дают 4.5 часа из 5 часов wall time, а из тех же 56 inference-запусков и 5 часов должны уложиться до 8 capability/tool проб, проверка supported route и tool round-trip по каждому выбранному провайдеру, harmless deny-case ограничения записи и ранние пробы N2. План требует одного общего счётчика, но не задаёт порядок приоритета и правило сокращения, поэтому приёмка N7 может стать недостижимой при заявленных лимитах, а формулировка про честно отмеченный неполный набор маскирует это как допустимый исход.\",\"fix\":\"Зарезервировать отдельный сублимит на пробы и проверки маршрутов, либо задать детерминированный порядок отказа и минимальный набор доказательств, который всё ещё считается валидным результатом пилота, сохранив общий потолок не выше 56 запусков и 5 часов.\"}],\"strengths\":[\"Границы доказательств сформулированы честно и операционно: smoke, health, наличие файла, конфигурация MCP и HTTP 200 прямо не считаются доказательством route, page extraction или качества модели; requested и reported model различаются, cost=unmeasured вместо фиктивного денежного cap.\",\"Исключённые маршруты не ремонтируются и не становятся fallback: Sonnet/Fable/Gemini, старый Sol-ID, mission_control.py, raw evocate.sh, pal, sequential-thinking, Memoria и host-only toolchains остаются вне dispatch, отдельные адаптеры (deep-search.js, browse.js, Perplexity, Monid) включаются только после устранения дефектов, что прямо отвечает требованию не чинить ненужное.\",\"Бюджет исследования ограничен по причине, а не по церемонии: L0–L5 как варианты с записанным основанием эскалации, cap 6 запросов и 8 источников, известный первичный URL сразу, snippets не источник, недоступная страница не считается прочитанной, а source content не меняет scope и команды.\",\"Пилот опирается на существующий aquila-executor-eval, фиксированные fixture bytes и шесть миссий вместо нового benchmark/dashboard или широкой live-кампании; отсутствие playwright-core, HTTP/schema error и health-only ответ явно засчитываются как непрохождение.\",\"Требование одного автономного тимлида и отсутствия обычных вопросов реализовано механизмом: снимок решения заказчика привязан к mission ID и policy, текст исполнителя не является разрешением, повторный вопрос ради уже данной авторизации прямо запрещён, а V3 остаётся закрытым без проверяемого разрешения.\"],\"limits\":[\"Репозиторий, артефакты аудита, реальные конфигурации провайдеров и live-поведение инструментов я не проверял; выводы сделаны только по тексту двух переданных документов и могут не учитывать состояние файлов, на которые они ссылаются.\",\"Оценка опирается на принятие приведённых в плане и аудите результатов проверок (38/38 совпадений SKILL.md, пройденные регрессии, результаты probes) как заявленных; подтвердить или опровергнуть их я не мог.\",\"Я не проверял внутренние формулировки §5 и таблицы A01–A20 за пределами процитированного текста, поэтому находка F2 сформулирована как внутреннее рассогласование документов, а не как утверждение о фактическом поведении runner.\"]}",
+  "responseTextSha256": "c154957809273bd5c9979f8f60ca32b7917893d64a92e85e33637d9f5e999b27",
+  "ownerResolutions": [
+    {
+      "findingId": "F1",
+      "resolution": "Accepted. The audit matrix now has a target layer for all 38 root skills; planner and context discipline are part of the short core contract, not separate agents."
+    },
+    {
+      "findingId": "F2",
+      "resolution": "Accepted. V0 completion now requires focused proof, self-review and controller acceptance; independent review starts at applicable V1-V3."
+    },
+    {
+      "findingId": "F3",
+      "resolution": "Accepted. Excluded wrappers are in a deferred list outside N1-N8 acceptance; they are only checked for absence from active dispatch/install."
+    },
+    {
+      "findingId": "F4",
+      "resolution": "Accepted with bounded clarification. Low-risk P3 uses Opus author plus Sol V1 review; ordinary Sol-author/Opus-review remains valid where the brief requires V2, and unavailable V2/V3 is a blocker rather than a downgraded route."
+    },
+    {
+      "findingId": "F5",
+      "resolution": "Accepted with scope limit. Screenshot plus native vision is explicit for P3; MarkItDown is optional only for matching inputs and is not a mandatory pilot dependency."
+    },
+    {
+      "findingId": "F6",
+      "resolution": "Accepted. Probes have a 30 minute/8 inference sub-limit, then P1-P6 run in order within the 300 minute/56 inference ceiling; an incomplete pilot is not accepted."
+    }
+  ],
+  "ownerAcceptance": {
+    "status": "accepted_for_documentation",
+    "finalArtifacts": {
+      "docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md": "82667bae22e0dec4bff0edabcd69cda538f3aee027f1b5bc82acb9cefb153619",
+      "docs/CENTURION_3_0_SKILLS_TOOLS_AUDIT_2026-10-16.md": "94fcac783f56ccf407b503efb135427f52553cd16c6af8dce5bf14fc53ad67fd"
+    },
+    "postReviewSourceFindings": [
+      "ST16",
+      "ST17"
+    ],
+    "postReviewClaudeRun": false,
+    "originalDirtyFilesPreserved": 9,
+    "proof": [
+      "38/38 root skill rows with target layers",
+      "12/12 integration entrypoints inventoried",
+      "A01-A20 and N1-N8 preserved",
+      "Markdown relative targets resolved",
+      "git diff --check",
+      "9/9 original dirty files SHA-256 unchanged"
+    ],
+    "runtimeImplemented": false
+  },
+  "limitations": [
+    "Claude reviewed the two supplied documents only and did not inspect the repository or execute tools.",
+    "The final post-review bytes were checked by the owner; no second full Claude review was run after these edits.",
+    "This review does not prove model quality, live provider routing, installation readiness or runtime completion.",
+    "The response is an advisory document review, not an AGENT_RESULT_JSON_V1 runner acceptance.",
+    "Open Design full run was 61/64; two cwd-dependent failures subsequently passed targeted reruns, and the isolated Hermes installation failure remains.",
+    "Full Hermes umbrella smoke was interrupted; no final pass is claimed.",
+    "Excluded optional tools do not need repair for the core release."
+  ]
+}
