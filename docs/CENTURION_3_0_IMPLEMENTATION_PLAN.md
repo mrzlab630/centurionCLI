@@ -2,7 +2,7 @@
 
 Дата: 2026-10-16. Целевая основная версия: **3.0**; текущая основная версия в README: 2.6. Ветка: `feat/centurioncli/v3-autonomous-team`; исходный HEAD: `ab1c851749baf4d6deb354c12c2f609498ca678a`.
 
-Версия плана: **1.4**. Реализация не начата. Статус независимой проверки и фиксации: [отчёт ревью](CENTURION_3_0_PLAN_REVIEW.md). Полный аудит skills/tools и toolchain находится в [CENTURION_3_0_SKILLS_TOOLS_AUDIT_2026-10-16.md](CENTURION_3_0_SKILLS_TOOLS_AUDIT_2026-10-16.md), аудит туннеля исполнителей — в [CENTURION_3_0_EXECUTOR_TUNNEL_AUDIT_2026-10-16.md](CENTURION_3_0_EXECUTOR_TUNNEL_AUDIT_2026-10-16.md), а проверка полноты — в [CENTURION_3_0_COVERAGE_AUDIT_2026-10-16.md](CENTURION_3_0_COVERAGE_AUDIT_2026-10-16.md). Этот документ объединяет прежний план T1–T12, исследование моделей, аудит skills/tools, канонический handoff и текущую проверку покрытия. После фиксации он становится единственным планом реализации 3.0; прежние документы остаются исследовательскими материалами, а не параллельными инструкциями.
+Версия плана: **1.5**. Создание версии разрешено новым поручением пользователя; порядок исполнения — §11. Проверка 1.4 в отчёте историческая и не является приёмкой реализации. Статус независимой проверки и фиксации: [отчёт ревью](CENTURION_3_0_PLAN_REVIEW.md). Полный аудит skills/tools и toolchain находится в [CENTURION_3_0_SKILLS_TOOLS_AUDIT_2026-10-16.md](CENTURION_3_0_SKILLS_TOOLS_AUDIT_2026-10-16.md), аудит туннеля исполнителей — в [CENTURION_3_0_EXECUTOR_TUNNEL_AUDIT_2026-10-16.md](CENTURION_3_0_EXECUTOR_TUNNEL_AUDIT_2026-10-16.md), а проверка полноты — в [CENTURION_3_0_COVERAGE_AUDIT_2026-10-16.md](CENTURION_3_0_COVERAGE_AUDIT_2026-10-16.md). Этот документ объединяет прежний план T1–T12, исследование моделей, аудит skills/tools, канонический handoff и текущую проверку покрытия. После фиксации он становится единственным планом реализации 3.0; прежние документы остаются исследовательскими материалами, а не параллельными инструкциями.
 
 ## 1. Результат версии и границы работы
 
@@ -426,8 +426,83 @@ adapter требует своей пробы в этом же резерве л�
 
 ## 10. Фиксация плана и правило завершения работы
 
-В рамках текущего запроса: перепроверка данных → аудит skills/tools и взаимодействия исполнителей → независимый Claude review обновлённого кандидата → разбор замечаний и корректировка → traceability-аудит покрытия → фиксация документов в Git. Не начинать N1–N8 автоматически из факта фиксации плана. Пользовательские исходные изменения остаются вне документационного коммита; push/install/release не выполняются.
+Предыдущий запрос завершён фиксацией плана 1.4. Новый запрос пользователя разрешает реализацию по этому единому плану, назначение субагентов под управлением GPT-6.1 Sol и проверку их результата. Рабочая область — отдельная implementation worktree; исходные пользовательские изменения сохранены в прежней worktree. Push, production changes и установка в рабочий Hermes не разрешаются самим фактом реализации.
 
 Ревью получает ограниченный пакет: этот план, утверждённые пользовательские ограничения, реестр проблем и проверенные исходные фрагменты. Claude не правит проект, не запускает других агентов и не использует secrets. Точное содержимое кандидата связывается SHA-256 с результатом; ответ сохраняется отдельно от controller acceptance. Замечания принимаются по доказательствам, а не по авторитету модели.
 
 После разбора замечаний статус плана обновляется; решения и остаточные ограничения фиксируются в отдельном отчёте ревью. Реализация принимается только после соответствующих N-stage checks; никакой документ или положительный вердикт Claude не объявляет CENTURION 3.0 готовой системой.
+
+## 11. Исполняемый план создания версии 3.0
+
+Этот раздел превращает N1–N8 в один управляемый граф работ. Он не создаёт
+второй план, новый controller или дополнительные модели. Тимлид владеет
+границами, интеграцией и финальным решением; субагенты под управлением
+`gpt-6.1-sol` изменяют только назначенные им непересекающиеся поверхности.
+
+### 11.1. Общий порядок
+
+1. **Freeze и baseline.** Тимлид фиксирует commit, dirty baseline, разрешённые
+   пути и текущие regression commands. Пользовательские изменения не становятся
+   частью 3.0 автоматически.
+2. **N1 contract gate.** Фиксируются policy/state/tunnel contracts, единственный
+   Gateway launcher, routing source и границы старых orders. Без этого gate
+   остальные изменения не принимаются.
+3. **N2 routing gate.** Обновляются model/effort/risk floors и routing fixtures.
+   Luna работает только на `high|xhigh`; Sol является основным тимлидом и
+   исполнителем сложных задач; Astra остаётся read-only advisory; Opus —
+   независимый reviewer и специалист по дизайну.
+4. **N3/N4 execution gate.** Собираются preflight, adapters, bounded capture,
+   create-only result/recovery и один controller loop. Product effect и report
+   attempt имеют разные idempotency keys; malformed report не повторяет продукт.
+5. **N5 skills gate.** В активный core попадает только короткий контракт;
+   domain skills/tools загружаются условно. Legacy/maintenance surface не
+   получает dispatch authority. Проверяется loaded chain bundle → skills →
+   project/global instructions → hooks/MCP.
+6. **N6 isolated release candidate.** Сборка и install fixture выполняются в
+   изолированных homes/config. Проверяются source/installed hashes, capabilities,
+   rollback и отсутствие v2 fallback. Рабочий Hermes не изменяется.
+7. **N7 pilot gate.** В изолированной сборке выполняются offline A01–A30 и
+   ограниченный P1–P6 с общими лимитами плана. Отсутствующее capability или
+   неполный сценарий остаются `not_run`/failed и блокируют принятие.
+8. **N8 release decision.** Тимлид проверяет полный diff, результаты, риски и
+   готовность rollback. Установка в рабочую среду не выполняется без отдельного
+   разрешения на конкретный manifest и canary.
+
+### 11.2. Пакеты субагентов
+
+| Пакет | Исполнитель | Зависимость | Разрешённая поверхность | Обязательный результат |
+| --- | --- | --- | --- | --- |
+| W1 · routing/contract | Sol-1 | Freeze; N1→N2 | `review_ladder.py`, routing references, `mission-prep.mjs`, routing regressions | Один routing source; корректные model/effort/reviewer floors; все восемь routing cases проходят |
+| W2 · tunnel/admission | Инженер Sol под управлением Sol-тимлида | N1; согласованные W1/W3 interfaces | `order_preflight.py`, `response_envelope.py`, `agent_result_builder.py`, `result_gateway.py`, `accepted_inputs.py`, связанные regressions | Strict ingress, bounded capture, review binding, no replay и protocol-failure receipts |
+| W3 · lifecycle/recovery | Sol-тимлид, владелец интеграции | N1; приёмка после W2 | `agent_contract_runner.py`, `execution_state.py`, `attempt_ledger.py`, `progress_drift_detector.py`, `blocker_packet_projection.py`, lifecycle regressions | Один writer/lock, Gateway-only launch, budget/deadline/cancel, compaction reload, unknown-effect recovery, no-progress и idempotent restart |
+| W4 · skills/release | Sol-4 | W1–W3 contracts | active skills/manifests, Hermes/Codex/Claude kit surfaces, installer/smoke fixtures, related docs/tests | Progressive loading map, legacy exclusion, loaded-chain readback, isolated install/rollback fixture |
+
+Sol-тимлид работает в отдельной integration worktree; пакеты получают отдельные
+worktree-ветки либо непересекающиеся файлы этой worktree по записанному назначению.
+Одновременно у тимлида не более двух исполнителей; после завершения пакета
+агента можно назначить на следующий. Изменения W2/W3 разрабатываются после
+согласования интерфейсов, но принимаются в порядке N3 → N4. Агент не
+трогает чужие файлы, рабочий Hermes, глобальные settings, credentials, install
+targets или production. Если изменение требует пересечения поверхностей, агент
+останавливается с вопросом к тимлиду и не редактирует чужой файл. Каждый агент
+возвращает список файлов, команды proof, фактический diff, ограничения и
+остаточные риски; утверждение текста агента не заменяет проверку контроллера.
+
+### 11.3. Интеграция и проверки
+
+- После W1 тимлид запускает routing regressions и проверяет, что dirty baseline
+  сохранён. При провале W2–W4 не стартуют.
+- После W2/W3 тимлид запускает полный offline runner set, затем проверяет
+  межпакетные contract fixtures A07–A10, A21–A30. Никакие legacy green tests
+  не переименовываются в pass 3.0.
+- После W4 тимлид проверяет loaded-chain manifest, source/installed readback и
+  isolated smoke. Внешние provider calls и live correction разрешаются только
+  внутри N7 budget и capability receipts.
+- Тимлид проводит итоговый review staged diff: scope, ownership, security,
+  tests, no-op/stub search, failure paths, process termination и сохранность
+  девяти исходных runtime-файлов в исходной worktree. Их копии в implementation
+  worktree адаптируются только по явному решению N1. Reviewer не назначает сам себя и не запускает
+  дополнительные циклы review-of-review.
+- Версия считается готовой только если N1–N7 имеют evidence и все обязательные
+  gates пройдены. Иначе итоговый статус `blocked`/`failed` с конкретным
+  boundary; N8 и live install не считаются выполненными.

@@ -1,0 +1,81 @@
+{
+  "orderId": "centurion-v3-implementation-20261016",
+  "createdAt": "2026-10-16",
+  "scope": "Implement and verify repository version 3.0 per the single plan 1.5; no live installation, deploy, production mutation, credential change, push or publication.",
+  "context": {
+    "ExecutionDecision": {
+      "taskClass": "version_implementation_coordination",
+      "complexity": "high",
+      "risk": "medium",
+      "ambiguity": "high",
+      "reversibility": "high",
+      "evidenceNeed": "high",
+      "executor": "collaboration_agent",
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "xhigh",
+      "executionProfile": "implementation_lead_with_bounded_workers",
+      "verificationProfile": "independent_opus_review_and_root_acceptance",
+      "confidence": "high",
+      "reasons": [
+        "User explicitly requested subagents managed by gpt-6.1-sol and final verification.",
+        "Plan 1.5 preserves reviewed requirements; root retains final architecture/security/acceptance decisions."
+      ]
+    }
+  },
+  "repository": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation",
+  "branch": "feat/centurioncli/v3-implementation",
+  "plan": {
+    "path": "docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md",
+    "version": "1.5",
+    "sha256": "9c6b203755b8beca59d0ea82d33a7427e71b3aed751171510ee73d8234433e89",
+    "ownerCheck": "requirements_and_work_ownership_checked"
+  },
+  "baseline": {
+    "commit": "71d2b9327901a9ac9ea2464fc663345f5c45c847",
+    "originalWorktree": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-gpt6-main",
+    "backupRoot": "/tmp/centurion-v3-implementation-hjr_gs82",
+    "dirtyFileSha256": {
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/references/autonomy-authority.schema.json": "5865a69b2140025961da09e4770dbc51e7a1b98e8280211dff80f14640b36b29",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/references/autonomy-trust-contract-design.md": "4b1ce7b873d6b8e3edbac3c28a4e8bde4c9ee943b5d7a3d185bcfa94d7d45aec",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/blocker_packet_projection.py": "230a72d946c2843b7c2fb8d7b21f139c03e3d5b2956e808ff993247c34be50dc",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/order_preflight.py": "324c1d10543464a429380dc7b83d760431e680fae5c0a2e82ea1052a8c93064a",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/progress_drift_detector.py": "ebd15933f34ed6fb9f80b8c6b56d2429cf1063a2b5334f4321c59f7b30b6e8cb",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_blocker_packet_projection.py": "6d947ac60cb5273e3423f7be4c92d2100d6ff9681e5dde236b2a0f9c317a1f9d",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_order_preflight.py": "07f9d3c37ac59eeef364856e91065d396b88e79518e83b705cf1c75ee5ddb3ac",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_progress_drift_detector.py": "35505ceba62f597a1feeaa2b2dc030a40bb7e5d92378a23d0b48a0387f28d35e",
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": "32816da3e30d4e6f847edf03d3ed7d674cdcbec5ca9461d09e3be6ca185230c7"
+    }
+  },
+  "stageSequence": [
+    "N1 contract",
+    "N2 routing",
+    "N3 tunnel",
+    "N4 lifecycle",
+    "N5 skills",
+    "N6 isolated candidate",
+    "N7 bounded pilot",
+    "N8 readiness only; live cutover excluded"
+  ],
+  "delegation": {
+    "maxConcurrentWorkers": 2,
+    "allowSubagents": true,
+    "workerModel": "gpt-6.1-sol",
+    "writeOwnership": "W1/W2/W3/W4 per plan; lead owns W3 and integration; no overlapping concurrent writers; no subagent commits without lead coordination"
+  },
+  "outputContract": {
+    "resultVersion": "AGENT_RESULT_JSON_V1",
+    "resultPath": "/tmp/centurion-v3-implementation-hjr_gs82/SOL_LEAD_RESULT.json"
+  },
+  "acceptance": [
+    "Implement requested behavior, not only helper stubs or pure fixture paths.",
+    "Each A01-A30 maps to exercised code and proof; record not-run cases honestly.",
+    "All applicable existing regressions and isolated packaging checks pass.",
+    "Evidence distinguishes offline proofs, real provider/model/tool probes, and production installation.",
+    "Root reviews actual diff and reruns relevant proof; independent Claude Opus reviews meaningful changes."
+  ],
+  "stopConditions": [
+    "Actual unauthorized external side effect or lost process control.",
+    "Exhausted bounded N7 pilot budget; do not fabricate pass or silently downgrade.",
+    "Need for credentials/live production mutation outside user authority; continue independent work."
+  ]
+}
