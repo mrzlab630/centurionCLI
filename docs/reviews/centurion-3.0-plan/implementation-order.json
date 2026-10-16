@@ -27,8 +27,9 @@
   "plan": {
     "path": "docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md",
     "version": "1.5",
-    "sha256": "9c6b203755b8beca59d0ea82d33a7427e71b3aed751171510ee73d8234433e89",
-    "ownerCheck": "requirements_and_work_ownership_checked"
+    "sha256": "3af4c35493fbd80f8739c0916c64a5e77b374f4e8a0f4eaae34c3741bb48750a",
+    "ownerCheck": "requirements_and_ownership_checked; N1 execution addendum recorded after Opus document ACCEPT",
+    "reviewedSha256": "9c6b203755b8beca59d0ea82d33a7427e71b3aed751171510ee73d8234433e89"
   },
   "baseline": {
     "commit": "71d2b9327901a9ac9ea2464fc663345f5c45c847",

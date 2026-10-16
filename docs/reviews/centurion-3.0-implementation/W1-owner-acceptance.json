@@ -1,0 +1,30 @@
+{
+  "package": "W1",
+  "branch": "feat/centurioncli/v3-routing",
+  "workerCommit": "165eef6",
+  "integrationCommit": "ae4e414",
+  "requestedModel": "gpt-6.1-sol",
+  "requestedEffort": "xhigh",
+  "runtime": "Codex CLI 0.163.0, cliproxyapi Responses",
+  "status": "accepted_for_integration",
+  "scope": "routing policy and mission-prep hints only",
+  "filesChanged": [
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/review_ladder.py",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_review_ladder.py",
+    "skills/orchestrator/scripts/mission-prep.mjs",
+    "skills/tester/scripts/legion-skill-eval.mjs"
+  ],
+  "ownerProof": [
+    {"command": "PYTHONDONTWRITEBYTECODE=1 python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_review_ladder.py", "status": "pass", "detail": "19 PASS groups after final launcher edits"},
+    {"command": "node skills/tester/scripts/legion-skill-eval.mjs", "status": "pass", "detail": "all checks passed, including all 16 routing cases; root environment resolved worker sandbox EPERM"},
+    {"command": "git diff --check", "status": "pass"},
+    {"command": "SHA-256 comparison of original nine dirty files against baseline.json", "status": "pass", "detail": "all nine unchanged"}
+  ],
+  "scopeDeviations": [],
+  "remainingRisks": [
+    "Independent Opus implementation review is pending for the integrated candidate.",
+    "W2/W3/W4 and N7 are not accepted by this receipt.",
+    "Codex reported model metadata missing for gpt-6.1-sol; requested model is recorded, upstream identity is not independently attested.",
+    "Routing floors depend on trusted controller classification; keyword hints do not grant authority."
+  ]
+}
