@@ -59,6 +59,51 @@ function missionPrep(task) {
 
 const routeCases = [
   {
+    task: 'review code diff',
+    primary: 'reviewer',
+    guardianGate: false,
+  },
+  {
+    task: 'add unit tests for API handler',
+    primary: 'tester',
+    guardianGate: false,
+  },
+  {
+    task: 'update PostgreSQL database schema',
+    primary: 'pontifex',
+    forbidden: ['indagator'],
+    guardianGate: true,
+  },
+  {
+    task: 'сделай миграцию базы PostgreSQL',
+    primary: 'pontifex',
+    forbidden: ['ludifex', 'indagator'],
+    guardianGate: true,
+  },
+  {
+    task: 'fix bug in product title',
+    primary: 'coder',
+    forbidden: ['reviewer', 'security'],
+    guardianGate: false,
+  },
+  {
+    task: 'fix typo in README, no production changes',
+    primary: 'documenter',
+    forbidden: ['reviewer', 'security'],
+    guardianGate: false,
+  },
+  {
+    task: 'implement endpoint without UI changes',
+    primary: 'coder',
+    forbidden: ['aedilis'],
+    guardianGate: false,
+  },
+  {
+    task: 'проверить код без изменений',
+    primary: 'reviewer',
+    guardianGate: false,
+  },
+  {
     task: 'написать CTA и empty state для игры Telegram Mini App',
     primary: 'nomenclator',
     forbidden: ['quaestor'],
