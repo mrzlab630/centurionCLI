@@ -506,3 +506,38 @@ targets или production. Если изменение требует перес
 - Версия считается готовой только если N1–N7 имеют evidence и все обязательные
   gates пройдены. Иначе итоговый статус `blocked`/`failed` с конкретным
   boundary; N8 и live install не считаются выполненными.
+
+### 11.4. Решение N1 для реализации
+
+Владеющий entrypoint исполнения — существующий `result_gateway.py`;
+`agent_contract_runner.py` остаётся общим ядром validation/proof/state.
+Прямой `--mode run` runner не запускает policy 3.0. Один изменяемый mission
+state расширяет существующий Loop state; `execution_state.py` остаётся
+read-only projection. Ledger и capture receipts — evidence, не второй
+источник полномочий. Счётчики и dispatch intent записываются под одним lock
+до spawn, незавершённый intent после restart не разрешает новый запуск.
+
+W2 отвечает за native adapters, bounded capture и protocol-failure receipts.
+W3 отвечает за policy/mission binding, состояние/лимиты и привязку этих
+механизмов к Gateway после приёмки W2. Межпакетная правка Gateway проводится
+только после завершения его владельца W2. Report correction остаётся выключенной
+до доказательства no-write; отсутствие capability не разрешает product replay.
+
+Девять сохранённых исходных файлов разбираются так:
+
+- `order_preflight.py` и его regression — адаптировать в W2 после чтения
+  исходной незакоммиченной версии, проверить актуальные argv/native schema.
+- `progress_drift_detector.py`, `blocker_packet_projection.py` и их regressions —
+  адаптировать в W3: path inclusion, no-progress и internal/external decision.
+- Прежний diff `agent_contract_runner.py` — перенести только необходимую
+  интеграцию preflight после согласования интерфейса; остальное выполнить по 3.0.
+- `autonomy-authority.schema.json` и `autonomy-trust-contract-design.md` —
+  design-only, оставить вне новой поставки; исходные bytes сохранить.
+
+Эти решения не принимают старые реализации заранее. Проверяется фактическая
+версия в новой ветке; исходная worktree остаётся неизменной. Контроллер сохраняет
+канонические authority/acceptance decisions, специалисты не расширяют заказ.
+
+Проверка плана 1.5 локальным `claude-opus-5-5`: `ACCEPT`, 0 findings.
+Исходный ответ и hashes сохранены в `docs/reviews/centurion-3.0-implementation/`.
+Ревью охватывает документы до этого уточнения N1; код и pilot им не приняты.
