@@ -70,6 +70,8 @@ if mode == "failed": payload["status"] = "failed"
 if mode == "oversized": raw = b"x" * (4*1024*1024+1)
 elif mode == "malformed": raw = b"prose {not-json SYNTHETIC_SECRET_MARKER"
 else: raw = json.dumps(payload).encode()
+if mode == "canonical-collision":
+    Path(order["outputContract"]["resultPath"]).write_bytes(raw)
 if order["executor"] == "claude":
     print(json.dumps({"type":"result","subtype":"success","is_error":False,"permission_denials":[],
         "structured_output":payload,"result":"Native textual companion is not a candidate", "modelUsage":{"claude-opus-5-5":{"inputTokens":1}}}))
@@ -174,6 +176,41 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
             assert (replay.returncode == 0) == (mode == "valid"), replay.stderr
             assert (control / "launch-count").read_text() == "launch\n"
         print("PASS 3.0 valid/failed author output, malformed/identity/oversize protocol receipts, raw input binding and zero product replay")
+
+        # Reproduce a worker following a stale file-output instruction: the
+        # otherwise valid payload occupies the Gateway-owned canonical path.
+        collision = stage("canonical-collision", "canonical-collision")
+        completed = fixture.run_gateway(collision)
+        assert completed.returncode != 0, completed.stdout
+        control = Path(collision["result"]).parent
+        canonical = Path(collision["result"])
+        original_bytes = canonical.read_bytes()
+        original_stat = canonical.stat()
+        assert original_bytes == Path(collision["candidate"]).read_bytes()
+        assert "responseEnvelope" not in json.loads(original_bytes)
+        closure = fixture.read_json(Path(collision["closure"]))
+        receipt = fixture.read_json(Path(collision["evidence"]) / "protocol-failure.json")
+        assert any("result path collision" in error for error in closure["controllerErrors"])
+        assert closure["canonicalFinalized"] is False and receipt["canonicalFinalized"] is False
+        assert receipt["reportRecovery"]["productReplayAllowed"] is False
+        order = fixture.read_json(Path(collision["order"]))
+        state_path = Path(order["loopContract"]["statePath"])
+        state = fixture.read_json(state_path)
+        assert state["intents"]["product-1"]["status"] == "reportable"
+        assert state["intents"]["product-1"]["processStopped"] is True
+        assert state["tasks"]["task"]["status"] != "accepted"
+        assert state["budget"]["modelLaunchesUsed"] == 1
+        assert state["tasks"]["task"]["productAttemptsUsed"] == 1
+        product = Path(order["context"][0]["productPath"])
+        product_bytes = product.read_bytes()
+        saved_state = state_path.read_bytes()
+        assert fixture.run_gateway(collision).returncode != 0
+        assert state_path.read_bytes() == saved_state
+        assert canonical.read_bytes() == original_bytes and product.read_bytes() == product_bytes
+        assert (canonical.stat().st_ino, canonical.stat().st_mtime_ns) == (original_stat.st_ino, original_stat.st_mtime_ns)
+        assert not (control / "controller-acceptance.json").exists()
+        assert (control / "launch-count").read_text() == "launch\n"
+        print("PASS worker-written canonical result rejected and preserved, no acceptance or product replay on restart")
 
         native = stage("native-codex")
         order = fixture.read_json(Path(native["order"]))

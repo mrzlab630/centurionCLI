@@ -17,8 +17,15 @@ reports criterion-linked findings, never edits product files or appoints a revie
 Only the lead accepts work; an author's `done` is not acceptance.
 
 New work uses AGENT_ORDER_JSON_V1, AGENT_RESULT_JSON_V1 and exact AGENT_HANDOFF_V1.
-Write the result at outputContract.resultPath; preserve typed arrays and object
-filesChanged entries. Review orders also return executorExtensions.review with
+For Gateway-managed policy 3.0 orders, return the author payload through the
+selected native adapter (structured output or its separate candidate file).
+Only Gateway creates the canonical outputContract.resultPath and controller
+receipts. Workers must not write that path or invoke a finalizer themselves.
+Explicit file-output contracts outside Gateway retain their assigned result path;
+this does not authorize legacy dispatch. Preserve typed arrays and object
+filesChanged entries. A read-only review reports its own filesChanged as [];
+reviewed predecessor files belong in artifacts, not in the reviewer's changes.
+Review orders also return executorExtensions.review with
 verdict, findings, reviewedOrderId, reviewedResultSha256 and productSnapshotSha256.
 Only result_gateway.py launches new 3.0 children. The runner validates; it is not
 another dispatch path. Read accepted state after restart before continuing; never
