@@ -5,6 +5,29 @@ and [load map](../codex-legion-kit/scripts/lib/surface-config.mjs).
 The kit version changes for the breaking explicit-selection installer API; it is
 separate from product acceptance and does not introduce a new order schema.
 
+Claude CLI always uses the owner's local proxy in this project.
+`ANTHROPIC_BASE_URL` selects that proxy and `ANTHROPIC_DEFAULT_OPUS_MODEL`
+selects its Opus model. Pass both exported variables explicitly into the native
+child environment, including isolated homes and report-only probes; resolve
+`--model` from `ANTHROPIC_DEFAULT_OPUS_MODEL` and validate it against the approved
+controller route. Never silently fall back to the public Anthropic endpoint or
+another model. The local proxy requires no password or Anthropic account login.
+
+An interactive shell's `.bashrc` exports are not guaranteed in a service or
+noninteractive subprocess. Check the actual child environment without printing
+credentials; [proxy-env.sh.example](scripts/proxy-env.sh.example) documents the
+required variables. This is a launch requirement, not a claim that the current
+Gateway environment filter already preserves both variables.
+
+Treat `Not logged in` before any API activity as a launch/configuration failure
+to investigate first, not evidence that the local proxy is unavailable or that
+the user needs `/login`. Check the inherited route, model, isolated settings and
+CLI mode. In the inspected CLI, `--bare` requires `ANTHROPIC_API_KEY` or an explicit
+`apiKeyHelper`; proxy-side password-free access does not remove that client-side
+check. Do not invent credentials, change global authentication, or remove no-write
+restrictions to make a probe pass. A successful native round-trip through the
+configured proxy is required before accepting that isolated mode.
+
 Install only to an explicitly authorized isolated home:
 
 ```bash
