@@ -54,8 +54,13 @@ payload = {
 "handoff":order["outputContract"]["handoff"]}
 if review:
     payload["filesChanged"] = []
+    captured_product = Path(order["context"][0]["productPath"])
+    if mode == "review-mutation": captured_product.write_text("unauthorized change")
+    payload["artifacts"].append({"path":str(captured_product),"exists":True,"type":"reviewed-product",
+        "note":"captured product","mediaType":"text/plain","sha256":hashlib.sha256(captured_product.read_bytes()).hexdigest()})
     if mode != "review-missing":
         verdict = mode.removeprefix("review-")
+        if verdict == "mutation": verdict = "pass"
         binding = dict(order["context"][0]["reviewBinding"])
         if verdict == "stale": binding["productSnapshotSha256"] = "0" * 64; verdict = "pass"
         payload["executorExtensions"] = {"review":dict(binding, verdict=verdict,
@@ -224,7 +229,7 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
         claude = root / "claude"
         claude.write_bytes(cli.read_bytes())
         claude.chmod(0o755)
-        for verdict in ("pass", "fail", "blocked", "missing", "stale"):
+        for verdict in ("pass", "fail", "blocked", "missing", "stale", "mutation"):
             original = stage("candidate-"+verdict, profile="V2")
             pending = fixture.run_gateway(original)
             assert pending.returncode == 0 and 'awaiting_review' in pending.stdout, pending.stderr + pending.stdout
@@ -245,7 +250,14 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
             completed = fixture.run_gateway(paths)
             control = Path(paths["result"]).parent
             assert (completed.returncode == 0) == (verdict == "pass"), completed.stderr + completed.stdout
-            if verdict in ("missing", "stale"):
+            if verdict == "mutation":
+                state = fixture.read_json(Path(order["loopContract"]["statePath"]))
+                candidate = state["intents"]["product-1"]
+                current = mission_snapshot(state, ["task"])
+                assert current != candidate["snapshot"], "fixture must mutate the captured product"
+                assert state["intents"]["review-1"]["status"] == "unknown_effect"
+                assert state["tasks"]["task"]["status"] != "accepted"
+            elif verdict in ("missing", "stale"):
                 assert not Path(paths["result"]).exists()
                 assert (Path(paths["evidence"]) / "protocol-failure.json").exists()
             else:
@@ -261,11 +273,16 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
                 extraction = fixture.read_json(Path(paths["closure"]))["candidate"]["extraction"]
                 assert extraction["field"] == "structured_output" and extraction["eventIndex"] == 0
             if verdict == "pass":
+                assert any(row["path"] == order["context"][0]["productPath"] for row in result["artifacts"])
                 accepted = fixture.run_gateway(original)
                 assert accepted.returncode == 0 and 'accepted' in accepted.stdout, accepted.stderr + accepted.stdout
                 assert (Path(original["result"]).parent / "launch-count").read_text() == "launch\n"
                 state = fixture.read_json(Path(order["loopContract"]["statePath"]))
                 assert state["budget"]["modelLaunchesUsed"] == 2 and state["tasks"]["task"]["productAttemptsUsed"] == 1
+                duplicate = fixture.run_gateway(paths)
+                assert duplicate.returncode == 0, duplicate.stderr + duplicate.stdout
+                assert (control / "launch-count").read_text() == "launch\n"
+                assert fixture.read_json(Path(order["loopContract"]["statePath"])) == state
         print("PASS native Claude review pass/fail/blocked, missing verdict and stale snapshot binding; done alone cannot authorize acceptance")
 
         # Exact no-tools report adapter: only the controller's allowlisted projection

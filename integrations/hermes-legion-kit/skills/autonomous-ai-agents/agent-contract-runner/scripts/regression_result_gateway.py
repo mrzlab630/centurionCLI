@@ -611,6 +611,7 @@ def independent_review(paths: dict[str, Any]) -> dict[str, Any]:
     original = read_json(Path(paths["order"]))
     state = read_json(Path(original["loopContract"]["statePath"]))
     candidate = state["intents"][original["context"][0]["intentId"]]
+    product_paths = [row["path"] for row in candidate["snapshot"]["files"]]
     review = make_case(original["orderId"]+"-review", "stdout-claude-wrapper", executor="claude", candidate_source="stdout")
     old = Path(review["order"])
     order = read_json(old)
@@ -621,7 +622,7 @@ def independent_review(paths: dict[str, Any]) -> dict[str, Any]:
     order["context"] = [dict(original["context"][0], action="review", intentId="review-1", candidateIntentId="product-1",
         fixtureCount=str(review["test_count"]), fixtureArgs=["stdout-claude-wrapper", str(review["candidate"]), order["orderId"], "claude", "done", "NONE", "0", "0"],
         reviewBinding={"reviewedOrderId":original["orderId"],"reviewedResultSha256":candidate["resultRef"]["sha256"],"productSnapshotSha256":candidate["snapshot"]["sha256"]})]
-    order["allowedPaths"] = [str(Path(review["result"]).parent/"**")]
+    order["allowedPaths"] = [*product_paths, str(Path(review["result"]).parent/"**")]
     order["expectedArtifacts"] = []; order["proofCommands"] = []
     order["launch"].update(candidateJsonPath=str(review["candidate"]), command=shlex.join(["claude","--model","claude-opus-5-5","--effort","high","--output-format","json","-p",str(review["order"])]))
     order["outputContract"]["handoff"] = {"version":"AGENT_HANDOFF_V1","schemaId":"AGENT_RESULT_JSON_V1","inReplyTo":order["orderId"],"senderRole":"REVIEWER","recipientRole":"Aquila"}

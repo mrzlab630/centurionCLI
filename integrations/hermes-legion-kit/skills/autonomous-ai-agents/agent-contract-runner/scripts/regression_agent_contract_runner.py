@@ -449,12 +449,12 @@ def mission_regressions() -> None:
         write_json(order_path, order)
         return order, policy, state_path, target, result_path, order_path, events_path
 
-    def capture(reservation, target: Path, result_path: Path, *, review=None):
+    def capture(reservation, target: Path, result_path: Path, *, review=None, cite_product=False):
         reservation.before_spawn()
         readonly = reservation.meta["action"] in {"review", "advisory"}
         if not readonly:
             target.write_text("final product\n")
-        else:
+        elif not cite_product:
             target = result_path.parent / ("review.txt" if review is not None else "advisory.txt")
             target.write_text("review evidence\n" if review is not None else "bounded advisory evidence\n")
         value = {"resultVersion": "AGENT_RESULT_JSON_V1", "orderId": reservation.order["orderId"], "executor": reservation.order["executor"],
@@ -712,10 +712,23 @@ def mission_regressions() -> None:
     rejected(lambda: runner.reserve_mission_dispatch(review_order, review_policy), "review allowedPaths must contain exactly")
     review_order["allowedPaths"] = [str(target), str(namespace / "**")]
     review_policy = runner.PathPolicy(policy.repo_path, review_order["allowedPaths"], [], review_order["orderId"])
+    unchanged_state = path.read_bytes()
+    for extra in (str(target.parent / "**"), str(target.parent), str(target.parent / "extra.txt")):
+        bad = copy.deepcopy(review_order)
+        bad["allowedPaths"].append(extra)
+        bad_policy = runner.PathPolicy(policy.repo_path, bad["allowedPaths"], [], bad["orderId"])
+        rejected(lambda: runner.reserve_mission_dispatch(bad, bad_policy), "review allowedPaths must contain exactly")
+        assert_case(path.read_bytes() == unchanged_state, "invalid review scope must not spend a launch")
+    forbidden = copy.deepcopy(review_order)
+    forbidden["forbiddenPaths"] = [str(target)]
+    forbidden_policy = runner.PathPolicy(policy.repo_path, forbidden["allowedPaths"], forbidden["forbiddenPaths"], forbidden["orderId"])
+    rejected(lambda: runner.reserve_mission_dispatch(forbidden, forbidden_policy), "forbidden by forbiddenPaths")
+    assert_case(path.read_bytes() == unchanged_state, "forbidden candidate must not spend a launch")
     review = runner.reserve_mission_dispatch(review_order, review_policy)
     verdict = {"verdict": "pass", "findings": [], "reviewedOrderId": order["orderId"],
         "reviewedResultSha256": runner.result_digest(result), "productSnapshotSha256": proof["productSnapshotSha256"]}
-    review_proof, review_acceptance = capture(review, target, review_result, review=verdict)
+    review_proof, review_acceptance = capture(review, target, review_result, review=verdict, cite_product=True)
+    assert_case(json.loads(review_result.read_text())["artifacts"][0]["path"] == str(target), "review cites unchanged product")
     review.accept(review_proof, review_acceptance)
     review.close()
     product = runner.reserve_mission_dispatch(order, policy)
@@ -727,6 +740,15 @@ def mission_regressions() -> None:
     product.close()
     runner.complete_mission(order, policy, proof, "reviewed-final-revision")
     assert_case(json.loads(path.read_text())["status"] == "completed", "accepted independent review allows final completion")
+    completed_state = path.read_bytes()
+    duplicate_review = runner.reserve_mission_dispatch(review_order, review_policy)
+    assert_case(duplicate_review.disposition == "accepted", "accepted review stays collectable after product acceptance")
+    duplicate_review.close()
+    assert_case(path.read_bytes() == completed_state, "duplicate review collection must not change state or launch count")
+    new_review = copy.deepcopy(review_order)
+    new_review["context"][0]["intentId"] = "review-extra"
+    rejected(lambda: runner.reserve_mission_dispatch(new_review, review_policy), "review requires captured candidate")
+    assert_case(path.read_bytes() == completed_state, "accepted product must not start another review")
     print("PASS 3.0 positive bound independent review, final controller proof and observed ledger counters")
 
     order, policy, path, target, result, _, _ = fixture("correction")
