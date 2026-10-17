@@ -2008,7 +2008,14 @@ def main() -> int:
     except (GatewayError, BuilderError, PreflightError, ResponseEnvelopeError, StrictJSONError, RunnerError, RoutingError, LineageError, AcceptedInputError, OSError) as exc:
         if reservation is not None and reservation.disposition == "launch" and not reservation.write_failed:
             try:
-                reservation.fail("Gateway custody or verification failed", process_stopped=locals().get("child", {}).get("processStopped", False))
+                # In this held transaction a reserved intent has not reached
+                # before_spawn(). A local preflight error has no unknown effect.
+                # Dispatching/running intents still require actual child proof.
+                not_started = (reservation.intent.get("status") == "reserved"
+                               and reservation.intent.get("effect") == "not_started"
+                               and not reservation.intent.get("process"))
+                reservation.fail("Gateway custody or verification failed",
+                                 process_stopped=not_started or locals().get("child", {}).get("processStopped", False))
             except (RunnerError, OSError):
                 pass
         if child_started and loop_lock is not None and order is not None and events_path is not None and "policy" in locals():

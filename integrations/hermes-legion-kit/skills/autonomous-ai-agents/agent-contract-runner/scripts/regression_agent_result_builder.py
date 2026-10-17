@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import hashlib
+import copy
 import json
 import os
 import shutil
@@ -101,12 +102,116 @@ def assert_failed_with_evidence(built: dict[str, Any], original: bytes, evidence
     assert built["artifacts"][0]["path"] == str(evidence_path), "failed result must bind the evidence path"
 
 
+def assert_native_api_subset(schema: dict[str, Any], *, root: bool = True) -> None:
+    """Check the documented subset separately from full JSON Schema validity."""
+    supported = {"type", "enum", "properties", "required", "additionalProperties", "items", "anyOf",
+                 "pattern", "format", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum",
+                 "multipleOf", "minItems", "maxItems", "description", "title"}
+    assert set(schema) <= supported, f"unsupported native schema keywords: {set(schema) - supported}"
+    if root:
+        assert schema.get("type") == "object" and "anyOf" not in schema
+    if "enum" in schema:
+        assert "type" in schema, "enum requires an explicit type"
+        assert all(Draft202012Validator({"type": schema["type"]}).is_valid(value) for value in schema["enum"])
+    if schema.get("type") == "object":
+        assert schema.get("additionalProperties") is False
+        assert set(schema["required"]) == set(schema["properties"])
+        assert len(schema["required"]) == len(schema["properties"])
+        for value in schema["properties"].values():
+            assert_native_api_subset(value, root=False)
+    if schema.get("type") == "array":
+        assert_native_api_subset(schema["items"], root=False)
+    for branch in schema.get("anyOf", []):
+        assert_native_api_subset(branch, root=False)
+
+
+def check_native_projection(canonical: dict[str, Any]) -> None:
+    order_path, _, _, _, product, payload = make_case("native-api-subset")
+    order = json.loads(order_path.read_bytes())
+    canonical_before = SCHEMA.read_bytes()
+    legacy = builder.native_result_schema(order)
+    assert_native_api_subset(legacy)
+    assert set(legacy["properties"]) == set(canonical["required"])
+    Draft202012Validator(legacy).validate(payload)
+    handoff = {"version":"AGENT_HANDOFF_V1", "schemaId":"AGENT_RESULT_JSON_V1", "inReplyTo":order["orderId"],
+               "senderRole":"CODER", "recipientRole":"Aquila"}
+    order["outputContract"]["handoff"] = handoff
+    order.update(roleForTask="CODER", controller="Aquila")
+    order["context"] = [{"policyVersion":"3.0"}]
+    payload["handoff"] = dict(handoff)
+    payload["artifacts"][0].update(sha256=hashlib.sha256(product.read_bytes()).hexdigest(), mediaType="text/plain")
+    for objective in (None, "native-objective"):
+        if objective is not None:
+            handoff["objectiveId"] = objective
+            payload["handoff"]["objectiveId"] = objective
+        projected = builder.native_result_schema(order)
+        assert_native_api_subset(projected)
+        assert set(projected["properties"]) == set(canonical["required"]) | {"handoff"}
+        assert set(projected["properties"]["handoff"]["properties"]) == set(handoff)
+        native_validator = Draft202012Validator(projected)
+        native_validator.validate(payload)
+        canonical_errors = builder.validate_candidate(payload, order, Draft202012Validator(canonical))
+        assert canonical_errors == [], canonical_errors
+        for key in ("sha256", "mediaType"):
+            missing = copy.deepcopy(payload); del missing["artifacts"][0][key]
+            assert not native_validator.is_valid(missing), f"typed artifact accepted without {key}"
+            assert builder.validate_candidate(missing, order, Draft202012Validator(canonical))
+        absent = copy.deepcopy(payload)
+        absent["artifacts"] = [{"path":str(product.parent / "missing.txt"), "exists":False, "type":"missing", "note":"not created"}]
+        native_validator.validate(absent)
+        Draft202012Validator(canonical).validate(absent)
+        for key, value in (("orderId","different-order"), ("executor","claude"), ("handoff",dict(handoff, inReplyTo="different-order"))):
+            wrong = copy.deepcopy(payload); wrong[key] = value
+            assert not native_validator.is_valid(wrong), f"native binding lost for {key}"
+        semantic_failure = copy.deepcopy(payload); semantic_failure["proof"] = []
+        assert native_validator.is_valid(semantic_failure), "native projection should leave conditional acceptance to canonical validation"
+        assert not Draft202012Validator(canonical).is_valid(semantic_failure)
+    binding = {"reviewedOrderId":"native-original-order", "reviewedResultSha256":"a" * 64, "productSnapshotSha256":"b" * 64}
+    order["context"][0]["reviewBinding"] = binding
+    projected = builder.native_result_schema(order, {"executionProfile":"terminal_review"})
+    assert_native_api_subset(projected)
+    assert set(projected["properties"]) == set(canonical["required"]) | {"handoff", "executorExtensions"}
+    review = dict(binding, verdict="pass", findings=[])
+    payload["executorExtensions"] = {"review":review}
+    reviewer_validator = Draft202012Validator(projected)
+    reviewer_validator.validate(payload)
+    branches = projected["properties"]["executorExtensions"]["properties"]["review"]["anyOf"]
+    assert len(branches) == 3
+    assert [branch["properties"]["verdict"]["enum"] for branch in branches] == [["pass"], ["fail"], ["blocked"]]
+    assert branches[0]["properties"]["findings"]["maxItems"] == 0
+    assert branches[1]["properties"]["findings"]["minItems"] == 1
+    assert "minItems" not in branches[2]["properties"]["findings"] and "maxItems" not in branches[2]["properties"]["findings"]
+    for branch in branches:
+        description = branch["properties"]["findings"]["description"]
+        assert "unresolved criterion violations" in description and "positive evidence in proof or summary" in description
+    for verdict, findings in (("pass", []), ("fail", [{"criterion":"fixed criterion", "evidence":"observed violation"}]),
+                              ("blocked", []), ("blocked", [{"criterion":"blocked criterion", "evidence":"unresolved evidence"}])):
+        report = copy.deepcopy(payload)
+        report["executorExtensions"]["review"].update(verdict=verdict, findings=findings)
+        reviewer_validator.validate(report)
+        Draft202012Validator(canonical).validate(report)
+        assert builder.validate_review_binding(report, order, {"executionProfile":"terminal_review"}) == []
+        for key in binding:
+            stale = copy.deepcopy(report); stale["executorExtensions"]["review"][key] = "stale" if key=="reviewedOrderId" else "0" * 64
+            assert not reviewer_validator.is_valid(stale), f"native {verdict} review binding lost for {key}"
+            assert builder.validate_review_binding(stale, order, {"executionProfile":"terminal_review"})
+    for verdict, findings in (("pass", [{"criterion":"criterion met", "evidence":"positive evidence"}] * 5), ("fail", [])):
+        invalid = copy.deepcopy(payload)
+        invalid["executorExtensions"]["review"].update(verdict=verdict, findings=findings)
+        assert not reviewer_validator.is_valid(invalid), f"native review allowed invalid {verdict} findings"
+        assert builder.validate_review_binding(invalid, order, {"executionProfile":"terminal_review"})
+    assert SCHEMA.read_bytes() == canonical_before
+    print("PASS native author/reviewer schemas satisfy the recursive API subset, exact binding and typed artifacts without invented metadata; canonical done semantics unchanged")
+    print("PASS native review variants match pass/fail/blocked finding cardinality and retain every exact review binding")
+
+
 def main() -> int:
     if ROOT.exists():
         shutil.rmtree(ROOT)
     ROOT.mkdir(parents=True)
     schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
     validator = Draft202012Validator(schema)
+    check_native_projection(schema)
 
     explicit_schema = ROOT / "explicit-schema.json"
     environment_schema = ROOT / "environment-schema.json"

@@ -51,26 +51,82 @@ class ProtocolFailure(BuilderError):
 
 
 def native_result_schema(order: dict[str, Any], routing: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Derive the native author projection from the packaged canonical schema."""
+    """Project required author fields into the API's strict schema subset.
+
+    Conditional success semantics remain enforced by the canonical validator;
+    the native generation schema is not the result acceptance authority.
+    """
     schema, _ = _load_schema(PACKAGED_SCHEMA)
     projection = copy.deepcopy(schema)
-    projection["properties"].pop("responseEnvelope", None)
+    projection["properties"] = {key: projection["properties"][key] for key in projection["required"]}
     for key in ("orderId", "executor"):
         projection["properties"][key] = {"const": order[key]}
     handoff = order.get("outputContract", {}).get("handoff")
     if handoff is not None:
-        projection["properties"]["handoff"] = {"const": handoff}
+        projection["properties"]["handoff"] = {
+            "type": "object", "properties": {key: {"const": value} for key, value in handoff.items()},
+            "required": list(handoff),
+        }
         projection["required"].append("handoff")
+        artifact = copy.deepcopy(projection["properties"]["artifacts"]["items"])
+        present, absent = copy.deepcopy(artifact), copy.deepcopy(artifact)
+        present["required"] += ["sha256", "mediaType"]
+        present["properties"]["exists"] = {"const": True}
+        absent["properties"]["exists"] = {"const": False}
+        projection["properties"]["artifacts"]["items"] = {"anyOf": [present, absent]}
     if routing is None and "createdAt" in order:
         routing = validate_order_routing(order)
     if controller_context(order) is not None and isinstance(routing, dict) and routing.get("executionProfile") == "terminal_review":
         projection["required"].append("executorExtensions")
-        extension = projection["properties"]["executorExtensions"]
+        extension = copy.deepcopy(schema["properties"]["executorExtensions"])
+        projection["properties"]["executorExtensions"] = extension
         extension["required"] = ["review"]
         binding = review_binding(order, routing)
+        review = extension["properties"]["review"]
         for key, value in binding.items():
-            extension["properties"]["review"]["properties"][key] = {"const": value}
-    return projection
+            review["properties"][key] = {"const": value}
+        review["properties"]["findings"]["description"] = (
+            "Only unresolved criterion violations belong in findings; put positive evidence in proof or summary."
+        )
+        variants = []
+        for verdict in ("pass", "fail", "blocked"):
+            variant = copy.deepcopy(review)
+            variant["properties"]["verdict"] = {"const": verdict}
+            if verdict == "pass":
+                variant["properties"]["findings"]["maxItems"] = 0
+            elif verdict == "fail":
+                variant["properties"]["findings"]["minItems"] = 1
+            variants.append(variant)
+        extension["properties"]["review"] = {"anyOf": variants}
+    return _native_schema_subset(projection)
+
+
+def _native_schema_subset(node: dict[str, Any]) -> dict[str, Any]:
+    """Close required-only objects; omit unsupported canonical composition."""
+    supported = {"type", "enum", "pattern", "format", "minimum", "maximum", "exclusiveMinimum",
+                 "exclusiveMaximum", "multipleOf", "minItems", "maxItems", "description", "title"}
+    result = {key: copy.deepcopy(value) for key, value in node.items() if key in supported}
+    values = [node["const"]] if "const" in node else node.get("enum")
+    if values is not None:
+        result["enum"] = values
+        if "type" not in result:
+            types = {type(value) for value in values}
+            if types == {str}:
+                result["type"] = "string"
+            elif types == {bool}:
+                result["type"] = "boolean"
+            else:
+                raise BuilderError("native schema literal requires an explicit supported scalar type")
+    if "anyOf" in node:
+        result["anyOf"] = [_native_schema_subset(branch) for branch in node["anyOf"]]
+    if node.get("type") == "object":
+        required = node.get("required", [])
+        result["properties"] = {key: _native_schema_subset(node["properties"][key]) for key in required}
+        result["required"] = list(required)
+        result["additionalProperties"] = False
+    if node.get("type") == "array":
+        result["items"] = _native_schema_subset(node["items"])
+    return result
 
 
 def validate_review_binding(candidate: dict[str, Any], order: dict[str, Any], routing: dict[str, Any] | None) -> list[str]:

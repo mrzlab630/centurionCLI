@@ -24,6 +24,7 @@ from response_envelope import MAX_CANDIDATE_BYTES, MAX_FRAME_BYTES, MAX_STDOUT_B
 from result_gateway import run_child
 import result_gateway
 import agent_result_builder
+from regression_agent_result_builder import assert_native_api_subset
 from agent_contract_runner import initialize_mission, _mission_digest, workspace_snapshot, verify_workspace_diff, PathPolicy, RunnerError, complete_mission, mission_snapshot, validate_order
 import regression_result_gateway as fixture
 
@@ -168,7 +169,9 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
         native = stage("native-codex")
         order = fixture.read_json(Path(native["order"]))
         schema_path = Path(native["result"]).parent / "native-schema.json"
-        fixture.write_json(schema_path, native_result_schema(order))
+        projected_schema = native_result_schema(order)
+        assert_native_api_subset(projected_schema)
+        fixture.write_json(schema_path, projected_schema)
         order["launch"]["command"] += " --output-schema " + shlex.quote(str(schema_path))
         # Keep the one prompt last for this fake CLI, as in real initial exec.
         argv = shlex.split(order["launch"]["command"])
@@ -177,7 +180,7 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
         fixture.write_json(Path(native["order"]), order)
         completed = fixture.run_gateway(native)
         assert completed.returncode == 0, completed.stderr + completed.stdout
-        print("PASS Codex accepts the generated canonical --output-schema projection")
+        print("PASS Codex fake CLI accepts the bound --output-schema projection after explicit recursive API-subset validation")
 
         for name, mutate in (
             ("prose-policy", lambda o: o["outputContract"].update(proseAllowedAfterJson=True)),
@@ -200,6 +203,20 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
             assert not Path(paths["start_receipt"]).exists(), name
         print("PASS wrong ingress/identity/transport, missing prompt, env/stdin and stale native schema rejected before child")
 
+        paths = stage("missing-evidence-directory")
+        Path(paths["evidence"]).rmdir()
+        completed = fixture.run_gateway(paths)
+        assert completed.returncode != 0 and "evidence directory does not exist" in completed.stderr
+        order = fixture.read_json(Path(paths["order"]))
+        state = fixture.read_json(Path(order["loopContract"]["statePath"]))
+        intent = state["intents"]["product-1"]
+        assert intent["status"] == "rejected" and intent["effect"] == "not_started" and intent["processStopped"] is True
+        assert state["budget"]["modelLaunchesUsed"] == 1
+        assert not Path(paths["start_receipt"]).exists() and not (Path(paths["result"]).parent / "launch-count").exists()
+        replay = fixture.run_gateway(paths)
+        assert replay.returncode != 0 and fixture.read_json(Path(order["loopContract"]["statePath"]))["budget"]["modelLaunchesUsed"] == 1
+        print("PASS pre-spawn custody error is known not-started, with spent budget retained and no implicit replay")
+
         claude = root / "claude"
         claude.write_bytes(cli.read_bytes())
         claude.chmod(0o755)
@@ -216,6 +233,7 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
                 executionProfile="terminal_review", verificationProfile="V2", reviewer="none", terminalGate=True)
             fixture.set_routing(order, route)
             schema = native_result_schema(order, route)
+            assert_native_api_subset(schema)
             order["launch"]["command"] = shlex.join([str(claude), "-p", "--model", "claude-opus-5-5",
                 "--effort", "high", "--json-schema", json.dumps(schema), "--output-format", "json", str(paths["order"])])
             paths["candidate_source"] = "stdout"

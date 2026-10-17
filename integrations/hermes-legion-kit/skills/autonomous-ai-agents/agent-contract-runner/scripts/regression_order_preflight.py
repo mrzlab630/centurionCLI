@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 
 from agent_artifact_namespace import artifact_namespace
-from agent_contract_runner import PathPolicy, RunnerError, validate_order
+from agent_contract_runner import PathPolicy, RunnerError, validate_order, validate_codex_launch
 from order_preflight import controller_context, executor_environment, plan_order, validate_claude_proxy_environment
 
 def assert_case(condition: bool, message: str) -> None:
@@ -131,6 +131,7 @@ def main() -> int:
             target["launch"]["command"] = command + " -"
             assert_case(plan_order(target, target_policy)["valid"], f"legacy non-candidate {executor} orders retain behavior")
         for executor, command in (
+            ("codex", "codex --no-daemon exec --model gpt-6.1-sol -c model_reasoning_effort=high 'quoted prompt'"),
             ("codex", "codex exec -mgpt-6.1-sol -cmodel_reasoning_effort=xhigh -C. -sworkspace-write -o- -- '--quoted prompt'"),
             ("codex", "codex exec --model=gpt-6.1-sol --config=model_reasoning_effort=xhigh --image a.png b.png -- 'quoted prompt'"),
             ("claude", "claude --model=claude-opus-5-5 -p --tools Read Edit -- 'quoted prompt'"),
@@ -143,6 +144,8 @@ def main() -> int:
             target["launch"]["command"] = command
             assert_case(plan_order(target, policy)["valid"], f"attached options, delimiter, and option values must parse: {command}")
         for executor, command, expected in (
+            ("codex", "codex --no-daemon --profile foreign exec 'quoted prompt'", "PROMPT_ARGV_INVALID"),
+            ("codex", "codex --no-daemon --no-daemon exec 'quoted prompt'", "PROMPT_ARGV_INVALID"),
             ("codex", "codex exec --model", "PROMPT_ARGV_INVALID"),
             ("codex", "codex exec --unknown value", "PROMPT_ARGV_INVALID"),
             ("codex", "codex exec --model=gpt-6.1-sol --color=never --output-schema=schema.json", "PROMPT_MISSING"),
@@ -159,6 +162,17 @@ def main() -> int:
             target["launch"]["command"] = command
             assert_case(expected in codes(target, policy), f"invalid prompt transport must reject: {command}")
         print("PASS Codex/Claude/agy default prompts, stdin metadata, delimiters, option values and one-token arity; legacy fixtures preserved")
+
+        for prefix in ("codex exec", "codex --no-daemon exec"):
+            validate_codex_launch(prefix + ' --model gpt-6-astra -c model_reasoning_effort=high --sandbox read-only -C /tmp -o /tmp/candidate.json "bounded advice"', "gpt-6-astra", "high", advisory=True)
+            for suffix in (' --profile foreign', ' --sandbox workspace-write', ' -c model_reasoning_effort=low'):
+                try:
+                    validate_codex_launch(prefix + ' --model gpt-6-astra -c model_reasoning_effort=high --sandbox read-only -C /tmp -o /tmp/candidate.json "bounded advice"' + suffix, "gpt-6-astra", "high", advisory=True)
+                except RunnerError:
+                    pass
+                else:
+                    raise AssertionError("isolated Astra launch must retain route/sandbox floors: " + suffix)
+        print("PASS optional global no-daemon preserves strict Codex/Astra route and read-only floors")
 
         scratch = json.loads(json.dumps(order))
         scratch["launch"]["scratchPath"] = "/tmp/preflight-scratch"

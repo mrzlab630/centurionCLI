@@ -237,9 +237,10 @@ def _scan_prompt(argv: list[str], executor: str) -> tuple[list[str], bool]:
     variadic_options: set[str] = set()
     prompt_options: set[str] = set()
     if executor == "codex":
-        if len(argv) < 2 or argv[1] != "exec":
+        exec_index = 2 if argv[1:2] == ["--no-daemon"] else 1
+        if len(argv) <= exec_index or argv[exec_index] != "exec":
             raise ValueError("Codex prompt transport requires codex exec")
-        start = 2
+        start = exec_index + 1
         value_options, boolean_options = _CODEX_VALUE_OPTIONS, _CODEX_BOOLEAN_OPTIONS
         variadic_options = {"-i", "--image"}
         short_values = {"-C", "-s", "-o", "-i", "-m", "-c"}

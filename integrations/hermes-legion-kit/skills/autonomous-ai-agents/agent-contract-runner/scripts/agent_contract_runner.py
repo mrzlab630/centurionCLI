@@ -390,7 +390,8 @@ def validate_codex_launch(command: str, model: str, effort: str, *, advisory: bo
         argv = shlex.split(command)
     except ValueError as exc:
         raise RunnerError(f"launch.command cannot be parsed safely: {exc}") from exc
-    if len(argv) < 2 or Path(argv[0]).name != "codex" or argv[1] != "exec":
+    exec_index = 2 if argv[1:2] == ["--no-daemon"] else 1
+    if len(argv) <= exec_index or Path(argv[0]).name != "codex" or argv[exec_index] != "exec":
         raise RunnerError("Codex launch.command must start with codex exec and explicit model/effort flags")
     models: list[str] = []
     efforts: list[str] = []
@@ -407,7 +408,7 @@ def validate_codex_launch(command: str, model: str, effort: str, *, advisory: bo
         "--ignore-rules", "--worktree", "--approve-for-me",
         "--dangerously-bypass-approvals-and-sandbox", "--dangerously-bypass-hook-trust",
     }
-    index = 2
+    index = exec_index + 1
     while index < len(argv):
         token = argv[index]
         if token == "--":
