@@ -97,11 +97,15 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
                 prior = fixture.read_json(Path(original["order"]))
                 state = fixture.read_json(Path(prior["loopContract"]["statePath"]))
                 candidate = state["intents"]["product-1"]
+                product = Path(candidate["snapshot"]["files"][0]["path"])
                 order["context"][0].update(prior["context"][0], fixtureMode=mode, action="review", intentId="review-1", candidateIntentId="product-1",
                     reviewBinding={"reviewedOrderId": prior["orderId"], "reviewedResultSha256": candidate["resultRef"]["sha256"],
                                    "productSnapshotSha256": candidate["snapshot"]["sha256"]})
                 order["loopContract"] = prior["loopContract"]
-                order["allowedPaths"] = [str(control / "**")]
+                # A terminal reviewer is read-only, but it must be able to
+                # inspect the exact captured product files it is reviewing.
+                # Its own result/evidence remains confined to custody/**.
+                order["allowedPaths"] = [str(product), str(control / "**")]
                 order["proofCommands"] = []
             else:
                 authority = {"approvalRef":"fixture-approved", "goal":order["objective"], "nonGoals":[], "criteria":order["acceptanceCriteria"],

@@ -1430,8 +1430,20 @@ def _validate_mission_scope(order: dict[str, Any], policy: PathPolicy, state: di
         product_rules.append(value)
     advisory = meta["action"] in {"advisory", "review"}
     if advisory:
-        if product_rules or order["proofCommands"]:
+        if meta["action"] == "review":
+            candidate = state["intents"].get(meta.get("candidateIntentId"))
+            if not candidate or candidate.get("status") != "captured" or candidate.get("action") != "product":
+                raise RunnerError("review requires captured candidate intent")
+            expected = {Path(row["path"]).resolve() for row in candidate.get("snapshot", {}).get("files", [])
+                        if isinstance(row, dict) and isinstance(row.get("path"), str)}
+            actual = {pattern for mode, pattern in policy.allowed if mode == "exact" and pattern != policy.control_namespace
+                      and policy.control_namespace not in pattern.parents}
+            if actual != expected:
+                raise RunnerError("review allowedPaths must contain exactly captured product files plus custody namespace")
+        elif product_rules or order["proofCommands"]:
             raise RunnerError("advisory cannot write product scope or run product proof")
+        if order["proofCommands"]:
+            raise RunnerError("read-only advisory/review cannot run product proof")
         for item in order["expectedArtifacts"]:
             policy.control_path(item["path"], "advisory artifact")
     if not advisory and (not product_rules or not _mission_path_subset(state, product_rules, task["allowedPaths"])):
@@ -1766,6 +1778,15 @@ def reserve_mission_dispatch(order: dict[str, Any], policy: PathPolicy) -> Missi
                 raise RunnerError("review requires captured candidate intent")
             if candidate["executor"] == order["executor"] or mission_snapshot(state, [meta["taskId"]]) != candidate["snapshot"]:
                 raise RunnerError("review requires independent executor and current candidate bytes")
+            # A reviewer may read the captured product, but only the exact
+            # product files bound by the candidate snapshot plus its own
+            # controller custody namespace. Reject a custody-only review order
+            # before spending a model launch; otherwise the model can produce a
+            # valid review that controller acceptance must reject later.
+            for row in candidate["snapshot"].get("files", []):
+                if not isinstance(row, dict) or not isinstance(row.get("path"), str):
+                    raise RunnerError("review candidate snapshot contains an invalid product path")
+                policy.order_path(row["path"], "review candidate product path")
             from order_preflight import review_binding
             binding = review_binding(order, validate_order_routing(order))
             if binding != {"reviewedOrderId": candidate["orderId"], "reviewedResultSha256": candidate["resultRef"]["sha256"],

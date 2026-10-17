@@ -673,6 +673,9 @@ def mission_regressions() -> None:
     review_order["outputContract"]["resultPath"] = str(review_result)
     review_order["launch"]["resultJsonPath"] = str(review_result)
     review_policy = runner.PathPolicy(policy.repo_path, review_order["allowedPaths"], [], review_order["orderId"])
+    rejected(lambda: runner.reserve_mission_dispatch(review_order, review_policy), "review allowedPaths must contain exactly")
+    review_order["allowedPaths"] = [str(target), str(namespace / "**")]
+    review_policy = runner.PathPolicy(policy.repo_path, review_order["allowedPaths"], [], review_order["orderId"])
     review = runner.reserve_mission_dispatch(review_order, review_policy)
     verdict = {"verdict": "fail", "findings": [], "reviewedOrderId": order["orderId"],
         "reviewedResultSha256": runner.result_digest(result), "productSnapshotSha256": proof["productSnapshotSha256"]}
@@ -705,6 +708,9 @@ def mission_regressions() -> None:
     review_result = namespace / "result.json"
     review_order["outputContract"]["resultPath"] = str(review_result)
     review_order["launch"]["resultJsonPath"] = str(review_result)
+    review_policy = runner.PathPolicy(policy.repo_path, review_order["allowedPaths"], [], review_order["orderId"])
+    rejected(lambda: runner.reserve_mission_dispatch(review_order, review_policy), "review allowedPaths must contain exactly")
+    review_order["allowedPaths"] = [str(target), str(namespace / "**")]
     review_policy = runner.PathPolicy(policy.repo_path, review_order["allowedPaths"], [], review_order["orderId"])
     review = runner.reserve_mission_dispatch(review_order, review_policy)
     verdict = {"verdict": "pass", "findings": [], "reviewedOrderId": order["orderId"],
