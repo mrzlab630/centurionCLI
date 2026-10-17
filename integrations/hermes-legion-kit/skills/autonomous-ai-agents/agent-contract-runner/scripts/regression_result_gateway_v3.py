@@ -9,6 +9,7 @@ import io
 import json
 import os
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -65,7 +66,7 @@ elif mode == "malformed": raw = b"prose {not-json SYNTHETIC_SECRET_MARKER"
 else: raw = json.dumps(payload).encode()
 if order["executor"] == "claude":
     print(json.dumps({"type":"result","subtype":"success","is_error":False,"permission_denials":[],
-        "structured_output":payload,"modelUsage":{"claude-opus-5-5":{"inputTokens":1}}}))
+        "structured_output":payload,"result":"Native textual companion is not a candidate", "modelUsage":{"claude-opus-5-5":{"inputTokens":1}}}))
 else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
 ''')
         cli.chmod(0o755)
@@ -347,6 +348,15 @@ print(json.dumps({"type":"result","subtype":"success","is_error":False,"permissi
         report_stdout = report_namespace/"stdout.bin"
         report_candidate = report_namespace/"candidate.json"
         saved_stdout, saved_candidate = report_stdout.read_bytes(), report_candidate.read_bytes()
+        native_wrapper = json.loads(saved_stdout)
+        native_wrapper["result"] = "Unselected companion text must never override the native object"
+        selected, errors = result_gateway.extract_stdout_candidate(json.dumps(native_wrapper).encode(), order, None, {"model":"claude-opus-5-5"}, native_override=True)
+        assert not errors and json.loads(selected) == native_wrapper["structured_output"]
+        _, errors = result_gateway.extract_stdout_candidate(json.dumps(native_wrapper).encode(), order, None, {"model":"claude-opus-5-5"}, native_override=False)
+        assert errors, "text mode must reject unselected structured output"
+        native_wrapper["result"] = json.dumps(native_wrapper.pop("structured_output"))
+        _, errors = result_gateway.extract_stdout_candidate(json.dumps(native_wrapper).encode(), order, None, {"model":"claude-opus-5-5"}, native_override=True)
+        assert errors, "native mode must not fall back to a valid text result"
         altered = json.loads(saved_stdout)
         altered["structured_output"]["summary"] = "different saved report"
         altered_stdout = json.dumps(altered).encode()
@@ -392,6 +402,60 @@ print(json.dumps({"type":"result","subtype":"success","is_error":False,"permissi
         else: raise AssertionError("recovery must retain original malformed raw binding")
         Path(recovery["candidate"]).write_bytes(raw)
         print("PASS report recovery before/after durable observation, canonical create-only/candidate equality, two launches/one product/one report, downstream binding and restricted synthetic secret marker")
+        # Exercise actual filesystem denial without a provider or real profile.
+        sandbox = shutil.which("bwrap")
+        assert sandbox, "native-profile-readonly verification requires bwrap"
+        native_home = root / "native-home"
+        native_home.mkdir()
+        for name in (".claude", ".codex", ".agents"):
+            (native_home / name).mkdir()
+        (native_home / "AGENTS.md").write_text("unloaded fixture")
+        profile = native_home / ".claude.json"
+        profile.write_text('{"syntheticNativeProfile":true}\n')
+        scratch = root / "native-report-scratch"
+        scratch.mkdir()
+        denied_product = root / "native-denied-product.txt"
+        denied_product.write_text("unchanged")
+        native_cli = root / "native-claude"
+        native_cli.write_text('''#!/usr/bin/env python3
+import errno,json,os,sys
+from pathlib import Path
+scratch=Path(os.environ["CLAUDE_CONFIG_DIR"])
+assert "--bare" not in sys.argv
+assert "ANTHROPIC_API_KEY" not in os.environ and "ANTHROPIC_AUTH_TOKEN" not in os.environ
+assert json.loads((scratch/".claude.json").read_text())=={"syntheticNativeProfile":True}
+assert sys.argv[sys.argv.index("--model")+1]==os.environ["ANTHROPIC_DEFAULT_OPUS_MODEL"]
+(scratch/"observed.txt").write_text("scratch permitted")
+try: Path(sys.argv[-1]).write_text("unauthorized")
+except OSError as error: assert error.errno in (errno.EROFS,errno.EACCES)
+else: raise AssertionError("product was writable")
+print("READONLY_NATIVE_PROFILE_OK")
+''')
+        native_cli.chmod(0o755)
+        native_cap = dict(fixture.read_json(cap_path), launchMode="native-profile-readonly",
+                          cliRef=_mission_file_ref(native_cli), sandboxRef=_mission_file_ref(Path(sandbox)),
+                          profileRef=_mission_file_ref(profile), nativeHome=str(native_home),
+                          scratchDir=str(scratch), baseUrl="http://127.0.0.1:8317")
+        native_cap_path=root/"native-report-capability.json"
+        fixture.write_json(native_cap_path,native_cap)
+        native_reservation=SimpleNamespace(state={"authority":{"reportCapabilityRef":_mission_file_ref(native_cap_path)}})
+        result_gateway.report_capability(native_reservation)
+        native_cli.chmod(0o644)
+        try: result_gateway.report_capability(native_reservation)
+        except result_gateway.GatewayError as error: assert "not executable" in str(error)
+        else: raise AssertionError("nonexecutable report CLI must fail before reservation")
+        native_cli.chmod(0o755)
+        with patch.dict(os.environ, dict(fixture.environment(), ANTHROPIC_API_KEY="synthetic", ANTHROPIC_AUTH_TOKEN="synthetic"), clear=True):
+            argv, env = result_gateway.report_launch(native_cap, {}, str(denied_product))
+        outcome=subprocess.run(argv,env=env,text=True,capture_output=True,timeout=15)
+        assert outcome.returncode==0 and outcome.stdout.strip()=="READONLY_NATIVE_PROFILE_OK", outcome.stderr
+        assert denied_product.read_text()=="unchanged"
+        result_gateway.report_capability(native_reservation)
+        profile.write_text('{}\n')
+        try: result_gateway.report_capability(native_reservation)
+        except result_gateway.GatewayError: pass
+        else: raise AssertionError("changed native profile must invalidate capability")
+        print("PASS native-profile report preserves route, excludes injected credentials, denies product writes and pins profile")
 
         snapshot_root = root / "snapshot-git"
         snapshot_root.mkdir()

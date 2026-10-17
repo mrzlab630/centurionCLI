@@ -78,28 +78,132 @@ for(const client of clients) test(`${client}: selected cold/upgrade install, cha
     assert(!fs.existsSync(path.join(native,'skill-bundles/aquila-executor-eval.yaml')));
     assert.equal(run(['--profile','core']).status,0);
    }
-   // Ignored dependencies are outside the audit but must never be silently discarded by a swap.
+   // Per-file swaps preserve dependencies and runtime data inside managed roots.
    const dependency=path.join(agents,'skills/orchestrator/node_modules/local-user-data.txt');
    fs.mkdirSync(path.dirname(dependency),{recursive:true});fs.writeFileSync(dependency,'preserve generated data');
-   const generatedBefore=snapshot(temp);
-   const generatedConflict=run(['--profile','core']);assert.notEqual(generatedConflict.status,0);
-   assert.match(generatedConflict.stderr,/Foreign\/generated surface conflict/);assert.deepEqual(snapshot(temp),generatedBefore);
+   const generatedUpgrade=run(['--profile','core']);assert.equal(generatedUpgrade.status,0,generatedUpgrade.stderr);
+   assert.equal(fs.readFileSync(dependency,'utf8'),'preserve generated data');
    fs.rmSync(path.dirname(dependency),{recursive:true});
    // Fail after swaps and prove bytes, modes and directory state are restored.
    const beforeFail=snapshot(temp);
    const fail=run(['--profile','domain','--skill','tester'],{CENTURION_INSTALL_TEST_FAIL_AFTER:'3'});
    assert.notEqual(fail.status,0);assert.match(fail.stderr,/Injected install failure/);assert.deepEqual(snapshot(temp),beforeFail);
-   // A foreign global instruction is a conflict, never an automatic rewrite.
+   // Unrelated client configuration is outside package ownership and unchanged.
    const foreign=path.join(native,'settings.json');fs.writeFileSync(foreign,'{"hooks":{"unknown":true}}\n');
-   const withForeign=snapshot(temp);
-   const conflict=run(['--profile','core']);assert.notEqual(conflict.status,0);assert.match(conflict.stderr,/Foreign\/global surface conflict/);assert.deepEqual(snapshot(temp),withForeign);
-   const conflictingAudit=auditClient(client,targetArgs);assert.equal(conflictingAudit.ok,false);
+   const foreignBytes=fs.readFileSync(foreign);
+   const mixed=run(['--profile','core']);assert.equal(mixed.status,0,mixed.stderr);assert.deepEqual(fs.readFileSync(foreign),foreignBytes);
+   const mixedAudit=auditClient(client,targetArgs);assert.equal(mixedAudit.ok,true,JSON.stringify(mixedAudit.failures));
    fs.rmSync(foreign);
    // Tampered owned instruction is also an explicit conflict; its owner bytes are preserved.
    fs.appendFileSync(core,'foreign override\n');const tampered=snapshot(temp);
    assert.notEqual(run(['--profile','core']).status,0);assert.deepEqual(snapshot(temp),tampered);
   }finally{process.env.PATH=savedPath;}
  }finally{fs.rmSync(temp,{recursive:true,force:true});}
+});
+
+for(const client of clients) test(`${client}: explicit legacy preimages preserve custom instructions and runtime state`,()=>{
+ const temp=fs.mkdtempSync(path.join(os.tmpdir(),'centurion-legacy-migration-'));
+ const native=path.join(temp,client),agents=client==='codex'?path.join(temp,'agents'):native;
+ const targetArgs=client==='codex'?['--agents-home',agents,'--codex-home',native]:[`--${client}-home`,native];
+ const run=(args=[],env={})=>spawnSync(process.execPath,[installer,'--client',client,...targetArgs,'--profile','core',...args],{encoding:'utf8',env:{...process.env,...env}});
+ const instruction=path.join(native,{codex:'AGENTS.md',claude:'CLAUDE.md',hermes:'SOUL.md'}[client]);
+ const core=path.join(agents,'skills/orchestrator/SKILL.md');
+ const legacyControl=path.join(agents,'skills/orchestrator/scripts/mission_control.py');
+ const record=path.join(temp,'migration.json');
+ try {
+  for(const file of [instruction,core,legacyControl])fs.mkdirSync(path.dirname(file),{recursive:true});
+  const original=Buffer.from('# Моя политика\r\nUser policy remains authoritative.\r\n');
+  fs.writeFileSync(instruction,original);fs.writeFileSync(core,'legacy orchestrator\n');fs.writeFileSync(legacyControl,'# retired legacy controller\n');
+  const state=path.join(agents,'skills/orchestrator/.centurion/runtime.json');
+  fs.mkdirSync(path.dirname(state),{recursive:true});fs.writeFileSync(state,'{"keep":"runtime"}\n');
+  // These would fail any old whole-home traversal. They are never package files.
+  fs.symlinkSync('/not/a/real/credential/path',path.join(native,'auth.json'));
+  fs.symlinkSync('/not/a/real/runtime/path',path.join(path.dirname(state),'external-state'));
+  const config=path.join(native,'settings.json');fs.writeFileSync(config,'{"hooks":{"user":true},"secret":"fixture-only"}\n');
+  const before=snapshot(temp);
+  const missing=run();assert.notEqual(missing.status,0);assert.match(missing.stderr,/Foreign managed/);assert.deepEqual(snapshot(temp),before);
+  const migration={migrationVersion:'CENTURION_INSTALL_MIGRATION_V1',client,files:[
+   {installedPath:instruction,installedSha256:hash(original),action:'preserve-instruction'},
+   {installedPath:core,installedSha256:hash(fs.readFileSync(core)),action:'replace'},
+   {installedPath:legacyControl,installedSha256:hash(fs.readFileSync(legacyControl)),action:'retire'}
+  ]};
+  fs.writeFileSync(record,JSON.stringify({...migration,files:[...migration.files,{installedPath:config,installedSha256:hash(fs.readFileSync(config)),action:'retire'}]}));
+  const invalidBefore=snapshot(temp);const invalid=run(['--migration-record',record]);assert.notEqual(invalid.status,0);assert.match(invalid.stderr,/Invalid managed manifest/);assert.deepEqual(snapshot(temp),invalidBefore);
+  const validHash=migration.files[1].installedSha256;migration.files[1].installedSha256='0'.repeat(64);
+  fs.writeFileSync(record,JSON.stringify(migration));const staleBefore=snapshot(temp);const stale=run(['--migration-record',record]);assert.notEqual(stale.status,0);assert.match(stale.stderr,/preimage changed/);assert.deepEqual(snapshot(temp),staleBefore);
+  migration.files[1].installedSha256=validHash;
+  fs.writeFileSync(record,JSON.stringify(migration));
+  const beforeDry=snapshot(temp);
+  const dry=run(['--migration-record',record,'--dry-run']);assert.equal(dry.status,0,dry.stderr);assert.deepEqual(snapshot(temp),beforeDry);
+  const planned=JSON.parse(dry.stdout);assert(planned.targets.includes(path.join(native,'centurion/installed-chain.json')));
+  if(client==='claude')assert(planned.targets.includes(path.join(native,'skills/centurion-legion/.mcp.json')));
+  assert.deepEqual(planned.retired,[legacyControl]);assert.equal(planned.preservedInstruction,true);
+  const failed=run(['--migration-record',record],{CENTURION_INSTALL_TEST_FAIL_AFTER:'2'});
+  assert.notEqual(failed.status,0);assert.match(failed.stderr,/Injected install failure/);assert.deepEqual(snapshot(temp),beforeDry);
+  const success=run(['--migration-record',record]);assert.equal(success.status,0,success.stderr);
+  const content=fs.readFileSync(instruction);assert.deepEqual(content.subarray(0,original.length),original);
+  assert.equal(content.toString('utf8').split('<!-- CENTURION_MANAGED_V3_START -->').length,2);
+  assert(!fs.existsSync(legacyControl));assert.equal(fs.readFileSync(state,'utf8'),'{"keep":"runtime"}\n');
+  assert.equal(fs.readlinkSync(path.join(native,'auth.json')),'/not/a/real/credential/path');
+  assert.equal(fs.readFileSync(config,'utf8'),'{"hooks":{"user":true},"secret":"fixture-only"}\n');
+  const audit=auditClient(client,targetArgs);assert.equal(audit.ok,true,JSON.stringify(audit.failures));
+  assert.equal(audit.auditScope,'explicit-package-files');assert.equal(audit.liveLoadedChainProven,false);
+  const upgrade=run();assert.equal(upgrade.status,0,upgrade.stderr);assert.deepEqual(fs.readFileSync(instruction),content);
+  fs.appendFileSync(instruction,'\nNew user suffix\n');const userChanged=snapshot(temp);
+  const instructionConflict=run();assert.notEqual(instructionConflict.status,0);assert.match(instructionConflict.stderr,/preimage changed/);assert.deepEqual(snapshot(temp),userChanged);
+  fs.writeFileSync(instruction,content);
+  const replay=run(['--migration-record',record]);assert.notEqual(replay.status,0);assert.match(replay.stderr,/legacy home/);
+  // Unknown/new package instruction leaves remain explicit metadata conflicts.
+  const extra=path.join(agents,'skills/coder/SKILL.md');fs.mkdirSync(path.dirname(extra),{recursive:true});fs.writeFileSync(extra,'foreign recipe\n');
+  const extraBefore=snapshot(temp);const conflict=run();assert.notEqual(conflict.status,0);assert.match(conflict.stderr,/Foreign managed instruction/);assert.deepEqual(snapshot(temp),extraBefore);
+  assert.equal(auditClient(client,targetArgs).ok,false);fs.rmSync(extra);
+  // Forged receipt paths cannot turn unrelated configuration into owned data.
+  const installedManifest=path.join(native,'centurion/installed-chain.json');
+  const receipt=JSON.parse(fs.readFileSync(installedManifest,'utf8'));
+  receipt.files.push({installedPath:config,installedSha256:hash(fs.readFileSync(config))});fs.writeFileSync(installedManifest,JSON.stringify(receipt));
+  const forgedBefore=snapshot(temp);const forged=run();assert.notEqual(forged.status,0);assert.match(forged.stderr,/Invalid managed manifest/);assert.deepEqual(snapshot(temp),forgedBefore);
+  assert.throws(()=>auditClient(client,targetArgs),/Invalid managed manifest/);
+ } finally {fs.rmSync(temp,{recursive:true,force:true});}
+});
+
+test('preserved instruction ranges cannot hide an empty or malformed managed wrapper',()=>{
+ const temp=fs.mkdtempSync(path.join(os.tmpdir(),'centurion-preserved-ranges-'));
+ const native=path.join(temp,'codex'),agents=path.join(temp,'agents');
+ const args=['--agents-home',agents,'--codex-home',native];
+ const run=(extra=[])=>spawnSync(process.execPath,[installer,'--client','codex',...args,'--profile','core',...extra],{encoding:'utf8'});
+ const instruction=path.join(native,'AGENTS.md'),manifest=path.join(native,'centurion/installed-chain.json');
+ try {
+  fs.mkdirSync(native,{recursive:true});
+  const prefix=Buffer.from('# Custom user instructions\r\nPreserve these exact bytes.\r\n');
+  fs.writeFileSync(instruction,prefix);
+  const record=path.join(temp,'migration.json');
+  fs.writeFileSync(record,JSON.stringify({migrationVersion:'CENTURION_INSTALL_MIGRATION_V1',client:'codex',files:[{installedPath:instruction,installedSha256:hash(prefix),action:'preserve-instruction'}]}));
+  const installed=run(['--migration-record',record]);assert.equal(installed.status,0,installed.stderr);
+  const originalBytes=fs.readFileSync(instruction),originalReceipt=fs.readFileSync(manifest);
+  assert.equal(auditClient('codex',args).ok,true);
+  const start='\n\n<!-- CENTURION_MANAGED_V3_START -->\n',end='\n<!-- CENTURION_MANAGED_V3_END -->\n';
+  const cases=[
+   {name:'all bytes claimed as preserved prefix',bytes:originalBytes,prefixBytes:originalBytes.length,suffixBytes:0},
+   {name:'opening delimiter hidden in prefix',bytes:originalBytes,prefixBytes:prefix.length+Buffer.byteLength(start),suffixBytes:0},
+   {name:'empty wrapper',bytes:Buffer.concat([prefix,Buffer.from(start+' \n'+end)]),prefixBytes:prefix.length,suffixBytes:0},
+   {name:'wrong closing delimiter',bytes:Buffer.concat([prefix,Buffer.from(start+'# wrapper\n'+end.replace('_END','_BROKEN'))]),prefixBytes:prefix.length,suffixBytes:0}
+  ];
+  for(const fixture of cases) {
+   const receipt=JSON.parse(originalReceipt),row=receipt.files.find(r=>r.installedPath===instruction);
+   row.renderedContent=fixture.bytes.toString('utf8');row.installedSha256=row.sourceSha256=hash(fixture.bytes);
+   row.preservedInstruction={prefixBytes:fixture.prefixBytes,suffixBytes:fixture.suffixBytes,prefixSha256:hash(fixture.bytes.subarray(0,fixture.prefixBytes)),suffixSha256:hash(fixture.bytes.subarray(fixture.bytes.length-fixture.suffixBytes))};
+   fs.writeFileSync(instruction,fixture.bytes);fs.writeFileSync(manifest,JSON.stringify(receipt));
+   const audit=auditClient('codex',args),before=snapshot(temp),upgrade=run();
+   assert.equal(audit.ok,false,fixture.name+' bypassed audit; upgrade exit='+upgrade.status);
+   assert(audit.failures.some(f=>/preserved instruction/i.test(f.reason)),JSON.stringify(audit.failures));
+   assert.notEqual(upgrade.status,0,fixture.name+' bypassed upgrade');
+   assert.match(upgrade.stderr,/preserved instruction/i);assert.deepEqual(snapshot(temp),before);
+  }
+  fs.writeFileSync(instruction,originalBytes);fs.writeFileSync(manifest,originalReceipt);
+  const validUpgrade=run();assert.equal(validUpgrade.status,0,validUpgrade.stderr);
+  assert.deepEqual(fs.readFileSync(instruction),originalBytes);assert.deepEqual(originalBytes.subarray(0,prefix.length),prefix);
+  assert.equal(auditClient('codex',args).ok,true);
+ } finally {fs.rmSync(temp,{recursive:true,force:true});}
 });
 
 test('selection rejects excluded and incorporated identities; symlink ancestors never receive writes',()=>{

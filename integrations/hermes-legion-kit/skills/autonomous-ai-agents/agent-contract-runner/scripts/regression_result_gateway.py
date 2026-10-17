@@ -634,6 +634,9 @@ def independent_review(paths: dict[str, Any]) -> dict[str, Any]:
 
 def environment() -> dict[str, str]:
     env = dict(os.environ)
+    # Synthetic route for fake CLIs; no provider request is made by this fixture.
+    env["ANTHROPIC_BASE_URL"] = "http://127.0.0.1:8317"
+    env["ANTHROPIC_DEFAULT_OPUS_MODEL"] = "claude-opus-5-5"
     env["PATH"] = (
         f"{BIN}{os.pathsep}{Path(sys.executable).parent}"
         f"{os.pathsep}{env.get('PATH', '')}"

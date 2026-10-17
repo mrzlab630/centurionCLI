@@ -1,0 +1,12 @@
+PASS deterministic positive plan preserves compatible candidate surface
+PASS candidate/canonical alias rejected
+PASS pre-existing canonical result rejected
+PASS bare AGY file adapter compatibility stays bounded; real CLI and custody checks remain strict
+PASS Codex/Claude/agy default prompts, stdin metadata, delimiters, option values and one-token arity; legacy fixtures preserved
+PASS declared scratch path is bounded by allowed paths and fresh order namespace
+PASS typed artifact preview requires and checks supplied digest/media type
+PASS stale handoff identity rejected
+PASS exact/recursive path coverage and planned-only forbidden conflicts
+PASS control paths outside fresh order namespace rejected before dispatch
+PASS strict order version and transport configuration fail before launch
+PASS selected-runtime environment excludes unrelated values and duplicate/unknown policy contexts fail closed

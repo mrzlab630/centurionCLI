@@ -52,7 +52,7 @@ from agent_contract_runner import (
 from agent_artifact_namespace import ArtifactNamespaceError, require_control_path
 from artifact_lineage import LineageError, finalize_lineage, preflight_lineage
 from agent_result_builder import BuilderError, ProtocolFailure, _load_schema, _schema_errors, build_result, create_only_finalize, record_protocol_failure, resolve_schema_path, validate_candidate
-from order_preflight import PreflightError, _option_values, controller_context, executor_environment, load_tunnel_order, validate_tunnel_launch
+from order_preflight import PreflightError, _option_values, controller_context, executor_environment, load_tunnel_order, validate_tunnel_launch, validate_claude_proxy_environment
 from review_ladder import RoutingError, validate_order_routing
 from response_envelope import MAX_CANDIDATE_BYTES, MAX_FRAME_BYTES, MAX_STDERR_BYTES, MAX_STDOUT_BYTES, ResponseEnvelopeError, parse_response_bytes, read_bounded_file, response_state_errors
 from accepted_inputs import AcceptedInputError, verify_input_results
@@ -906,8 +906,9 @@ def extract_stdout_candidate(
     native = bool(_option_values(shlex.split(order.get("launch", {}).get("command", "")), {"--json-schema"})) if native_override is None else native_override
     if extraction is not None:
         extraction.update(field="structured_output" if native else "result", eventIndex=terminal_index)
-    if structured is not None and text_result is not None and (not isinstance(text_result, str) or text_result.strip()):
-        transport_errors.append("Claude terminal has ambiguous structured_output and result candidates")
+    # Native Claude can emit both its authoritative structured projection and
+    # explanatory text. Select the source fixed before launch; never fall back
+    # to that text when the selected projection is missing or invalid.
     if native:
         if not isinstance(structured, dict):
             transport_errors.append("Claude native mode requires structured_output object")
@@ -1208,8 +1209,26 @@ def report_capability(reservation: Any) -> tuple[dict[str, Any], dict[str, Any]]
     for key in ("cliRef", "configRef"):
         if _mission_file_ref(Path(cap[key]["path"])) != cap[key]:
             raise GatewayError("report CLI/config changed since capability probe")
+    if not os.access(cap["cliRef"]["path"], os.X_OK):
+        raise GatewayError("report CLI is not executable")
     if cap.get("route") != {"executor": "claude", "model": "claude-opus-5-5", "effort": "high"}:
         raise GatewayError("unsupported report capability route")
+    mode = cap.get("launchMode", "bare")
+    if mode not in {"bare", "native-profile-readonly"}:
+        raise GatewayError("unsupported report capability launch mode")
+    if mode == "native-profile-readonly":
+        for key in ("sandboxRef", "profileRef"):
+            if not isinstance(cap.get(key), dict) or _mission_file_ref(Path(cap[key]["path"])) != cap[key]:
+                raise GatewayError("report isolation/profile changed since capability probe")
+        if not os.access(cap["sandboxRef"]["path"], os.X_OK):
+            raise GatewayError("report sandbox is not executable")
+        native_home = Path(cap.get("nativeHome", ""))
+        if (not native_home.is_absolute() or not native_home.is_dir() or native_home.is_symlink()
+                or Path(cap["profileRef"]["path"]) != native_home / ".claude.json"
+                or Path(cap["sandboxRef"]["path"]).name != "bwrap"):
+            raise GatewayError("invalid report native profile isolation boundary")
+        validate_claude_proxy_environment({"ANTHROPIC_BASE_URL": cap.get("baseUrl", ""),
+                                          "ANTHROPIC_DEFAULT_OPUS_MODEL": cap["route"]["model"]}, cap["route"]["model"])
     config, complete = read_bounded_file(Path(cap["configRef"]["path"]), 1024 * 1024)
     if not complete or strict_json_load_bytes(config, "isolated report settings") != {"disableAllHooks": True}:
         raise GatewayError("report settings must disable all hooks and contain no other settings")
@@ -1233,6 +1252,12 @@ def report_capability(reservation: Any) -> tuple[dict[str, Any], dict[str, Any]]
             if not (path.is_file() or path.is_dir()):
                 raise GatewayError("report runtime scratch contains an unsupported entry")
             if path.is_file() and path.suffix == ".json":
+                # bwrap creates the empty mount target on the writable scratch
+                # filesystem; the native profile itself is mounted read-only.
+                if mode == "native-profile-readonly" and path == scratch_dir / ".claude.json":
+                    if path.stat().st_size != 0:
+                        raise GatewayError("report native profile mount target was modified")
+                    continue
                 raw, complete = read_bounded_file(path, 1024 * 1024)
                 if not complete:
                     raise GatewayError("report runtime scratch JSON inspection limit exceeded")
@@ -1250,6 +1275,38 @@ def report_capability(reservation: Any) -> tuple[dict[str, Any], dict[str, Any]]
         raise GatewayError(f"report runtime scratch cannot be inspected: {exc}") from exc
     cap["scratchDir"] = str(scratch_dir)
     return cap, ref
+
+
+def report_launch(cap: dict[str, Any], schema: dict[str, Any], prompt: str) -> tuple[list[str], dict[str, str]]:
+    """Build only the capability-tested native launch, without arbitrary argv."""
+    env = executor_environment("claude", dict(os.environ))
+    validate_claude_proxy_environment(env, cap["route"]["model"])
+    scratch = cap["scratchDir"]
+    for key in ("HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "CLAUDE_CONFIG_DIR"):
+        env[key] = scratch
+    env.update(CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1", DISABLE_AUTOUPDATER="1")
+    argv = [cap["cliRef"]["path"], "--model", env["ANTHROPIC_DEFAULT_OPUS_MODEL"], "--effort", "high",
+            "--tools", "", "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
+            "--settings", cap["configRef"]["path"], "--setting-sources", "", "--no-session-persistence",
+            "--output-format", "json", "--json-schema", json.dumps(schema), "-p", prompt]
+    if cap.get("launchMode", "bare") == "bare":
+        argv.insert(1, "--bare")
+    else:
+        # Existing client state is mounted read-only; no credential extraction,
+        # fabricated API key, writable live home, hooks or inherited MCP config.
+        env.pop("ANTHROPIC_API_KEY", None)
+        env.pop("ANTHROPIC_AUTH_TOKEN", None)
+        if env["ANTHROPIC_BASE_URL"] != cap["baseUrl"]:
+            raise GatewayError("report local proxy changed since capability probe")
+        native_home = Path(cap["nativeHome"])
+        wrapper = [cap["sandboxRef"]["path"], "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc",
+                   "--unshare-pid", "--die-with-parent", "--bind", scratch, scratch]
+        for name in (".claude", ".codex", ".agents"):
+            wrapper.extend(["--tmpfs", str(native_home / name)])
+        wrapper.extend(["--ro-bind", "/dev/null", str(native_home / "AGENTS.md"), "--chdir", scratch,
+                        "--ro-bind", cap["profileRef"]["path"], str(Path(scratch) / ".claude.json")])
+        argv = wrapper + argv
+    return argv, env
 
 
 def report_projection(reservation: Any) -> dict[str, Any]:
@@ -1323,6 +1380,8 @@ def recover_report(reservation: Any, args: Any, paths: dict[str, Any], routing: 
         namespace.mkdir(mode=0o700, exist_ok=False)
         from agent_result_builder import native_result_schema
         projection = report_projection(reservation)
+        prompt = json.dumps(projection, sort_keys=True)
+        argv, env = report_launch(cap, native_result_schema(reservation.order, routing), prompt)
         report = {"intentId": ordinal_key, "taskId": reservation.meta["taskId"], "action": "report",
             "orderId": reservation.order["orderId"], "orderSha256": intent["orderSha256"], "executor": "claude",
             "status": "reserved", "effect": "not_started", "processStopped": False, "reportAttemptsUsed": 0,
@@ -1334,11 +1393,6 @@ def recover_report(reservation: Any, args: Any, paths: dict[str, Any], routing: 
         intent.update(reportAttemptsUsed=1, reportIntentId=ordinal_key)
         reservation.state["budget"]["modelLaunchesUsed"] += 1
         reservation.save()  # no refund after this point, including a spawn failure
-        prompt = json.dumps(projection, sort_keys=True)
-        argv = [cap["cliRef"]["path"], "--bare", "--model", "claude-opus-5-5", "--effort", "high",
-                "--tools", "", "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
-                "--settings", cap["configRef"]["path"], "--setting-sources", "", "--no-session-persistence",
-                "--output-format", "json", "--json-schema", json.dumps(native_result_schema(reservation.order, routing)), "-p", prompt]
         atomic_create(namespace / "start.json", (json.dumps({"version":"CENTURION_REPORT_START_V1", "orderId":reservation.order["orderId"],
             "originalRefs":intent["protocolRefs"], "capabilityRef":cap_ref, "snapshot":intent["snapshot"],
             "idempotencyKey":report["idempotencyKey"], "projectionSha256":sha256_bytes(prompt.encode())})+"\n").encode())
@@ -1346,9 +1400,6 @@ def recover_report(reservation: Any, args: Any, paths: dict[str, Any], routing: 
         rr = MissionReservation(reservation.order, reservation.policy, reservation.state, reservation.path, reservation.lock, "launch")
         rr.meta = dict(reservation.meta, intentId=ordinal_key, action="report")
         rr.intent = report
-        env = executor_environment("claude", dict(os.environ))
-        for key in ("HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "CLAUDE_CONFIG_DIR"):
-            env[key] = cap["scratchDir"]
         child = run_child(argv, Path(cap["scratchDir"]), rr.work_timeout(120), 10,
                           environment=env, reservation=rr, detect_claude_tool_loop=True)
         atomic_create(namespace / "stdout.bin", child["stdout"])
@@ -1540,6 +1591,8 @@ def main() -> int:
         if is_v3:
             policy.control_cli_path(args.order, "3.0 original order")
             validate_tunnel_launch(order, policy, candidate_path, args.candidate_source, args.schema, routing)
+            if order["executor"] == "claude":
+                validate_claude_proxy_environment(dict(os.environ), routing["model"])
         try:
             _load_schema(resolve_schema_path(args.schema))
         except BuilderError as exc:

@@ -1112,6 +1112,9 @@ def validate_mission_state(state: dict[str, Any], state_path: Path) -> None:
         raise RunnerError("only one strategy switch is allowed")
     tasks = require_object(state.get("tasks"), "mission tasks")
     intents = require_object(state.get("intents"), "mission intents")
+    completion_actions = authority.get("taskCompletionActions")
+    if completion_actions is not None and (not isinstance(completion_actions, dict) or set(completion_actions) != set(tasks)):
+        raise RunnerError("task completion action coverage changed")
     require_list(state, "observations")
     if used != len(intents):
         raise RunnerError("launch counters disagree with persisted intents")
@@ -1119,6 +1122,13 @@ def validate_mission_state(state: dict[str, Any], state_path: Path) -> None:
     for task_id, task in tasks.items():
         require_object(task, "mission task")
         require_nonempty_string(task, "objective")
+        completion_action = task.get("completionAction", "product")
+        if completion_action not in ("product", "advisory"):
+            raise RunnerError("task completionAction must be product or advisory")
+        if completion_action != (completion_actions.get(task_id) if completion_actions is not None else "product"):
+            raise RunnerError("task completion action binding changed")
+        if completion_action not in authority["allowedActions"]:
+            raise RunnerError("task completion action lacks mission authority")
         for key in ("acceptanceCriteria", "allowedPaths", "productPaths", "dependencies"):
             _mission_strings(task.get(key), f"task.{key}", nonempty=key in {"acceptanceCriteria", "allowedPaths", "productPaths"})
         covered.update(task["acceptanceCriteria"])
@@ -1142,11 +1152,11 @@ def validate_mission_state(state: dict[str, Any], state_path: Path) -> None:
             acceptance = require_object(acceptance, "task acceptance")
             accepted_intent = intents.get(acceptance.get("intentId"))
             if (not isinstance(accepted_intent, dict) or accepted_intent.get("status") != "accepted" or
-                    accepted_intent.get("action") != "product" or accepted_intent.get("taskId") != task_id or
+                    accepted_intent.get("action") != completion_action or accepted_intent.get("taskId") != task_id or
                     acceptance.get("criteria") != task["acceptanceCriteria"] or
                     acceptance.get("snapshotSha256") != accepted_intent.get("snapshot", {}).get("sha256") or
                     acceptance.get("revision") != acceptance.get("snapshotSha256")):
-                raise RunnerError("task acceptance is not bound to an accepted product intent")
+                raise RunnerError("task acceptance is not bound to its declared completion action")
         elif acceptance is not None:
             raise RunnerError("unaccepted task cannot carry acceptance")
         count = _mission_int(task.get("productAttemptsUsed"), "task.productAttemptsUsed")
@@ -1219,7 +1229,6 @@ def initialize_mission(spec: dict[str, Any], state_path: Path) -> dict[str, Any]
         state["workspace"] = str(Path(state["workspace"]).resolve())
         if not Path(state["workspace"]).is_dir():
             raise RunnerError("mission workspace does not exist")
-        state["authoritySha256"] = _mission_digest(state["authority"])
         if "modelLaunchesUsed" in state["budget"]:
             raise RunnerError("mission preparation cannot reset imported launch counters")
         state["budget"]["modelLaunchesUsed"] = 0
@@ -1227,7 +1236,13 @@ def initialize_mission(spec: dict[str, Any], state_path: Path) -> dict[str, Any]
         for task in state["tasks"].values():
             if any(key in task for key in ("productAttemptsUsed", "acceptance", "status")):
                 raise RunnerError("mission preparation cannot import task counters/acceptance")
+            task.setdefault("completionAction", "product")
             task.update(productAttemptsUsed=0, status="ready", acceptance=None)
+        completion_actions = {task_id: task["completionAction"] for task_id, task in state["tasks"].items()}
+        if state["authority"].get("taskCompletionActions", completion_actions) != completion_actions:
+            raise RunnerError("task completion action binding changed")
+        state["authority"]["taskCompletionActions"] = completion_actions
+        state["authoritySha256"] = _mission_digest(state["authority"])
         validate_mission_state(state, state_path)
         atomic_write_loop_state(state_path, state)
         return state
@@ -1398,6 +1413,8 @@ def _validate_mission_scope(order: dict[str, Any], policy: PathPolicy, state: di
         raise RunnerError("higher verification floor requires explicit task preparation; no V0 acceptance bypass")
     if meta["action"] not in authority["allowedActions"]:
         raise RunnerError("requested action lacks mission authority")
+    if meta["action"] == "product" and task.get("completionAction", "product") != "product":
+        raise RunnerError("product dispatch cannot complete an advisory-only task")
     if meta["strategyId"] != state["strategyId"]:
         raise RunnerError("stale mission strategy")
     if order["objective"] != task["objective"] or order["acceptanceCriteria"] != task["acceptanceCriteria"]:
@@ -1508,7 +1525,7 @@ class MissionReservation:
             self.write_failed = True
             if self.intent["status"] == "accepted":
                 task = self.state["tasks"][self.meta["taskId"]]
-                if self.meta["action"] == "product":
+                if self.meta["action"] == task.get("completionAction", "product"):
                     task.update(status="verifying", acceptance=None)
             self.intent.update(status="unknown_effect", effect="unknown_effect")
             if self.state["status"] not in MISSION_TERMINAL:
@@ -1646,7 +1663,7 @@ class MissionReservation:
             report.update(status="accepted", processStopped=True, effect="observed", resultRef=self.intent["resultRef"],
                           acceptanceRef=self.intent["acceptanceRef"], snapshot=self.intent["snapshot"])
         _check_mission_refs(self.intent)
-        if self.meta["action"] == "product":
+        if self.meta["action"] == task.get("completionAction", "product"):
             task.update(status="accepted", acceptance={"intentId": self.meta["intentId"], "revision": snapshot["sha256"],
                                                        "snapshotSha256": snapshot["sha256"], "criteria": list(task["acceptanceCriteria"])})
         self.save()
@@ -1727,6 +1744,8 @@ def reserve_mission_dispatch(order: dict[str, Any], policy: PathPolicy) -> Missi
             raise RunnerError("report-only dispatch disabled: no trusted no-write capability verifier")
         if task["verificationProfile"] == "V3":
             raise RunnerError("V3 remains disabled without trusted approval verifier")
+        if meta["action"] == "advisory" and task.get("completionAction", "product") == "advisory" and task["status"] == "accepted":
+            raise RunnerError("accepted advisory task must not restart consultation")
         if meta["action"] == "product":
             if task["status"] == "accepted":
                 raise RunnerError("accepted task must not restart development")

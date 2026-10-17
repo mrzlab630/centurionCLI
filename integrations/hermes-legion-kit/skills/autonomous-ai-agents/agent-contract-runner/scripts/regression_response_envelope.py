@@ -174,12 +174,16 @@ def main():
         assert not errors and json.loads(candidate) == payload, errors
         terminal["result"] = json.dumps(payload)
         candidate, errors = extract_stdout_candidate(encoded(terminal), order, None, native_route)
-        assert candidate is None and any("ambiguous" in item for item in errors)
+        assert not errors and json.loads(candidate) == payload, errors
+        selected = terminal.pop("structured_output")
+        candidate, errors = extract_stdout_candidate(encoded(terminal), order, None, native_route)
+        assert candidate is None and any("requires structured_output" in item for item in errors)
+        terminal["structured_output"] = selected
         terminal.pop("result")
         terminal["structured_output"]["orderId"] = "stale-order"
         candidate, errors = extract_stdout_candidate(encoded(terminal), order, None, native_route)
         assert candidate is None and any("orderId" in item for item in errors)
-        print("PASS Claude selected structured_output accepts valid identity and rejects dual/stale candidates")
+        print("PASS Claude selected structured_output accepts companion text and rejects missing/stale native candidates")
 
         for executor in ("hermes_delegate_task", "agy"):
             for mode in ("fenced", "malformed"):

@@ -1,0 +1,18 @@
+✔ codex: selected cold/upgrade install, chain readback, conflicts and transactional rollback (420.945621ms)
+✔ claude: selected cold/upgrade install, chain readback, conflicts and transactional rollback (1634.437472ms)
+✔ hermes: selected cold/upgrade install, chain readback, conflicts and transactional rollback (3198.990328ms)
+✔ codex: explicit legacy preimages preserve custom instructions and runtime state (1059.089773ms)
+✔ claude: explicit legacy preimages preserve custom instructions and runtime state (2305.844932ms)
+✔ hermes: explicit legacy preimages preserve custom instructions and runtime state (601.905132ms)
+✔ preserved instruction ranges cannot hide an empty or malformed managed wrapper (365.552938ms)
+✔ selection rejects excluded and incorporated identities; symlink ancestors never receive writes (209.065083ms)
+✔ installed support library preserves real TLS certificate verification (571.159925ms)
+✔ capability receipts bind binary/config/route/adapter and invalidate without a probe (410.083337ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10923.34213

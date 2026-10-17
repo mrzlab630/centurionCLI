@@ -399,7 +399,7 @@ def mission_regressions() -> None:
         else:
             raise AssertionError(f"expected rejection {marker}")
 
-    def fixture(name: str, *, maximum: int = 8, profile: str = "V0"):
+    def fixture(name: str, *, maximum: int = 8, profile: str = "V0", completion_action: str | None = None):
         root = FIXTURE_ROOT / ("mission-" + name)
         root.mkdir()
         product = root / "src"
@@ -436,6 +436,8 @@ def mission_regressions() -> None:
                 "allowedPaths": [str(product / "**")], "productPaths": [str(target)], "dependencies": [],
                 "maxProductAttempts": 3, "verificationProfile": profile, "requiredProof": order["proofCommands"],
                 "expectedArtifacts": order["expectedArtifacts"]}}}
+        if completion_action is not None:
+            spec["tasks"]["task"]["completionAction"] = completion_action
         if name == "restart":
             spec_path = root / "approved-mission.json"
             write_json(spec_path, spec)
@@ -449,13 +451,14 @@ def mission_regressions() -> None:
 
     def capture(reservation, target: Path, result_path: Path, *, review=None):
         reservation.before_spawn()
-        if review is None:
+        readonly = reservation.meta["action"] in {"review", "advisory"}
+        if not readonly:
             target.write_text("final product\n")
         else:
-            target = result_path.parent / "review.txt"
-            target.write_text("review evidence\n")
+            target = result_path.parent / ("review.txt" if review is not None else "advisory.txt")
+            target.write_text("review evidence\n" if review is not None else "bounded advisory evidence\n")
         value = {"resultVersion": "AGENT_RESULT_JSON_V1", "orderId": reservation.order["orderId"], "executor": reservation.order["executor"],
-            "status": "done", "summary": "bounded result", "filesChanged": [] if review else [{"path": str(target), "action": "added"}],
+            "status": "done", "summary": "bounded result", "filesChanged": [] if readonly else [{"path": str(target), "action": "added"}],
             "artifacts": [{"path": str(target), "exists": True, "type": "fixture", "note": "product"}],
             "proof": [{"command": "reported only", "cwd": str(target.parent), "status": "pass", "exitCode": 0, "summary": "reported"}],
             "scopeDeviations": [], "forbiddenPatternHits": [], "remainingRisks": [], "questions": [], "errors": [],
@@ -533,20 +536,90 @@ def mission_regressions() -> None:
     unknown.close()
     print("PASS 3.0 post-replace state failure records unknown commit without refund or launch")
 
-    order, policy, path, _, _, _, _ = fixture("advisory", profile="V2")
-    order["roleForTask"] = "ARCHITECTUS"
-    order["context"][0]["action"] = "advisory"
-    order["allowedPaths"] = [str(policy.control_namespace / "**")]
-    order["proofCommands"] = []
-    order["expectedArtifacts"] = []
-    route = json.loads(order["notesForExecutor"][0][len(ROUTING_PREFIX):])
-    route.update(model="gpt-6-astra", executionProfile="advisory", reviewer="none", reasons=["astra advisory: explicit user request"])
-    order["notesForExecutor"] = [ROUTING_PREFIX + json.dumps(route, separators=(",", ":"))]
-    policy = runner.PathPolicy(policy.repo_path, order["allowedPaths"], [], order["orderId"])
+    def advisory_order(order, policy):
+        order["roleForTask"] = "ARCHITECTUS"
+        order["context"][0]["action"] = "advisory"
+        order["allowedPaths"] = [str(policy.control_namespace / "**")]
+        order["proofCommands"] = []
+        order["expectedArtifacts"] = []
+        route = json.loads(order["notesForExecutor"][0][len(ROUTING_PREFIX):])
+        route.update(model="gpt-6-astra", executionProfile="advisory", reviewer="none", reasons=["astra advisory: explicit user request"])
+        order["notesForExecutor"] = [ROUTING_PREFIX + json.dumps(route, separators=(",", ":"))]
+        return runner.PathPolicy(policy.repo_path, order["allowedPaths"], [], order["orderId"])
+
+    order, policy, path, target, result, _, _ = fixture("advisory", profile="V2")
+    prior_state = json.loads(path.read_text())
+    assert_case(prior_state["tasks"]["task"]["completionAction"] == "product", "completion action defaults to product")
+    del prior_state["tasks"]["task"]["completionAction"]
+    del prior_state["authority"]["taskCompletionActions"]
+    prior_state["authoritySha256"] = runner._mission_digest(prior_state["authority"])
+    runner.validate_mission_state(prior_state, path)
+    policy = advisory_order(order, policy)
+    target.write_text("read-only input\n")
     advisory = runner.reserve_mission_dispatch(order, policy)
     assert_case(advisory.state["budget"]["modelLaunchesUsed"] == 1 and advisory.state["tasks"]["task"]["productAttemptsUsed"] == 0, "consultation consumes shared launch but no product attempt")
+    proof, acceptance = capture(advisory, target, result)
+    advisory.accept(proof, acceptance)
+    assert_case(advisory.state["tasks"]["task"]["status"] != "accepted", "ordinary consultation never closes a product task")
     advisory.close()
+    rejected(lambda: runner.complete_mission(order, policy, proof, "advisory-is-not-product"), "unaccepted tasks")
     print("PASS 3.0 advisory shares mission launch budget without product attempt authority")
+
+    rejected(lambda: fixture("invalid-completion-action", completion_action="review"), "completionAction")
+    order, policy, path, target, result, _, _ = fixture("advisory-completion", profile="V2", completion_action="advisory")
+    rejected(lambda: runner.reserve_mission_dispatch(order, policy), "advisory-only")
+    state = json.loads(path.read_text())
+    assert_case(state["budget"]["modelLaunchesUsed"] == 0 and state["authority"]["taskCompletionActions"] == {"task": "advisory"},
+                "advisory closure is bound during preparation before dispatch")
+    bad = copy.deepcopy(state)
+    bad["tasks"]["task"]["completionAction"] = "product"
+    rejected(lambda: runner.validate_mission_state(bad, path), "completion action binding")
+    bad = copy.deepcopy(state)
+    bad["authority"]["taskCompletionActions"]["task"] = "product"
+    rejected(lambda: runner.validate_mission_state(bad, path), "authority binding")
+    bad = copy.deepcopy(state)
+    bad["authority"]["allowedActions"].remove("advisory")
+    bad["authoritySha256"] = runner._mission_digest(bad["authority"])
+    rejected(lambda: runner.validate_mission_state(bad, path), "lacks mission authority")
+    policy = advisory_order(order, policy)
+    target.write_text("read-only input\n")
+    advisory = runner.reserve_mission_dispatch(order, policy)
+    proof, acceptance = capture(advisory, target, result)
+    runner.verify_workspace_diff(advisory, json.loads(result.read_text()))
+    target.write_text("advisory must not change input\n")
+    rejected(advisory.require_acceptance_ready, "product changed after capture")
+    target.write_text("read-only input\n")
+    advisory.require_acceptance_ready()
+    advisory.accept(proof, acceptance)
+    bad = copy.deepcopy(advisory.state)
+    bad["intents"]["product-1"]["action"] = "product"
+    rejected(lambda: runner.validate_mission_state(bad, path), "declared completion action")
+    assert_case(advisory.state["tasks"]["task"]["status"] == "accepted" and target.read_text() == "read-only input\n",
+                "explicit advisory task accepts only read-only captured result")
+    assert_case(advisory.state["budget"]["modelLaunchesUsed"] == 1 and advisory.state["tasks"]["task"]["productAttemptsUsed"] == 0,
+                "advisory completion requires no product or reviewer launch")
+    advisory.close()
+    duplicate = runner.reserve_mission_dispatch(order, policy)
+    assert_case(duplicate.disposition == "accepted" and duplicate.state["budget"]["modelLaunchesUsed"] == 1,
+                "accepted advisory reload never replays")
+    final_proofs = duplicate.state["tasks"]["task"]["requiredProof"]
+    final_snapshot = runner.mission_snapshot(duplicate.state)["sha256"]
+    duplicate.close()
+    extra = copy.deepcopy(order)
+    extra["context"][0]["intentId"] = "advisory-2"
+    rejected(lambda: runner.reserve_mission_dispatch(extra, policy), "accepted advisory task")
+    rejected(lambda: runner.complete_mission(order, policy, proof, "missing-final-proof"), "coverage missing")
+    final_proof = {"productSnapshotSha256": final_snapshot, "criteria": order["acceptanceCriteria"],
+        "proof": [{"command": item["command"], "cwd": item["cwd"], "required": True, "status": "pass", "exitCode": 0} for item in final_proofs]}
+    target.write_text("tampered input\n")
+    rejected(lambda: runner.complete_mission(order, policy, final_proof, "stale-advice"), "bytes changed")
+    target.write_text("read-only input\n")
+    completed = runner.complete_mission(order, policy, final_proof, "advisory-final-snapshot")
+    runner.validate_mission_state(completed, path)
+    assert_case(completed["status"] == "completed" and len(completed["completion"]["proof"]["proof"]) == 1
+                and completed["completion"]["proof"]["proof"][0]["status"] == "pass",
+                "controller executes required final proof for accepted advisory task")
+    print("PASS 3.0 explicit advisory completion, immutable action binding, wrong-action denial, no replay and final controller proof")
 
     order, policy, path, target, result, _, _ = fixture("complete")
     narrowed = copy.deepcopy(order)
@@ -682,6 +755,8 @@ def mission_regressions() -> None:
     dep.update(allowedPaths=[str(target.parent / "**")], productPaths=[str(target.parent / "input.txt")], dependencies=[])
     dep["expectedArtifacts"] = [{"path": str(target.parent / "input.txt"), "required": True, "type": "fixture"}]
     state["tasks"]["input"] = dep
+    state["authority"]["taskCompletionActions"]["input"] = dep["completionAction"]
+    state["authoritySha256"] = runner._mission_digest(state["authority"])
     state["tasks"]["task"]["dependencies"] = ["input"]
     write_json(path, state)
     order["context"][0]["dependencyRevisions"] = {"input": "unaccepted-revision"}

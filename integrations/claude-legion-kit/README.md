@@ -16,8 +16,9 @@ another model. The local proxy requires no password or Anthropic account login.
 An interactive shell's `.bashrc` exports are not guaranteed in a service or
 noninteractive subprocess. Check the actual child environment without printing
 credentials; [proxy-env.sh.example](scripts/proxy-env.sh.example) documents the
-required variables. This is a launch requirement, not a claim that the current
-Gateway environment filter already preserves both variables.
+required variables. The Gateway preserves both variables and rejects a missing,
+nonlocal or model-mismatched route before launching Claude. It does not source
+shell startup files or change authentication.
 
 Treat `Not logged in` before any API activity as a launch/configuration failure
 to investigate first, not evidence that the local proxy is unavailable or that
@@ -27,6 +28,21 @@ CLI mode. In the inspected CLI, `--bare` requires `ANTHROPIC_API_KEY` or an expl
 check. Do not invent credentials, change global authentication, or remove no-write
 restrictions to make a probe pass. A successful native round-trip through the
 configured proxy is required before accepting that isolated mode.
+
+The 2026-10-17 native probe succeeded with normal print mode and read-only access
+to the existing native `.claude.json` profile. An empty isolated profile failed
+before API activity even with both route variables. No new password, key or login
+was supplied. For report recovery, `native-profile-readonly` requires a pinned
+CLI, bwrap binary, profile, settings and local endpoint in the controller's Q6
+receipt. Only scratch is writable; tools/MCP/hooks remain disabled. The native
+profile mounts at the isolated `CLAUDE_CONFIG_DIR/.claude.json`; keep HOME and that
+directory aligned for this tested mode. Existing native state can supply client
+authentication internally; do not describe this as proof that no auth header was
+sent. No receipt or source review alone proves the unrun P6 recovery mission.
+
+In native-schema mode Claude may return both `structured_output` and a textual
+`result`. The Gateway consumes the preselected structured object. Missing or
+invalid structured output remains a protocol failure and never falls back to text.
 
 Install only to an explicitly authorized isolated home:
 

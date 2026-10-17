@@ -1,0 +1,23 @@
+{
+  "inputHashes": {
+    "integrations/codex-legion-kit/scripts/codex-surface-audit.mjs": "e53aae052428690f0187d2caf219827bbb0def92b945fc29c158240584faea53",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": "e1489aeb727ffc4a1afbf11cde142dd001df17baf858688d5961fde11b7e06f0",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/order_preflight.py": "4c7c343bcb6c26285cfa91d1961e0cbd14709f63acf277341ed6d7b40147ae35",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_contract_runner.py": "2d6b361bb5201f1222df3a3db87479ed6a66b03cfcf3fdc6a3b6edb63e8741f7",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_order_preflight.py": "03c6c37335e62fb821a6e06fd6c8be8ac1c99f273da3dec34e71e2a5b2e02350",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway.py": "574be1cef7259a359079bd13c575d351305578df6bacf6b0a010c7386f131cde",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py": "173cc08f765688ad264088f030a22199923439fbd69e4ba8069b2826b458fb08",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": "59762ee2b6d64f102c799f44dbe135a94c7e9bbb4d1501558b736bccfb2f7710",
+    "scripts/install-owned-files.mjs": "2709679dd5c909ca80f7f8d1738df33877b1b352dbdd04d2bd6e229fd9f880c7",
+    "tests/install-owned-files.test.mjs": "00318c9e44c185b648792708bd02782e8f87dea3eb0a88fecef21aeba792fc59"
+  },
+  "exitCode": 124,
+  "elapsedSeconds": 240.0,
+  "requestedModel": "claude-opus-5-5",
+  "requestedEffort": "high",
+  "promptBytes": 199359,
+  "newCredentialsProvided": false,
+  "profileUsedReadOnly": true,
+  "scope": "source review, no N7 acceptance",
+  "responseSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
