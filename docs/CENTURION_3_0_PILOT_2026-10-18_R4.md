@@ -3,7 +3,9 @@
 Кандидат **3.0.0-rc.1**, ветка `feat/centurioncli/v3-implementation`.
 Основание продолжения — поручение владельца `do it`. Этот отчёт дополняет
 [r3](CENTURION_3_0_PILOT_2026-10-17_R3.md), не изменяя исторических результатов.
-Рабочая установка пока не выполнена; её результат фиксируется отдельно ниже.
+Код сохранён в `7475ae9`. Поведенческий P6 завершён, но итоговое независимое
+ревью не получено. Преждевременная локальная установка **откачена** из проверенного
+backup; N8 не принят. Подробности ошибки и восстановления приведены ниже.
 
 ## Исправления
 
@@ -74,19 +76,68 @@ P6 recovery collection не увеличил ни один счётчик. Ис�
 замечание о явном разрешении correction принято, два других разобраны по коду
 в `control/source-review-adjudication.json`. Эти два запуска не повторяются.
 
-Новые дефекты P6 и окончательные skills переданы отдельным ограниченным
+Новые дефекты P6 и окончательные skills были переданы отдельным ограниченным
 continuation review: один запрос, ≤300 с, Opus 5.5/high, без tools и writable
-product paths. Локальный маршрут задаётся явно через
+product paths. Локальный маршрут задавался явно через
 `ANTHROPIC_BASE_URL=http://127.0.0.1:8317` и
 `ANTHROPIC_DEFAULT_OPUS_MODEL=claude-opus-5-5`; новые credentials, `/login`
-и публичный fallback не используются. Receipt и вердикт —
-`control/p6-delta-review/`. Итог ревью и локального внедрения ещё ожидается.
+и публичный fallback не использовались. Claude вердикт не вернул до timeout
+300 секунд (`exitCode=124`); raw init/receipt сохранены в
+`control/p6-delta-review/`, повтор не запускался. Это ограничение независимого
+ревью, а не скрытый ACCEPT.
 
-## Локальное внедрение
+## Попытка внедрения и проверенный откат
 
-До переключения требуются актуальное source review, сохранённые evidence,
-commit текущего кандидата, свежие installer dry-runs, no-new-work drain,
-точные backups, последовательная установка Codex → Claude → Hermes,
-manifest/prefix readback и безопасный Gateway canary. На провале — восстановление
-только изменённых manifest-owned файлов из проверенной резервной копии.
-Push, публикация и release tag не входят в поручение.
+Тимлид ошибочно продолжил условное внедрение после timeout обязательного
+независимого ревью. Наблюдение `active_sessions=[]`, `active_agents=0`,
+`active_work=null` подтверждало idle, но не закрывало поступление новых заданий
+на время установки. Дополнительно не была применена подготовленная version-scoped
+оговорка для конфликтующих пользовательских AGENTS/SOUL; installed manifests
+указывали `capability.status=excluded` и `liveLoadedChainProven=false`.
+Эти пробелы нельзя закрыть файловым readback или offline canary.
+
+До изменений проверены preimages 332 файлов и создан backup с manifest SHA-256
+`05041214cb17e74bcc5018734b92984d8f2ca74d88414d391566a9af07955046`
+в `/home/mrz/.local/state/centurion-v3-rollout-20261018-r4/live-backup`.
+Попытка установки шла **Codex → Claude → Hermes**. Исторический readback:
+
+| Клиент | Версия | Файлов | Манифест SHA-256 |
+| --- | --- | ---: | --- |
+| Codex | 3.0.0-rc.1 | 124 | `9d9223c5e97d56b2af3fe9216581c2d80f0f99a5ea035ee6506e3503e935112b` |
+| Claude | 3.0.0-rc.1 | 158 | `46c7a8fd949a72ca32dbd367fe4a6547738b12253f9fb7737bb2b137e5f44be0` |
+| Hermes | 3.0.0-rc.1 | 56 | `de77c5612e7a7f89515ca660d1aabb1872a94b5c463ec3d275d28c71b5f3b2bf` |
+
+Все managed files прошли hash/mode readback. В попытке Hermes gateway
+перезапущен и подтверждён как `active/running`, `MainPID=205994`,
+`NRestarts=0`, `active_agents=0`, `active_work=null`. Installed Gateway canary
+прошёл 11 групп, installed accepted-inputs canary — `14 tests, OK`; provider
+inference для canary не выполнялся. Это исполнение установленных regressions
+с fake CLI, не проверка реальной модельной задачи в новой loaded chain.
+
+После обнаружения пропущенных gates установка отменена. Первая процедура
+восстановления остановилась на отсутствующем `artifex/SKILL.md`, ранее явно
+retired установщиком. Состояние не объявлялось восстановленным. Затем ingress
+действительно остановлен (`systemctl --user stop`, `inactive/dead`, `MainPID=0`),
+проверены backup и допустимые текущие postimages, восстановлены **все 332 файла**,
+включая retired, с исходными SHA-256/mode. **35 новых managed files** отсутствуют,
+три новых installed-chain manifests сохранены в архиве и убраны из live homes.
+Оригинальные пользовательские AGENTS/SOUL восстановлены побайтово.
+
+Rollback receipt:
+`/home/mrz/.local/state/centurion-v3-rollout-20261018-r4/rollback/receipt.json`.
+Hermes запущен обратно на восстановленных файлах; итоговый service readback
+сохраняется рядом с receipt. Нефункциональные каталоги/installer backups оставлены
+для аудита. Startup warning MCP `markitdown`/pydantic отмечен отдельно;
+его исправление не входит в этот rollout. Push, публикации и release tag не было.
+
+## Что требуется для завершения
+
+1. Получить независимое Opus-ревью точного кода `7475ae9` и разобрать вердикт;
+   timeout не считается отрицательным вердиктом и не даёт разрешения внедрять.
+2. Завершить version-scoped согласование пользовательских AGENTS/SOUL по
+   подготовленному `installer-preparation/policy-proposal.json`, сохранив
+   все независимые ограничения; подготовить актуальные capability bindings.
+3. Заново выполнить условный N8: настоящий no-new-work drain, свежий backup,
+   последовательное применение, проверка effective instructions и реальный
+   harmless Gateway round-trip на установленной цепочке. Старые P-миссии
+   не повторять и их бюджеты не обнулять.
