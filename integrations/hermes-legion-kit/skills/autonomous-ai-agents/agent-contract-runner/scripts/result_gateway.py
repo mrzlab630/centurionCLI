@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import math
+import mimetypes
 import os
 import secrets
 import selectors
@@ -1325,7 +1326,7 @@ def report_projection(reservation: Any) -> dict[str, Any]:
             continue  # Required missing artifacts are rejected by controller proof.
         ref = _mission_file_ref(path)
         artifacts.append({"path": ref["path"], "exists": True, "sha256": ref["sha256"],
-                          "type": "observed-product", "mediaType": "application/octet-stream",
+                          "type": "observed-product", "mediaType": _report_media_type(path),
                           "note": "Controller-observed artifact; report executor did not create it."})
     checks = [{key: check[key] for key in ("command", "cwd", "status", "exitCode")}
               | {"summary": "Previously observed controller check; not rerun by report executor."}
@@ -1340,6 +1341,12 @@ def report_projection(reservation: Any) -> dict[str, Any]:
             "controllerProof": checks}
 
 
+def _report_media_type(path: Path) -> str:
+    """Extension metadata, not content proof; ignore host MIME customizations."""
+    media_type, encoding = mimetypes.MimeTypes(filenames=()).guess_type(path.name, strict=True)
+    return media_type if media_type and encoding is None else "application/octet-stream"
+
+
 def validate_report_facts(result: dict[str, Any], projection: dict[str, Any]) -> None:
     """The report may phrase a summary; it cannot invent execution facts."""
     if result["filesChanged"] != projection["filesChanged"]:
@@ -1350,6 +1357,15 @@ def validate_report_facts(result: dict[str, Any], projection: dict[str, Any]) ->
     keys = ("path", "exists", "sha256", "type", "mediaType")
     expected = {row["path"]: {k: row[k] for k in keys} for row in projection["artifacts"]}
     actual = {row["path"]: {k: row.get(k) for k in keys} for row in result["artifacts"]}
+    # Older projections supplied a generic binary placeholder for every file.
+    # Accept that original value or the standard extension-derived descriptor.
+    # This adjusts only a comparison copy; raw/candidate/canonical bytes and the
+    # saved projection remain unchanged. Explicit concrete types stay exact.
+    for path, row in actual.items():
+        saved = expected.get(path)
+        if (saved is not None and saved["mediaType"] == "application/octet-stream"
+                and row["mediaType"] == _report_media_type(Path(path))):
+            row["mediaType"] = saved["mediaType"]
     if len(actual) != len(result["artifacts"]) or actual != expected:
         raise GatewayError("report artifacts differ from saved controller observations")
 

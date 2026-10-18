@@ -345,6 +345,8 @@ result={"resultVersion":"AGENT_RESULT_JSON_V1","orderId":p["order"]["orderId"],"
 "artifacts":p["artifacts"],
 "proof":p["controllerProof"],"selfReview":{"performed":True,"findings":[],"fixesApplied":[]},"scopeDeviations":[],"forbiddenPatternHits":[],
 "remainingRisks":[],"questions":[],"errors":[],"stdoutSummary":"","stderrSummary":"","handoff":p["handoff"]}
+for artifact in result["artifacts"]:
+ if artifact["path"].endswith(".txt"): artifact["mediaType"]="text/plain"
 print(json.dumps({"type":"result","subtype":"success","is_error":False,"permission_denials":[],"structured_output":result,"modelUsage":{"claude-opus-5-5":{}}}))
 ''')
         report_cli.chmod(0o755)
@@ -353,7 +355,8 @@ print(json.dumps({"type":"result","subtype":"success","is_error":False,"permissi
         isolated = root / "empty-config"
         isolated.mkdir()
         from agent_contract_runner import _mission_file_ref
-        cap_path = fixture.ROOT / ".centurion" / "report-capability.json"
+        cap_path = root / "report-capability.json"
+        assert not cap_path.is_relative_to(fixture.ROOT), "exercise shared controller capability outside product repo"
         fixture.write_json(cap_path, {"version":"CENTURION_NO_TOOLS_REPORT_V1", "cliRef":_mission_file_ref(report_cli),
             "configRef":_mission_file_ref(settings), "scratchDir":str(isolated),
             "route":{"executor":"claude","model":"claude-opus-5-5","effort":"high"},
@@ -364,8 +367,15 @@ print(json.dumps({"type":"result","subtype":"success","is_error":False,"permissi
         # Interrupt before observation, then after real durable observation.
         # Both restarts must collect this same report without another turn.
         first_report_errors = io.StringIO()
+        real_projection = result_gateway.report_projection
+        def legacy_projection(reservation):
+            saved = real_projection(reservation)
+            for artifact in saved["artifacts"]:
+                artifact["mediaType"] = "application/octet-stream"
+            return saved
         with patch.object(sys,"argv",fixture.gateway_command(recovery)[1:]+["--recover-report"]), \
              patch.dict(os.environ,fixture.environment(),clear=True), \
+             patch.object(result_gateway,"report_projection",legacy_projection), \
              patch.object(result_gateway.MissionReservation,"observe_result",side_effect=OSError("fixture interruption after report capture")), \
              contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(first_report_errors):
             assert result_gateway.main() != 0
@@ -455,6 +465,27 @@ print(json.dumps({"type":"result","subtype":"success","is_error":False,"permissi
         assert state["intents"]["product-1"]["reportAttemptsUsed"] == 1
         facts = state["intents"]["product-1:report:1"]["projection"]
         reported = fixture.read_json(Path(recovery["result"]))
+        assert facts["artifacts"][0]["mediaType"] == "application/octet-stream"
+        assert reported["artifacts"][0]["mediaType"] == "text/plain"
+        assert json.loads(saved_stdout)["structured_output"]["artifacts"] == reported["artifacts"]
+        unchanged_facts, unchanged_report = copy.deepcopy(facts), copy.deepcopy(reported)
+        result_gateway.validate_report_facts(reported, facts)
+        assert facts == unchanged_facts and reported == unchanged_report
+        binary_report = copy.deepcopy(reported)
+        binary_report["artifacts"][0]["mediaType"] = "application/octet-stream"
+        result_gateway.validate_report_facts(binary_report, facts)
+        typed_facts = copy.deepcopy(facts)
+        typed_facts["artifacts"][0]["mediaType"] = "text/plain"
+        for description, bad_report, bound_facts in (
+            ("unrelated media type", copy.deepcopy(reported), facts),
+            ("changed concrete media type", binary_report, typed_facts),
+        ):
+            if description == "unrelated media type": bad_report["artifacts"][0]["mediaType"] = "image/png"
+            try: result_gateway.validate_report_facts(bad_report, bound_facts)
+            except result_gateway.GatewayError: pass
+            else: raise AssertionError("report must reject " + description)
+        assert result_gateway._report_media_type(Path("effect.txt")) == "text/plain"
+        assert result_gateway._report_media_type(Path("effect.unknown_extension")) == "application/octet-stream"
         for field in ("filesChanged", "proof", "artifacts"):
             invented = copy.deepcopy(reported)
             if field == "filesChanged": invented[field][0]["action"] = "deleted"
@@ -470,6 +501,20 @@ print(json.dumps({"type":"result","subtype":"success","is_error":False,"permissi
             "acceptanceSha256":sha256(acceptance.read_bytes()).hexdigest(),"closurePath":str(recovery["closure"]),"artifacts":[]}]}
         projection = verify_input_results(downstream, fixture.ROOT)
         assert "SYNTHETIC_SECRET_MARKER" not in json.dumps(projection)
+        cap_bytes = cap_path.read_bytes()
+        cap_path.write_bytes(cap_bytes + b" ")
+        try: verify_input_results(downstream, fixture.ROOT)
+        except AcceptedInputError: pass
+        else: raise AssertionError("external capability digest and length must stay pinned")
+        cap_path.write_bytes(cap_bytes)
+        cap_copy = root / "capability-copy.json"
+        cap_copy.write_bytes(cap_bytes)
+        cap_path.unlink(); cap_path.symlink_to(cap_copy)
+        try: verify_input_results(downstream, fixture.ROOT)
+        except AcceptedInputError: pass
+        else: raise AssertionError("external capability symlink must be rejected even for identical bytes")
+        cap_path.unlink(); cap_path.write_bytes(cap_bytes)
+        assert verify_input_results(downstream, fixture.ROOT) == projection
         raw = Path(recovery["candidate"]).read_bytes()
         assert b"SYNTHETIC_SECRET_MARKER" in raw and Path(recovery["candidate"]).stat().st_mode & 0o777 == 0o600
         Path(recovery["candidate"]).write_bytes(raw+b"tamper")

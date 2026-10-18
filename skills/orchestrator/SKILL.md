@@ -19,12 +19,15 @@ Only the lead accepts work; an author's `done` is not acceptance.
 New work uses AGENT_ORDER_JSON_V1, AGENT_RESULT_JSON_V1 and exact AGENT_HANDOFF_V1.
 For Gateway-managed policy 3.0 orders, return the author payload through the
 selected native adapter (structured output or its separate candidate file).
-Only Gateway creates the canonical outputContract.resultPath and controller
-receipts. Workers must not write that path or invoke a finalizer themselves.
-Explicit file-output contracts outside Gateway retain their assigned result path;
-this does not authorize legacy dispatch. Preserve typed arrays and object
+For policyVersion 3.0, `outputContract.resultPath` is Gateway-exclusive:
+workers must not write it or invoke a finalizer. Legacy file-output contracts
+are validation-only compatibility for existing non-3.0 orders; they have their
+own dispatcher and path outside `.centurion/agents_results/` and this skill does
+not authorize legacy dispatch. Preserve typed arrays and object
 filesChanged entries. A read-only review reports its own filesChanged as [];
-reviewed predecessor files belong in artifacts, not in the reviewer's changes.
+Reviewed files may appear in artifacts only within the review order's allowedPaths,
+never in the reviewer's changes. Bind the predecessor result with the review
+fields below; do not re-list its result or control files as artifacts outside scope.
 Review orders also return executorExtensions.review with
 verdict, findings, reviewedOrderId, reviewedResultSha256 and productSnapshotSha256.
 Only result_gateway.py launches new 3.0 children. The runner validates; it is not
@@ -38,8 +41,15 @@ come from controller routing and the implementation plan section 5, never a skil
 biography. No implicit delegation, tool installation, helper creation or publishing.
 
 Keep one compact plan and bounded context. Map each change and proof to acceptance;
-perform the smallest required same-run proof and inspect its real result. A failure
-permits only an authorized correction within the remaining attempt budget. An
+perform the smallest required same-run proof and inspect its real result.
+Report failures honestly: proof lists checks actually executed, not future
+controller checks. Mention pending controller verification in remainingRisks;
+if a required worker check did not pass, return blocked/failed rather than done.
+The current result validator requires a nonempty proof and artifact list. For
+read-only analysis, the lead supplies an existing evidence file in the order's
+control namespace; cite its actual hash without creating unrelated product files.
+A required-check failure blocks acceptance; correction requires explicit
+controller authorization within the remaining attempt budget. An
 unrelated failure is reported, not repaired. Stop at acceptance or a recorded
 blocker. No normal interim customer questions: escalate only a material unresolved
 objective, authority boundary or external blocker. Report unrun gates and risks.

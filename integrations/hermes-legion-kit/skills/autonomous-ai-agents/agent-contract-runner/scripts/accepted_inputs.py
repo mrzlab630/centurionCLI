@@ -453,9 +453,27 @@ def _verify_reporting(repo: Path, order_id: str, acceptance: dict[str, Any], ori
             raise AcceptedInputError("report capture binding changed")
         captures[label] = dict(saved, complete=True)
     cap_ref = report["capabilityRef"]
-    cap_path = _lexical_path(repo, cap_ref["path"], "report capability")
-    cap, cap_hash = _json(repo, cap_path, "report capability")
-    if cap_hash != cap_ref["sha256"] or cap.get("version") != "CENTURION_NO_TOOLS_REPORT_V1" or cap.get("probe", {}).get("status") != "passed":
+    # Capability receipts belong to the controller and may be shared across
+    # workspaces. Only this exact ref, already bound by report start/closure,
+    # may be external. Keep the descriptor-relative, no-symlink bounded reader;
+    # product and other control paths remain confined to their repository.
+    if (not isinstance(cap_ref, dict) or set(cap_ref) != {"path", "sha256", "bytes"}
+            or not isinstance(cap_ref["path"], str) or not Path(cap_ref["path"]).is_absolute()
+            or type(cap_ref["bytes"]) is not int or not 0 < cap_ref["bytes"] <= 1024 * 1024):
+        raise AcceptedInputError("report capability reference invalid")
+    _digest(cap_ref["sha256"], "report capability digest")
+    cap_root = Path("/")
+    cap_path = _lexical_path(cap_root, cap_ref["path"], "report capability")
+    cap_raw, cap_hash = _read_bytes(cap_root, cap_path, "report capability")
+    if cap_hash != cap_ref["sha256"] or len(cap_raw) != cap_ref["bytes"]:
+        raise AcceptedInputError("report capability binding invalid")
+    try:
+        cap = strict_json_load_bytes(cap_raw, "report capability")
+    except StrictJSONError as exc:
+        raise AcceptedInputError(str(exc)) from exc
+    if (not isinstance(cap, dict) or cap.get("version") != "CENTURION_NO_TOOLS_REPORT_V1"
+            or cap.get("probe") != {"status": "passed", "toolsDenied": True, "mcpDisabled": True,
+                                    "hooksDisabled": True, "isolatedConfig": True, "productUnchanged": True}):
         raise AcceptedInputError("report capability binding invalid")
     for row in report["snapshot"]["files"]:
         product = _lexical_path(repo, row["path"], "recovery product snapshot")
