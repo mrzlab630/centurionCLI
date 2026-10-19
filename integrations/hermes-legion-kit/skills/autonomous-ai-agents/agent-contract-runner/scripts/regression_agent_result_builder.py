@@ -332,8 +332,32 @@ def main() -> int:
         raise AssertionError("escaping relative result path must be rejected")
     print("PASS escaping relative result path is rejected")
 
+    # The runner also validates results without invoking JSON Schema. Cover
+    # both acceptance paths, including Python's bool/int equality trap.
+    import agent_contract_runner as runner
+    for exit_code in (0, 1, None, True, False, 0.0):
+        proof = {"command": "checked", "cwd": str(ROOT), "status": "pass",
+                 "exitCode": exit_code, "summary": "observed exit"}
+        candidate = {"status": "done", "proof": [proof], "selfReview": {"performed": True}}
+        for check, value in ((runner.validate_proof, [proof]), (runner.validate_done_semantics, candidate)):
+            try:
+                check(value)
+            except runner.RunnerError:
+                assert type(exit_code) is not int or exit_code != 0
+            else:
+                assert type(exit_code) is int and exit_code == 0, (check.__name__, exit_code)
+    for proof_status in ("fail", "not_run"):
+        built, _, _, _ = finalized("proof-no-exit-" + proof_status,
+            lambda payload: payload["proof"][0].update(status=proof_status, exitCode=None), status="failed")
+        assert built["status"] == "failed" and built["proof"][0]["exitCode"] is None
+        runner.validate_proof(built["proof"])
+    print("PASS runner requires exact successful exit, while failed/unrun proof retains honest null exit")
+
     cases = {
         "proof-near-miss": lambda payload: payload["proof"][0].__setitem__("status", "pass_with_finding"),
+        "proof-pass-nonzero-exit": lambda payload: payload["proof"][0].__setitem__("exitCode", 1),
+        "proof-pass-null-exit": lambda payload: payload["proof"][0].__setitem__("exitCode", None),
+        "proof-pass-bool-exit": lambda payload: payload["proof"][0].__setitem__("exitCode", True),
         "files-changed-string": lambda payload: payload.__setitem__("filesChanged", "product.txt"),
         "self-review-string": lambda payload: payload.__setitem__("selfReview", "performed"),
         "wrong-order-id": lambda payload: payload.__setitem__("orderId", "wrong-order-id"),

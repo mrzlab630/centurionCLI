@@ -678,8 +678,11 @@ def validate_proof(items: list[Any]) -> None:
                 f"proof[{index}].status must be one of: "
                 + ", ".join(sorted(PROOF_STATUSES))
             )
-        if not isinstance(proof_obj.get("exitCode"), int) and proof_obj.get("exitCode") is not None:
+        exit_code = proof_obj.get("exitCode")
+        if type(exit_code) is not int and exit_code is not None:
             raise RunnerError(f"proof[{index}].exitCode must be integer or null")
+        if proof_obj["status"] == "pass" and (type(exit_code) is not int or exit_code != 0):
+            raise RunnerError(f"proof[{index}].status=pass requires exitCode=0")
         require_string_value(proof_obj, "summary", f"proof[{index}].summary")
 
 
@@ -690,8 +693,8 @@ def validate_done_semantics(result: dict[str, Any]) -> None:
     proof = result.get("proof")
     if not isinstance(proof, list) or not proof:
         raise RunnerError("done result requires at least one proof entry")
-    if any(not isinstance(item, dict) or item.get("status") != "pass" for item in proof):
-        raise RunnerError("done result requires every proof[].status to be pass")
+    if any(not isinstance(item, dict) or item.get("status") != "pass" or type(item.get("exitCode")) is not int or item.get("exitCode") != 0 for item in proof):
+        raise RunnerError("done result requires every proof[].status=pass with exitCode=0")
     self_review = result.get("selfReview")
     if not isinstance(self_review, dict) or self_review.get("performed") is not True:
         raise RunnerError("done result requires selfReview.performed=true")
@@ -756,8 +759,9 @@ def validate_order(order: dict[str, Any]) -> tuple[list[str], PathPolicy]:
     launch = require_object(order["launch"], "launch")
     for key in ["surface", "command", "resultJsonPath"]:
         require_nonempty_string(launch, key, f"launch.{key}")
-    if not isinstance(launch.get("timeoutSeconds"), int) or launch["timeoutSeconds"] < 1:
-        raise RunnerError("launch.timeoutSeconds must be a positive integer")
+    timeout = launch.get("timeoutSeconds")
+    if "timeoutSeconds" not in launch or (timeout is None and mission is None) or (timeout is not None and (type(timeout) is not int or timeout < 1)):
+        raise RunnerError("launch.timeoutSeconds must be a positive integer or explicit null for policy 3.0 monitored execution")
     policy.control_path(launch["resultJsonPath"], "launch.resultJsonPath")
     for key in ["stdoutPath", "stderrPath"]:
         if key in launch:
@@ -1098,14 +1102,19 @@ def validate_mission_state(state: dict[str, Any], state_path: Path) -> None:
     if state.get("authoritySha256") != _mission_digest(authority):
         raise RunnerError("mission authority binding changed")
     budget = require_object(state.get("budget"), "mission budget")
-    for key in ("deadlineAt", "startedAt"):
-        require_nonempty_string(budget, key, f"mission budget.{key}")
+    require_nonempty_string(budget, "startedAt", "mission budget.startedAt")
+    started_at = _mission_time(budget["startedAt"])
+    if "deadlineAt" not in budget:
+        raise RunnerError("mission budget.deadlineAt must be explicit (timestamp or null)")
+    deadline = _mission_time(budget["deadlineAt"]) if budget["deadlineAt"] is not None else None
     used = _mission_int(budget.get("modelLaunchesUsed"), "modelLaunchesUsed")
     maximum = _mission_int(budget.get("maxModelLaunches"), "maxModelLaunches", 1)
-    if used > maximum or _mission_time(budget["deadlineAt"]) <= _mission_time(budget["startedAt"]) + timedelta(seconds=30):
+    if used > maximum or (deadline is not None and deadline <= started_at + timedelta(seconds=30)):
         raise RunnerError("invalid mission budget/deadline")
-    if state.get("stopDeadlineAt") and _mission_time(state["stopDeadlineAt"]) > _mission_time(budget["deadlineAt"]):
+    if state.get("stopDeadlineAt") and deadline is not None and _mission_time(state["stopDeadlineAt"]) > deadline:
         raise RunnerError("termination reserve cannot extend the original mission deadline")
+    if state.get("stopDeadlineAt"):
+        _mission_time(state["stopDeadlineAt"])
     if state["cancelled"] and state["status"] != "stopped":
         raise RunnerError("cancelled mission must remain stopped")
     _mission_int(state.get("strategySwitchesUsed"), "strategySwitchesUsed")
@@ -1232,6 +1241,9 @@ def initialize_mission(spec: dict[str, Any], state_path: Path) -> dict[str, Any]
             raise RunnerError("mission workspace does not exist")
         if "modelLaunchesUsed" in state["budget"]:
             raise RunnerError("mission preparation cannot reset imported launch counters")
+        # Only explicit preparation gets the new default; loading old state
+        # never changes an approved deadline or migrates historical receipts.
+        state["budget"].setdefault("deadlineAt", None)
         state["budget"]["modelLaunchesUsed"] = 0
         state["budget"]["startedAt"] = utc_now()
         for task in state["tasks"].values():
@@ -1268,15 +1280,26 @@ def load_mission_state(order: dict[str, Any], policy: PathPolicy) -> tuple[dict[
     return state, path
 
 
-def mission_work_timeout(state: dict[str, Any], requested: float) -> float:
-    if isinstance(requested, bool) or not isinstance(requested, (int, float)) or not 0 < requested < float("inf"):
-        raise RunnerError("mission requested timeout must be positive and finite")
+def mission_work_timeout(state: dict[str, Any], requested: float | None) -> float | None:
+    if requested is not None and (isinstance(requested, bool) or not isinstance(requested, (int, float)) or not 0 < requested < float("inf")):
+        raise RunnerError("mission requested timeout must be null or positive and finite")
     if state["cancelled"] or state.get("stopDeadlineAt") or state["status"] in MISSION_TERMINAL or state["status"] == "blocked":
         raise RunnerError("mission dispatch is closed")
+    if state["budget"]["deadlineAt"] is None:
+        return float(requested) if requested is not None else None
     remaining = (_mission_time(state["budget"]["deadlineAt"]) - datetime.now(timezone.utc)).total_seconds() - MISSION_RESERVE_SECONDS
     if remaining <= 0:
         raise RunnerError("mission work cutoff reached (30-second reserve)")
-    return min(float(requested), remaining)
+    return min(float(requested), remaining) if requested is not None else remaining
+
+
+def mission_stop_deadline(state: dict[str, Any]) -> datetime:
+    """Cleanup stays bounded even when productive work has no wall deadline."""
+    deadlines = [datetime.now(timezone.utc) + timedelta(seconds=MISSION_RESERVE_SECONDS)]
+    for value in (state.get("stopDeadlineAt"), state["budget"]["deadlineAt"]):
+        if value is not None:
+            deadlines.append(_mission_time(value))
+    return min(deadlines)
 
 
 def mission_snapshot(state: dict[str, Any], task_ids: list[str] | None = None) -> dict[str, Any]:
@@ -1489,7 +1512,8 @@ def _mission_process_identity(pid: int) -> dict[str, Any] | None:
         raise RunnerError("mission process identity cannot be verified; effect remains unknown") from exc
 
 
-def _terminate_mission_process(identity: dict[str, Any], deadline_at: str) -> bool:
+def _terminate_mission_process(identity: dict[str, Any], deadline_at: str, *, signal_to_send: signal.Signals = signal.SIGTERM,
+                               wait: bool = True) -> bool:
     """Signal a pinned PID, never a reused PID or unverified process group."""
     pid = identity["pid"]
     current = _mission_process_identity(pid)
@@ -1505,9 +1529,11 @@ def _terminate_mission_process(identity: dict[str, Any], deadline_at: str) -> bo
         if _mission_process_identity(pid) != identity:
             return False
         remaining = (_mission_time(deadline_at) - datetime.now(timezone.utc)).total_seconds()
-        if remaining <= 0:
+        if wait and remaining <= 0:
             return False
-        signal.pidfd_send_signal(pidfd, signal.SIGTERM)
+        signal.pidfd_send_signal(pidfd, signal_to_send)
+        if not wait:
+            return True
         if select.select([pidfd], [], [], min(10, remaining))[0]:
             return True
         remaining = (_mission_time(deadline_at) - datetime.now(timezone.utc)).total_seconds()
@@ -1572,10 +1598,15 @@ class MissionReservation:
         self.lock.release()
         self.closed = True
 
-    def work_timeout(self, requested_seconds: float) -> float:
+    def work_timeout(self, requested_seconds: float | None) -> float | None:
         if self.closed or self.write_failed or self.lock._handle is None:
             raise RunnerError("mission reservation is closed")
         return mission_work_timeout(self.state, requested_seconds)
+
+    def observe_process(self, observation: dict[str, Any]) -> None:
+        """Latest controller liveness evidence, never productive progress/proof."""
+        self.intent["processObservation"] = observation
+        self.save()
 
     def stop_requested(self) -> bool:
         try:
@@ -1606,8 +1637,7 @@ class MissionReservation:
     def terminate_owned_process(self, identity: dict[str, Any] | None = None) -> bool:
         identity = identity or self.intent.get("process")
         if "stopDeadlineAt" not in self.state:
-            self.state["stopDeadlineAt"] = min(_mission_time(self.state["budget"]["deadlineAt"]),
-                                                datetime.now(timezone.utc) + timedelta(seconds=30)).isoformat()
+            self.state["stopDeadlineAt"] = mission_stop_deadline(self.state).isoformat()
             self.save()
         stopped = bool(identity) and _terminate_mission_process(identity, self.state["stopDeadlineAt"])
         self.intent["processStopped"] = stopped
@@ -1616,11 +1646,29 @@ class MissionReservation:
         self.save()
         return stopped
 
+    def request_owned_process_stop(self, identity: dict[str, Any] | None = None) -> bool:
+        """Request TERM without blocking the stream reader; cleanup remains bounded by stopDeadlineAt."""
+        identity = identity or self.intent.get("process")
+        if "stopDeadlineAt" not in self.state:
+            self.state["stopDeadlineAt"] = mission_stop_deadline(self.state).isoformat()
+            self.save()
+        sent = bool(identity) and _terminate_mission_process(identity, self.state["stopDeadlineAt"], wait=False)
+        self.intent["terminationRequested"] = True
+        self.intent["processStopped"] = not sent and _mission_process_identity(identity["pid"]) is None if identity else False
+        self.save()
+        return sent
+
+    def force_owned_process_stop(self, identity: dict[str, Any] | None = None) -> bool:
+        """Escalate a still-owned child to SIGKILL without waiting inside the reader."""
+        identity = identity or self.intent.get("process")
+        return bool(identity) and _terminate_mission_process(
+            identity, self.state["stopDeadlineAt"],
+            signal_to_send=signal.SIGKILL, wait=False)
+
     def cancel(self, reason: str) -> None:
         if self.state["status"] in {"completed", "failed"}:
             raise RunnerError("terminal mission cannot be reactivated or rewritten by cancellation")
-        stop_deadline = self.state.get("stopDeadlineAt") or min(_mission_time(self.state["budget"]["deadlineAt"]),
-                                                               datetime.now(timezone.utc) + timedelta(seconds=30)).isoformat()
+        stop_deadline = self.state.get("stopDeadlineAt") or mission_stop_deadline(self.state).isoformat()
         self.state.update(cancelled=True, status="stopped", stopReason=reason,
                           stopDeadlineAt=stop_deadline)
         self.save()
@@ -1750,7 +1798,7 @@ def reserve_mission_dispatch(order: dict[str, Any], policy: PathPolicy) -> Missi
         try:
             mission_work_timeout(state, order["launch"]["timeoutSeconds"])
         except RunnerError as exc:
-            if state["status"] not in MISSION_TERMINAL and (_mission_time(state["budget"]["deadlineAt"]) - datetime.now(timezone.utc)).total_seconds() <= 30:
+            if state["status"] not in MISSION_TERMINAL and state["budget"]["deadlineAt"] is not None and (_mission_time(state["budget"]["deadlineAt"]) - datetime.now(timezone.utc)).total_seconds() <= 30:
                 state.update(status="failed", failure="mission work cutoff reached; dispatch closed")
                 atomic_write_loop_state(path, state)
             raise exc
@@ -1829,7 +1877,7 @@ def _validate_mission_proof(checks: dict[str, Any], required: list[dict[str, Any
 def _run_final_mission_proof(state: dict[str, Any], proofs: list[dict[str, Any]], reservation: Any) -> list[dict[str, Any]]:
     checks = []
     for proof in proofs:
-        timeout = mission_work_timeout(state, 3600)
+        timeout = mission_work_timeout(state, None if reservation.order["launch"]["timeoutSeconds"] is None else 3600)
         try:
             from result_gateway import run_child
             observed = run_child(proof["argv"], _mission_path(state, proof["cwd"]), timeout, 10,
@@ -1908,7 +1956,14 @@ def record_mission_observation(reservation: MissionReservation, observation: dic
     state["observations"].append(row)
     # A strategy switch resets the no-progress window, never cumulative counters.
     start = state.get("strategyObservationStart", 0)
-    advisory = evaluate_progress(state["authority"], state["observations"][start:])
+    progress_budgets = None
+    if state["budget"]["deadlineAt"] is None:
+        # Legacy advisory wall limits cannot close monitored work. Project
+        # them out without changing approved authority or finite old missions.
+        declared = state["authority"].get("budgets")
+        progress_budgets = {key: value for key, value in declared.items()
+                            if key not in {"maxWallSeconds", "wallTimeSeconds", "wallSeconds"}} if isinstance(declared, dict) else {}
+    advisory = evaluate_progress(state["authority"], state["observations"][start:], budgets=progress_budgets)
     state["progressDecision"] = advisory
     if advisory["decision"] != "allow":
         state.update(status="blocked", blocker={"decisionOwner": "customer" if advisory["requiresOwnerDecision"] else "controller",

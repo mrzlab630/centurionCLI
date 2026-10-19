@@ -10,9 +10,11 @@ import json
 import os
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -24,6 +26,7 @@ from response_envelope import MAX_CANDIDATE_BYTES, MAX_FRAME_BYTES, MAX_STDOUT_B
 from result_gateway import run_child
 import result_gateway
 import agent_result_builder
+import agent_contract_runner
 from regression_agent_result_builder import assert_native_api_subset
 from agent_contract_runner import initialize_mission, _mission_digest, workspace_snapshot, verify_workspace_diff, PathPolicy, RunnerError, complete_mission, mission_snapshot, validate_order
 import regression_result_gateway as fixture
@@ -34,12 +37,16 @@ def main() -> int:
         root = Path(directory)
         cli = root / "codex"
         cli.write_text('''#!/usr/bin/env python3
-import hashlib, json, sys
+import hashlib, json, os, sys, time
 from pathlib import Path
 order = json.loads(Path(sys.argv[-1]).read_bytes())
 control = Path(order["launch"]["candidateJsonPath"]).parent
 with (control / "launch-count").open("a") as stream: stream.write("launch\\n")
 mode = order["context"][0].get("fixtureMode", "valid")
+if mode in ("silent", "eof-silent", "cancel-silent"):
+    os.write(1, b"started\\n"); os.write(2, b"notice\\n")
+    if mode == "eof-silent": os.close(1); os.close(2)
+    time.sleep(20 if mode == "cancel-silent" else 1.3)
 review = mode.startswith("review-")
 product = control / "review.md" if review else Path(order["context"][0]["productPath"])
 with product.open("a") as stream: stream.write("effect\\n")
@@ -79,9 +86,11 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
 ''')
         cli.chmod(0o755)
 
-        def stage(name: str, mode: str = "valid", *, profile="V0", original=None, capability=None) -> dict:
+        def stage(name: str, mode: str = "valid", *, profile="V0", original=None, capability=None, monitored=False) -> dict:
             paths = fixture.make_case("v3-" + name, "valid")
             order = fixture.read_json(Path(paths["order"]))
+            if monitored:
+                order["launch"]["timeoutSeconds"] = None
             Path(paths["order"]).unlink()  # controller-owned order belongs in custody, not product workspace
             control = Path(paths["result"]).parent
             paths["order"] = control / "order.json"
@@ -121,7 +130,7 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
                     authority["reportCapabilityRef"] = capability
                 initialize_mission({"policyVersion":"3.0", "missionId":"mission-"+name, "workspace":str(fixture.ROOT), "strategyId":"initial",
                     "authority":authority,
-                    "budget":{"maxModelLaunches":8, "deadlineAt":(datetime.now(timezone.utc)+timedelta(seconds=300)).isoformat()},
+                    "budget":{"maxModelLaunches":8, **({} if monitored else {"deadlineAt":(datetime.now(timezone.utc)+timedelta(seconds=300)).isoformat()})},
                     "tasks":{"task":{"objective":order["objective"], "acceptanceCriteria":order["acceptanceCriteria"], "allowedPaths":[str(product)],
                         "productPaths":[str(product)], "dependencies":[], "maxProductAttempts":3, "verificationProfile":profile,
                         "requiredProof":order["proofCommands"], "expectedArtifacts":[]}}}, state_path)
@@ -132,6 +141,99 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
                 "inReplyTo": order["orderId"], "senderRole": order["roleForTask"], "recipientRole": "Aquila"}
             fixture.write_json(Path(paths["order"]), order)
             return paths
+
+        def monitored_command(paths):
+            # Test-only observation clock acceleration; the real child lives
+            # beyond the historical one-second launch timeout used below.
+            command = fixture.gateway_command(paths)
+            source = "import sys; sys.path.insert(0, " + repr(str(Path(result_gateway.__file__).parent)) + "); import result_gateway; result_gateway.CHILD_OBSERVATION_SECONDS=.05; raise SystemExit(result_gateway.main())"
+            return [sys.executable, "-c", source, *command[2:]]
+
+        for mode in ("silent", "eof-silent"):
+            paths = stage("monitored-" + mode, mode, monitored=True)
+            completed = subprocess.run(monitored_command(paths), env=fixture.environment(), capture_output=True, text=True, timeout=10)
+            assert completed.returncode == 0, completed.stderr + completed.stdout
+            events = [json.loads(line) for line in Path(paths["events"]).read_text().splitlines()]
+            observations = [event for event in events if event["event"].endswith(".process_observed")]
+            active = [event for event in observations if event["elapsedMs"] > 1050]
+            assert len(observations) >= 3 and active and active[-1]["processAlive"] is True
+            assert active[-1]["identityMatches"] is True and active[-1]["process"]["startTicks"]
+            assert active[-1]["stdoutBytes"] == 8 and active[-1]["stderrBytes"] == 7
+            assert active[-1]["lastOutputAt"] and active[-1]["silenceSeconds"] > 1
+            assert all(event["productiveProgress"] == "unknown" and event["acceptance"] == "unverified" for event in observations)
+            order = fixture.read_json(Path(paths["order"]))
+            state = fixture.read_json(Path(order["loopContract"]["statePath"]))
+            assert state["budget"]["deadlineAt"] is None and state["budget"]["modelLaunchesUsed"] == 1
+            assert state["intents"]["product-1"]["processObservation"]
+            assert fixture.run_gateway(paths).returncode == 0
+            assert (Path(paths["result"]).parent / "launch-count").read_text() == "launch\n"
+        print("PASS monitored real children survive one-second legacy timeout and EOF silence, emit periodic identity/activity evidence, and never replay")
+
+        paths = stage("monitored-default-events", monitored=True)
+        command = monitored_command(paths)
+        offset = command.index("--events")
+        del command[offset:offset+2]
+        completed = subprocess.run(command, env=fixture.environment(), capture_output=True, text=True, timeout=10)
+        assert completed.returncode == 0, completed.stderr + completed.stdout
+        derived_events = Path(paths["result"]).parent / "events.jsonl"
+        assert any(json.loads(line)["event"].endswith(".process_observed") for line in derived_events.read_text().splitlines())
+        print("PASS monitored Gateway derives existing controller events surface when --events is omitted")
+
+        for stop_signal in (signal.SIGTERM, signal.SIGINT):
+            paths = stage("monitored-cancel-" + stop_signal.name, "cancel-silent", monitored=True)
+            process = subprocess.Popen(monitored_command(paths), env=fixture.environment(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            order = fixture.read_json(Path(paths["order"]))
+            state_path = Path(order["loopContract"]["statePath"])
+            try:
+                until = time.monotonic() + 5
+                while time.monotonic() < until:
+                    state = fixture.read_json(state_path)
+                    intent = state["intents"].get("product-1", {})
+                    if intent.get("processObservation", {}).get("processAlive") and intent["processObservation"]["lastOutputAt"]:
+                        break
+                    assert process.poll() is None
+                    time.sleep(.01)
+                else:
+                    raise AssertionError("real monitored child was not observed")
+                child_identity = intent["process"]
+                locked = fixture.run_gateway(paths)
+                assert locked.returncode != 0 and "already held" in locked.stderr
+                process.send_signal(stop_signal)
+                stdout, stderr = process.communicate(timeout=5)
+                assert process.returncode != 0, stdout + stderr
+                state = fixture.read_json(state_path)
+                assert state["cancelled"] is True and state["status"] == "stopped"
+                assert result_gateway._mission_process_identity(child_identity["pid"]) is None
+                assert state["budget"]["deadlineAt"] is None and state["budget"]["modelLaunchesUsed"] == 1
+                assert not Path(paths["result"]).exists()
+                assert fixture.run_gateway(paths).returncode != 0
+                assert (Path(paths["result"]).parent / "launch-count").read_text() == "launch\n"
+            finally:
+                if process.poll() is None:
+                    process.kill(); process.wait(timeout=3)
+        print("PASS SIGTERM/SIGINT cancel active silent children while the transaction lock is held; bounded owned-process stop and no replay")
+
+        for mode in ("launch-timeout", "mission-deadline"):
+            paths = stage("finite-" + mode, "silent", monitored=mode == "mission-deadline")
+            order = fixture.read_json(Path(paths["order"]))
+            state_path = Path(order["loopContract"]["statePath"])
+            state = fixture.read_json(state_path)
+            if mode == "launch-timeout":
+                order["launch"]["timeoutSeconds"] = 1
+                fixture.write_json(Path(paths["order"]), order)
+            else:
+                state["budget"].update(deadlineAt=(datetime.now(timezone.utc) + timedelta(seconds=31.1)).isoformat(),
+                                       startedAt=(datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat())
+                fixture.write_json(state_path, state)
+            deadline = state["budget"]["deadlineAt"]
+            completed = subprocess.run(monitored_command(paths), env=fixture.environment(), capture_output=True, text=True, timeout=10)
+            assert completed.returncode != 0 and not Path(paths["result"]).exists(), completed.stderr + completed.stdout
+            state = fixture.read_json(state_path)
+            assert state["budget"]["deadlineAt"] == deadline and state["budget"]["modelLaunchesUsed"] == 1, (mode, state, completed.stderr)
+            assert state["intents"]["product-1"]["processStopped"] is True
+            assert fixture.run_gateway(paths).returncode != 0
+            assert (Path(paths["result"]).parent / "launch-count").read_text() == "launch\n"
+        print("PASS explicit finite launch timeout and historical mission deadline still stop real children without changing authority or replaying")
 
         predecessor = None
         for mode in ("valid", "failed", "malformed", "wrong-order", "oversized"):
@@ -327,7 +429,7 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
         report_cli = root / "report" / "claude"
         report_cli.parent.mkdir()
         report_cli.write_text('''#!/usr/bin/env python3
-import json,os,sys
+import json,os,sys,time
 from pathlib import Path
 args=sys.argv[1:]
 for flag,value in [("--tools",""),("--mcp-config",'{"mcpServers":{}}'),("--setting-sources","")]:
@@ -340,6 +442,7 @@ assert scratch==Path.cwd() and all(os.environ[key]==str(scratch) for key in ("HO
 (scratch/".claude.json").write_text(json.dumps({"numStartups":1,"firstStartTime":"fixture","projects":{}}))
 p=json.loads(sys.argv[-1]); row=p["productSnapshot"]["files"][0]
 counter=Path(__file__).with_name("count"); counter.write_text(counter.read_text()+"report\\n" if counter.exists() else "report\\n")
+time.sleep(.25)
 result={"resultVersion":"AGENT_RESULT_JSON_V1","orderId":p["order"]["orderId"],"executor":p["order"]["executor"],"status":"done",
 "summary":"saved product", "filesChanged":p["filesChanged"],
 "artifacts":p["artifacts"],
@@ -361,13 +464,23 @@ print(json.dumps({"type":"result","subtype":"success","is_error":False,"permissi
             "configRef":_mission_file_ref(settings), "scratchDir":str(isolated),
             "route":{"executor":"claude","model":"claude-opus-5-5","effort":"high"},
             "probe":{"status":"passed","toolsDenied":True,"mcpDisabled":True,"hooksDisabled":True,"isolatedConfig":True,"productUnchanged":True}})
-        recovery = stage("report-recovery", "malformed", capability=_mission_file_ref(cap_path))
+        recovery = stage("report-recovery", "malformed", capability=_mission_file_ref(cap_path), monitored=True)
         malformed = fixture.run_gateway(recovery)
         assert malformed.returncode != 0 and not Path(recovery["result"]).exists(), malformed.stderr
         # Interrupt before observation, then after real durable observation.
         # Both restarts must collect this same report without another turn.
         first_report_errors = io.StringIO()
         real_projection = result_gateway.report_projection
+        real_run_child = result_gateway.run_child
+        report_timeouts = []
+        def accelerated_old_report_limit(argv, cwd, timeout, *args, **kwargs):
+            if kwargs.get("reservation") is not None and kwargs["reservation"].meta["action"] == "report":
+                report_timeouts.append(timeout)
+                # An accidentally retained 120s cap becomes 0.1s here; the
+                # actual report process remains silent for 0.25s.
+                if timeout == 120:
+                    timeout = .1
+            return real_run_child(argv, cwd, timeout, *args, **kwargs)
         def legacy_projection(reservation):
             saved = real_projection(reservation)
             for artifact in saved["artifacts"]:
@@ -375,10 +488,15 @@ print(json.dumps({"type":"result","subtype":"success","is_error":False,"permissi
             return saved
         with patch.object(sys,"argv",fixture.gateway_command(recovery)[1:]+["--recover-report"]), \
              patch.dict(os.environ,fixture.environment(),clear=True), \
+             patch.object(result_gateway,"CHILD_OBSERVATION_SECONDS",.05), \
+             patch.object(result_gateway,"run_child",accelerated_old_report_limit), \
              patch.object(result_gateway,"report_projection",legacy_projection), \
              patch.object(result_gateway.MissionReservation,"observe_result",side_effect=OSError("fixture interruption after report capture")), \
              contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(first_report_errors):
             assert result_gateway.main() != 0
+        assert report_timeouts == [None], "monitored report must not inherit a hidden 120s lifetime"
+        report_observations = [json.loads(line) for line in Path(recovery["events"]).read_text().splitlines()]
+        assert any(row["event"].endswith(".process_observed") and row["elapsedMs"] >= 150 and row["processAlive"] for row in report_observations)
         assert (isolated/"debug"/"native.log").is_file() and (isolated/".claude.json").is_file()
         # Recovery revalidates binary/settings/route and rejects new executable
         # config in scratch, but leaves saved custody collectable after removal.
@@ -635,13 +753,187 @@ print("READONLY_NATIVE_PROFILE_OK")
         assert (Path(paths["result"]).parent / "launch-count").read_text() == "launch\n"
         print("PASS ENOSPC receipt failure preserves raw/start custody, rejects acceptance and restart replay")
 
+        # Identity failures must use the exact Popen child as the emergency
+        # boundary.  A process-group kill would be unsafe after identity
+        # reads fail or a PID is no longer trusted.
+        captured = {}
+        real_popen = result_gateway.subprocess.Popen
+        def capture_popen(*args, **kwargs):
+            process = real_popen(*args, **kwargs)
+            captured["process"] = process
+            return process
+        reservation = SimpleNamespace(
+            work_timeout=lambda requested: requested,
+            before_spawn=lambda: None,
+            state={"budget": {"deadlineAt": None}},
+        )
+        with patch.object(result_gateway.subprocess, "Popen", capture_popen), \
+             patch.object(result_gateway, "_mission_process_identity", side_effect=OSError("identity unavailable")), \
+             patch.object(result_gateway.os, "killpg", side_effect=AssertionError("identity failure must not use killpg")):
+            try:
+                result_gateway.run_child([sys.executable, "-c", "import time; time.sleep(20)"], root, None, .2,
+                                         reservation=reservation)
+            except OSError as exc:
+                assert "identity unavailable" in str(exc)
+            else:
+                raise AssertionError("initial identity failure must propagate")
+        assert captured["process"].poll() == -signal.SIGKILL
+        assert captured["process"].stdout.closed and captured["process"].stderr.closed
+        print("PASS initial identity failure uses exact Popen.kill plus bounded reap")
+
+        captured = {}
+        identity_reads = []
+        def fail_capture_identity(pid):
+            identity_reads.append(pid)
+            if len(identity_reads) >= 3:
+                raise OSError("identity read failed")
+            return agent_contract_runner._mission_process_identity(pid)
+        reservation = SimpleNamespace(
+            work_timeout=lambda requested: requested,
+            before_spawn=lambda: None,
+            record_process=lambda pid, **kwargs: None,
+            state={"cancelled": False, "budget": {"deadlineAt": None},
+                   "stopDeadlineAt": (datetime.now(timezone.utc) + timedelta(seconds=.4)).isoformat()},
+        )
+        with patch.object(result_gateway.subprocess, "Popen", capture_popen), \
+             patch.object(result_gateway, "_mission_process_identity", fail_capture_identity), \
+             patch.object(result_gateway.os, "killpg", side_effect=AssertionError("capture identity failure must not use killpg")):
+            observed = result_gateway.run_child([sys.executable, "-c", "import time; time.sleep(20)"], root, None, .2,
+                                                reservation=reservation)
+        assert observed["processStopped"] is True and observed["exitCode"] == -signal.SIGKILL
+        assert "identity read failed" in observed["error"] and captured["process"].poll() == -signal.SIGKILL
+        assert captured["process"].stdout.closed and captured["process"].stderr.closed
+        print("PASS capture identity-read failure kills exact child, reaps it, and closes pipes")
+
+        class CleanupReservation(result_gateway.MissionReservation):
+            def __init__(self):
+                self.state = {"cancelled": False, "status": "running", "budget": {"deadlineAt": None}}
+                self.intent = {"status": "reserved"}
+                self.cancelled_at = None
+                self.killed_at = None
+
+            def save(self): pass
+            def work_timeout(self, requested):
+                if self.state["cancelled"]: raise RunnerError("cancelled")
+                return requested
+            def before_spawn(self): self.intent["status"] = "dispatching"
+            def observe_process(self, observation):
+                super().observe_process(observation)
+                if observation["lastOutputAt"] and not self.state["cancelled"]:
+                    self.cancelled_at = time.monotonic()
+                    self.cancel("fixture cancellation")
+            def force_owned_process_stop(self, identity):
+                self.killed_at = time.monotonic()
+                return super().force_owned_process_stop(identity)
+
+        payload = b"x" * (256 * 1024) + b"\n"
+        term_handler = '''import os, signal, sys, time
+def stop(signum, frame):
+    payload = b'x' * (256 * 1024) + b'\\n'
+    sys.stdout.buffer.write(payload); sys.stdout.buffer.flush()
+    sys.stderr.buffer.write(payload); sys.stderr.buffer.flush()
+    raise SystemExit(0)
+signal.signal(signal.SIGTERM, stop)
+os.write(1, b'ready\\n')
+time.sleep(20)
+'''
+        cleanup_reservation = CleanupReservation()
+        with patch.object(result_gateway, "CHILD_OBSERVATION_SECONDS", .01), \
+             patch.object(agent_contract_runner, "MISSION_RESERVE_SECONDS", .65):
+            oversized = result_gateway.run_child([sys.executable, "-c", term_handler], root, None, .2,
+                                                 reservation=cleanup_reservation)
+        assert oversized["captureLimited"] is False and oversized["stdout"] == b"ready\n" + payload
+        assert oversized["stderr"] == payload and oversized["terminationSignal"] == "SIGTERM"
+        assert oversized["exitCode"] == 0 and oversized["processStopped"] is True and not oversized["drainTimedOut"]
+        assert cleanup_reservation.killed_at is None
+        print("PASS cancelled TERM handler writes more than pipe capacity and exits without KILL or output loss")
+
+        cleanup_reservation = CleanupReservation()
+        started = time.monotonic()
+        with patch.object(result_gateway, "CHILD_OBSERVATION_SECONDS", .01), \
+             patch.object(agent_contract_runner, "MISSION_RESERVE_SECONDS", .65):
+            ignored_term = result_gateway.run_child(
+                [sys.executable, "-c", "import os,signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); os.write(1,b'ready\\n'); time.sleep(20)"],
+                root, None, .15, reservation=cleanup_reservation)
+        elapsed = time.monotonic() - started
+        assert ignored_term["terminationSignal"] == "SIGKILL" and ignored_term["processStopped"] is True
+        assert ignored_term["drainTimedOut"] is False and elapsed < .8
+        assert .1 <= cleanup_reservation.killed_at - cleanup_reservation.cancelled_at <= .3
+        print("PASS TERM-ignoring child escalates to KILL within the original shared cleanup deadline")
+
+        # A refused identity must not become an unbounded cleanup loop or a
+        # reason to signal whichever PID now happens to exist.
+        def mismatched_identity(pid):
+            identity = agent_contract_runner._mission_process_identity(pid)
+            return dict(identity, startTicks=str(identity["startTicks"]) + "-foreign") if identity else None
+        captured = {}
+        cleanup_reservation = CleanupReservation()
+        started = time.monotonic()
+        try:
+            with patch.object(result_gateway.subprocess, "Popen", capture_popen), \
+                 patch.object(result_gateway, "_mission_process_identity", mismatched_identity), \
+                 patch.object(result_gateway, "CHILD_OBSERVATION_SECONDS", .01), \
+                 patch.object(agent_contract_runner, "MISSION_RESERVE_SECONDS", .35):
+                refused = result_gateway.run_child(
+                    [sys.executable, "-c", "import os,time; os.write(1,b'ready\\n'); time.sleep(20)"],
+                    root, None, .1, reservation=cleanup_reservation)
+            assert time.monotonic() - started < .8
+            assert refused["drainTimedOut"] and not refused["processStopped"]
+            assert captured["process"].poll() is None
+        finally:
+            process = captured.get("process")
+            if process is not None:
+                if process.poll() is None: process.kill()
+                process.wait(timeout=3)
+        print("PASS refused identity remains untouched and streaming cleanup reaches its original hard deadline")
+
+        foreign_child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(20)"], cwd=root,
+                                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                          start_new_session=True)
+        try:
+            identity = agent_contract_runner._mission_process_identity(foreign_child.pid)
+            foreign_identity = dict(identity, startTicks=str(identity["startTicks"]) + "-foreign")
+            assert agent_contract_runner._terminate_mission_process(
+                foreign_identity, (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(), wait=False) is False
+            assert foreign_child.poll() is None
+        finally:
+            if foreign_child.poll() is None:
+                foreign_child.kill()
+            foreign_child.wait(timeout=3)
+        print("PASS mismatched process identity leaves the foreign child untouched")
+
+        # Residual pipe data can exceed capture limits after the exact child
+        # was reaped. Reject incomplete capture without signalling its old PGID.
+        stream_child = result_gateway._run_child_streaming
+        for max_stdout, max_frame in ((32, 128), (128, 32)):
+            def drain_after_reap(process, *args, **kwargs):
+                process.wait(timeout=3)
+                return stream_child(process, *args, max_stdout=max_stdout, max_frame=max_frame, **kwargs)
+
+            with patch.object(result_gateway, "_run_child_streaming", drain_after_reap), \
+                 patch.object(result_gateway.os, "killpg") as group_signal:
+                drained = result_gateway.run_child(
+                    [sys.executable, "-c", "import os; os.write(1,b'x'*64+b'\\n')"], root, None, .1)
+            assert drained["captureLimited"] is True and drained["processStopped"] is True
+            assert drained["exitCode"] == 0 and drained["error"] and not drained["timedOut"]
+            group_signal.assert_not_called()
+        print("PASS post-reap stream/frame overflow rejects capture without signalling the old process group")
+
         # Exercise bounded live reads without allocating an unbounded pipe buffer.
-        child = run_child([sys.executable, "-c", "import os; [os.write(1,b'x'*65535+b'\\n') for _ in range(272)]"], root, 5, .1)
+        child = run_child([sys.executable, "-c", "import os; [os.write(1,b'x'*65535+b'\\n') for _ in range(272)]"], root, None, .1)
         assert child["captureLimited"] is True and len(child["stdout"]) == MAX_STDOUT_BYTES, child
-        child = run_child([sys.executable, "-c", "import os; os.write(1,b'x'*(5*1024*1024))"], root, 5, .1,
+        child = run_child([sys.executable, "-c", "import os; os.write(1,b'x'*(5*1024*1024))"], root, None, .1,
                           detect_claude_tool_loop=True)
         assert child["captureLimited"] is True and len(child["stdout"]) <= MAX_FRAME_BYTES + 65536
-        print("PASS streaming byte and newline-free JSONL frame limits terminate with partial capture")
+        loop_code = '''import json,time
+for index in range(3):
+    print(json.dumps({"message":{"content":[{"type":"tool_use","name":"Read","id":str(index),"input":{"path":"same.txt"}}]}}),flush=True)
+    print(json.dumps({"message":{"content":[{"type":"tool_result","tool_use_id":str(index),"content":"Wasted call: file unchanged since your last read"}]},"tool_use_result":{"type":"file_unchanged"}}),flush=True)
+time.sleep(5)
+'''
+        child = run_child([sys.executable, "-c", loop_code], root, None, .1, detect_claude_tool_loop=True)
+        assert "Claude tool loop" in child["error"] and child["processStopped"] is True and child["timedOut"] is False
+        print("PASS monitored streaming byte/frame caps and real repeated tool no-progress still terminate without a task timeout")
     return 0
 
 

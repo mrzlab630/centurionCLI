@@ -9,3 +9,12 @@ New orders use AGENT_ORDER_JSON_V1 and exact AGENT_HANDOFF_V1; results use AGENT
 
 Workers remain bounded; reviewers report findings and never edit product or assign
 another reviewer. Core authority and mission budgets override recipe examples.
+
+New policy 3.0 model launches use `launch.timeoutSeconds: null` with mission
+`budget.deadlineAt: null` for monitored execution without a lifetime cutoff.
+Finite values are honored only when explicitly selected; existing missions and
+receipts are not rewritten. Read periodic Gateway `process_observed` events;
+liveness/output activity is not evidence of productive progress or acceptance.
+Silence alone never kills or replays a worker. Stop the owning Gateway through
+SIGTERM/SIGINT; do not modify locked state. Stop cleanup remains bounded and
+checks process identity. Output caps, count budgets and no-replay rules still apply.

@@ -42,6 +42,7 @@ from agent_contract_runner import (
     _mission_file_ref,
     _mission_process_identity,
     _mission_time,
+    mission_stop_deadline,
     mission_snapshot,
     MissionReservation,
     run_proof_commands,
@@ -298,7 +299,9 @@ def parse_order_paths(
         start_receipt_path = policy.control_cli_path(start_receipt_arg, "CLI --start-receipt")
         closure_path = policy.control_cli_path(closure_arg, "CLI --closure")
         evidence_dir = policy.control_cli_path(evidence_arg, "CLI --evidence-dir")
-        events_path = policy.control_cli_path(events_arg, "CLI --events") if events_arg is not None else None
+        events_path = policy.control_cli_path(events_arg, "CLI --events") if events_arg is not None else (
+            policy.control_path(str(policy.control_namespace / "events.jsonl"), "monitored process events")
+            if launch.get("timeoutSeconds") is None and controller_context(order) is not None else None)
         stdout_path = policy.control_path(launch["stdoutPath"], "launch.stdoutPath") if launch.get("stdoutPath") else None
         stderr_path = policy.control_path(launch["stderrPath"], "launch.stderrPath") if launch.get("stderrPath") else None
     except (RunnerError, ArtifactNamespaceError) as exc:
@@ -361,8 +364,8 @@ def plan_command(order: dict[str, Any]) -> list[str]:
     if not isinstance(launch, dict) or not isinstance(launch.get("command"), str):
         raise GatewayError("order.launch.command must be a string")
     timeout = launch.get("timeoutSeconds")
-    if isinstance(timeout, bool) or not isinstance(timeout, int) or timeout < 1:
-        raise GatewayError("order.launch.timeoutSeconds must be a positive integer")
+    if "timeoutSeconds" not in launch or (timeout is None and controller_context(order) is None) or (timeout is not None and (type(timeout) is not int or timeout < 1)):
+        raise GatewayError("order.launch.timeoutSeconds must be a positive integer or explicit null for policy 3.0 monitored execution")
     try:
         argv = shlex.split(launch["command"])
     except ValueError as exc:
@@ -376,6 +379,7 @@ def plan_command(order: dict[str, Any]) -> list[str]:
 
 # Three identical Read no-progress results are treated as a fail-closed loop.
 CLAUDE_NO_PROGRESS_LIMIT = 3
+CHILD_OBSERVATION_SECONDS = 30.0
 
 
 def _claude_tool_event_state() -> dict[str, Any]:
@@ -453,7 +457,7 @@ def _claude_tool_history_error(events: list[dict[str, Any]]) -> str | None:
 
 def _run_child_streaming(
     process: subprocess.Popen[bytes],
-    timeout: int,
+    timeout: float | None,
     grace_seconds: float,
     signal_group: Any,
     max_stdout: int = MAX_STDOUT_BYTES,
@@ -462,6 +466,7 @@ def _run_child_streaming(
     detect_claude_tool_loop: bool = True,
     reservation: Any = None,
     owned_identity: dict[str, Any] | None = None,
+    events_path: Path | None = None,
 ) -> tuple[bytes, bytes, bool, bool, str | None, str | None, bool]:
     selector = selectors.DefaultSelector()
     streams: dict[int, str] = {}
@@ -481,12 +486,18 @@ def _run_child_streaming(
         selector.register(stream, selectors.EVENT_READ, label)
         streams[stream.fileno()] = label
 
-    deadline = time.monotonic() + timeout
+    started = time.monotonic()
+    deadline = started + timeout if timeout is not None else None
+    next_observation = started
+    last_output_at: str | None = None
+    last_output_time = started
     drain_deadline: float | None = None
+    drain_started = False
+    cleanup_deadline: float | None = None
     killed = False
 
     def request_stop(reason: str, *, timeout_stop: bool = False) -> None:
-        nonlocal termination_signal, timed_out, tool_loop_error, drain_deadline
+        nonlocal termination_signal, timed_out, tool_loop_error, cleanup_deadline, drain_deadline
         if timeout_stop:
             timed_out = True
         if reason.startswith("Claude tool loop"):
@@ -494,34 +505,64 @@ def _run_child_streaming(
         if termination_signal is None:
             termination_signal = "SIGTERM"
             if reservation is not None:
-                reservation.terminate_owned_process(owned_identity)
-                drain_deadline = time.monotonic() + max(0, (_mission_time(reservation.state["stopDeadlineAt"]) - datetime.now(timezone.utc)).total_seconds())
-                return
-            signal_group(signal.SIGTERM)
-            drain_deadline = time.monotonic() + grace_seconds
+                reservation.request_owned_process_stop(owned_identity)
+            else:
+                signal_group(signal.SIGTERM)
+            now = time.monotonic()
+            term_seconds = min(max(0.0, grace_seconds), 10.0)
+            cleanup_deadline = (now + max(0.0, (_mission_time(reservation.state["stopDeadlineAt"])
+                                - datetime.now(timezone.utc)).total_seconds()) if reservation is not None
+                                else now + term_seconds + max(0.0, grace_seconds))
+            drain_deadline = min(cleanup_deadline, now + term_seconds)
 
     while streams or process.poll() is None:
         now = time.monotonic()
-        if reservation is not None and reservation.stop_requested() and termination_signal is None:
-            request_stop("mission cancelled or work cutoff reached", timeout_stop=True)
-        if drain_deadline is None and now >= deadline:
-            request_stop(f"launcher timed out after {timeout}s", timeout_stop=True)
-        if drain_deadline is not None and now >= drain_deadline:
+        if (reservation is not None or events_path is not None) and now >= next_observation:
+            identity = _mission_process_identity(process.pid)
+            observation = {"observedAt": utc_now(), "process": owned_identity or {"pid": process.pid},
+                           "processAlive": process.poll() is None and identity is not None,
+                           "identityMatches": identity == owned_identity if owned_identity is not None else None,
+                           "elapsedMs": int((now - started) * 1000),
+                           "stdoutBytes": len(chunks["stdout"]), "stderrBytes": len(chunks["stderr"]),
+                           "lastOutputAt": last_output_at, "silenceSeconds": round(now - last_output_time, 3),
+                           "productiveProgress": "unknown", "acceptance": "unverified"}
             if reservation is not None:
-                drain_timed_out = bool(streams) or process.poll() is None
-                break
-            if not killed:
+                reservation.observe_process(observation)
+            append_event_best_effort(events_path, "process_observed", **observation)
+            next_observation = now + CHILD_OBSERVATION_SECONDS
+        if reservation is not None and reservation.stop_requested() and termination_signal is None:
+            request_stop("mission cancelled or work cutoff reached", timeout_stop=not reservation.state["cancelled"])
+        if drain_deadline is None and deadline is not None and now >= deadline:
+            request_stop(f"launcher timed out after {timeout}s", timeout_stop=True)
+        # EOF while the exact child remains alive is only silence. Once it has
+        # exited, inherited pipes must still have a bounded collection phase.
+        if process.poll() is not None and streams and not drain_started:
+            drain_deadline = now + grace_seconds
+            if cleanup_deadline is not None:
+                drain_deadline = min(drain_deadline, cleanup_deadline)
+            elif reservation is not None and reservation.state.get("stopDeadlineAt"):
+                remaining = (_mission_time(reservation.state["stopDeadlineAt"]) - datetime.now(timezone.utc)).total_seconds()
+                drain_deadline = min(drain_deadline, now + max(0.0, remaining))
+            drain_started = True
+        if process.poll() is not None and not streams:
+            break
+        if drain_deadline is not None and now >= drain_deadline:
+            if process.poll() is None and not killed:
                 killed = True
                 termination_signal = "SIGKILL"
-                signal_group(signal.SIGKILL)
-                drain_deadline = time.monotonic() + grace_seconds
-            else:
-                drain_timed_out = True
-                break
+                if reservation is not None:
+                    reservation.force_owned_process_stop(owned_identity)
+                else:
+                    signal_group(signal.SIGKILL)
+                drain_started = True
+                drain_deadline = cleanup_deadline
+                continue
+            drain_timed_out = bool(streams) or process.poll() is None
+            break
         wait_for = 0.1
-        if drain_deadline is None:
+        if drain_deadline is None and deadline is not None:
             wait_for = max(0.0, min(wait_for, deadline - now))
-        else:
+        elif drain_deadline is not None:
             wait_for = max(0.0, min(wait_for, drain_deadline - now))
         if not streams:
             try:
@@ -554,6 +595,8 @@ def _run_child_streaming(
                 request_stop(f"{label} capture exceeded {limit} bytes", timeout_stop=False)
                 continue
             chunks[label].extend(chunk)
+            last_output_at = utc_now()
+            last_output_time = time.monotonic()
             if label != "stdout" or tool_loop_error is not None or capture_limited:
                 continue
             line_buffers[label] += chunk
@@ -581,22 +624,9 @@ def _run_child_streaming(
                 line_buffers[label] = b""
                 request_stop("stdout frame limit exceeded without newline")
     selector.close()
-    for stream in (process.stdout, process.stderr):
-        if stream is not None:
-            stream.close()
+    _close_process_pipes(process)
     if process.poll() is None:
-        if reservation is not None:
-            drain_timed_out = True
-            return (bytes(chunks["stdout"]), bytes(chunks["stderr"]), timed_out,
-                    drain_timed_out, termination_signal, tool_loop_error, capture_limited)
-        try:
-            process.wait(timeout=grace_seconds)
-        except subprocess.TimeoutExpired:
-            signal_group(signal.SIGKILL)
-            try:
-                process.wait(timeout=grace_seconds)
-            except subprocess.TimeoutExpired:
-                drain_timed_out = True
+        drain_timed_out = True
     return (
         bytes(chunks["stdout"]),
         bytes(chunks["stderr"]),
@@ -608,16 +638,45 @@ def _run_child_streaming(
     )
 
 
+def _close_process_pipes(process: subprocess.Popen[bytes]) -> None:
+    for stream in (process.stdout, process.stderr):
+        if stream is not None:
+            try:
+                stream.close()
+            except OSError:
+                pass
+
+
+def _emergency_kill_and_reap(process: subprocess.Popen[bytes], wait_seconds: float) -> bool:
+    """Kill this exact Popen child after identity/capture failure, then reap it."""
+    deadline = time.monotonic() + min(max(wait_seconds, 0.0), 10.0)
+    try:
+        if process.poll() is None:
+            process.kill()
+    except OSError:
+        pass
+    while process.poll() is None:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        try:
+            process.wait(timeout=remaining)
+        except subprocess.TimeoutExpired:
+            continue
+    return True
+
+
 def run_child(
     argv: list[str],
     cwd: Path,
-    timeout: int,
+    timeout: float | None,
     grace_seconds: float,
     *,
     detect_claude_tool_loop: bool = False,
     environment: dict[str, str] | None = None,
     reservation: Any = None,
     auxiliary: bool = False,
+    events_path: Path | None = None,
 ) -> dict[str, Any]:
     started_at = utc_now()
     monotonic_started = time.monotonic()
@@ -663,14 +722,11 @@ def run_child(
                 identity = _mission_process_identity(process.pid) or identity
         except BaseException:
             # Popen is our exact unreaped child even if persistence failed.
-            # Bound emergency cleanup by the original wall deadline.
-            from agent_contract_runner import _terminate_mission_process
-            if identity is not None:
-                deadline = min(_mission_time(reservation.state["budget"]["deadlineAt"]), datetime.now(timezone.utc) + timedelta(seconds=30))
-                _terminate_mission_process(identity, deadline.isoformat())
-            process.poll()
-            for pipe in (process.stdout, process.stderr):
-                pipe.close()
+            try:
+                remaining = (mission_stop_deadline(reservation.state) - datetime.now(timezone.utc)).total_seconds()
+                _emergency_kill_and_reap(process, remaining)
+            finally:
+                _close_process_pipes(process)
             raise
     timed_out = False
     drain_timed_out = False
@@ -682,28 +738,12 @@ def run_child(
     stderr = b""
 
     def signal_group(sig: signal.Signals) -> None:
+        if process.poll() is not None:
+            return
         try:
             os.killpg(process.pid, sig)
         except ProcessLookupError:
             pass
-
-    def close_pipes() -> None:
-        for stream in (process.stdout, process.stderr):
-            if stream is not None:
-                try:
-                    stream.close()
-                except OSError:
-                    pass
-
-    def bounded_wait() -> None:
-        try:
-            process.wait(timeout=grace_seconds)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            try:
-                process.wait(timeout=grace_seconds)
-            except subprocess.TimeoutExpired:
-                pass
 
     try:
         (
@@ -711,23 +751,24 @@ def run_child(
             tool_loop_error, capture_limited,
         ) = _run_child_streaming(process, timeout, grace_seconds, signal_group,
                                  detect_claude_tool_loop=detect_claude_tool_loop,
-                                 reservation=reservation, owned_identity=identity)
-    except OSError as exc:
+                                 reservation=reservation, owned_identity=identity, events_path=events_path)
+    except BaseException as exc:
         capture_error = f"executor stream capture failed: {exc}"
         termination_signal = "SIGKILL"
-        if reservation is not None:
-            from agent_contract_runner import _terminate_mission_process
-            deadline = min(_mission_time(reservation.state.get("stopDeadlineAt", reservation.state["budget"]["deadlineAt"])),
-                           datetime.now(timezone.utc) + timedelta(seconds=30))
-            if identity is not None:
-                _terminate_mission_process(identity, deadline.isoformat())
-            close_pipes()
-            process.poll()
-        else:
-            signal_group(signal.SIGKILL)
-            close_pipes()
-            bounded_wait()
+        try:
+            # The Popen handle is the exact child captured by this controller.
+            # Keep this fallback safe when identity reads fail or persistence
+            # never recorded an identity.
+            remaining = ((mission_stop_deadline(reservation.state) - datetime.now(timezone.utc)).total_seconds()
+                         if reservation is not None else grace_seconds)
+            _emergency_kill_and_reap(process, remaining)
+        finally:
+            _close_process_pipes(process)
+        if not isinstance(exc, OSError):
+            raise
     errors = []
+    if reservation is not None and reservation.state["cancelled"]:
+        errors.append("mission cancelled: " + reservation.state.get("stopReason", "controller stop"))
     if timed_out:
         errors.append(f"launcher timed out after {timeout}s")
     if drain_timed_out:
@@ -1416,8 +1457,8 @@ def recover_report(reservation: Any, args: Any, paths: dict[str, Any], routing: 
         rr = MissionReservation(reservation.order, reservation.policy, reservation.state, reservation.path, reservation.lock, "launch")
         rr.meta = dict(reservation.meta, intentId=ordinal_key, action="report")
         rr.intent = report
-        child = run_child(argv, Path(cap["scratchDir"]), rr.work_timeout(120), 10,
-                          environment=env, reservation=rr, detect_claude_tool_loop=True)
+        child = run_child(argv, Path(cap["scratchDir"]), rr.work_timeout(None if reservation.order["launch"]["timeoutSeconds"] is None else 120), 10,
+                          environment=env, reservation=rr, detect_claude_tool_loop=True, events_path=paths.get("events"))
         atomic_create(namespace / "stdout.bin", child["stdout"])
         atomic_create(namespace / "stderr.bin", child["stderr"])
         stopped = child.get("processStopped", False)
@@ -1705,6 +1746,7 @@ def main() -> int:
             detect_claude_tool_loop=order["executor"] == "claude",
             environment=executor_environment(order["executor"], dict(os.environ)) if is_v3 else None,
             reservation=reservation,
+            events_path=events_path,
         )
         child_started = child["childStarted"]
         append_event_best_effort(

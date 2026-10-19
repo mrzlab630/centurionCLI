@@ -35,6 +35,15 @@ another dispatch path. Read accepted state after restart before continuing; neve
 replay product actions to repair reporting. Report correction stays disabled
 without the required no-write capability receipt.
 
+For new policy 3.0 model work use `launch.timeoutSeconds: null` and mission
+`budget.deadlineAt: null` unless the owner explicitly requested a finite limit.
+Observe the existing Gateway process/events periodically (normally every 30 seconds).
+Elapsed time, silence, PID liveness or output growth alone never establish failure,
+progress or acceptance. Do not relaunch a living worker because a status check
+returns no result. Explicitly cancel the owning Gateway with SIGTERM/SIGINT;
+do not edit locked mission state or signal an unverified worker PID. Cancellation
+and bounded cleanup remain enforced, as do launch/attempt and output limits.
+
 Use only the selected instructions/tools from surface-config.mjs. Load domain
 recipes for a concrete task, not as general policy. Model/effort and review floors
 come from controller routing and the implementation plan section 5, never a skill

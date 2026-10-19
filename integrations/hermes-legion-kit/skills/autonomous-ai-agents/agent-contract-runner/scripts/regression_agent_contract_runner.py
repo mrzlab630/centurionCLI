@@ -399,7 +399,7 @@ def mission_regressions() -> None:
         else:
             raise AssertionError(f"expected rejection {marker}")
 
-    def fixture(name: str, *, maximum: int = 8, profile: str = "V0", completion_action: str | None = None):
+    def fixture(name: str, *, maximum: int = 8, profile: str = "V0", completion_action: str | None = None, monitored: bool = False):
         root = FIXTURE_ROOT / ("mission-" + name)
         root.mkdir()
         product = root / "src"
@@ -438,6 +438,10 @@ def mission_regressions() -> None:
                 "expectedArtifacts": order["expectedArtifacts"]}}}
         if completion_action is not None:
             spec["tasks"]["task"]["completionAction"] = completion_action
+        if monitored:
+            order["launch"]["timeoutSeconds"] = None
+            spec["budget"].pop("deadlineAt")
+            spec["authority"]["budgets"] = {"maxWallSeconds": 1, "maxAttempts": 10}
         if name == "restart":
             spec_path = root / "approved-mission.json"
             write_json(spec_path, spec)
@@ -472,6 +476,45 @@ def mission_regressions() -> None:
         acceptance = reservation.policy.control_namespace / "controller-acceptance.json"
         write_json(acceptance, {"status": "passed", "orderId": reservation.order["orderId"], "canonicalResultSha256": runner.result_digest(result_path)})
         return proof, acceptance
+
+    order, policy, path, target, result, _, _ = fixture("monitored", monitored=True)
+    runner.validate_order(order)
+    for invalid_timeout in (False, 0, -1, 1.5, "unlimited", "missing"):
+        invalid = copy.deepcopy(order)
+        if invalid_timeout == "missing":
+            invalid["launch"].pop("timeoutSeconds")
+        else:
+            invalid["launch"]["timeoutSeconds"] = invalid_timeout
+        rejected(lambda: runner.validate_order(invalid), "timeoutSeconds")
+    legacy = copy.deepcopy(order)
+    legacy["context"] = []
+    rejected(lambda: runner.validate_order(legacy), "timeoutSeconds")
+    reservation = runner.reserve_mission_dispatch(order, policy)
+    authority = copy.deepcopy(reservation.state["authority"])
+    assert_case(reservation.state["budget"]["deadlineAt"] is None and reservation.work_timeout(None) is None,
+                "new mission defaults to explicit null deadline; null launch has no implicit work timeout")
+    decision = runner.record_mission_observation(reservation, {"status": "done", "controllerVerified": True,
+        "acceptanceCoverage": ["bounded criterion"], "durationSeconds": 7200})
+    assert_case(decision["decision"] == "allow" and reservation.state["authority"] == authority,
+                "legacy advisory wall budget cannot stop monitored work or rewrite approved authority")
+    capture(reservation, target, result)
+    import result_gateway
+    real_run_child = result_gateway.run_child
+    observed_timeouts = []
+    def final_child(argv, cwd, timeout, *args, **kwargs):
+        observed_timeouts.append(timeout)
+        return real_run_child(argv, cwd, .1 if timeout == 3600 else timeout, *args, **kwargs)
+    proof_argv = [sys.executable, "-c", "import time; time.sleep(.25)"]
+    with mock.patch.object(result_gateway, "run_child", side_effect=final_child):
+        checks = runner._run_final_mission_proof(reservation.state,
+            [{"argv": proof_argv, "cwd": str(policy.repo_path), "command": shlex.join(proof_argv)}], reservation)
+    assert_case(observed_timeouts == [None] and checks[0]["status"] == "pass", "real monitored final proof has no hidden one-hour timeout")
+    reservation.close()
+    stored = json.loads(path.read_text())
+    stored["budget"].pop("deadlineAt")
+    write_json(path, stored)
+    rejected(lambda: runner.load_mission_state(order, policy), "must be explicit")
+    print("PASS 3.0 monitored default, legacy advisory wall-limit isolation, real unbounded final proof and no implicit receipt migration")
 
     order, policy, path, target, result, _, _ = fixture("restart")
     first = runner.reserve_mission_dispatch(order, policy)

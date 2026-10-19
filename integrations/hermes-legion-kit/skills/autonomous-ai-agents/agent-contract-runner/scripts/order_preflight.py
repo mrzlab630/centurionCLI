@@ -133,8 +133,8 @@ def validate_tunnel_launch(order: dict[str, Any], policy: Any, candidate: Path, 
         raise PreflightError("; ".join(f"{item['code']}: {item['message']}" for item in plan["diagnostics"] if item["severity"] == "error"))
     launch = order["launch"]
     timeout = launch.get("timeoutSeconds")
-    if type(timeout) is not int or timeout < 1:
-        raise PreflightError("launch.timeoutSeconds must be a positive integer")
+    if "timeoutSeconds" not in launch or (timeout is not None and (type(timeout) is not int or timeout < 1)):
+        raise PreflightError("launch.timeoutSeconds must be a positive integer or explicit null for monitored execution")
     if not launch.get("candidateJsonPath") or policy.control_path(launch["candidateJsonPath"], "launch.candidateJsonPath") != candidate:
         raise PreflightError("launch.candidateJsonPath must match the single selected candidate")
     if any(key in launch for key in ("env", "environment", "stdin", "stdinPath", "input", "inputPath", "stdinProvided", "suppliedStdin")):

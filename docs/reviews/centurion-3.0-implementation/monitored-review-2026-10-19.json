@@ -1,0 +1,1201 @@
+{
+  "version": "CENTURION_MONITORED_SOURCE_REVIEW_RECORD_V1",
+  "baseCommit": "dcd80569f54d0fbb9a6cbfce2023c5e1d532c39d",
+  "authority": "User requested continuation with periodic process observation instead of model lifetime timeouts.",
+  "route": {
+    "executor": "Claude CLI 2.1.224",
+    "model": "claude-opus-5-5",
+    "effort": "high",
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:8317",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-5-5"
+  },
+  "execution": "Sequential read-only source tasks through local proxy, no tools/MCP/hooks; poll every 30 seconds; timeoutSeconds=null.",
+  "launches": 10,
+  "automaticRetries": 0,
+  "historicalPilotLaunchCounters": "unchanged; no P mission replay",
+  "adjudication": [
+    {
+      "id": "R4b-1",
+      "decision": "confirmed and fixed",
+      "evidence": "Runner and builder reject pass unless exitCode has exact int type and equals zero. Fail/not_run retain null for missing exit. Direct validator matrix and builder regression pass."
+    },
+    {
+      "id": "T2-1",
+      "decision": "confirmed and fixed with narrower signalling authority",
+      "evidence": "Identity/persistence exceptions clean up the exact Popen child with kill and bounded wait/finally pipe close. Unverified group signalling is not used for this fallback."
+    },
+    {
+      "id": "T2-2",
+      "decision": "confirmed; total cleanup requirement takes precedence over unbounded extension",
+      "evidence": "TERM no longer blocks capture; KILL escalation and pipe drain stay inside the existing stop reserve. Large TERM-handler output and ignored TERM are exercised with real children."
+    },
+    {
+      "id": "T2-F1",
+      "decision": "rejected factual API error",
+      "evidence": "Popen.kill is SIGKILL on Unix, not SIGTERM. The earlier temporary killpg substitution was replaced by exact-child cleanup. No descendant-containment claim."
+    },
+    {
+      "id": "T2-F2/T2-L1/T2-L2",
+      "decision": "positive checks incorrectly placed in findings",
+      "evidence": "Original native response retained verbatim. ACCEPT with populated findings failed the disposable helper semantic assertion; it is not automatic acceptance and did not replay product work."
+    },
+    {
+      "id": "T3-AUX-01/T3-AUX-02",
+      "decision": "rejected after full caller inspection",
+      "evidence": "Discarded work_timeout(1) returns are admission checks; actual run_child arguments use nullable/finite calculated values. AST-selected complete calls and definitions reviewed in auxiliary-and-proof with ACCEPT."
+    },
+    {
+      "id": "cleanup-F1",
+      "decision": "confirmed and fixed",
+      "evidence": "Final review took 817.29 seconds without a lifetime cutoff and found post-reap group signalling in non-reservation drainage. Added the exact requested process.poll guard; real children demonstrate both stream and frame overflow after reap reject incomplete capture without calling killpg. All other reviewed lifecycle slices remain identical."
+    }
+  ],
+  "executionDeviations": [
+    "Early review snippets used fixed line ranges after source edits. T3 missed the actual child calls and returned unsupported findings. Final review uses AST-selected complete definitions/calls with per-slice hashes.",
+    "A failed disposable helper preparation rewrote the initial candidate.diff sidecar. Original frozen source files, order/input/raw/receipt refs remain valid; that overwritten diff is not acceptance evidence.",
+    "Interim cleanup fixes were changed after owner review found TERM/total-cleanup timing and unverified-group signalling concerns. Earlier ACCEPT responses do not cover the final lifecycle."
+  ],
+  "proof": [
+    {
+      "command": "python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_result_builder.py",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "26 PASS groups",
+      "logRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-20261019/proof-validation-regression.log",
+        "sha256": "bd24f610e1f5b2facdd391630445a2d05329752155d66645d5aaa22d42a95054",
+        "bytes": 1882
+      }
+    },
+    {
+      "command": "python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "21 PASS groups",
+      "logRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-20261019/cleanup-regression.log",
+        "sha256": "0e6006d3fb5b5256110dcbeaaf34f7f9046ac697f253aa0b01fd888028e6c7b7",
+        "bytes": 2336
+      }
+    },
+    {
+      "command": "node integrations/hermes-legion-kit/scripts/smoke.mjs",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "Isolated installer fixture and 13 packaged runtime regressions passed; live capability unverified.",
+      "logRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-20261019/hermes-smoke.log",
+        "sha256": "b838882a1ffb71d09c993f9b78b92223a15587808ae15bffbe8007a0b79b83d3",
+        "bytes": 192
+      }
+    },
+    {
+      "command": "python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "22 PASS groups",
+      "logRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-20261019/post-review-cleanup-regression.log",
+        "sha256": "ac2cacc71b841334c2176d017bfa442259dacc84e5b83a95c782951974caf6f0",
+        "bytes": 2430
+      }
+    },
+    {
+      "command": "node integrations/hermes-legion-kit/scripts/smoke.mjs",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "Isolated installer fixture and 13 packaged runtime regressions passed; live capability unverified.",
+      "logRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-20261019/post-review-hermes-smoke.log",
+        "sha256": "b838882a1ffb71d09c993f9b78b92223a15587808ae15bffbe8007a0b79b83d3",
+        "bytes": 192
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "id": "R4a-result-ownership",
+      "scope": "One question: are canonical result creation and read-only reviewer artifact boundaries consistent? Inspect only supplied worker instructions. Gateway alone owns canonical result; do not reopen the full release or the host AGENTS/SOUL gate.",
+      "orderRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-monitored-20261019/R4a-result-ownership/order.json",
+        "sha256": "262c3bea185b25664d300d6cc99034756aaea631a84dacac061bc47d159180ba",
+        "bytes": 2688
+      },
+      "inputRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-monitored-20261019/R4a-result-ownership/input.txt",
+        "sha256": "f7aba33b3daa244981ed08158de5e64df4231aae6dc8172f2ad1a5cd63cdc263",
+        "bytes": 4402
+      },
+      "rawRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-monitored-20261019/R4a-result-ownership/stdout.jsonl",
+        "sha256": "6389f7c8a3ba95a907a8c0462eaf6cef94a35f7824197c17f4f4845307f0eb43",
+        "bytes": 10500
+      },
+      "receiptRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-monitored-20261019/R4a-result-ownership/receipt.json",
+        "sha256": "4ce92782c138071e5208e421f4a40ea80a85fc50ec6afd85ff6cf95baf64d416",
+        "bytes": 1122
+      },
+      "observationsRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-monitored-20261019/R4a-result-ownership/observations.jsonl",
+        "sha256": "71d6b44cc2786e4d5f9ffec750c98fb9b3e76d7b8d6b7dc9569910112f7cfaac",
+        "bytes": 628
+      },
+      "seconds": 13.01,
+      "sourcePins": {
+        "skills/orchestrator/SKILL.md": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-monitored-20261019/source/skills/orchestrator/SKILL.md",
+          "sha256": "0599890ebe0b5d9038035565cd8cf474efb6b710619dc79beee494fe8e5c325d",
+          "bytes": 3551
+        },
+        "skills/reviewer/SKILL.md": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-monitored-20261019/source/skills/reviewer/SKILL.md",
+          "sha256": "8b24c94d4c036f9abbb0553fbb9f25fbe74ff4355fa7a3b01e72df8fe96017f8",
+          "bytes": 1512
+        },
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/SKILL.md": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-monitored-20261019/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/SKILL.md",
+          "sha256": "e4d06adce5afa901bd18646940c8c85d01e9070b47a889351e8732739ccae63e",
+          "bytes": 1133
+        }
+      },
+      "selections": [
+        [
+          "skills/orchestrator/SKILL.md",
+          14,
+          36
+        ],
+        [
+          "skills/reviewer/SKILL.md",
+          7,
+          10
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/SKILL.md",
+          7,
+          10
+        ]
+      ],
+      "review": {
+        "verdict": "ACCEPT",
+        "summary": "Границы владения каноническим результатом согласованы. Gateway единолично создаёт результат через resultPath для policyVersion 3.0; работники возвращают полезную нагрузку через нативный адаптер и не пишут resultPath. Рецензенты не редактируют продуктовые файлы (filesChanged: []), проверяемые артефакты ограничены allowedPaths обзорного заказа, результат предшественника связывается полями review без повторного перечисления его файлов. Все три источника запрещают воркерам писать resultPath, запрещают рецензентам править продукт, закрепляют Gateway как единственный источник запуска 3.0-детей и создания канонического результата. Читаемое сохранённое состояние защищено от повтора продуктовых действий. Нормализация метаданных text/plain для effect.txt согласуется с дельта-политикой копий сравнения; возможность закреплена до запуска.",
+        "findings": [],
+        "limitations": [
+          "Проверены только три предоставленных фрагмента инструкций; полная реализация result_gateway.py, agent_contract_runner.py, адаптеров и контроллера маршрутизации не инспектирована",
+          "Предполагается, что existingChanges, allowedPaths, capability receipt и replay guard реализованы согласно декларациям; механизмы исполнения не верифицированы",
+          "Консистентность с предшествующими корректировками P6 EFFECT_ONCE принята по контексту; исходный код append не проверен"
+        ]
+      },
+      "automaticAcceptance": false
+    },
+    {
+      "id": "R4b-proof-and-correction",
+      "scope": "One question: are negative-review/proof reporting and explicit controller correction authorization consistent with these validators? Do not redesign validators or review broader architecture.",
+      "orderRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-monitored-20261019/R4b-proof-and-correction/order.json",
+        "sha256": "0577b964fd09672778416ff732e7131692766f6bbb6cd4900c3de5c0122f3c00",
+        "bytes": 2881
+      },
+      "inputRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-monitored-20261019/R4b-proof-and-correction/input.txt",
+        "sha256": "61ee87a7eb080069c481d2cc449cd4ee4c69e55259c9e739a65a6fac3596fe18",
+        "bytes": 8163
+      },
+      "rawRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-monitored-20261019/R4b-proof-and-correction/stdout.jsonl",
+        "sha256": "9a676bc455ca66022ae02e27e6e84387e62451be08c5427e5470e38b9982105c",
+        "bytes": 163452
+      },
+      "receiptRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-monitored-20261019/R4b-proof-and-correction/receipt.json",
+        "sha256": "857848e4ff4a91542065c9f7ca62d56fa5bbfaf16700091353fbd3c3d6a3a28a",
+        "bytes": 1137
+      },
+      "observationsRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-monitored-20261019/R4b-proof-and-correction/observations.jsonl",
+        "sha256": "adace8c336f1909a23ab32b83880641d34c48fe22774a51ef5673ff74f7c3e6c",
+        "bytes": 4453
+      },
+      "seconds": 353.16,
+      "sourcePins": {
+        "skills/orchestrator/SKILL.md": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-monitored-20261019/source/skills/orchestrator/SKILL.md",
+          "sha256": "0599890ebe0b5d9038035565cd8cf474efb6b710619dc79beee494fe8e5c325d",
+          "bytes": 3551
+        },
+        "skills/reviewer/SKILL.md": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-monitored-20261019/source/skills/reviewer/SKILL.md",
+          "sha256": "8b24c94d4c036f9abbb0553fbb9f25fbe74ff4355fa7a3b01e72df8fe96017f8",
+          "bytes": 1512
+        },
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-monitored-20261019/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          "sha256": "4dff66aadf97ee7c9b9f1470e23750a12f8a949cdfbe0e86fa9d84fdea19b00b",
+          "bytes": 151660
+        }
+      },
+      "selections": [
+        [
+          "skills/orchestrator/SKILL.md",
+          43,
+          57
+        ],
+        [
+          "skills/reviewer/SKILL.md",
+          12,
+          17
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          671,
+          704
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          2406,
+          2455
+        ]
+      ],
+      "review": {
+        "verdict": "REVISE",
+        "summary": "Срез в основном согласован: status=failed и proof.status=fail допустимы, непустые proof/artifacts требуются, а done-семантика запрещает не-pass проверки. Но done-семантика не сверяет exitCode: proof со status=pass и ненулевым exitCode (или exitCode=null) проходит, что позволяет перемаркировать провал как pass. Явная авторизация correction в результатных валидаторах не проверяется; по контексту она закреплена mission authority до запуска, противоречий в показанном коде нет.",
+        "findings": [
+          {
+            "id": "R4b-1",
+            "severity": "high",
+            "file": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+            "line": "681, 693-694",
+            "evidence": "validate_proof допускает exitCode=null (строка 681), а validate_done_semantics для done проверяет только proof[].status == 'pass' (строки 693-694), не требуя exitCode == 0. Результат вида proof:[{command:'...', cwd:'...', status:'pass', exitCode:1}] проходит verify_result. Это противоречит skills/reviewer/SKILL.md:13-16: упавшая исполненная проверка должна сохранять фактический exit code и proof.status=fail; перемаркировка fail в pass для схемы недопустима.",
+            "impact": "Терминальный done может быть принят при фактически проваленной проверке; негативное ревью может не содержать фактический exit code, на который опирается lead. Страдает достоверность proof и корректность acceptance.",
+            "requiredFix": "В validate_done_semantics требовать целочисленный exitCode == 0 для каждого proof entry (bool отвергать); в validate_proof для status='fail' требовать целочисленный не-null exitCode, а для status='pass' запрещать ненулевой. Если null допустим для неисполняемых проверок, явно ограничить его статусами, отличными от pass/fail."
+          }
+        ],
+        "limitations": [
+          "Не показаны определения PROOF_STATUSES и RESULT_STATUSES; допустимость fail/failed выведена из сообщения на строке 2422 и использования PROOF_STATUSES.",
+          "Не показаны validate_terminal_review_result, response_state_errors и validate_response_envelope; поэтому связка status=failed ↔ review.verdict=fail и принуждение explicit controller authorization/attempt budget подтверждены не полностью.",
+          "Artifact/MIME-правило effect.txt (text/plain vs application/octet-stream) вне данного вопроса; по контексту соответствующая дельта разрешена."
+        ]
+      },
+      "automaticAcceptance": false
+    },
+    {
+      "id": "T1-nullable-lifecycle",
+      "scope": "Review only null timeout/deadline admission and cancellation cleanup. New policy 3.0 jobs explicitly use timeoutSeconds=null; newly initialized missions default deadlineAt=null. Historical finite state remains finite, missing deadline in loaded state is rejected. Null must not bypass stop, launch counts or direct-dispatch restrictions. Explicit stop cleanup stays bounded. Do not redesign custody or review unrelated validators.",
+      "orderRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-20261019/T1-nullable-lifecycle/order.json",
+        "sha256": "78c9c50342acca8edf0f0e9c6484c6263c7186a0dd5061ddfbbc82b750dcc3a7",
+        "bytes": 4458
+      },
+      "inputRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-20261019/T1-nullable-lifecycle/input.txt",
+        "sha256": "090d0e0fe9cf3d9b89e0ebb2b4d2a582413404ca242216825722c1442753ec21",
+        "bytes": 20393
+      },
+      "rawRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-20261019/T1-nullable-lifecycle/stdout.jsonl",
+        "sha256": "c02d028868b9a3ce3a60f937069c42415d914bbceae9d39f80316cebe7f5319c",
+        "bytes": 10765
+      },
+      "receiptRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-20261019/T1-nullable-lifecycle/receipt.json",
+        "sha256": "602756cbaa6d618c4666bd1aff17eefd0f1cd06d9cbe94ce578322ad14bcc323",
+        "bytes": 1129
+      },
+      "observationsRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-20261019/T1-nullable-lifecycle/observations.jsonl",
+        "sha256": "70f10653a11ec78a6e734b0a1c9e20610fa6e7310d9de5d5018bc546208600e4",
+        "bytes": 628
+      },
+      "seconds": 16.01,
+      "sourcePins": {
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-20261019/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          "sha256": "7eb5be498b56eda293d46b1bb069555fabf67a58e3a0690d364e31ed662dfd70",
+          "bytes": 153558
+        },
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-20261019/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          "sha256": "bc1a4b2168f1d092c4093365673d9d58a18aafac30d2f6c6137227a3c6440d60",
+          "bytes": 106694
+        },
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/order_preflight.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-20261019/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/order_preflight.py",
+          "sha256": "3b79d094fea01bc1e8679e58f55441cd3bd0bedd7f91effb85df618a7409132f",
+          "bytes": 29656
+        }
+      },
+      "selections": [
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          719,
+          765
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          1090,
+          1119
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          1214,
+          1260
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          1280,
+          1299
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          1595,
+          1649
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          1767,
+          1783
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          362,
+          377
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          1645,
+          1654
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/order_preflight.py",
+          120,
+          143
+        ]
+      ],
+      "review": {
+        "verdict": "ACCEPT",
+        "summary": "Проверка nullable-lifecycle завершена. Политика 3.0 корректно допускает `timeoutSeconds=null` только при наличии миссии (`mission_context(order) is not None`), новая инициализация устанавливает `deadlineAt=null` как дефолт, загруженное состояние требует явное присутствие поля. Null-timeout проходит через `mission_work_timeout`, который возвращает `None` при `deadlineAt=None`, что корректно поддерживает бесконечное выполнение. Ограничения по запуску (`maxModelLaunches`), счётчики и диспетчеризация остаются активными независимо от nullable-deadline. Очистка при остановке (`mission_stop_deadline`) устанавливает `MISSION_RESERVE_SECONDS` как минимум, даже когда `deadlineAt=None`, обеспечивая bounded cleanup. Историческое конечное состояние остаётся конечным: валидация требует `deadlineAt` быть больше `startedAt + 30s`, если не null (line 1109). Отсутствие `deadlineAt` в загруженном state отклоняется (lines 1104-1105). Явная остановка и отмена корректно устанавливают `stopDeadlineAt` через `mission_stop_deadline`. Все валидаторы согласованы.",
+        "findings": [],
+        "limitations": [
+          "Не проверена корректность константы MISSION_RESERVE_SECONDS — значение не видно в diff",
+          "Не проверено, что _mission_time корректно обрабатывает null (предполагается по контексту использования)",
+          "Не проверена полная цепочка dispatch: reserve → before_spawn → work_timeout при null timeout и null deadline",
+          "Не проверено поведение signal handler cancel при null deadline (строка 1649-1650)",
+          "Не проверено, что atomic_write_loop_state не меняет null deadline при записи"
+        ]
+      },
+      "automaticAcceptance": false
+    },
+    {
+      "id": "T2-process-monitoring",
+      "scope": "Review only child streaming and lifecycle changes for timeout=None: periodic observation without treating silence/EOF as failure; cancellation; bounded post-exit pipe collection; output caps and existing loop detection. Existing MissionReservation.work_timeout(None) returns None for null deadline, finite remaining time otherwise; stop_requested reflects cancelled/terminal/blocked/cutoff; terminate_owned_process pins identity and bounds TERM/KILL within 30 seconds. observe_process persists latest diagnostic observation only; save exceptions must fail closed. Review these changed paths, not a redesign of the existing custody architecture.",
+      "orderRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-20261019/T2-process-monitoring/order.json",
+        "sha256": "a041360aad778d10cad6f786e3ef9fd104bb7f01476eed73e4ba52370dc11f70",
+        "bytes": 2610
+      },
+      "inputRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-20261019/T2-process-monitoring/input.txt",
+        "sha256": "eff24ae3b02ab478c24ec0e8bc29e12919fbd3555a96dd8bcbf9d930b2705d86",
+        "bytes": 20580
+      },
+      "rawRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-20261019/T2-process-monitoring/stdout.jsonl",
+        "sha256": "95f33059def6bdbceaa4c6bb7f94f749c1e778d1e25410ce97207bdeef7ba3f8",
+        "bytes": 212768
+      },
+      "receiptRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-20261019/T2-process-monitoring/receipt.json",
+        "sha256": "5454b742745d00a5d2941d26e76bf78a5163394ebdd68dfca19542a4c560257e",
+        "bytes": 1132
+      },
+      "observationsRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-20261019/T2-process-monitoring/observations.jsonl",
+        "sha256": "a2fa83df0db30c1ad20b4dafb429530e78dbc004fb4a75ca1371a6ac6a2f574c",
+        "bytes": 5845
+      },
+      "seconds": 451.15,
+      "sourcePins": {
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-20261019/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          "sha256": "bc1a4b2168f1d092c4093365673d9d58a18aafac30d2f6c6137227a3c6440d60",
+          "bytes": 106694
+        }
+      },
+      "selections": [
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          273,
+          319
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          458,
+          787
+        ]
+      ],
+      "review": {
+        "verdict": "REVISE",
+        "summary": "Срез T2 (timeout=None, наблюдение, отмена, сбор после выхода, лимиты) в целом реализован, но обнаружены два конкретных дефекта жизненного цикла. Аварийная очистка после сбоя фиксации identity не завершает уже запущенный процесс, а блокирующий terminate_owned_process внутри цикла чтения останавливает дренаж труб и может обнулить окно пост-выходного сбора.",
+        "findings": [
+          {
+            "id": "T2-1",
+            "severity": "high",
+            "file": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+            "line": "682-703",
+            "evidence": "В except BaseException аварийное завершение выполняется только при `if identity is not None`. Если `_mission_process_identity(process.pid)` или `reservation.record_process(...)` бросит исключение до присвоения identity, `_terminate_mission_process` не вызывается: выполняются только `process.poll()`, закрытие труб и `raise`.",
+            "impact": "Уже запущенный дочерний процесс (start_new_session=True) остаётся жить; закрытие stdout/stderr его не завершает. При timeout=None внешнего дедлайна нет, поэтому процесс/группа может остаться сиротой на неограниченное время — прямое нарушение заявленной bounded emergency cleanup.",
+            "requiredFix": "Не обусловливать завершение наличием identity: для точного Popen выполнить bounded kill группы (`os.killpg(process.pid, SIGKILL)`/`process.kill()` с ограниченным wait) перед закрытием труб и пробросом исключения, либо гарантировать fallback-identity и всегда вызывать `_terminate_mission_process`."
+          },
+          {
+            "id": "T2-2",
+            "severity": "medium",
+            "file": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+            "line": "497-510, 529-538",
+            "evidence": "`request_stop` синхронно вызывает `reservation.terminate_owned_process(owned_identity)` внутри цикла; по заданному контракту тот ожидает TERM/KILL до 30 с. В это время selector не читает stdout/stderr. `drain_deadline` вычисляется после возврата как остаток `stopDeadlineAt` через `max(0, ...)`; если бюджет исчерпан (или cutoff уже наступил), на следующей итерации ветка `now >= drain_deadline` при reservation сразу делает `break`, не вычитывая буфер.",
+            "impact": "Ребёнок, пишущий финальный вывод, блокируется на заполненной трубе, не выходит по TERM и эскалируется в SIGKILL; накопленный вывод теряется, а `drainTimedOut` выставляется, хотя сбор после выхода фактически не начинался. Это противоречит требованию bounded post-exit pipe collection.",
+            "requiredFix": "Не блокировать цикл чтения завершением: инициировать TERM без ожидания, продолжать select/read и опрос до stopDeadlineAt, затем эскалировать в KILL; после фактического выхода предоставлять отдельное ограниченное окно дренажа (grace), а не остаток stopDeadlineAt."
+          }
+        ],
+        "limitations": [
+          "Проверены только предоставленные фрагменты result_gateway.py; сплошной diff и остальные изменённые файлы не предоставлены, инструменты использовать было запрещено.",
+          "Реализации MissionReservation.terminate_owned_process/observe_process/stop_requested и _terminate_mission_process не предоставлены. Вывод T2-2 опирается на явно заданный контракт: terminate_owned_process блокирующе ограничивает TERM/KILL 30 секундами и возвращается только после ожидания.",
+          "Потребители результата run_child (обработка error/timedOut/processStopped) не предоставлены, поэтому влияние на классификацию отказа не проверялось."
+        ]
+      },
+      "automaticAcceptance": false
+    },
+    {
+      "id": "T2-postfix-lifecycle",
+      "scope": "Review only the corrected lifecycle paths. Confirm the two prior T2 findings are fixed: (1) if identity persistence fails after Popen, the exact newly spawned process group is still killed with bounded wait; (2) cancellation sends TERM without blocking the selector, continues reading inherited pipes, then escalates to KILL and gives a separate bounded drain window. Check no foreign process can be signalled and null timeout remains unbounded. Report only concrete remaining defects, max two.",
+      "orderRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-postfix-20261019/T2-postfix-lifecycle/order.json",
+        "sha256": "a46057d8a3402b116f6c9357bfd37d8837eb1b7b84b81a3ae08f49ac7336e5e4",
+        "bytes": 3246
+      },
+      "inputRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-postfix-20261019/T2-postfix-lifecycle/input.txt",
+        "sha256": "33146b263a76726d688dcdc6ea8246f1fec96d3c6745b8e8fa65d9673a248d1b",
+        "bytes": 21379
+      },
+      "rawRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-postfix-20261019/T2-postfix-lifecycle/stdout.jsonl",
+        "sha256": "0c48cbaa34c3b5b51c447bbbf1bb01108bb97f15ec34315bf724c5fe69fa0262",
+        "bytes": 17370
+      },
+      "receiptRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-postfix-20261019/T2-postfix-lifecycle/receipt.json",
+        "sha256": "e626d928b3a4b85418bfb22cc14394607b4105903217c88960199be2fa1eeffa",
+        "bytes": 1150
+      },
+      "observationsRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-postfix-20261019/T2-postfix-lifecycle/observations.jsonl",
+        "sha256": "8ee4c6957d1c71618b8103c521961ec218ba65e26d69cdc711ec3a2acdd8cf74",
+        "bytes": 628
+      },
+      "seconds": 30.01,
+      "sourcePins": {
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-postfix-20261019/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          "sha256": "ff54397d5d52dd7b2c96aedd7c2393543723e8db57805f1dae88eaf23a2d992b",
+          "bytes": 107163
+        },
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-postfix-20261019/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          "sha256": "e59c884093961a314572a6dc87a457e693498f3d8da0f5a28f55a5ea4a5a9a4b",
+          "bytes": 155164
+        }
+      },
+      "selections": [
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          458,
+          636
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          639,
+          740
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          1515,
+          1575
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          1630,
+          1685
+        ]
+      ],
+      "review": {
+        "findings": [
+          {
+            "id": "T2-F1",
+            "severity": "medium",
+            "file": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+            "line": "703-719",
+            "evidence": "Exception handler after persistence failure: killpg(process.pid, SIGKILL) at 706, then wait(10) at 710, then process.kill() fallback at 712, then wait(5) at 714. The process.kill() call sends SIGTERM to the Popen handle only, not to the entire newly spawned process group.",
+            "impact": "If killpg fails due to ProcessLookupError (line 707-708 catch), the newly spawned session leader and its descendants may survive the bounded cleanup window. The process.kill() fallback at line 712 signals only the parent PID with SIGTERM, not SIGKILL, and does not target the process group spawned at line 674 (start_new_session=True).",
+            "requiredFix": "Replace process.kill() at line 712 with os.killpg(process.pid, signal.SIGKILL) to ensure the entire spawned group receives SIGKILL during the second escalation attempt. The outer try-except ProcessLookupError at 707-708 already handles the race if the group has exited."
+          },
+          {
+            "id": "T2-F2",
+            "severity": "low",
+            "file": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+            "line": "528-529",
+            "evidence": "Cancellation dispatch at line 529: request_stop('mission cancelled or work cutoff reached', timeout_stop=not reservation.state['cancelled']). The request_stop call at line 507 invokes reservation.request_owned_process_stop(owned_identity), which returns control immediately without blocking the selector loop.",
+            "impact": "Confirmed fixed: cancellation sends TERM via pidfd without blocking the selector (request_owned_process_stop at agent_contract_runner.py:1649-1659 uses wait=False), the _run_child_streaming loop continues reading inherited pipes at lines 567-619, and SIGKILL escalation occurs at lines 540-548 after drain_deadline is reached. The second bounded drain window is granted at line 548 after KILL is sent.",
+            "requiredFix": "None. This finding documents that T2 prior defect (2) is resolved."
+          }
+        ],
+        "summary": "Проверка T2-postfix-lifecycle завершена. Из двух предыдущих дефектов один исправлен полностью: отмена теперь отправляет TERM без блокировки селектора через pidfd (wait=False в request_owned_process_stop), цикл продолжает читать унаследованные каналы, затем эскалирует до KILL и предоставляет отдельное ограниченное окно дренажа (строки 540-548, 567-619). Однако в блоке аварийной очистки после сбоя сохранения идентичности (строки 703-719) остаётся средняя по серьёзности проблема: если первая попытка killpg завершается ProcessLookupError, запасной вариант process.kill() на строке 712 отправляет SIGTERM только родительскому PID, а не SIGKILL всей только что порождённой группе процессов (start_new_session=True). Иностранные процессы сигнализироваться не могут: _terminate_mission_process использует pidfd_send_signal только после проверки полной идентичности процесса (строки 1529, 1534). Нулевой тайм-аут остаётся неограниченным: когда timeout=None, deadline остаётся None (строка 490), и цикл ожидания зависит только от активности каналов и завершения процесса (строки 513-538).",
+        "limitations": [
+          "Статический анализ кода без выполнения тестов или трассировки во время выполнения",
+          "Не проверялась интеграция с внешними вызовами ядра (pidfd_open, pidfd_send_signal, select.select)",
+          "Не оценивалось поведение при гонках с быстро завершающимися дочерними процессами",
+          "Не анализировались пограничные случаи с пустыми owned_identity или нестандартными значениями grace_seconds"
+        ],
+        "verdict": "REVISE"
+      },
+      "automaticAcceptance": false
+    },
+    {
+      "id": "T3-auxiliary-work",
+      "scope": "Review only no-lifetime-timeout propagation into report recovery, final proof, progress wall aliases, and matching instructions. Check nullable mode does not bypass cancellation, counters, output caps, or authority; finite mode remains compatible. Report only concrete defects, max two.",
+      "orderRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-postfix-20261019/T3-auxiliary-work/order.json",
+        "sha256": "c80835c35f84a43992d1dc25005fb966ce8d19052ef516293876cdf9860ea3cd",
+        "bytes": 4169
+      },
+      "inputRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-postfix-20261019/T3-auxiliary-work/input.txt",
+        "sha256": "2f693008c42e799acf49e68a7588012c21dbadbc6e42443cbe1c87cfd1d702dc",
+        "bytes": 17189
+      },
+      "rawRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-postfix-20261019/T3-auxiliary-work/stdout.jsonl",
+        "sha256": "fdb4dd1089f054bb3443734213c54c1babb8a3022ab69ff0b24b44f0d94ff667",
+        "bytes": 244502
+      },
+      "receiptRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-postfix-20261019/T3-auxiliary-work/receipt.json",
+        "sha256": "f70a1bbb59f46a655eedf3b604493ef8e20b26c0c83fc46a5f053a18fceb7adf",
+        "bytes": 1144
+      },
+      "observationsRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-postfix-20261019/T3-auxiliary-work/observations.jsonl",
+        "sha256": "a509339cecfc2fbf70723dc4d9bca86f400add228f229d1a2e2574f045e56f6c",
+        "bytes": 7236
+      },
+      "seconds": 599.22,
+      "sourcePins": {
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-postfix-20261019/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          "sha256": "ff54397d5d52dd7b2c96aedd7c2393543723e8db57805f1dae88eaf23a2d992b",
+          "bytes": 107163
+        },
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-postfix-20261019/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          "sha256": "e59c884093961a314572a6dc87a457e693498f3d8da0f5a28f55a5ea4a5a9a4b",
+          "bytes": 155164
+        },
+        "skills/orchestrator/SKILL.md": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-postfix-20261019/source/skills/orchestrator/SKILL.md",
+          "sha256": "cbaa228c08dee2b06ec647934147254305d9ee45b30a0d85d64cdbc8af7c5efa",
+          "bytes": 4193
+        },
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/SKILL.md": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-postfix-20261019/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/SKILL.md",
+          "sha256": "c84fc79b99b639b78012534ffd1c8e8ba050618e5b4fee80df864a0d6e88024e",
+          "bytes": 1764
+        }
+      },
+      "selections": [
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          1405,
+          1465
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          1852,
+          1870
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          1890,
+          1907
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          1923,
+          1948
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          1280,
+          1310
+        ],
+        [
+          "skills/orchestrator/SKILL.md",
+          14,
+          55
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/SKILL.md",
+          1,
+          31
+        ]
+      ],
+      "review": {
+        "verdict": "ACCEPT",
+        "summary": "В пределах предоставленных фрагментов nullable-режим не обходит защиту. В `mission_work_timeout` проверки `cancelled`, `stopDeadlineAt`, терминальных и `blocked` статусов выполняются до ветвления по `deadlineAt`, поэтому отмена и закрытие диспетчеризации действуют одинаково в обоих режимах; при `deadlineAt is None` возвращается `None` (либо явно запрошенный конечный таймаут). `recover_report` до резервирования проверяет capability, custody `protocolRefs`, snapshot рабочей области, свежесть scratch, `reportAttemptsUsed` и `modelLaunchesUsed`, а счётчик запусков увеличивается и сохраняется до запуска без возврата. В `complete_mission` и `_run_final_mission_proof` отмена сохраняется через проверки до/после proof и обработчики SIGTERM/SIGINT, финальный snapshot сверяется. `mission_stop_deadline` в nullable-режиме остаётся ограниченным (now + 30 с), в finite-режиме учитывает `deadlineAt`; finite-ветка `mission_work_timeout` сохраняет остаток бюджета через `min(requested, remaining)`. Инструкции в `skills/orchestrator/SKILL.md` и `agent-contract-runner/SKILL.md` согласованы: null по умолчанию, finite — только по явному выбору, отмена, bounded cleanup, лимиты запусков/вывода и запрет replay сохраняются. Конкретных дефектов в видимом коде не выявлено.",
+        "findings": [],
+        "limitations": [
+          "Фрагменты неполные и несмежные: не показаны `report_launch`, фактический вызов subprocess для final proof с параметром timeout, потребители возвращаемого значения `work_timeout`, а также реализация output caps и нормализация progress-wall aliases; эти пункты по исходнику не проверены.",
+          "Вызовы `work_timeout(1)` и `mission_work_timeout(state, 1)` отбрасывают результат. В nullable-ветке такой вызов возвращает 1.0, а не None; это не подтверждено как дефект, пока возвращённое значение не используется как фактический таймаут запуска или proof, а проверить это по выдержкам нельзя.",
+          "Вердикт относится только к видимому срезу и не является одобрением релиза."
+        ]
+      },
+      "automaticAcceptance": false
+    },
+    {
+      "id": "T2-final-lifecycle",
+      "scope": "Review only the corrected lifecycle paths. Confirm the two prior T2 findings are fixed: (1) if identity persistence fails after Popen, the exact newly spawned process group is still killed with bounded wait; (2) cancellation sends TERM without blocking the selector, continues reading inherited pipes, then escalates to KILL and gives a separate bounded drain window. Check no foreign process can be signalled and null timeout remains unbounded. Report only concrete remaining defects, max two.",
+      "orderRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-final-20261019/T2-final-lifecycle/order.json",
+        "sha256": "85b304eeb6387fabb8e40c84ef8624e6a134daebe407d0cccaf865a756175460",
+        "bytes": 3238
+      },
+      "inputRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-final-20261019/T2-final-lifecycle/input.txt",
+        "sha256": "64d363b75348b5a89781263a0c64e2ed9269d9a4f7f26e62ba3d94375d5da4ce",
+        "bytes": 21406
+      },
+      "rawRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-final-20261019/T2-final-lifecycle/stdout.jsonl",
+        "sha256": "ba56971aeaf5feb746f061d48a5cc7aaf44358d4f4192f69e88f2f0f2a707aa6",
+        "bytes": 17719
+      },
+      "receiptRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-final-20261019/T2-final-lifecycle/receipt.json",
+        "sha256": "f993d060301798228947678977823f0b1a56c2547e4e556b5b94bd500e874d18",
+        "bytes": 1138
+      },
+      "observationsRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-final-20261019/T2-final-lifecycle/observations.jsonl",
+        "sha256": "cbc4df444f625412ca0146de4fd5459fc1eac7dbde7a117c0f7013d727223a31",
+        "bytes": 628
+      },
+      "seconds": 28.01,
+      "sourcePins": {
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-final-20261019/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          "sha256": "ce9c0edd99fe761cb3949054d422375c574e6d1b10077de5cfd0df1b43ad08a1",
+          "bytes": 107280
+        },
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-final-20261019/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          "sha256": "e59c884093961a314572a6dc87a457e693498f3d8da0f5a28f55a5ea4a5a9a4b",
+          "bytes": 155164
+        }
+      },
+      "selections": [
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          458,
+          636
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          639,
+          740
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          1515,
+          1575
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          1630,
+          1685
+        ]
+      ],
+      "review": {
+        "findings": [
+          {
+            "id": "T2-L1",
+            "severity": "critical",
+            "file": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+            "line": "706-719",
+            "evidence": "Exception handler killpg(process.pid, SIGKILL) + wait(10) + killpg again + wait(5). No identity check before signal; process.pid is the spawned session group leader.",
+            "impact": "If persistence fails (DB unavailable, filesystem full), the newly spawned process group is killed with bounded total wait (10+5=15s). Prior finding (1) is fixed: exact child is terminated without unbounded hang.",
+            "requiredFix": "None. The emergency cleanup correctly targets the spawned group (process.pid remains the Popen child) with bounded total timeout. Identity persistence failure does not allow foreign signalling."
+          },
+          {
+            "id": "T2-L2",
+            "severity": "critical",
+            "file": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+            "line": "498-511",
+            "evidence": "request_stop sets termination_signal='SIGTERM' then calls reservation.request_owned_process_stop (line 507, non-blocking) or signal_group(SIGTERM) (line 510), both outside selector.select. drain_deadline set immediately (line 508 or 511). Selector loop continues (line 567). Lines 540-548: SIGKILL escalation after drain_deadline with second bounded drain_deadline.",
+            "impact": "Cancellation sends TERM without blocking the selector (request_owned_process_stop or signal_group return immediately). Selector continues reading pipes. After drain_deadline expires, SIGKILL is sent and a new grace_seconds drain window is granted (line 548). Prior finding (2) is fixed: TERM is non-blocking, pipes continue to drain, KILL escalation is bounded.",
+            "requiredFix": "None. The two-phase termination (TERM → drain → KILL → final drain) is correctly implemented with bounded windows and non-blocking signal delivery."
+          }
+        ],
+        "summary": "Исходный код двух критических исправлений жизненного цикла процесса проверен. Обнаружение (1): при сбое сохранения идентификации после Popen аварийный обработчик корректно уничтожает точно порождённую группу процессов (process.pid остаётся дочерним, start_new_session=True создаёт новую сессию) с ограниченным суммарным ожиданием 15 секунд (две попытки 10+5). Обнаружение (2): отмена вызывает request_stop, который отправляет SIGTERM через неблокирующие методы (request_owned_process_stop с wait=False или signal_group), selector.select продолжает работать на следующей итерации (строка 567), наследованные каналы читаются до drain_deadline, затем эскалация до SIGKILL с повторным ограниченным окном grace_seconds. Оба исправления реализованы полностью: идентификация не требуется для экстренной очистки прямого потомка Popen, отмена не блокирует селектор, дренаж ограничен на обеих фазах. Внешние процессы не могут быть сигнализированы (killpg нацелен на process.pid, который является точным порождённым лидером группы). Нулевой timeout остаётся неограниченным корректно (deadline=None, строка 490, проверка на строке 530 пропускается). Дефектов не обнаружено.",
+        "limitations": [
+          "Статический анализ без выполнения кода или интеграционных тестов",
+          "Проверены только явно указанные пути жизненного цикла; полнота охвата границ и состояний не гарантируется",
+          "Семантика reservation.request_owned_process_stop и force_owned_process_stop проверена только на уровне вызова; внутренняя реализация не рассмотрена в данном задании",
+          "Предполагается, что start_new_session=True корректно создаёт новую группу процессов на целевой платформе Linux"
+        ],
+        "verdict": "ACCEPT"
+      },
+      "automaticAcceptance": false
+    },
+    {
+      "id": "T3-final-auxiliary",
+      "scope": "Review only no-lifetime-timeout propagation into report recovery, final proof, progress wall aliases, and matching instructions. Check nullable mode does not bypass cancellation, counters, output caps, or authority; finite mode remains compatible. Report only concrete defects, max two.",
+      "orderRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-final-20261019/T3-final-auxiliary/order.json",
+        "sha256": "c2cf873bc4907e5966a8d3beeb7081b77723fac0f41f2b94d893639cc53bdacf",
+        "bytes": 4160
+      },
+      "inputRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-final-20261019/T3-final-auxiliary/input.txt",
+        "sha256": "4f7a5b0e8544b11cf993d8617bfe0fdd51eec4ced9c6bd2d822f1918c9aa98b6",
+        "bytes": 17175
+      },
+      "rawRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-final-20261019/T3-final-auxiliary/stdout.jsonl",
+        "sha256": "c84f967485d769ba7fe13eacbf657205cc1f998d9c5ad4923c8ce18891b08e46",
+        "bytes": 252406
+      },
+      "receiptRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-final-20261019/T3-final-auxiliary/receipt.json",
+        "sha256": "aea4a80d78a5f94a37f42c0590643d90333bc3beede167cb56e32f7fc1443072",
+        "bytes": 1141
+      },
+      "observationsRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-final-20261019/T3-final-auxiliary/observations.jsonl",
+        "sha256": "161bf7e6c35baf10140c6be31c1be21655d37faf724d6bdee23ce2e582c1a1f2",
+        "bytes": 7585
+      },
+      "seconds": 619.35,
+      "sourcePins": {
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-final-20261019/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          "sha256": "ce9c0edd99fe761cb3949054d422375c574e6d1b10077de5cfd0df1b43ad08a1",
+          "bytes": 107280
+        },
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-final-20261019/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          "sha256": "e59c884093961a314572a6dc87a457e693498f3d8da0f5a28f55a5ea4a5a9a4b",
+          "bytes": 155164
+        },
+        "skills/orchestrator/SKILL.md": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-final-20261019/source/skills/orchestrator/SKILL.md",
+          "sha256": "cbaa228c08dee2b06ec647934147254305d9ee45b30a0d85d64cdbc8af7c5efa",
+          "bytes": 4193
+        },
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/SKILL.md": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-review-final-20261019/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/SKILL.md",
+          "sha256": "c84fc79b99b639b78012534ffd1c8e8ba050618e5b4fee80df864a0d6e88024e",
+          "bytes": 1764
+        }
+      },
+      "selections": [
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          1405,
+          1465
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          1852,
+          1870
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          1890,
+          1907
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          1923,
+          1948
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          1280,
+          1310
+        ],
+        [
+          "skills/orchestrator/SKILL.md",
+          14,
+          55
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/SKILL.md",
+          1,
+          31
+        ]
+      ],
+      "review": {
+        "verdict": "REVISE",
+        "summary": "Проверены видимые участки recover_report, финального proof/complete_mission, mission_work_timeout/mission_stop_deadline и обе инструкции SKILL.md. Гейты cancellation, счётчиков, custody/authority и ограниченной очистки выглядят согласованными, однако nullable-таймаут не проброшен в aux-пути: в четырёх местах запрашивается литерал 1, а вычисленный таймаут отбрасывается. Это противоречит документированному null-режиму; нужна правка.",
+        "findings": [
+          {
+            "id": "T3-AUX-01",
+            "severity": "high",
+            "file": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+            "line": "1444",
+            "evidence": "recover_report вызывает reservation.work_timeout(1) отдельным оператором; возвращённое значение не передаётся в report_launch/запуск. Это единственное видимое вычисление таймаута в пути recovery. mission_work_timeout трактует аргумент как запрошенный таймаут в секундах: при budget.deadlineAt=None вернёт 1.0, при конечном — min(1, remaining). Ни None, ни исходный launch.timeoutSeconds сюда не передаются.",
+            "impact": "Для nullable-миссии (launch.timeoutSeconds=null, budget.deadlineAt=null) в report recovery не пробрасывается отсутствие lifetime cutoff — фиксируется 1 с. Для finite-миссии игнорируется явный лимит/remaining. Если значение используется для дочернего процесса, recovery обрезается до ≤1 с; если отбрасывается, таймаут запуска этим вызовом не определяется вовсе. Поведение зависит от магической константы и расходится с SKILL.md.",
+            "requiredFix": "Вычислять эффективный таймаут из исходного intent/capability: None для nullable, явный launch.timeoutSeconds (с учётом remaining) для finite; передавать его в report_launch/дочерний процесс. Проверки closed/cancelled/бюджета оставить отдельными; убрать литерал 1."
+          },
+          {
+            "id": "T3-AUX-02",
+            "severity": "high",
+            "file": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+            "line": "1890",
+            "evidence": "_run_final_mission_proof вызывает mission_work_timeout(state, 1) уже после получения completed; complete_mission повторяет те же вызовы с 1 на 1903 и 1930. Результат везде отброшен. При deadlineAt=None helper возвращает 1.0, при конечном — min(1, remaining); None/явный order timeout не передаются.",
+            "impact": "Финальный proof не получает вычисленный лимит: в finite-режиме он может выйти за deadline и лишь затем упасть на post-check; в nullable-режиме документированный null не проводится, а фигурирует 1 с. Это нарушает совместимость finite-режима и оставляет nullable-путь неподтверждённым.",
+            "requiredFix": "Вычислять timeout до запуска proof и передавать его в subprocess: None для nullable, order.launch.timeoutSeconds/remaining для finite. Post-run проверку cancellation/stopDeadline оставить отдельной."
+          }
+        ],
+        "limitations": [
+          "В предоставленной выдержке нет progress wall aliases — их обработку проверить нельзя.",
+          "Не показаны строки фактического запуска report child и proof subprocess, а также тело reservation.work_timeout; вывод ограничен видимыми вызовами.",
+          "Логика output caps и no-write capability receipt не приведена, поэтому их соблюдение не подтверждено.",
+          "Полные файлы/diff не предоставлены; вне видимых участков возможны иные дефекты."
+        ]
+      },
+      "automaticAcceptance": false
+    },
+    {
+      "id": "auxiliary-and-proof",
+      "scope": "Review only: (a) the actual timeout expressions passed into run_child for report recovery and final proof, and wall-budget projection; (b) proof pass/exitCode semantics after R4b. A standalone work_timeout(1) is an admission/cancellation check: its return is intentionally discarded and is NOT a process timeout. Actual child timeouts are explicitly passed in supplied run_child calls. New orders timeoutSeconds=null, new missions deadlineAt=null; finite historical mode retains its prior report/proof caps. run_child re-evaluates reservation.work_timeout(timeout), observes without a lifetime cutoff when None, and preserves cancellation/caps. Check fail/not_run with null remains valid and pass requires exact integer zero (bool is not a valid exit). Do not re-audit custody internals or classify unseen behavior as a confirmed bug.",
+      "orderRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-precise-20261019/auxiliary-and-proof/auxiliary-and-proof/order.json",
+        "sha256": "206947e20ad5e54819d9b21b282e957f7e0a00a823c5307a09a012b29db8741c",
+        "bytes": 6789
+      },
+      "inputRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-precise-20261019/auxiliary-and-proof/auxiliary-and-proof/input.txt",
+        "sha256": "1aa3f09452acf509dde3f70f5e2dfbc6be7e9b9b17cab8c047da3be35479f67c",
+        "bytes": 18194
+      },
+      "rawRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-precise-20261019/auxiliary-and-proof/auxiliary-and-proof/stdout.jsonl",
+        "sha256": "d957217ec065589424645ff47fa5ae18a3b5ea36b6b6427e75e93b86c211e6d8",
+        "bytes": 9165
+      },
+      "receiptRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-precise-20261019/auxiliary-and-proof/auxiliary-and-proof/receipt.json",
+        "sha256": "683b0a02470f0c607e7e2d80786c41955a731eb85a41fa02e56a908c9db9df83",
+        "bytes": 1185
+      },
+      "observationsRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-precise-20261019/auxiliary-and-proof/auxiliary-and-proof/observations.jsonl",
+        "sha256": "02d89b1bfc89944750424e964543bf52eb2d40c79f5fb177eb21dd88847919f8",
+        "bytes": 625
+      },
+      "seconds": 15.01,
+      "sourcePins": {
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-precise-20261019/auxiliary-and-proof/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          "sha256": "e59c884093961a314572a6dc87a457e693498f3d8da0f5a28f55a5ea4a5a9a4b",
+          "bytes": 155164
+        },
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-precise-20261019/auxiliary-and-proof/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          "sha256": "ce9c0edd99fe761cb3949054d422375c574e6d1b10077de5cfd0df1b43ad08a1",
+          "bytes": 107280
+        },
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/progress_drift_detector.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-precise-20261019/auxiliary-and-proof/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/progress_drift_detector.py",
+          "sha256": "57e97fed6a95b50184ce0c7de31cbbc32c55fdeaa1c2979a51ca9c0b7a1f7eee",
+          "bytes": 27588
+        },
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_result_builder.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-precise-20261019/auxiliary-and-proof/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_result_builder.py",
+          "sha256": "7fea9f654c2f352436473d28d9bc2742cd15ed142579032fb1240dcdf6cfdbf0",
+          "bytes": 27089
+        }
+      },
+      "selections": [
+        {
+          "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          "symbol": "mission_work_timeout",
+          "start": 1283,
+          "end": 1293,
+          "sha256": "590b5a0b6a7910bb8762eb4ff899e680b8b4f34aaecc4eb0c1631cb88bca32e6"
+        },
+        {
+          "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          "symbol": "MissionReservation.work_timeout",
+          "start": 1601,
+          "end": 1604,
+          "sha256": "8cbb942f6c09f96ae559fe796232920330a23c952a6c8f9888d382d14b8c0f4c"
+        },
+        {
+          "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          "symbol": "_run_final_mission_proof",
+          "start": 1877,
+          "end": 1895,
+          "sha256": "b759c66f3a8ff8618d57b67b580a788dffc55180baae9935fa1292e2adfb0b97"
+        },
+        {
+          "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          "symbol": "recover_report:prefix-through-child",
+          "start": 1424,
+          "end": 1471,
+          "sha256": "18bf47e682c7a392d63ca740be100a8d10affb77fc6a27ab19cf2dd5f7e2146f"
+        },
+        {
+          "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          "symbol": "record_mission_observation",
+          "start": 1948,
+          "end": 1973,
+          "sha256": "aa07790cda7c59a5b4c377625a1898ccdc3e9eedde4decb2787b656d7256886b"
+        },
+        {
+          "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/progress_drift_detector.py",
+          "symbol": "_budget_state",
+          "start": 301,
+          "end": 355,
+          "sha256": "5ac5421b16c72ea67a8265a99385a897665e2ea52b18bf582b5f64a1df40da96"
+        },
+        {
+          "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          "symbol": "validate_proof",
+          "start": 671,
+          "end": 686,
+          "sha256": "1ddf27d86671323f5db43689a759e9ec957700f08a34d096406ef9a5a3bd9a47"
+        },
+        {
+          "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          "symbol": "validate_done_semantics",
+          "start": 689,
+          "end": 703,
+          "sha256": "f61df834a986b7863e5bba62b3690d90de6ddf5c16b21e84ece85f65049b7d3d"
+        },
+        {
+          "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_result_builder.py",
+          "symbol": "validate_candidate:proof-tail",
+          "start": 256,
+          "end": 278,
+          "sha256": "c49df906151dcd66c40c9e6b131e458083f15bd6da2201952e9b4a76eab07d00"
+        }
+      ],
+      "review": {
+        "verdict": "ACCEPT",
+        "summary": "Проверены все выражения timeout в run_child для report recovery (строка 1470) и final proof (строка 1880). Оба корректно используют reservation.work_timeout с явными параметрами: 120 секунд для отчёта (null если заказ без таймаута), 3600 секунд для proof (null при бесконечном бюджете). work_timeout(1) на строках 1444 и 1890 — это admission checks, возврат намеренно отброшен, не ошибка. Семантика pass требует точно exitCode=0 целого типа (строки 684-685, 262-263, 268, 696), статусы fail/not_run корректны с null при бесконечных бюджетах (deadlineAt=None передаётся в progress_budgets с фильтрацией wall-ключей на 1963-1965, maxWallSeconds отброшен). Проекция wall-бюджета изолирована от фактической authority. Все проверки пройдены.",
+        "findings": [],
+        "limitations": [
+          "Не проверена корректность _mission_time и datetime расчётов за пределами mission_work_timeout",
+          "Не проверено поведение run_child при получении None timeout (предполагается, что наблюдение без cutoff корректно)",
+          "Не проверена реализация evaluate_progress и build_blocker_packet, только интерфейс вызова с progress_budgets",
+          "Не проверена полная семантика MissionReservation.save и atomic_create в контексте отказоустойчивости"
+        ]
+      },
+      "automaticAcceptance": false,
+      "selectedSourceUnchangedAtOwnerCheck": true,
+      "ownerSourceDecision": "accepted within assigned scope; not release acceptance"
+    },
+    {
+      "id": "cleanup",
+      "scope": "Review only lifecycle correction after T2: no task lifetime cutoff in null mode, periodic diagnostic observations, explicit cancellation sends TERM without blocking pipe reads, TERM phase <=10s, total termination/drain bounded by existing stopDeadlineAt (<=30s and finite mission deadline if provided). Cleanup is allowed to be incomplete when the total reserve expires; it must never become acceptance. On identity or persistence exception after Popen, exact own-child cleanup must run even without saved identity and must not signal a reused/unverified group. Popen.kill() sends SIGKILL on Unix (not SIGTERM) and Popen tracks reaping. Descendant containment is not claimed. Find only concrete defects in these changed paths; keep the current scope and architecture.",
+      "orderRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-precise-20261019/cleanup/cleanup/order.json",
+        "sha256": "b41ee6bbd44f88616de5d00708ac04f41379056a413c2bb6d030a359df56d20f",
+        "bytes": 5346
+      },
+      "inputRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-precise-20261019/cleanup/cleanup/input.txt",
+        "sha256": "dab842ea6075bce5efb6a459e539f3ee9dd0d0c594c08eb3e8d7d14841505be7",
+        "bytes": 21817
+      },
+      "rawRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-precise-20261019/cleanup/cleanup/stdout.jsonl",
+        "sha256": "47583a1dd306239455dbfdb3b7b333a15a911296b2fd27ca1e74503793e995a2",
+        "bytes": 328850
+      },
+      "receiptRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-precise-20261019/cleanup/cleanup/receipt.json",
+        "sha256": "24bcd18ae3334de334e45a48c33724e00e6e2511ce6da2d342c46395da66d905",
+        "bytes": 1118
+      },
+      "observationsRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-precise-20261019/cleanup/cleanup/observations.jsonl",
+        "sha256": "d1131af7b24b30e08d5768dcbc9cbafabc675dbb29bdbc587a9659334ae1a94b",
+        "bytes": 10012
+      },
+      "seconds": 817.29,
+      "sourcePins": {
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-precise-20261019/cleanup/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          "sha256": "5d988d817e92a7fbf3898dec850e72052ad45aa7b2868790e4c26c31189955e1",
+          "bytes": 107199
+        },
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-precise-20261019/cleanup/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          "sha256": "7e384ccc2fcb25a899d45bf0c9570b4bcf0ebd8ab45ce83477ebfac9bed60894",
+          "bytes": 155129
+        }
+      },
+      "selections": [
+        {
+          "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          "symbol": "_run_child_streaming",
+          "start": 458,
+          "end": 638,
+          "sha256": "350fb60bef50ddd18bac5b5b1a5e9499e8ab0784ef0016a24f11294c10586392"
+        },
+        {
+          "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          "symbol": "_emergency_kill_and_reap",
+          "start": 650,
+          "end": 666,
+          "sha256": "a071baca7914031bc5d1dc19b4a0370d7aaf89db5dc993f62e5bd0a03c8f19c6"
+        },
+        {
+          "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          "symbol": "_close_process_pipes",
+          "start": 641,
+          "end": 647,
+          "sha256": "31cd4baf10c806b923fb34364cd78974f12de4182a7695e3226bf1bf0826bfef"
+        },
+        {
+          "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          "symbol": "run_child",
+          "start": 669,
+          "end": 794,
+          "sha256": "6d0d18a68a843a4ef6b480c7aef2ff982bd400b86a29715b09e3a81ace1bc40a"
+        },
+        {
+          "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          "symbol": "mission_stop_deadline",
+          "start": 1296,
+          "end": 1302,
+          "sha256": "694e5db3220345fe43c3d49eba3559dbea9baaea4143dc8440451857df5da01c"
+        },
+        {
+          "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          "symbol": "_terminate_mission_process",
+          "start": 1515,
+          "end": 1547,
+          "sha256": "e6aaf8d05ebbc9f50f54445347116155692aa451bd83a820792497bc53161831"
+        },
+        {
+          "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          "symbol": "MissionReservation.request_owned_process_stop",
+          "start": 1649,
+          "end": 1659,
+          "sha256": "64438368453c6af727017f35dbefdff07ef91183a51fda21189647b7f88caa3d"
+        },
+        {
+          "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          "symbol": "MissionReservation.force_owned_process_stop",
+          "start": 1661,
+          "end": 1666,
+          "sha256": "cd59fd8e69e00810fe94fc1874abc93c65cd15cd41086665b141caee81b17ab1"
+        }
+      ],
+      "review": {
+        "verdict": "REVISE",
+        "summary": "Проверены изменённые участки lifecycle-cleanup. Подтверждено: в null-режиме (timeout=None) deadline не задаётся и отсечки времени жизни нет; наблюдения выполняются периодически (next_observation/CHILD_OBSERVATION_SECONDS) с identity/elapsed/bytes/silence и acceptance=\"unverified\"; отмена в reservation-ветке шлёт TERM через pidfd с wait=False, не блокируя чтение пайпов; TERM-фаза ограничена min(grace, 10)с; общий termination/drain ограничен stopDeadlineAt и миссионным дедлайном; исчерпание резерва даёт drainTimedOut и текст ошибки, но не acceptance. При исключении identity/persistence после Popen выполняется process.kill() (SIGKILL на Unix) по точному Popen-ребёнку с ожиданием/reap, группа не сигнализируется. Найден один дефект в non-reservation ветке остановки.",
+        "findings": [
+          {
+            "id": "F1",
+            "severity": "medium",
+            "file": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+            "line": "505-510, 539, 583-595, 605-609, 622-625, 740-744",
+            "evidence": "После выхода ребёнка строка 539 вызывает process.poll() (ребёнок уже reap'нут) и запускает drain. Во время drain при OSError чтения (583-587), превышении capture limit (590-596) или frame limit (605-609, 622-625) вызывается request_stop. Если reservation is None, ветка 505-510 вызывает signal_group(SIGTERM) → os.killpg(process.pid, ...) без проверки process.poll(). Для tool-loop аналогичная защита есть (строка 616), для остальных путей её нет.",
+            "impact": "PID/pgid уже reap'нутого ребёнка может быть переиспользован новым лидером группы; killpg по переиспользованному pgid способен отправить SIGTERM посторонней группе процессов, что нарушает требование не сигнализировать reused/unverified group.",
+            "requiredFix": "Перед os.killpg (в signal_group или в request_stop) проверять process.poll() is None (или хранить флаг reap); если точный ребёнок уже reap'нут, сигнал не нужен. Reservation-ветку с pidfd+identity не менять."
+          }
+        ],
+        "limitations": [
+          "Реализации _mission_process_identity, _mission_time, MissionReservation.work_timeout/record_process и значения CHILD_OBSERVATION_SECONDS/MISSION_RESERVE_SECONDS не входили в предоставленный снимок; проверка ограничена показанными местами вызова.",
+          "Проверка статическая, без запуска кода и инструментов."
+        ]
+      },
+      "automaticAcceptance": false,
+      "ownerCorrection": {
+        "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+        "symbol": "run_child",
+        "beforeSha256": "6d0d18a68a843a4ef6b480c7aef2ff982bd400b86a29715b09e3a81ace1bc40a",
+        "afterSha256": "85ee3ce5118639a70b5334ea641fec47433a5fe61e2982d4059636e8aa129661",
+        "change": "Exact reviewer-requested process.poll() guard before signalling a non-reservation process group.",
+        "proofRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-20261019/post-review-cleanup-regression.log",
+          "sha256": "ac2cacc71b841334c2176d017bfa442259dacc84e5b83a95c782951974caf6f0",
+          "bytes": 2430
+        }
+      },
+      "selectedSourceUnchangedExceptRecordedCorrection": true,
+      "ownerSourceDecision": "F1 confirmed and closed by exact requested guard plus real-child regression; no extra model review for this deterministic micro correction; not release acceptance"
+    }
+  ],
+  "limits": [
+    "Source review and isolated installation do not prove a live installed workflow.",
+    "No multi-hour production test was performed.",
+    "Escaped descendant containment and remote provider cancellation are unverified.",
+    "N8 remains open; AGENTS/SOUL reconciliation, current capability bindings, drain and installed round-trip remain required."
+  ],
+  "executorResultRef": {
+    "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/monitoring-20261019/cleanup-completion.json",
+    "sha256": "996d1fcb1046b66b202355764ac2846c881b9399c49f58374301f8fbab7f0c94",
+    "bytes": 2589
+  },
+  "finalCandidatePins": {
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+      "sha256": "7e384ccc2fcb25a899d45bf0c9570b4bcf0ebd8ab45ce83477ebfac9bed60894",
+      "bytes": 155129
+    },
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_result_builder.py": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_result_builder.py",
+      "sha256": "7fea9f654c2f352436473d28d9bc2742cd15ed142579032fb1240dcdf6cfdbf0",
+      "bytes": 27089
+    },
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/order_preflight.py": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/order_preflight.py",
+      "sha256": "3b79d094fea01bc1e8679e58f55441cd3bd0bedd7f91effb85df618a7409132f",
+      "bytes": 29656
+    },
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+      "sha256": "93eda03bc06534f4d8747e3f5655e52004c52a95e4c504d0745875cd5c16bd93",
+      "bytes": 107257
+    },
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_contract_runner.py": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_contract_runner.py",
+      "sha256": "9f8fa565b96c62b1f6794573e29f5b85a75e8d29aabcb6f9af202ba602b8e719",
+      "bytes": 148957
+    },
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_result_builder.py": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_result_builder.py",
+      "sha256": "ff55556855a378acd0cd008d950b77820d5f096f0bc83f6b1bea3b2c427765ff",
+      "bytes": 26134
+    },
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+      "sha256": "bb81fe494f78974f63a43b1ab05bb619000ad63d09991d6dab445c3490689ace",
+      "bytes": 65231
+    },
+    "skills/orchestrator/SKILL.md": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/skills/orchestrator/SKILL.md",
+      "sha256": "cbaa228c08dee2b06ec647934147254305d9ee45b30a0d85d64cdbc8af7c5efa",
+      "bytes": 4193
+    },
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/SKILL.md": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/SKILL.md",
+      "sha256": "c84fc79b99b639b78012534ffd1c8e8ba050618e5b4fee80df864a0d6e88024e",
+      "bytes": 1764
+    }
+  }
+}

@@ -253,12 +253,20 @@ def validate_candidate(candidate: Any, order: dict[str, Any], validator: Draft20
                 if namespace not in resolved.parents:
                     errors.append(f"Astra advisory artifacts[{index}] must stay in the control namespace")
     errors.extend(validate_review_binding(candidate, order, routing))
+    proof_items = candidate.get("proof")
+    if isinstance(proof_items, list):
+        for index, item in enumerate(proof_items):
+            if not isinstance(item, dict):
+                continue
+            exit_code = item.get("exitCode")
+            if item.get("status") == "pass" and (type(exit_code) is not int or exit_code != 0):
+                errors.append(f"proof[{index}].status=pass requires exitCode=0")
     if candidate.get("status") == "done":
         proof = candidate.get("proof")
         if not isinstance(proof, list) or not proof:
             errors.append("done result requires at least one proof entry")
-        elif any(not isinstance(item, dict) or item.get("status") != "pass" for item in proof):
-            errors.append("done result requires every proof[].status to be pass")
+        elif any(not isinstance(item, dict) or item.get("status") != "pass" or type(item.get("exitCode")) is not int or item.get("exitCode") != 0 for item in proof):
+            errors.append("done result requires every proof[].status=pass with exitCode=0")
         self_review = candidate.get("selfReview")
         if not isinstance(self_review, dict) or self_review.get("performed") is not True:
             errors.append("done result requires selfReview.performed=true")
