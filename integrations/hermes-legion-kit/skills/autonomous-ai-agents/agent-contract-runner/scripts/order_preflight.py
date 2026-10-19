@@ -93,13 +93,12 @@ def executor_environment(executor: str, inherited: dict[str, str]) -> dict[str, 
               "XDG_STATE_HOME", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "http_proxy",
               "https_proxy", "all_proxy", "no_proxy", "SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS"}
     selected = {"codex": {"CODEX_HOME", "OPENAI_API_KEY", "OPENAI_BASE_URL", "OPENAI_ORG_ID", "OPENAI_PROJECT_ID"},
-                "claude": {"CLAUDE_CONFIG_DIR", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL",
-                           "ANTHROPIC_DEFAULT_OPUS_MODEL"}}
+                "claude": {"CLAUDE_CONFIG_DIR", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL"}}
     return {key: value for key, value in inherited.items() if key in common | selected.get(executor, set())}
 
 
-def validate_claude_proxy_environment(environment: dict[str, str], model: str) -> None:
-    """Require the owner's explicit local route; never source shell or change auth."""
+def validate_claude_proxy_environment(environment: dict[str, str]) -> None:
+    """Require local transport; model selection is bound separately to order argv."""
     from urllib.parse import urlsplit
     try:
         raw_url = environment.get("ANTHROPIC_BASE_URL", "")
@@ -113,8 +112,6 @@ def validate_claude_proxy_environment(environment: dict[str, str], model: str) -
         valid = False
     if not valid:
         raise PreflightError("Claude requires explicit local ANTHROPIC_BASE_URL (origin with port)")
-    if environment.get("ANTHROPIC_DEFAULT_OPUS_MODEL") != model:
-        raise PreflightError("ANTHROPIC_DEFAULT_OPUS_MODEL must match the approved Claude route")
 
 
 def validate_tunnel_launch(order: dict[str, Any], policy: Any, candidate: Path, source: str,

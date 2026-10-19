@@ -6,18 +6,21 @@ The kit version changes for the breaking explicit-selection installer API; it is
 separate from product acceptance and does not introduce a new order schema.
 
 Claude CLI always uses the owner's local proxy in this project.
-`ANTHROPIC_BASE_URL` selects that proxy and `ANTHROPIC_DEFAULT_OPUS_MODEL`
-selects its Opus model. Pass both exported variables explicitly into the native
-child environment, including isolated homes and report-only probes; resolve
-`--model` from `ANTHROPIC_DEFAULT_OPUS_MODEL` and validate it against the approved
-controller route. Never silently fall back to the public Anthropic endpoint or
+`ANTHROPIC_BASE_URL` selects that proxy. Pass it explicitly into the native child
+environment, including isolated homes and report-only probes. Select the exact
+model with `--model` from the approved controller `routing.model`; report-only
+launches use the model pinned in their approved capability receipt. The Gateway
+validates the launch model and reported runtime model against the approved route.
+`ANTHROPIC_DEFAULT_OPUS_MODEL` configures the `opus` alias for native CLI usage; it is
+not required or inherited by Gateway children. The owner's global variable may
+remain unchanged. Never silently fall back to the public Anthropic endpoint or
 another model. The local proxy requires no password or Anthropic account login.
 
 An interactive shell's `.bashrc` exports are not guaranteed in a service or
 noninteractive subprocess. Check the actual child environment without printing
 credentials; [proxy-env.sh.example](scripts/proxy-env.sh.example) documents the
-required variables. The Gateway preserves both variables and rejects a missing,
-nonlocal or model-mismatched route before launching Claude. It does not source
+required transport variable. The Gateway rejects a missing/nonlocal proxy or a
+launch model that differs from the approved route. It does not source
 shell startup files or change authentication.
 
 Treat `Not logged in` before any API activity as a launch/configuration failure

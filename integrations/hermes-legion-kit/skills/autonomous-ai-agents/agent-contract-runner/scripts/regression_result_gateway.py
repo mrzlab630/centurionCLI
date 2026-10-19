@@ -637,7 +637,8 @@ def environment() -> dict[str, str]:
     env = dict(os.environ)
     # Synthetic route for fake CLIs; no provider request is made by this fixture.
     env["ANTHROPIC_BASE_URL"] = "http://127.0.0.1:8317"
-    env["ANTHROPIC_DEFAULT_OPUS_MODEL"] = "claude-opus-5-5"
+    # A stale interactive alias must not select or block an approved order model.
+    env["ANTHROPIC_DEFAULT_OPUS_MODEL"] = "stale-shell-alias"
     env["PATH"] = (
         f"{BIN}{os.pathsep}{Path(sys.executable).parent}"
         f"{os.pathsep}{env.get('PATH', '')}"

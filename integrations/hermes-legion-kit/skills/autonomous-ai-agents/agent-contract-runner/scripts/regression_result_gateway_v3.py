@@ -438,6 +438,8 @@ args=sys.argv[1:]
 for flag,value in [("--tools",""),("--mcp-config",'{"mcpServers":{}}'),("--setting-sources","")]:
  assert args[args.index(flag)+1]==value
 assert "--bare" in args and "--strict-mcp-config" in args
+assert args[args.index("--model")+1]=="claude-opus-5-5"
+assert "ANTHROPIC_DEFAULT_OPUS_MODEL" not in os.environ
 assert "SYNTHETIC_SECRET_MARKER" not in sys.argv[-1]
 scratch=Path(os.environ["CLAUDE_CONFIG_DIR"])
 assert scratch==Path.cwd() and all(os.environ[key]==str(scratch) for key in ("HOME","XDG_CONFIG_HOME","XDG_STATE_HOME","XDG_CACHE_HOME"))
@@ -666,7 +668,8 @@ scratch=Path(os.environ["CLAUDE_CONFIG_DIR"])
 assert "--bare" not in sys.argv
 assert "ANTHROPIC_API_KEY" not in os.environ and "ANTHROPIC_AUTH_TOKEN" not in os.environ
 assert json.loads((scratch/".claude.json").read_text())=={"syntheticNativeProfile":True}
-assert sys.argv[sys.argv.index("--model")+1]==os.environ["ANTHROPIC_DEFAULT_OPUS_MODEL"]
+assert sys.argv[sys.argv.index("--model")+1]=="claude-opus-5-5"
+assert "ANTHROPIC_DEFAULT_OPUS_MODEL" not in os.environ
 (scratch/"observed.txt").write_text("scratch permitted")
 try: Path(sys.argv[-1]).write_text("unauthorized")
 except OSError as error: assert error.errno in (errno.EROFS,errno.EACCES)

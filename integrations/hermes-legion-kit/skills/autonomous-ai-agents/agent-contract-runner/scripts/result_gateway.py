@@ -1311,8 +1311,7 @@ def report_capability(reservation: Any) -> tuple[dict[str, Any], dict[str, Any]]
                 or Path(cap["profileRef"]["path"]) != native_home / ".claude.json"
                 or Path(cap["sandboxRef"]["path"]).name != "bwrap"):
             raise GatewayError("invalid report native profile isolation boundary")
-        validate_claude_proxy_environment({"ANTHROPIC_BASE_URL": cap.get("baseUrl", ""),
-                                          "ANTHROPIC_DEFAULT_OPUS_MODEL": cap["route"]["model"]}, cap["route"]["model"])
+        validate_claude_proxy_environment({"ANTHROPIC_BASE_URL": cap.get("baseUrl", "")})
     config, complete = read_bounded_file(Path(cap["configRef"]["path"]), 1024 * 1024)
     if not complete or strict_json_load_bytes(config, "isolated report settings") != {"disableAllHooks": True}:
         raise GatewayError("report settings must disable all hooks and contain no other settings")
@@ -1364,12 +1363,12 @@ def report_capability(reservation: Any) -> tuple[dict[str, Any], dict[str, Any]]
 def report_launch(cap: dict[str, Any], schema: dict[str, Any], prompt: str) -> tuple[list[str], dict[str, str]]:
     """Build only the capability-tested native launch, without arbitrary argv."""
     env = executor_environment("claude", dict(os.environ))
-    validate_claude_proxy_environment(env, cap["route"]["model"])
+    validate_claude_proxy_environment(env)
     scratch = cap["scratchDir"]
     for key in ("HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "CLAUDE_CONFIG_DIR"):
         env[key] = scratch
     env.update(CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1", DISABLE_AUTOUPDATER="1")
-    argv = [cap["cliRef"]["path"], "--model", env["ANTHROPIC_DEFAULT_OPUS_MODEL"], "--effort", "high",
+    argv = [cap["cliRef"]["path"], "--model", cap["route"]["model"], "--effort", "high",
             "--tools", "", "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
             "--settings", cap["configRef"]["path"], "--setting-sources", "", "--no-session-persistence",
             "--output-format", "json", "--json-schema", json.dumps(schema), "-p", prompt]
@@ -1691,7 +1690,7 @@ def main() -> int:
             policy.control_cli_path(args.order, "3.0 original order")
             validate_tunnel_launch(order, policy, candidate_path, args.candidate_source, args.schema, routing)
             if order["executor"] == "claude":
-                validate_claude_proxy_environment(dict(os.environ), routing["model"])
+                validate_claude_proxy_environment(dict(os.environ))
         try:
             _load_schema(resolve_schema_path(args.schema))
         except BuilderError as exc:

@@ -2,11 +2,12 @@
 # Supply the owner's configured values in the launcher environment. A service or
 # noninteractive subprocess must not assume that ~/.bashrc has exported them.
 : "${ANTHROPIC_BASE_URL:?Set the configured local proxy URL}"
-: "${ANTHROPIC_DEFAULT_OPUS_MODEL:?Set the configured proxy Opus model}"
-export ANTHROPIC_BASE_URL ANTHROPIC_DEFAULT_OPUS_MODEL
+export ANTHROPIC_BASE_URL
 
-# The Gateway must preserve both variables in the Claude child environment and
-# resolve --model from "$ANTHROPIC_DEFAULT_OPUS_MODEL", matching controller routing.
+# The Gateway preserves ANTHROPIC_BASE_URL in the Claude child environment and
+# supplies --model from the approved routing.model (or report capability route).
+# ANTHROPIC_DEFAULT_OPUS_MODEL may remain in the owner's interactive shell for
+# the opus alias; it is neither required nor inherited by Gateway children.
 # This example does not launch a child, change configuration, or supply credentials.
 # The local proxy requires no password or Anthropic account login.
 # Not logged in before API activity: inspect the child environment and CLI mode.

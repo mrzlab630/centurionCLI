@@ -272,21 +272,25 @@ def main() -> int:
         print("PASS strict order version and transport configuration fail before launch")
         assert executor_environment("codex", {"PATH": "/runtime", "OPENAI_API_KEY": "synthetic-credential", "UNRELATED_SECRET": "synthetic-marker"}) == {
             "PATH": "/runtime", "OPENAI_API_KEY": "synthetic-credential"}
-        claude_env = {"ANTHROPIC_BASE_URL": "http://127.0.0.1:8317", "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-5-5"}
-        assert executor_environment("claude", dict(claude_env, UNRELATED_SECRET="synthetic-marker")) == claude_env
-        validate_claude_proxy_environment(claude_env, "claude-opus-5-5")
-        for bad in ({}, dict(claude_env, ANTHROPIC_DEFAULT_OPUS_MODEL="wrong"),
+        claude_env = {"ANTHROPIC_BASE_URL": "http://127.0.0.1:8317"}
+        for alias in (None, "claude-opus-5-5", "stale-shell-alias"):
+            inherited = dict(claude_env, UNRELATED_SECRET="synthetic-marker")
+            if alias is not None:
+                inherited["ANTHROPIC_DEFAULT_OPUS_MODEL"] = alias
+            assert executor_environment("claude", inherited) == claude_env
+            validate_claude_proxy_environment(inherited)
+        for bad in ({},
                     dict(claude_env, ANTHROPIC_BASE_URL="https://api.anthropic.com"),
                     dict(claude_env, ANTHROPIC_BASE_URL="http://@localhost:8317"),
                     dict(claude_env, ANTHROPIC_BASE_URL="http://user:pass@localhost:8317"),
                     dict(claude_env, ANTHROPIC_BASE_URL="http://localhost:8317@attacker.example"),
                     dict(claude_env, ANTHROPIC_BASE_URL="http://local\nhost:8317")):
             try:
-                validate_claude_proxy_environment(bad, "claude-opus-5-5")
+                validate_claude_proxy_environment(bad)
             except ValueError:
                 pass
             else:
-                raise AssertionError("missing/mismatched/nonlocal Claude route must fail before launch")
+                raise AssertionError("missing/malformed/nonlocal Claude proxy must fail before launch")
         for context in ([{"policyVersion": "3.0"}, {"policyVersion": "3.0"}], [{"policyVersion": "2.6"}]):
             try:
                 controller_context({"context": context})
