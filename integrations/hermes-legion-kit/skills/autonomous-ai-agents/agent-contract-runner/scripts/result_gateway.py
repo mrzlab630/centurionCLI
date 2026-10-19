@@ -40,6 +40,7 @@ from agent_contract_runner import (
     verify_workspace_diff,
     workspace_snapshot,
     _mission_file_ref,
+    _mission_process_activity,
     _mission_process_identity,
     _mission_time,
     mission_stop_deadline,
@@ -491,6 +492,8 @@ def _run_child_streaming(
     next_observation = started
     last_output_at: str | None = None
     last_output_time = started
+    last_probe_cpu_ticks: int | None = None
+    last_probe_output_bytes = (0, 0)
     drain_deadline: float | None = None
     drain_started = False
     cleanup_deadline: float | None = None
@@ -518,17 +521,56 @@ def _run_child_streaming(
     while streams or process.poll() is None:
         now = time.monotonic()
         if (reservation is not None or events_path is not None) and now >= next_observation:
-            identity = _mission_process_identity(process.pid)
+            probe_error = None
+            try:
+                identity = _mission_process_identity(process.pid)
+                activity = _mission_process_activity(process.pid)
+            except (RunnerError, OSError):
+                identity = None
+                activity = None
+                probe_error = "local process probe unavailable"
+            process_alive = process.poll() is None
+            identity_matches = (identity == owned_identity if owned_identity is not None and identity is not None else None)
+            if process_alive and (identity is None or activity is None or identity_matches is False
+                                  or activity["startTicks"] != identity["startTicks"]):
+                probe_error = probe_error or "local process probe identity unverified"
+                activity = None
+            cpu_ticks = activity["cpuTicks"] if activity is not None else None
+            cpu_delta = (cpu_ticks - last_probe_cpu_ticks
+                         if cpu_ticks is not None and last_probe_cpu_ticks is not None else None)
+            output_bytes = (len(chunks["stdout"]), len(chunks["stderr"]))
+            output_changed = output_bytes != last_probe_output_bytes
+            if not process_alive:
+                diagnosis = "exited"
+                probe_status = "exited"
+            elif probe_error is not None:
+                diagnosis = "unknown"
+                probe_status = "unknown"
+            elif output_changed or (cpu_delta is not None and cpu_delta > 0):
+                diagnosis = "alive_active"
+                probe_status = "alive"
+            else:
+                diagnosis = "alive_waiting"
+                probe_status = "alive"
             observation = {"observedAt": utc_now(), "process": owned_identity or {"pid": process.pid},
-                           "processAlive": process.poll() is None and identity is not None,
-                           "identityMatches": identity == owned_identity if owned_identity is not None else None,
+                           "processAlive": process_alive,
+                           "identityMatches": identity_matches,
+                           "probe": {"method": "pid_identity+proc_cpu", "status": probe_status,
+                                     "error": probe_error},
+                           "processActivity": {"state": activity["state"] if activity else None,
+                                                "cpuTicks": cpu_ticks, "cpuDeltaTicks": cpu_delta,
+                                                "outputChanged": output_changed},
+                           "diagnosis": diagnosis,
+                           "modelStatus": "unknown", "hangConfirmed": False,
                            "elapsedMs": int((now - started) * 1000),
-                           "stdoutBytes": len(chunks["stdout"]), "stderrBytes": len(chunks["stderr"]),
+                           "stdoutBytes": output_bytes[0], "stderrBytes": output_bytes[1],
                            "lastOutputAt": last_output_at, "silenceSeconds": round(now - last_output_time, 3),
                            "productiveProgress": "unknown", "acceptance": "unverified"}
             if reservation is not None:
                 reservation.observe_process(observation)
             append_event_best_effort(events_path, "process_observed", **observation)
+            last_probe_cpu_ticks = cpu_ticks
+            last_probe_output_bytes = output_bytes
             next_observation = now + CHILD_OBSERVATION_SECONDS
         if reservation is not None and reservation.stop_requested() and termination_signal is None:
             request_stop("mission cancelled or work cutoff reached", timeout_stop=not reservation.state["cancelled"])

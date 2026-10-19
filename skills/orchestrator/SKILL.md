@@ -43,6 +43,11 @@ progress or acceptance. Do not relaunch a living worker because a status check
 returns no result. Explicitly cancel the owning Gateway with SIGTERM/SIGINT;
 do not edit locked mission state or signal an unverified worker PID. Cancellation
 and bounded cleanup remain enforced, as do launch/attempt and output limits.
+Hours of silence are permitted. A local ping reports `alive_active`,
+`alive_waiting`, `exited` or `unknown`; CPU/output activity is local evidence,
+not remote model health. An unavailable diagnostic probe is not cancellation.
+Without same-request provider status/heartbeat, model health stays unknown;
+never use `/health`, a second inference or an expired heartbeat to declare a hang.
 
 Use only the selected instructions/tools from surface-config.mjs. Load domain
 recipes for a concrete task, not as general policy. Model/effort and review floors

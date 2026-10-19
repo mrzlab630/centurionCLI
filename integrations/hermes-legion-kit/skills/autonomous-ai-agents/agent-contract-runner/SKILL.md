@@ -18,3 +18,9 @@ liveness/output activity is not evidence of productive progress or acceptance.
 Silence alone never kills or replays a worker. Stop the owning Gateway through
 SIGTERM/SIGINT; do not modify locked state. Stop cleanup remains bounded and
 checks process identity. Output caps, count budgets and no-replay rules still apply.
+Periodic pings are read-only local diagnostics, not model turns. They record
+local CPU/output activity and `alive_active|alive_waiting|exited|unknown`;
+`modelStatus` stays `unknown` without a provider signal bound to this request.
+A failed diagnostic identity/activity read is recorded and retried at the next
+observation without killing the child. Initial custody and stop identity checks
+remain mandatory. Hours without output or heartbeat never prove a hang.

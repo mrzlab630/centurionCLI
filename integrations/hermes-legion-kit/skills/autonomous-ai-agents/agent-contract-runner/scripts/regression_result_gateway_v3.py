@@ -161,6 +161,9 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
             assert active[-1]["stdoutBytes"] == 8 and active[-1]["stderrBytes"] == 7
             assert active[-1]["lastOutputAt"] and active[-1]["silenceSeconds"] > 1
             assert all(event["productiveProgress"] == "unknown" and event["acceptance"] == "unverified" for event in observations)
+            assert all(event["modelStatus"] == "unknown" and event["hangConfirmed"] is False for event in observations)
+            assert any(event["diagnosis"] == "alive_active" for event in observations)
+            assert any(event["diagnosis"] == "alive_waiting" for event in active)
             order = fixture.read_json(Path(paths["order"]))
             state = fixture.read_json(Path(order["loopContract"]["statePath"]))
             assert state["budget"]["deadlineAt"] is None and state["budget"]["modelLaunchesUsed"] == 1
@@ -781,29 +784,83 @@ print("READONLY_NATIVE_PROFILE_OK")
         assert captured["process"].stdout.closed and captured["process"].stderr.closed
         print("PASS initial identity failure uses exact Popen.kill plus bounded reap")
 
-        captured = {}
-        identity_reads = []
-        def fail_capture_identity(pid):
-            identity_reads.append(pid)
-            if len(identity_reads) >= 3:
-                raise OSError("identity read failed")
-            return agent_contract_runner._mission_process_identity(pid)
-        reservation = SimpleNamespace(
-            work_timeout=lambda requested: requested,
-            before_spawn=lambda: None,
-            record_process=lambda pid, **kwargs: None,
-            state={"cancelled": False, "budget": {"deadlineAt": None},
-                   "stopDeadlineAt": (datetime.now(timezone.utc) + timedelta(seconds=.4)).isoformat()},
-        )
-        with patch.object(result_gateway.subprocess, "Popen", capture_popen), \
-             patch.object(result_gateway, "_mission_process_identity", fail_capture_identity), \
-             patch.object(result_gateway.os, "killpg", side_effect=AssertionError("capture identity failure must not use killpg")):
-            observed = result_gateway.run_child([sys.executable, "-c", "import time; time.sleep(20)"], root, None, .2,
-                                                reservation=reservation)
-        assert observed["processStopped"] is True and observed["exitCode"] == -signal.SIGKILL
-        assert "identity read failed" in observed["error"] and captured["process"].poll() == -signal.SIGKILL
-        assert captured["process"].stdout.closed and captured["process"].stderr.closed
-        print("PASS capture identity-read failure kills exact child, reaps it, and closes pipes")
+        # A diagnostic ping cannot revoke a running job's authority. A failed
+        # probe is unknown, never a worker failure or an implicit cancellation.
+        for error_type in (OSError, RunnerError):
+            captured = {}
+            identity_reads = []
+            observations = []
+            def fail_capture_identity(pid):
+                identity_reads.append(pid)
+                if len(identity_reads) in (3, 4):
+                    raise error_type("identity read failed")
+                return agent_contract_runner._mission_process_identity(pid)
+            reservation = SimpleNamespace(
+                work_timeout=lambda requested: requested,
+                before_spawn=lambda: None,
+                record_process=lambda pid, **kwargs: None,
+                observe_process=observations.append,
+                stop_requested=lambda: False,
+                state={"cancelled": False, "budget": {"deadlineAt": None}},
+            )
+            with patch.object(result_gateway.subprocess, "Popen", capture_popen), \
+                 patch.object(result_gateway, "CHILD_OBSERVATION_SECONDS", .02), \
+                 patch.object(result_gateway, "_mission_process_identity", fail_capture_identity), \
+                 patch.object(result_gateway.os, "killpg", side_effect=AssertionError("diagnostic probe must not kill")):
+                observed = result_gateway.run_child(
+                    [sys.executable, "-c", "import time; time.sleep(.25); print('completed once')"],
+                    root, None, .2, reservation=reservation)
+            assert observed["exitCode"] == 0 and observed["stdout"] == b"completed once\n"
+            assert observed["error"] is None and observed["terminationSignal"] is None and not observed["timedOut"]
+            assert observations[0]["diagnosis"] == "unknown" and observations[0]["probe"]["error"]
+            assert observations[0]["processAlive"] is True and observations[0]["identityMatches"] is None
+            assert any(row["probe"]["status"] == "alive" for row in observations[2:])
+            assert captured["process"].stdout.closed and captured["process"].stderr.closed
+        print("PASS failed diagnostic pings remain unknown, recover on later pings, and never kill or replay the child")
+
+        # Eight hours on the controller observation clock are not eight hours
+        # of load testing. This checks the absence of a hidden wall cutoff with
+        # a real child, including silence after both streams close.
+        for eof_silent in (False, True):
+            clock_offset = [0.0]
+            observations = []
+            def observe_hours(row):
+                observations.append(row)
+                clock_offset[0] = 8 * 3600.0
+            reservation = SimpleNamespace(
+                work_timeout=lambda requested: requested,
+                before_spawn=lambda: None,
+                record_process=lambda pid, **kwargs: None,
+                observe_process=observe_hours,
+                stop_requested=lambda: False,
+                state={"cancelled": False, "budget": {"deadlineAt": None}},
+            )
+            product_marker = root / ("hours-eof.txt" if eof_silent else "hours-silent.txt")
+            child_code = ("import os,time; from pathlib import Path; "
+                          + ("os.close(1); os.close(2); " if eof_silent else "")
+                          + "time.sleep(.25); Path(" + repr(str(product_marker)) + ").write_text('once')")
+            with patch.object(result_gateway, "time", SimpleNamespace(monotonic=lambda: time.monotonic() + clock_offset[0])), \
+                 patch.object(result_gateway, "CHILD_OBSERVATION_SECONDS", .02):
+                observed = result_gateway.run_child([sys.executable, "-c", child_code], root, None, .2,
+                                                    reservation=reservation)
+            after_hours = [row for row in observations if row["elapsedMs"] >= 8 * 3600 * 1000 and row["processAlive"]]
+            assert after_hours and any(row["diagnosis"] == "alive_waiting" for row in after_hours)
+            assert all(row["hangConfirmed"] is False and row["modelStatus"] == "unknown" for row in after_hours)
+            assert product_marker.read_text() == "once" and observed["exitCode"] == 0
+            assert observed["error"] is None and observed["terminationSignal"] is None and not observed["timedOut"]
+        print("PASS eight simulated hours of silence/EOF preserve the real child until completion; no wall cutoff")
+
+        observations = []
+        with patch.object(result_gateway, "CHILD_OBSERVATION_SECONDS", .02):
+            cpu_child = result_gateway.run_child([sys.executable, "-c",
+                "import time; end=time.monotonic()+.3\nwhile time.monotonic()<end: pass"], root, None, .2,
+                reservation=SimpleNamespace(work_timeout=lambda requested: requested, before_spawn=lambda: None,
+                    record_process=lambda pid, **kwargs: None, observe_process=observations.append,
+                    stop_requested=lambda: False, state={"cancelled": False, "budget": {"deadlineAt": None}}))
+        assert cpu_child["exitCode"] == 0 and cpu_child["stdout"] == b""
+        assert any(row["diagnosis"] == "alive_active" and (row["processActivity"]["cpuDeltaTicks"] or 0) > 0 for row in observations)
+        assert all(row["modelStatus"] == "unknown" and row["productiveProgress"] == "unknown" for row in observations)
+        print("PASS local CPU activity is visible without stdout and never claims remote model progress")
 
         class CleanupReservation(result_gateway.MissionReservation):
             def __init__(self):

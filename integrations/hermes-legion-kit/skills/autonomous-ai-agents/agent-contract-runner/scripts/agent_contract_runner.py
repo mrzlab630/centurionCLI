@@ -1512,6 +1512,30 @@ def _mission_process_identity(pid: int) -> dict[str, Any] | None:
         raise RunnerError("mission process identity cannot be verified; effect remains unknown") from exc
 
 
+def _mission_process_activity(pid: int) -> dict[str, Any] | None:
+    """Read non-authoritative process activity without changing its identity."""
+    if type(pid) is not int or pid <= 0:
+        raise RunnerError("mission process PID must be a positive integer")
+    try:
+        raw = Path(f"/proc/{pid}/stat").read_text()
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise RunnerError("mission process activity cannot be read; liveness remains unknown") from exc
+    try:
+        fields = raw[raw.rindex(")") + 2:].split()
+        if fields[0] == "Z":
+            return None
+        return {
+            "pid": pid,
+            "startTicks": fields[19],
+            "state": fields[0],
+            "cpuTicks": int(fields[11]) + int(fields[12]),
+        }
+    except (OSError, ValueError, IndexError) as exc:
+        raise RunnerError("mission process activity cannot be verified; liveness remains unknown") from exc
+
+
 def _terminate_mission_process(identity: dict[str, Any], deadline_at: str, *, signal_to_send: signal.Signals = signal.SIGTERM,
                                wait: bool = True) -> bool:
     """Signal a pinned PID, never a reused PID or unverified process group."""
