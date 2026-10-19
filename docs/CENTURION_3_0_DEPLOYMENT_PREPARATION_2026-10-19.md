@@ -80,15 +80,55 @@ native ответы подтвердили Gateway-only canonical writer, Luna `
 отсутствие остановки по часам тишины. Эти receipts не являются установленным
 Gateway canary и не заменяют live capability bindings.
 
+## Привязки текущих клиентов: продолжение на HEAD `4feeba4`
+
+Выполнены две дополнительные native пробы с **фактическими текущими конфигами**,
+смонтированными read-only в изолированные homes. Codex `gpt-6.1-sol/xhigh`
+вернул точный JSON-маркер за 34,727 с; Hermes `gpt-6.1-sol/high` — за 12,533 с.
+Инструменты моделями не вызывались. Lifetime timeout отсутствовал; Gateway
+записал наблюдения процессов и штатное завершение. Эти пробы проверяют текущий
+маршрут с объявленными ограничениями запуска, но не загруженную live-политику 3.0.
+У Codex на эту пробу отключены MCP и memory; у Hermes выбран terminal toolset;
+внешний OS wrapper разрешает запись только в каталоге пробы. Глобальные конфиги
+не изменены. Ошибка первого preparation Hermes — неверный путь к `cli.py` —
+сохранена отдельно; модель при этой ошибке не запускалась.
+
+Подготовлены installer receipts для Codex 0.163.0, Claude 2.1.224 и Hermes 0.22.2.
+Связаны binary/config/route/adapter/evidence hashes, native round-trips, CLI
+version/help и отдельные ранее принятые staged-instruction probes. Dry-run всех
+трёх установщиков принял bindings как `recorded`, **`liveDispatchProven=false`**.
+Это запись проверяемых evidence, а не разрешение любого режима клиента.
+
+Claude receipt использует проверенный `native-profile-readonly` профиль без
+tools/MCP/hooks, точный `--model claude-opus-5-5` и локальный origin
+`http://127.0.0.1:8317`. Повторного inference Claude не было. В интерактивном
+`~/.claude/settings.json` обнаружен `fallbackModel: ["claude-opus-5"]`; этот
+конфиг не загружается данным профилем. Настройки владельца сохранены.
+**Receipt закрывает только no-tools report/review; Claude product executor
+с инструментами им не подтверждён и не должен включаться на его основании.**
+
+Повторный readback подтвердил неизменность 332 live preimages; 35 новых package
+files и три installed-chain manifests отсутствуют. Drain ещё не включён.
+Сохранены готовые argv установки с bindings; перед применением нужно снова
+сверить runtime/evidence pins, выполнить оставшиеся шаги ниже и пересчитать
+два migration preimage после применения оговорки. Исторические P1–P6 не повторялись.
+
+Артефакты продолжения: `.centurion/explicit-claude-20261019/live-bindings/`;
+`installer/summary.json` содержит receipts, dry-runs и команды переключения.
+Машиночитаемая сводка этого документа дополнена полем `capabilityContinuation`;
+исходные reviews, receipts и их границы сохранены.
+
 ## Остаток до переключения
 
 1. Применить проверенную оговорку в момент переключения после backup. Root
    принял её как исполнение ранее утверждённых правил 3.0; оба независимых
    текстовых review приняты. Пока она установлена только в fixtures,
    runtime loaded-chain рабочей системы не доказана.
-2. Подготовить актуальные installer capability bindings для Codex/Claude/Hermes:
-   binary/version, фактический config, route, adapter и evidence. Новый report
-   receipt закрывает только no-tools ветку; не заменяет остальные bindings.
+2. Непосредственно перед переключением повторно сверить подготовленные bindings
+   и их дополнительные runtime/evidence pins. Codex/Hermes имеют свежие пробы
+   текущих конфигов; Claude разрешён только в подтверждённом no-tools профиле.
+   Если для начального включения нужен Claude с инструментами, отдельно доказать
+   именно этот профиль без наследования legacy fallback до его допуска.
 3. В точке переключения включить штатный external drain Hermes, дождаться
    `gateway_state=draining` и отсутствия active work. Во время длительного drain
    обновлять marker до его штатного срока устаревания; не завершать работающих

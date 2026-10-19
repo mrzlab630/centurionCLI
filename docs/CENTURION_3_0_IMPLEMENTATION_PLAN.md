@@ -52,6 +52,11 @@ AGENTS/SOUL, capability bindings, настоящий drain и реальный i
 независимое ревью этого изменения принято. Миграция текущих preimages и
 version-scoped оговорка AGENTS/SOUL проверяются на копиях homes. Текущее состояние
 и оставшийся порядок переключения — в [отчёте подготовки](CENTURION_3_0_DEPLOYMENT_PREPARATION_2026-10-19.md).
+Продолжение на HEAD `4feeba4`: Codex/Hermes прошли native round-trips с текущими
+конфигами в read-only mounts; installer dry-run принял три capability bindings.
+Claude binding ограничен no-tools профилем без наследования интерактивного
+legacy fallback. Live drain, установка и installed Gateway canary ещё не
+выполнялись; N8 остаётся открытым.
 
 Уточнение владельца от 2026-10-19: продолжить ревью и отказаться от автоматической
 остановки длительной работы по времени. Для новых миссий применяется наблюдение
