@@ -1,4 +1,4 @@
-# CENTURION 3.0.0-rc.1
+# CENTURION 3.0.0-rc.2
 
 Release candidate for one team lead, bounded workers and independent findings.
 Implementation is not release or pilot acceptance. The lead completes approved
@@ -72,6 +72,6 @@ The default Hermes smoke also runs the packaged Python regressions and remains
 an integration gate after W2/W3 are merged. `--skills-only` reports that gate as
 unrun. Native binary/schema/permission mode, live no-write correction, visual
 capabilities, pilot and independent review remain separate N5/N6/N7/N8 evidence.
-The product stays `3.0.0-rc.1` until the acceptance gates pass. Native kit `1.0.0`
+The product stays `3.0.0-rc.2` until the acceptance gates pass. Native kit `1.0.0`
 versions mark the breaking change to explicit selection and conflict-first install;
 the canonical JSON contract version remains V1.

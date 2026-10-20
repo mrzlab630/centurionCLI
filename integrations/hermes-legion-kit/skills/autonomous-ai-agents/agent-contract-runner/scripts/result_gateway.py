@@ -479,6 +479,7 @@ def _run_child_streaming(
     drain_timed_out = False
     termination_signal = None
     capture_limited = False
+    frame_limited = False
 
     for label, stream in (("stdout", process.stdout), ("stderr", process.stderr)):
         if stream is None:
@@ -629,6 +630,11 @@ def _run_child_streaming(
                 streams.pop(stream.fileno(), None)
                 continue
             limit = max_stdout if label == "stdout" else max_stderr
+            if frame_limited and label == "stdout":
+                # Once a single stdout frame is known to be oversized, keep at
+                # most the triggering read.  The child is already being stopped;
+                # draining later chunks would exceed the bounded frame receipt.
+                continue
             if len(chunks[label]) + len(chunk) > limit:
                 allowed = max(0, limit - len(chunks[label]))
                 if allowed:
@@ -646,6 +652,8 @@ def _run_child_streaming(
                 line, line_buffers[label] = line_buffers[label].split(b"\n", 1)
                 if len(line) > max_frame:
                     capture_limited = True
+                    frame_limited = True
+                    chunks[label] = chunks[label][:max_frame + 65536]
                     request_stop("stdout frame limit exceeded")
                     line_buffers[label] = b""
                     break
@@ -663,6 +671,8 @@ def _run_child_streaming(
                     break
             if len(line_buffers[label]) > max_frame:
                 capture_limited = True
+                frame_limited = True
+                chunks[label] = chunks[label][:max_frame + 65536]
                 line_buffers[label] = b""
                 request_stop("stdout frame limit exceeded without newline")
     selector.close()

@@ -1,0 +1,40 @@
+{
+  "recordVersion": "CENTURION_READINESS_V1",
+  "date": "2026-10-20",
+  "productVersion": "3.0.0-rc.2",
+  "branch": "feat/centurioncli/v3-implementation",
+  "head": "e43e4ad",
+  "workingTree": "clean after release commit",
+  "status": "prepared_pending_capability_refresh",
+  "adapterPath": "/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+  "adapterSha256": "3afe864194e230bd8730778fe9f5338b6d536595564cbb30feba8a85778a59fe",
+  "diffSha256": "2ea86cf347c4d69e13110f4b0e6325c9c904831bf26da348b7d58c8392a9bf20",
+  "proof": {
+    "regression_result_gateway_v3.py": "PASS: 24 groups",
+    "regression_order_preflight.py": "PASS: 13 groups",
+    "regression_review_ladder.py": "PASS: 19 groups",
+    "node integrations/hermes-legion-kit/scripts/smoke.mjs": "PASS: isolated fixture and packaged runtime regressions; live capability unverified",
+    "legion-skill-eval": "PASS",
+    "skill-surface-audit": "PASS; duplicateNameCount=0; driftedDuplicateCount=0; brokenReferences=0",
+    "codex-and-claude-smoke": "PASS",
+    "open-design-tests": "PASS: 64/64",
+    "python-unittest": "PASS: 23/23",
+    "syntax-and-diff-check": "PASS"
+  },
+  "isolatedInstalls": {
+    "codex": "pass",
+    "hermes": "pass",
+    "claude": "pass"
+  },
+  "capabilityRefresh": {
+    "required": true,
+    "performed": false,
+    "reason": "adapter hash changed after prior native probes"
+  },
+  "n8": {
+    "drainPerformed": false,
+    "liveInstallPerformed": false,
+    "canaryPerformed": false
+  },
+  "historicalPilotsRerun": false
+}

@@ -1,6 +1,6 @@
 # W4 isolated candidate delivery
 
-Product: `3.0.0-rc.1`. Canonical load map:
+Product: `3.0.0-rc.2`. Canonical load map:
 `integrations/codex-legion-kit/scripts/lib/surface-config.mjs`.
 The existing installers share staged owned-file installation. Core selects one
 functional entrypoint; planner/context abilities are incorporated. Domain and

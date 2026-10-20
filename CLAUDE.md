@@ -1,4 +1,4 @@
-# CENTURION 3.0.0-rc.1
+# CENTURION 3.0.0-rc.2
 
 Read [the functional contract](skills/orchestrator/SKILL.md) once for this mission.
 It governs team lead, worker and reviewer behavior. The selected surface and
