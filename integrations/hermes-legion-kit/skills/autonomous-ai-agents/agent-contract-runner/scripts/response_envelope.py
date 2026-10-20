@@ -10,8 +10,11 @@ normalized bytes are deterministic for hashing and downstream custody.
 from __future__ import annotations
 
 import hashlib
+import os
 import re
+import stat
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Iterable
 
 from strict_json import StrictJSONError, strict_json_load_bytes
@@ -21,6 +24,12 @@ RESPONSE_ENVELOPE_VERSION = "AGENT_RESPONSE_ENVELOPE_V1"
 RAW_JSON = "raw_json"
 JSON_FENCE = "json_fence"
 SUPPORTED_TRANSPORTS = frozenset({RAW_JSON, JSON_FENCE})
+# Finite limits apply before parsing or accumulating a response in memory.
+MAX_ORDER_BYTES = 1024 * 1024
+MAX_CANDIDATE_BYTES = 4 * 1024 * 1024
+MAX_STDOUT_BYTES = 16 * 1024 * 1024
+MAX_STDERR_BYTES = 4 * 1024 * 1024
+MAX_FRAME_BYTES = 4 * 1024 * 1024
 _MEDIA_TYPE_RE = re.compile(r"[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+(?:[\t ]*;[^\r\n]*)?")
 _JSON_FENCE_RE = re.compile(
     r"\A[\t\n\r ]*```json[\t ]*\r?\n(?P<body>[\s\S]*?)\r?\n```[\t\n\r ]*\Z",
@@ -33,6 +42,29 @@ class ResponseEnvelopeError(ValueError):
     def __init__(self, code: str, message: str):
         self.code = code
         super().__init__(f"{code}: {message}")
+
+
+def read_bounded_file(path: Path, limit: int) -> tuple[bytes, bool]:
+    """Read at most limit bytes; never block on a FIFO or accept a changing file."""
+    if any(component.is_symlink() for component in (path, *path.parents)):
+        raise ResponseEnvelopeError("RESPONSE_FORMAT_ERROR", "input path must not contain symlinks")
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    try:
+        before = os.fstat(fd)
+        if not stat.S_ISREG(before.st_mode):
+            raise ResponseEnvelopeError("RESPONSE_FORMAT_ERROR", "input must be a regular file")
+        content = bytearray()
+        while len(content) <= limit:
+            chunk = os.read(fd, min(65536, limit + 1 - len(content)))
+            if not chunk:
+                break
+            content.extend(chunk)
+        after = os.fstat(fd)
+        identity = lambda s: (s.st_dev, s.st_ino, s.st_size, s.st_mtime_ns, s.st_ctime_ns)
+        complete = len(content) <= limit and identity(before) == identity(after) and len(content) == after.st_size
+        return bytes(content[:limit]), complete
+    finally:
+        os.close(fd)
 
 
 def valid_media_type(value: Any) -> bool:
@@ -105,6 +137,8 @@ def parse_response_bytes(
     if not isinstance(raw_bytes, (bytes, bytearray)):
         raise ResponseEnvelopeError("RESPONSE_FORMAT_ERROR", f"{label} must be bytes")
     content = bytes(raw_bytes)
+    if len(content) > MAX_CANDIDATE_BYTES:
+        raise ResponseEnvelopeError("RESPONSE_LIMIT_ERROR", "candidate exceeds byte limit")
     allowed = _allowed_transports(allowed_transports)
     raw_error: StrictJSONError | None = None
 

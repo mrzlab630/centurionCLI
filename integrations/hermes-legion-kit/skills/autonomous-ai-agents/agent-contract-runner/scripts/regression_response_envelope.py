@@ -14,8 +14,8 @@ import tempfile
 from pathlib import Path
 
 from agent_contract_runner import PathPolicy, RunnerError, direct_response_paths, validate_order, verify_result
-from agent_result_builder import BuilderError, build_result
-from response_envelope import ResponseEnvelopeError, parse_response_bytes, validate_handoff_order, validate_response_handoff
+from agent_result_builder import BuilderError, build_result, native_result_schema, validate_review_binding
+from response_envelope import MAX_CANDIDATE_BYTES, ResponseEnvelopeError, parse_response_bytes, validate_handoff_order, validate_response_handoff
 from result_gateway import extract_stdout_candidate
 
 
@@ -84,6 +84,21 @@ def main():
         rejects(lambda: parse_response_bytes(content), "RESPONSE_FORMAT_ERROR")
     rejects(lambda: parse_response_bytes(b'```json\n{}\n```', allowed_transports=["raw_json"]), "RESPONSE_FORMAT_ERROR")
     print("PASS raw/fence/CRLF exact bytes and ambiguous, duplicate, nonfinite, UTF-8, surrogate, truncation rejection")
+    rejects(lambda: parse_response_bytes(b"x" * (MAX_CANDIDATE_BYTES + 1)), "RESPONSE_LIMIT_ERROR")
+
+    binding = {"reviewedOrderId": "original-order", "reviewedResultSha256": "1" * 64, "productSnapshotSha256": "2" * 64}
+    review_order = {"orderId": "review-order", "executor": "claude", "context": [{"policyVersion": "3.0", "reviewBinding": binding}],
+                    "inputResults": [{"orderId": binding["reviewedOrderId"], "resultSha256": binding["reviewedResultSha256"]}]}
+    route = {"executionProfile": "terminal_review"}
+    projection = native_result_schema(review_order, route)
+    assert "executorExtensions" in projection["required"]
+    assert projection["properties"]["executorExtensions"]["required"] == ["review"]
+    assert validate_review_binding({}, review_order, route)
+    review_payload = {"executorExtensions": {"review": {**binding, "verdict": "pass", "findings": []}}}
+    assert not validate_review_binding(review_payload, review_order, route)
+    review_payload["executorExtensions"]["review"]["productSnapshotSha256"] = "3" * 64
+    assert validate_review_binding(review_payload, review_order, route)
+    print("PASS derived native review projection requires exact original order/result/product binding")
 
     with tempfile.TemporaryDirectory(prefix="response-envelope-regression-") as directory:
         root = Path(directory)
@@ -148,6 +163,28 @@ def main():
             assert candidate is None and any(code in entry for entry in errors)
         print("PASS unsolicited role elevation, objective mismatch, and Claude inner surrogate fail closed")
 
+        order, payload, _, _ = fixture(root, "native-claude")
+        order["executor"] = payload["executor"] = "claude"
+        order["launch"]["command"] = "claude -p --json-schema '{}' --output-format json 'order prompt'"
+        terminal = {"type": "result", "subtype": "success", "is_error": False,
+                    "permission_denials": [], "structured_output": payload,
+                    "modelUsage": {"claude-opus-5-5": {"inputTokens": 1}}}
+        native_route = {"model": "claude-opus-5-5"}
+        candidate, errors = extract_stdout_candidate(encoded(terminal), order, None, native_route)
+        assert not errors and json.loads(candidate) == payload, errors
+        terminal["result"] = json.dumps(payload)
+        candidate, errors = extract_stdout_candidate(encoded(terminal), order, None, native_route)
+        assert not errors and json.loads(candidate) == payload, errors
+        selected = terminal.pop("structured_output")
+        candidate, errors = extract_stdout_candidate(encoded(terminal), order, None, native_route)
+        assert candidate is None and any("requires structured_output" in item for item in errors)
+        terminal["structured_output"] = selected
+        terminal.pop("result")
+        terminal["structured_output"]["orderId"] = "stale-order"
+        candidate, errors = extract_stdout_candidate(encoded(terminal), order, None, native_route)
+        assert candidate is None and any("orderId" in item for item in errors)
+        print("PASS Claude selected structured_output accepts companion text and rejects missing/stale native candidates")
+
         for executor in ("hermes_delegate_task", "agy"):
             for mode in ("fenced", "malformed"):
                 order, payload, control, _ = fixture(root, f"direct-{executor}-{mode}")
@@ -169,12 +206,25 @@ def main():
                 argv = [sys.executable, str(SCRIPTS / "agent_contract_runner.py"), "--order", str(control / "order.json"),
                         "--mode", "run", "--events", str(control / "events.jsonl"), "--result", str(control / "result.json")]
                 completed = subprocess.run(argv, env=env, capture_output=True, text=True, timeout=20)
-                assert (completed.returncode == 0) == (mode == "fenced"), completed.stderr + completed.stdout
-                result_bytes = (control / "result.json").read_bytes()
+                assert completed.returncode != 0 and "direct runner dispatch is disabled" in completed.stderr
+                assert not count.exists() and not (control / "result.json").exists()
+                # Historical transport support is a parser/builder unit contract;
+                # it never authorizes a legacy production dispatch.
+                Path(order["launch"]["candidateJsonPath"]).write_bytes(content)
+                if mode == "fenced":
+                    result = build_result(control / "order.json", Path(order["launch"]["candidateJsonPath"]), control / "result.json", control / "evidence")
+                    assert result["orderId"] == order["orderId"] and result["executor"] == executor
+                    result_bytes = (control / "result.json").read_bytes()
+                    rejects(lambda: build_result(control / "order.json", Path(order["launch"]["candidateJsonPath"]), control / "result.json", control / "evidence"), "collision")
+                    assert (control / "result.json").read_bytes() == result_bytes
+                else:
+                    rejects(lambda: parse_response_bytes(content), "RESPONSE_FORMAT_ERROR")
+                    failed = build_result(control / "order.json", Path(order["launch"]["candidateJsonPath"]), control / "result.json", control / "evidence")
+                    assert failed["status"] == "failed"
+                    assert content == Path(failed["artifacts"][0]["path"]).read_bytes()
                 replay = subprocess.run(argv, env=env, capture_output=True, text=True, timeout=20)
-                assert replay.returncode != 0 and count.read_text() == "effect\n"
-                assert (control / "result.json").read_bytes() == result_bytes
-        print("PASS direct Hermes/AGY candidate adapters accept fences, reject prose, never replay or overwrite")
+                assert replay.returncode != 0 and not count.exists()
+        print("PASS historical Hermes/AGY parser fixtures accept fences, reject prose and collisions; legacy dispatch never launches")
     return 0
 
 

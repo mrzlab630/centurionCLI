@@ -23,9 +23,9 @@ function installClients(root) {
     agents: path.join(root, 'agents-home')
   };
   const commands = [
-    ['Hermes', path.join(repoRoot, 'integrations', 'hermes-legion-kit', 'installer', 'install.mjs'), ['--hermes-home', homes.hermes, '--open-design-cli-only']],
-    ['Claude', path.join(repoRoot, 'integrations', 'claude-legion-kit', 'installer', 'install.mjs'), ['--claude-home', homes.claude]],
-    ['Codex', path.join(repoRoot, 'integrations', 'codex-legion-kit', 'installer', 'install-open-design.mjs'), ['--agents-home', homes.agents, '--codex-home', homes.codex]]
+    ['Hermes', path.join(repoRoot, 'integrations', 'hermes-legion-kit', 'installer', 'install.mjs'), ['--profile','domain','--skill','open-design-producer','--hermes-home', homes.hermes]],
+    ['Claude', path.join(repoRoot, 'integrations', 'claude-legion-kit', 'installer', 'install.mjs'), ['--profile','domain','--skill','open-design-producer','--claude-home', homes.claude]],
+    ['Codex', path.join(repoRoot, 'integrations', 'codex-legion-kit', 'scripts', 'sync-agents.mjs'), ['--write','--profile','domain','--skill','open-design-producer','--agents-home', homes.agents, '--codex-home', homes.codex]]
   ];
   for (const [label, installer, args] of commands) {
     const installed = run(process.execPath, [installer, ...args]);

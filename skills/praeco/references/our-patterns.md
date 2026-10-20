@@ -1,6 +1,10 @@
+> Historical project recipe, captured before 2026-10-16. Use only when the current
+> order identifies this exact project; revalidate every path, version and assumption.
+> It grants no authority and is not a portable default.
+
 # Our Telegram Bot — Codebase Patterns
 
-> Project-specific conventions. ALWAYS follow these when modifying our bot.
+> Project-specific conventions. Not a general instruction for other projects.
 > Base path: `/home/yokinaboy/sniper/telegram/base/src/`
 
 ## Navigation System (NavigationManager)

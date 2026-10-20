@@ -1,0 +1,48 @@
+[
+  {
+    "client": "codex",
+    "selected": [
+      "architect",
+      "coder",
+      "orchestrator",
+      "researcher",
+      "reviewer",
+      "tester"
+    ],
+    "files": 14,
+    "manifest": "/tmp/centurion-v3-implementation-hjr_gs82/candidate-runtime/codex/centurion/installed-chain.json",
+    "manifestSha256": "46765c788f4668ac2db32e039931da206fbe0e324d84012eba362b0176599cc0",
+    "installedReadback": "pass",
+    "liveLoadedChain": "not_run",
+    "capabilities": "not_run"
+  },
+  {
+    "client": "claude",
+    "selected": [
+      "aedilis",
+      "orchestrator",
+      "pictor",
+      "researcher",
+      "reviewer"
+    ],
+    "files": 33,
+    "manifest": "/tmp/centurion-v3-implementation-hjr_gs82/candidate-runtime/claude/centurion/installed-chain.json",
+    "manifestSha256": "f1064b9d5f07458b66dfca7725a86b057ce0c86e7dc2ffc430055e938383cffb",
+    "installedReadback": "pass",
+    "liveLoadedChain": "not_run",
+    "capabilities": "not_run"
+  },
+  {
+    "client": "hermes",
+    "selected": [
+      "orchestrator",
+      "researcher"
+    ],
+    "files": 44,
+    "manifest": "/tmp/centurion-v3-implementation-hjr_gs82/candidate-runtime/hermes/centurion/installed-chain.json",
+    "manifestSha256": "a902ce3d6c738e38d30d0adb7cfdf9c97e1e726f29ec8d0f4d2d3f3ab0acf6a1",
+    "installedReadback": "pass",
+    "liveLoadedChain": "not_run",
+    "capabilities": "not_run"
+  }
+]

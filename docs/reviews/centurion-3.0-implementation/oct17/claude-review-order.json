@@ -1,0 +1,37 @@
+{
+  "context": {
+    "ExecutionDecision": {
+      "taskClass": "independent current-source review",
+      "complexity": "high",
+      "risk": "medium",
+      "ambiguity": "medium",
+      "reversibility": "readonly",
+      "evidenceNeed": "concrete reachable defects with lines",
+      "executor": "native Claude through local proxy",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "high",
+      "executionProfile": "read-only review without tools",
+      "verificationProfile": "owner adjudication and focused tests",
+      "confidence": "high",
+      "reasons": [
+        "User explicitly requested Claude review and fixes before conditional deployment",
+        "Separate source-review stage; does not retry or satisfy exhausted N7 capability/mission pilot"
+      ]
+    }
+  },
+  "inputHashes": {
+    "integrations/codex-legion-kit/scripts/codex-surface-audit.mjs": "159f52e223959f1d529ef05e8c1ef11a3aa143a687b007eff7502587ce144ec5",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": "e1489aeb727ffc4a1afbf11cde142dd001df17baf858688d5961fde11b7e06f0",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/order_preflight.py": "6d0deda955248645395e7c36dde2bae23ecaf37772e7a28b61d576787f6e06cb",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_contract_runner.py": "2d6b361bb5201f1222df3a3db87479ed6a66b03cfcf3fdc6a3b6edb63e8741f7",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_order_preflight.py": "10fe1c38edc95ed8f236c02c5573ca5d41e2c686668f4df53e413d99bb447eea",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway.py": "574be1cef7259a359079bd13c575d351305578df6bacf6b0a010c7386f131cde",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py": "2f6fb8e87286e07949e592283af766a956896d304a98e3eb192aedd8f1a610ae",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": "b7b8354e7ee33ec3c9f607ff29e9d1451a82ea536f8842ca30abf16c8a75d5f9",
+    "scripts/install-owned-files.mjs": "143dbd80fd6e4b8e0659868e306bf253060c177f8ded0eb7977ada051f9b99c3",
+    "tests/install-owned-files.test.mjs": "0d1cbb7a97a5660ebfacdef0bb129255a7f9ccb75874a95a9b05537a6213482b"
+  },
+  "scope": "current patch and supplied surrounding source only; no release approval",
+  "maxSourceReviewLaunches": 2,
+  "pilotBudgetUnchanged": true
+}

@@ -107,6 +107,28 @@ def _status_from_inputs(
     order: dict[str, Any], result: dict[str, Any] | None, *, legacy_terminal_compat: bool = False
 ) -> tuple[str, str, str | None, str | None]:
     loop = order.get("loopContract")
+    mission_rows = [row for row in order.get("context", []) if isinstance(row, dict) and "policyVersion" in row]
+    if mission_rows:
+        if len(mission_rows) != 1 or mission_rows[0].get("policyVersion") != "3.0":
+            raise ExecutionStateError("unknown mission policy cannot project acceptance")
+        # A worker's done is capture, never controller/mission acceptance. This
+        # read-only projection does not create or mutate mission state.
+        if legacy_terminal_compat:
+            raise ExecutionStateError("3.0 mission cannot use legacy terminal compatibility")
+        source = result if result is not None else order
+        executor = source.get("executor")
+        if executor is not None:
+            executor = _string(executor, "execution.executor", max_length=128)
+        summary = source.get("summary") if result is not None else None
+        if summary is not None:
+            summary = _string(summary, "execution.summary", max_length=MAX_INPUT_BYTES)
+        if result is None:
+            return "execute", "planned", executor, None
+        if result.get("status") == "done":
+            return "execute", "awaiting_verification", executor, summary
+        if result.get("status") in {"blocked", "failed"}:
+            return "verify", result["status"], executor, summary
+        raise ExecutionStateError("result.status must be done, blocked, or failed")
     phase = loop.get("phase", "execute") if isinstance(loop, dict) else "execute"
     if legacy_terminal_compat:
         phase = "verify"
@@ -456,6 +478,14 @@ def main(argv: list[str] | None = None) -> int:
         args = _parser().parse_args(argv)
         if args.command == "project":
             _reject_output_input_collision(args.output, [args.order, args.result, args.evidence, args.parent])
+            order, _ = _read_json(args.order, "order")
+            loop = order.get("loopContract") if isinstance(order, dict) else None
+            if isinstance(loop, dict) and isinstance(loop.get("statePath"), str):
+                mutable_path = Path(loop["statePath"])
+                if not mutable_path.is_absolute():
+                    workspace = order.get("workspace", {})
+                    mutable_path = Path(workspace.get("repoPath", str(args.order.parent))) / mutable_path
+                _reject_output_input_collision(args.output, [mutable_path, mutable_path.with_name(mutable_path.name + ".lock")])
             state = project(
                 args.order,
                 args.result,

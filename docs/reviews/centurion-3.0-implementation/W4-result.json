@@ -1,0 +1,826 @@
+{
+  "resultVersion": "AGENT_RESULT_JSON_V1",
+  "orderId": "centurion-v3-W4",
+  "executor": "codex",
+  "status": "done",
+  "summary": "W4 skills/release implementation completed within scope. Product remains 3.0.0-rc.1; W2/W3 and live release gates remain open.",
+  "filesChanged": [
+    {
+      "path": "CLAUDE.md",
+      "action": "modified"
+    },
+    {
+      "path": "PROBATIO.md",
+      "action": "modified"
+    },
+    {
+      "path": "README.md",
+      "action": "modified"
+    },
+    {
+      "path": "claude.json.example",
+      "action": "modified"
+    },
+    {
+      "path": "docs/CLAUDE_LEGION_KIT.md",
+      "action": "modified"
+    },
+    {
+      "path": "docs/CODEX_LEGION_KIT.md",
+      "action": "modified"
+    },
+    {
+      "path": "docs/HERMES_LEGION_KIT.md",
+      "action": "modified"
+    },
+    {
+      "path": "install.sh",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/antigravity-legion-kit/agy-plugin/skills/centurion-legion/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/README.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/installer/install.mjs",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/package.json",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/.claude-plugin/plugin.json",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/.mcp.json",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/aedilis.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/aleator.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/architect.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/artifex.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/augur.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/capabilities.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/censor.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/coder.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/context-optimizer.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/documenter.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/error-handler.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/evocate-ad-opus.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/git-master.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/glossator.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/haruspex.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/indagator.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/ludifex.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/mercator.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/nomenclator.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/orator.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/orchestrator.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/pictor.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/planner.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/pontifex.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/praeco.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/praemonitor.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/prompt-engineer.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/quaestor.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/refactorer.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/researcher.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/reviewer.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/security.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/sicarius.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/skill-quartermaster.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/tabularius.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/tester.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/agents/velites.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/output-styles/centurion-legion.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/references/opus-5-profile.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/plugin/skills/claude-order/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/scripts/claude-surface-audit.mjs",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/scripts/proxy-env.sh.example",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/claude-legion-kit/scripts/smoke.mjs",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/codex-legion-kit/README.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/codex-legion-kit/installer/install-open-design.mjs",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/codex-legion-kit/package-lock.json",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/codex-legion-kit/package.json",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/codex-legion-kit/scripts/codex-surface-audit.mjs",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/codex-legion-kit/scripts/lib/surface-config.mjs",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/codex-legion-kit/scripts/smoke.mjs",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/codex-legion-kit/scripts/sync-agents.mjs",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/codex-legion-kit/skills/camofox-browser/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/README.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/installer/install.mjs",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/overrides/ADAPTIVE_MODEL_ROUTING_POLICY.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/overrides/AQUILA_SOUL_OVERRIDES.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/overrides/SOUL_CLAUDE_ROLE_RULE.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/overrides/SOUL_RUNTIME_MODEL_RULE.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/overrides/skills/research/research-paper-writing/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/package.json",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/scripts/harness-audit.mjs",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/scripts/smoke.mjs",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skill-bundles/aquila-delivery.yaml",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skill-bundles/aquila-design-production.yaml",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skill-bundles/aquila-executor-eval.yaml",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skill-bundles/aquila-harness-audit.yaml",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/aquila-execution-state/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/aquila-executor-eval/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/aquila-harness-audit/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/aquila-self-debug/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/aquila-team-orchestration/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/software-development/solana-program-engineering/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/open-design-bridge/tests/cross-client.test.mjs",
+      "action": "modified"
+    },
+    {
+      "path": "integrations/open-design-bridge/tests/references.test.mjs",
+      "action": "modified"
+    },
+    {
+      "path": "scripts/install-owned-files.mjs",
+      "action": "modified"
+    },
+    {
+      "path": "settings.json.example",
+      "action": "modified"
+    },
+    {
+      "path": "skills/aedilis/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/aleator/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/architect/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/artifex/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/augur/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/capabilities/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/censor/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/coder/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/context-optimizer/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/context-optimizer/scripts/skill-drift-report.mjs",
+      "action": "modified"
+    },
+    {
+      "path": "skills/context-optimizer/scripts/skill-surface-audit.mjs",
+      "action": "modified"
+    },
+    {
+      "path": "skills/documenter/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/error-handler/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/evocate-ad-opus/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/git-master/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/glossator/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/haruspex/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/indagator/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/ludifex/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/mercator/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/nomenclator/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/open-design-producer/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/orator/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/orchestrator/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/pictor/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/pictor/references/conventions.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/planner/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/pontifex/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/praeco/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/praeco/references/our-patterns.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/praemonitor/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/prompt-engineer/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/quaestor/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/refactorer/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/researcher/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/reviewer/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/reviewer/references/completion-verification.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/security/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/sicarius/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/skill-quartermaster/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/tabularius/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/tester/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/tester/references/frontend-sweep.md",
+      "action": "modified"
+    },
+    {
+      "path": "skills/tester/scripts/legion-skill-eval.mjs",
+      "action": "modified"
+    },
+    {
+      "path": "skills/velites/SKILL.md",
+      "action": "modified"
+    },
+    {
+      "path": "tests/install-owned-files.test.mjs",
+      "action": "modified"
+    },
+    {
+      "path": "docs/CENTURION_3_0_W4_DELIVERY.md",
+      "action": "added"
+    },
+    {
+      "path": "skills/augur/references/domain-recipes.md",
+      "action": "added"
+    },
+    {
+      "path": "skills/censor/references/domain-recipes.md",
+      "action": "added"
+    },
+    {
+      "path": "skills/documenter/references/domain-recipes.md",
+      "action": "added"
+    },
+    {
+      "path": "skills/git-master/references/domain-recipes.md",
+      "action": "added"
+    },
+    {
+      "path": "skills/prompt-engineer/references/domain-recipes.md",
+      "action": "added"
+    },
+    {
+      "path": "skills/refactorer/references/domain-recipes.md",
+      "action": "added"
+    },
+    {
+      "path": "skills/tabularius/references/domain-recipes.md",
+      "action": "added"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/CENTURION_3_0_W4_DELIVERY.md",
+      "exists": true,
+      "type": "delivery-note",
+      "note": "W4 bounded implementation or same-run proof; acceptance limits are in remainingRisks.",
+      "sha256": "2b6a12c8be0b95fb956b5cfa7af5038846d8742ac08eac26ce338492c0d032dc"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W4-final-eval.json",
+      "exists": true,
+      "type": "proof",
+      "note": "W4 bounded implementation or same-run proof; acceptance limits are in remainingRisks.",
+      "sha256": "a6b066a83911befaedac4d323a2f7e3bc0ef8b689e6795d5b5be0f1e7f77ab64"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W4-final-surface.json",
+      "exists": true,
+      "type": "proof",
+      "note": "W4 bounded implementation or same-run proof; acceptance limits are in remainingRisks.",
+      "sha256": "a34cd7693a980e439ebce887fe4305e05a67e3df3148fc716d9072928030df25"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W4-final-drift.json",
+      "exists": true,
+      "type": "proof",
+      "note": "W4 bounded implementation or same-run proof; acceptance limits are in remainingRisks.",
+      "sha256": "063982bcb29763c18a5cc4a3f060c17c8a399a190605be8c4c8cd18f025c1820"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W4-install-proof.log",
+      "exists": true,
+      "type": "proof",
+      "note": "W4 bounded implementation or same-run proof; acceptance limits are in remainingRisks.",
+      "sha256": "cd7cf4c20efe10d8c619a239f8fcbca1850b2ced153693ec798ed670273bd5ee"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W4-open-design-proof.log",
+      "exists": true,
+      "type": "proof",
+      "note": "W4 bounded implementation or same-run proof; acceptance limits are in remainingRisks.",
+      "sha256": "44854490b1892278a83ba7d1ef694d366d9d5907e6de2ac989f050324352bebe"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W4-codex-chain.json",
+      "exists": true,
+      "type": "installed-chain",
+      "note": "W4 bounded implementation or same-run proof; acceptance limits are in remainingRisks.",
+      "sha256": "d0416d7c15e0f130956b079f573e1698b62d98bcf33d213bf171cea136b4318f"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W4-claude-chain.json",
+      "exists": true,
+      "type": "installed-chain",
+      "note": "W4 bounded implementation or same-run proof; acceptance limits are in remainingRisks.",
+      "sha256": "b863dab04233d7981f3972b2d6e445ba9a37989cde0f4b1891b79b7abfbee698"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W4-hermes-chain.json",
+      "exists": true,
+      "type": "installed-chain",
+      "note": "W4 bounded implementation or same-run proof; acceptance limits are in remainingRisks.",
+      "sha256": "b2950bad52cfa23b0c528c0a5fe6ff15661db2ec716b35075aeb5e9788d3c21c"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W4-final-codex-smoke.log",
+      "exists": true,
+      "type": "proof",
+      "note": "W4 bounded implementation or same-run proof; acceptance limits are in remainingRisks.",
+      "sha256": "247ead40387d98751c863672daff3e35a8880085415486dd1703dd7f15fa952f"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W4-final-claude-smoke.log",
+      "exists": true,
+      "type": "proof",
+      "note": "W4 bounded implementation or same-run proof; acceptance limits are in remainingRisks.",
+      "sha256": "1b9e4ef7914e1842b4d2af1cdce99cf0a02b64a6a97e7449703566f357a4a8be"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W4-final-hermes-smoke.log",
+      "exists": true,
+      "type": "proof",
+      "note": "W4 bounded implementation or same-run proof; acceptance limits are in remainingRisks.",
+      "sha256": "537c11126e8bb881383652d2b408aef0bbd1bf096c6c5bdf8908cf8a9088a71c"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W4-installed-drift.json",
+      "exists": true,
+      "type": "proof",
+      "note": "W4 bounded implementation or same-run proof; acceptance limits are in remainingRisks.",
+      "sha256": "e756c22d2acf1db33e05b56544e492b6529b08252e71a7445097e048410dd756"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/file-stdio-fixture.mjs",
+      "exists": true,
+      "type": "proof-fixture",
+      "note": "W4 bounded implementation or same-run proof; acceptance limits are in remainingRisks.",
+      "sha256": "f0084a12135bdbc8aa90283ca5cd16d0e93944b9d5dc25e3d543908e7c39149f"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/optional-resolution.mjs",
+      "exists": true,
+      "type": "proof-fixture",
+      "note": "W4 bounded implementation or same-run proof; acceptance limits are in remainingRisks.",
+      "sha256": "1a164ea5e6a734a4985611a333ea25a03e99c6ab9530039339b352c338c229cb"
+    }
+  ],
+  "proof": [
+    {
+      "command": "node skills/tester/scripts/legion-skill-eval.mjs",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "5 focused checks pass; 38 root entrypoints classified; ceremony and legacy route audit pass.",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-skills-release"
+    },
+    {
+      "command": "node skills/context-optimizer/scripts/skill-surface-audit.mjs",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "50 scanned surfaces; zero active violations, broken references or bundle errors.",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-skills-release"
+    },
+    {
+      "command": "node skills/context-optimizer/scripts/skill-drift-report.mjs",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "Repository drift count zero.",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-skills-release"
+    },
+    {
+      "command": "NODE_OPTIONS='--import=/tmp/centurion-v3-implementation-hjr_gs82/file-stdio-fixture.mjs --test-isolation=none' TMPDIR=/tmp/centurion-v3-implementation-hjr_gs82/fixtures node --test tests/install-owned-files.test.mjs",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "6 isolated tests pass: cold/upgrade/retirement, conflict preservation, rollback, symlink, TLS and capability invalidation.",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-skills-release"
+    },
+    {
+      "command": "NODE_OPTIONS='--import=/tmp/centurion-v3-implementation-hjr_gs82/file-stdio-fixture.mjs --import=/tmp/centurion-v3-implementation-hjr_gs82/optional-resolution.mjs --test-isolation=none' TMPDIR=/tmp/centurion-v3-implementation-hjr_gs82/fixtures node --test integrations/open-design-bridge/tests/contracts.test.mjs integrations/open-design-bridge/tests/references.test.mjs integrations/open-design-bridge/tests/cross-client.test.mjs",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "27 offline tests pass with explicit temporary targets, mock backend and integrity-checked temporary playwright-core.",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-skills-release"
+    },
+    {
+      "command": "NODE_OPTIONS='--import=/tmp/centurion-v3-implementation-hjr_gs82/file-stdio-fixture.mjs --test-isolation=none' TMPDIR=/tmp/centurion-v3-implementation-hjr_gs82/fixtures node integrations/codex-legion-kit/scripts/smoke.mjs",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "Offline selected install/parser compatibility smoke.",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-skills-release"
+    },
+    {
+      "command": "NODE_OPTIONS='--import=/tmp/centurion-v3-implementation-hjr_gs82/file-stdio-fixture.mjs --test-isolation=none' TMPDIR=/tmp/centurion-v3-implementation-hjr_gs82/fixtures node integrations/claude-legion-kit/scripts/smoke.mjs",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "Offline selected install and guard/scanner smoke.",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-skills-release"
+    },
+    {
+      "command": "NODE_OPTIONS='--import=/tmp/centurion-v3-implementation-hjr_gs82/file-stdio-fixture.mjs --test-isolation=none' TMPDIR=/tmp/centurion-v3-implementation-hjr_gs82/fixtures node integrations/hermes-legion-kit/scripts/smoke.mjs --skills-only",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "Hermes fixture pass; W2/W3 packaged regressions explicitly unrun.",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-skills-release"
+    },
+    {
+      "command": "node integrations/hermes-legion-kit/scripts/harness-audit.mjs --hermes-home /tmp/centurion-v3-implementation-hjr_gs82/installed/hermes; node integrations/claude-legion-kit/scripts/claude-surface-audit.mjs --claude-home /tmp/centurion-v3-implementation-hjr_gs82/installed/claude; node integrations/codex-legion-kit/scripts/codex-surface-audit.mjs --codex-home /tmp/centurion-v3-implementation-hjr_gs82/installed/codex --agents-home /tmp/centurion-v3-implementation-hjr_gs82/installed/agents",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "Codex, Claude and Hermes source/installed hash readback pass; installed drift zero.",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-skills-release"
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "No whitespace errors.",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-skills-release"
+    }
+  ],
+  "selfReview": {
+    "performed": true,
+    "findings": [
+      "No Python runner/contract modules or regressions changed.",
+      "No live home/config, credentials, deployment, push/tag/publication, AGY route or external model calls used.",
+      "Useful domain recipes preserved on demand; active biographies model-neutral."
+    ],
+    "fixesApplied": [
+      "Removed mandatory ceremony/retry/coverage/publish/helper rules.",
+      "Removed implicit delegate_task/agy/kanban and automatic MCP registration.",
+      "Added hash manifests, source inputs, capability binding and conflict-first transactional install."
+    ]
+  },
+  "scopeDeviations": [],
+  "forbiddenPatternHits": [],
+  "remainingRisks": [
+    "N5 independent Opus authority review not run; root must perform final review.",
+    "N6 full Hermes smoke with W2/W3 packaged regressions unrun until root integrates W2/W3; --skills-only is not that gate.",
+    "Native binary --version/help/schema/permission receipts are offline fixtures; live provider/model route unprobed.",
+    "liveLoadedChainProven=false: package readback does not prove native runtime precedence/consumption.",
+    "Full Open Design bridge/MCP/browser suite not claimed; 27 selected offline tests pass. Live Hermes/browser/image capability remains unproven.",
+    "Product release/pilot/N7/N8 acceptance remains open; version stays 3.0.0-rc.1."
+  ],
+  "questions": [],
+  "errors": [],
+  "stdoutSummary": "Focused evaluation, surface audit, installed-chain audits, client smokes, installer tests and selected Open Design offline tests passed.",
+  "stderrSummary": "Sandbox child pipe stdio returned EPERM; focused proof used a temporary file-backed stdio shim under authorized /tmp. Product code does not depend on the shim.",
+  "executorExtensions": {
+    "executionDecision": {
+      "taskClass": "skills_and_release",
+      "complexity": "high",
+      "risk": "medium",
+      "ambiguity": "medium",
+      "reversibility": "high",
+      "evidenceNeed": "high",
+      "executor": "codex",
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "xhigh",
+      "executionProfile": "implementation",
+      "verificationProfile": "independent_opus_and_root",
+      "confidence": "high",
+      "reasons": [
+        "User-authorized W4 instruction and packaging surfaces only; root remains final acceptor."
+      ]
+    },
+    "proofEnvironment": {
+      "stdioAdapter": "/tmp/centurion-v3-implementation-hjr_gs82/file-stdio-fixture.mjs",
+      "optionalDependencyResolution": "/tmp/centurion-v3-implementation-hjr_gs82/optional-resolution.mjs",
+      "optionalDependencyVersion": "playwright-core 1.60.0",
+      "networkCalls": false,
+      "liveHomeWrites": false,
+      "commits": false
+    }
+  }
+}

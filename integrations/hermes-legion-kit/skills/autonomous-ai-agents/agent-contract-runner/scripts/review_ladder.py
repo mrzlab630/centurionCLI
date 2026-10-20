@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
@@ -15,33 +16,25 @@ ROUTING_PREFIX = "AQUILA_ROUTING_JSON_V1:"
 CUTOVER_AT = datetime(2026, 8, 3, 11, 0, 42, tzinfo=timezone.utc)
 PROFILES = ("V0", "V1", "V2", "V3")
 PROFILE_RANK = {profile: index for index, profile in enumerate(PROFILES)}
+SOL_PRIMARY_MODEL = "gpt-6.1-sol"
 REVIEWER_BY_PROFILE = {
     "V0": "none",
-    "V1": "gpt-6-sol",
-    "V2": "claude-opus-5",
-    "V3": "claude-opus-5",
+    "V1": SOL_PRIMARY_MODEL,
+    "V2": "claude-opus-5-5",
+    "V3": "claude-opus-5-5",
 }
+REVIEWER_FALLBACK_BY_PROFILE: dict[str, str] = {}
 ALLOWED_MODELS = {
     "gpt-6-luna",
-    "gpt-6-sol",
+    SOL_PRIMARY_MODEL,
     "gpt-6-astra",
-    "gemini-3.8-flash",
-    "claude-opus-5",
-    "agy",
-    "hermes-delegate-task",
-    "other",
+    "claude-opus-5-5",
 }
-GEMINI_CREATIVE_ROLES = {
-    "AEDILIS",
-    "PICTOR",
-    "NOMENCLATOR",
-    "GLOSSATOR",
-    "LUDIFEX",
-    "ORATOR",
-    "MERCATOR",
-    "SCRIBA",
-    "TABULARIUS",
-    "INTERPRES",
+MODEL_REASONING_EFFORTS = {
+    SOL_PRIMARY_MODEL: {"low", "medium", "high", "xhigh", "max"},
+    "gpt-6-luna": {"high", "xhigh"},
+    "gpt-6-astra": {"high", "xhigh"},
+    "claude-opus-5-5": {"high", "xhigh", "max"},
 }
 ALLOWED_REASONING_EFFORTS = {"none", "low", "medium", "high", "xhigh", "max"}
 ASTRA_ADVISORY_TRIGGERS = {
@@ -175,14 +168,12 @@ def _parse_timestamp(value: Any) -> datetime:
 
 
 def _normalized_decision_text(metadata: dict[str, Any]) -> str:
-    reasons = metadata.get("reasons", [])
-    values = [metadata.get("taskClass", ""), *[reason for reason in reasons if isinstance(reason, str)]]
-    return " ".join(values).casefold()
+    return str(metadata.get("taskClass", "")).casefold()
 
 
 def _contains_marker(text: str, markers: Iterable[str]) -> bool:
-    normalized = re.sub(r"[-/]+", " ", text)
-    return any(marker in text or marker.replace("_", " ") in normalized for marker in markers)
+    normalized = re.sub(r"[-/_]+", " ", text)
+    return any(re.search(r"(?<!\w)" + re.escape(marker.replace("_", " ")) + r"(?!\w)", normalized) for marker in markers)
 
 
 def _trust_predicates_have_legacy_shape(metadata: dict[str, Any]) -> bool:
@@ -204,7 +195,7 @@ def _all_pre_execution_predicates(metadata: dict[str, Any]) -> bool:
 
 def _requires_sol(metadata: dict[str, Any]) -> bool:
     return (
-        metadata["complexity"] == "high"
+        metadata["complexity"] != "low"
         or metadata["risk"] != "low"
         or metadata["ambiguity"] != "low"
         or metadata["reversibility"] != "high"
@@ -215,6 +206,12 @@ def _requires_sol(metadata: dict[str, Any]) -> bool:
 
 def _minimum_codex_effort(metadata: dict[str, Any]) -> str:
     decision_text = _normalized_decision_text(metadata)
+    if metadata["executionProfile"] == "advisory":
+        return "xhigh" if (
+            metadata["complexity"] == "high"
+            or metadata["risk"] == "high"
+            or metadata["ambiguity"] == "high"
+        ) else "high"
     if metadata["ambiguity"] == "high" or _contains_marker(decision_text, XHIGH_EFFORT_MARKERS):
         return "xhigh"
     if (
@@ -228,7 +225,7 @@ def _minimum_codex_effort(metadata: dict[str, Any]) -> str:
     ):
         return "high"
     if metadata["complexity"] == "low" and _contains_marker(decision_text, EXACT_WORK_MARKERS) and _all_pre_execution_predicates(metadata):
-        return "none"
+        return "low"
     if metadata["complexity"] == "low" and _contains_marker(decision_text, MECHANICAL_WORK_MARKERS):
         return "low"
     return "medium"
@@ -291,7 +288,7 @@ def task_class_promotion(history: Iterable[dict[str, Any]], task_class: str) -> 
     sol_rows = [
         row
         for row in rows
-        if row.get("reviewer") in {"gpt-6-sol", "gpt-5.6-sol", "sol"} and row.get("status") == "done"
+        if row.get("reviewer") in {SOL_PRIMARY_MODEL, "gpt-6-sol", "gpt-5.6-sol", "sol"} and row.get("status") == "done"
     ]
     for row in sol_rows:
         if str(row.get("failureClass", "")).casefold().startswith("sol_miss") and _severity(row) == "high":
@@ -315,8 +312,9 @@ def select_review_route(metadata: dict[str, Any], history: Iterable[dict[str, An
     gate_satisfied = profile != "V3"
     return {
         "verificationProfile": profile,
-        "route": "astra_advisory" if advisory else ("terminal_closure" if terminal else ("deterministic_only" if profile == "V0" else ("sol" if profile == "V1" else "claude-opus-5"))),
+        "route": "astra_advisory" if advisory else ("terminal_closure" if terminal else ("deterministic_only" if profile == "V0" else ("sol" if profile == "V1" else "claude-opus-5-5"))),
         "reviewer": reviewer,
+        "fallbackReviewer": None,
         "specialistGateRequired": profile == "V3",
         "specialistGateSatisfied": gate_satisfied,
         "reasons": reasons,
@@ -334,9 +332,11 @@ def _effective_profile(metadata: dict[str, Any], history: Iterable[dict[str, Any
     if declared in PROFILE_RANK and PROFILE_RANK[declared] > PROFILE_RANK[profile]:
         profile = declared
         reasons.append("preserve declared verification profile")
-    if profile == "V1" and metadata.get("executor") == "codex" and metadata.get("executionProfile") == "implementation":
+    if profile == "V1" and metadata.get("executionProfile") == "implementation" and not (
+        metadata.get("executor") == "claude" and metadata.get("model") == "claude-opus-5-5"
+    ):
         profile = "V2"
-        reasons.append("promotion: Codex implementation requires an independent Claude reviewer")
+        reasons.append("promotion: V1 Sol review is limited to canonical Claude Opus authors")
     return profile, reasons
 
 
@@ -381,9 +381,12 @@ def validate_routing_metadata(
         raise RoutingError("routing.model is not an allowed model")
     if metadata["reasoningEffort"] not in ALLOWED_REASONING_EFFORTS:
         raise RoutingError("routing.reasoningEffort is not supported")
+    if metadata["reasoningEffort"] not in MODEL_REASONING_EFFORTS[metadata["model"]]:
+        allowed_efforts = ", ".join(sorted(MODEL_REASONING_EFFORTS[metadata["model"]], key=EFFORT_RANK.__getitem__))
+        raise RoutingError(f"{metadata['model']} routing.reasoningEffort must be one of {allowed_efforts}")
     if metadata["verificationProfile"] not in PROFILES:
         raise RoutingError("routing.verificationProfile must be V0, V1, V2, or V3")
-    if metadata["reviewer"] not in {"none", "gpt-6-sol", "claude-opus-5"}:
+    if metadata["reviewer"] not in {"none", SOL_PRIMARY_MODEL, "claude-opus-5-5"}:
         raise RoutingError("routing.reviewer is not a supported reviewer route")
     reasons = metadata.get("reasons")
     if not isinstance(reasons, list) or not reasons or not all(isinstance(item, str) and item.strip() for item in reasons):
@@ -395,26 +398,32 @@ def validate_routing_metadata(
 
     executor = metadata["executor"]
     model = metadata["model"]
-    if executor == "codex" and model not in {"gpt-6-luna", "gpt-6-sol", "gpt-6-astra"}:
+    if executor not in {"codex", "claude"}:
+        raise RoutingError("routing.executor must be codex or claude for canonical routes")
+    if executor == "codex" and model not in {"gpt-6-luna", SOL_PRIMARY_MODEL, "gpt-6-astra"}:
         raise RoutingError("codex routing.model must be a supported GPT-6 model")
-    if executor == "claude" and model != "claude-opus-5":
-        raise RoutingError("claude routing.model must be claude-opus-5")
-    if executor == "agy" and model not in {"agy", "gemini-3.8-flash"}:
-        raise RoutingError("agy routing.model must be agy or gemini-3.8-flash")
-    if model == "gemini-3.8-flash":
-        if executor != "agy":
-            raise RoutingError("gemini-3.8-flash requires executor=agy")
-        role = str(order.get("roleForTask", "")).upper()
-        if role not in GEMINI_CREATIVE_ROLES:
-            raise RoutingError(
-                "gemini-3.8-flash is reserved for UI, design, language, and creative Legionary roles"
-            )
-        if metadata["reasoningEffort"] not in {"low", "medium", "high"}:
-            raise RoutingError("Gemini through agy supports only low, medium, or high effort")
-
+    if executor == "claude" and model != "claude-opus-5-5":
+        raise RoutingError("claude routing.model must be claude-opus-5-5")
+    launch = order.get("launch")
+    if isinstance(launch, dict) and isinstance(launch.get("command"), str):
+        try:
+            launch_arguments = shlex.split(launch["command"])
+        except ValueError as exc:
+            raise RoutingError("launch.command must have valid shell quoting") from exc
+        if "--" in launch_arguments:
+            launch_arguments = launch_arguments[:launch_arguments.index("--")]
+        if any(argument.split("=", 1)[0] == "--fallback-model" for argument in launch_arguments):
+            raise RoutingError("canonical routes do not permit --fallback-model")
+        if executor == "claude":
+            launch_models = []
+            for index, argument in enumerate(launch_arguments):
+                if argument == "--model":
+                    launch_models.append(launch_arguments[index + 1] if index + 1 < len(launch_arguments) else "")
+                elif argument.startswith("--model="):
+                    launch_models.append(argument.split("=", 1)[1])
+            if not launch_arguments or launch_arguments[0].rsplit("/", 1)[-1] != "claude" or launch_models != [model]:
+                raise RoutingError("Claude launch.command must select exactly the canonical routing.model")
     execution_profile = metadata["executionProfile"]
-    if model == "gemini-3.8-flash" and execution_profile != "implementation":
-        raise RoutingError("gemini-3.8-flash may only run as an implementation executor")
     if (model == "gpt-6-astra") != (execution_profile == "advisory"):
         raise RoutingError("gpt-6-astra is limited to the advisory execution profile")
     profile = metadata["verificationProfile"]
@@ -423,7 +432,7 @@ def validate_routing_metadata(
     if PROFILE_RANK[profile] < PROFILE_RANK[floor]:
         raise RoutingError(f"routing profile {profile} violates hard floor {floor}")
     if executor == "codex" and model == "gpt-6-luna" and _requires_sol(metadata):
-        raise RoutingError("codex routing.model requires gpt-6-sol for complex, uncertain, or consequential work")
+        raise RoutingError(f"codex routing.model requires {SOL_PRIMARY_MODEL} for complex, uncertain, or consequential work")
     if executor == "codex":
         minimum_effort = _minimum_codex_effort(metadata)
         if EFFORT_RANK[metadata["reasoningEffort"]] < EFFORT_RANK[minimum_effort]:
@@ -438,8 +447,6 @@ def validate_routing_metadata(
             raise RoutingError("Astra advisory records V2/V3 downstream floor with reviewer=none")
         if "terminalGate" in metadata:
             raise RoutingError("Astra advisory cannot be a terminal review")
-        if EFFORT_RANK[metadata["reasoningEffort"]] < EFFORT_RANK["xhigh"]:
-            raise RoutingError("Astra advisory requires at least xhigh effort")
         if not any(reason in ASTRA_ADVISORY_TRIGGERS for reason in reasons):
             raise RoutingError("Astra advisory requires an explicit architectural trigger")
     elif execution_profile == "terminal_review":
@@ -449,14 +456,14 @@ def validate_routing_metadata(
             raise RoutingError("V0 has no reviewer order")
         if metadata["reviewer"] != "none":
             raise RoutingError("terminal review orders cannot select another reviewer")
-        expected_model = "gpt-6-sol" if profile == "V1" else "claude-opus-5"
+        expected_model = SOL_PRIMARY_MODEL if profile == "V1" else "claude-opus-5-5"
         if model != expected_model:
             raise RoutingError(f"{profile} terminal review must run {expected_model}")
         expected_executor = "codex" if profile == "V1" else "claude"
         if executor != expected_executor:
             raise RoutingError(f"{profile} terminal review requires executor={expected_executor}")
     elif execution_profile == "implementation":
-        if profile in {"V2", "V3"} and (executor in {"claude", "claudeFable"} or model == REVIEWER_BY_PROFILE[profile]):
+        if profile in {"V2", "V3"} and executor == "claude":
             raise RoutingError("independent reviewer unavailable under current V2/V3 policy")
         if PROFILE_RANK[profile] > PROFILE_RANK[base_floor] and not any(
             reason.casefold().startswith(("promotion:", "escalation:")) for reason in reasons

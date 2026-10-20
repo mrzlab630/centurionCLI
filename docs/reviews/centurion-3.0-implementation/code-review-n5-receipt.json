@@ -1,0 +1,47 @@
+{
+  "inputHashes": {
+    "CLAUDE.md": "8c006c5405332c2fc957967ba6cb6f488a6523ba181c782d6c2ae5d152391ee4",
+    "PROBATIO.md": "25583dfb2acfb354ca940c6f951c2ad54822e18e852330d176ca40d645a25863",
+    "integrations/claude-legion-kit/plugin/SKILL.md": "598e181a93288a1a9147ec59c1dedb65e8d0fee57106799c2f22cbf6066240e8",
+    "integrations/codex-legion-kit/scripts/lib/surface-config.mjs": "d3306e6aa185285cef4817b809b2c659a9b2d553cbf1dfdc41230bbb37865f34",
+    "integrations/hermes-legion-kit/overrides/ADAPTIVE_MODEL_ROUTING_POLICY.md": "a0ef92dd33417567b5f8edd38b4e5019f3cc7560450587c9a02fa1b38c89a6c1",
+    "integrations/hermes-legion-kit/overrides/AQUILA_SOUL_OVERRIDES.md": "39e921ed080e44a94f961c1042f6686c38a483b6c643e697ab3d7a896954115a",
+    "integrations/hermes-legion-kit/overrides/SOUL_CLAUDE_ROLE_RULE.md": "b8cc60a1ac45598506a34fea00f2e06e21b741af48969a084ebedaebdc85775d",
+    "integrations/hermes-legion-kit/overrides/SOUL_RUNTIME_MODEL_RULE.md": "41a0c2132df738727b8093fc860edbf4602b00db4bcc4b0ebcdccffd289c0e61",
+    "integrations/hermes-legion-kit/skill-bundles/aquila-delivery.yaml": "f29e8ec70b47c6e9aed0646a8e8d84ba848586ac7b88be818bd02a2f41ef7f8c",
+    "integrations/hermes-legion-kit/skill-bundles/aquila-design-production.yaml": "9a9d71137b294dcd58e6ad9733060e0e470970eeee99fcca45e0ef5578a40b73",
+    "integrations/hermes-legion-kit/skill-bundles/aquila-executor-eval.yaml": "e73c6ffaaf974e5bf35909d6b6e7435d87f7ba3d79633134164db521fcf78f80",
+    "integrations/hermes-legion-kit/skill-bundles/aquila-harness-audit.yaml": "cca7803c19a723cba63b6b54f92e6a0618ce50da4cd17b763775c873b3180fb3",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/SKILL.md": "86ae3fb6b40b1799299e7ad4bc1ffe3be479030a2aa24e610d132b650e8ce811",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/aquila-team-orchestration/SKILL.md": "3879689c56100594ac1394775150a6d47db789581b676a64e75cf6983a36c9ec",
+    "scripts/install-owned-files.mjs": "4915dc07852f6d3eba57a1ca8fce04edbf732a06cae12bd4bc4158952e0cc745",
+    "skills/architect/SKILL.md": "75c0cdfa534c9cd9f5565aae9155f448ce557b3d0d75358bd537272b60010e2c",
+    "skills/coder/SKILL.md": "8f79cc8d65dd2fcc9987aa1795806061502976b8a48092f2159f30c61f620c3b",
+    "skills/context-optimizer/SKILL.md": "6e12237f98b73dad3b9fedd36ecbd6da3b06e91be951d2ea37e9a97a746690f9",
+    "skills/open-design-producer/SKILL.md": "eaa2077994b81c1d67eee8ac4bade6923cf60c242a50f5cf9899665964e3e5f5",
+    "skills/orchestrator/SKILL.md": "b7d805fc423293448877731acad90000f5203c0c24bc4d0eee5ea5a1055371d0",
+    "skills/researcher/SKILL.md": "a633eb7bfce1296fca9385595be4b302b12846d75e886377a6b44825ddbf7374",
+    "skills/reviewer/SKILL.md": "e5d174aede02c03c78898765a8313441d1679bb5d36f5c62be14a8fa7eeeba1a",
+    "skills/tester/SKILL.md": "4a635acb41e7017fa7415478b1d418c30ef54cf7a843ecbeb9e1108deedc416f"
+  },
+  "requestedModel": "claude-opus-5-5",
+  "reportedModel": "claude-opus-5-5",
+  "requestedEffort": "high",
+  "stopReason": "end_turn",
+  "usage": {
+    "input_tokens": 11681,
+    "cache_creation_input_tokens": 85259,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 700,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 85259
+    },
+    "claude_cache_creation_5_m_tokens": 0,
+    "claude_cache_creation_1_h_tokens": 0
+  },
+  "tools": [],
+  "credentialsSent": false,
+  "elapsedSeconds": 12.09,
+  "responseSha256": "d21055ab497ae6ca721da1227ed1b4c0db6fde01a85194ba84065ae6f81e2c55",
+  "fenceRemoved": true
+}

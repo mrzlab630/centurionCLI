@@ -1,0 +1,13 @@
+PASS 3.0 restart, duplicate delivery, single lock and stable intent identity (no child replay)
+PASS 3.0 unknown effect and state-write failures preserve budget and prohibit replay
+PASS 3.0 post-replace state failure records unknown commit without refund or launch
+PASS 3.0 advisory shares mission launch budget without product attempt authority
+PASS 3.0 explicit advisory completion, immutable action binding, wrong-action denial, no replay and final controller proof
+PASS 3.0 scope narrowing, criterion/proof preservation, acceptance write failure and final mission completion
+PASS 3.0 independent review required, verdict fail rejects, shared reviewer launch accounting
+PASS 3.0 positive bound independent review, final controller proof and observed ledger counters
+PASS 3.0 criterion-bound correction, new order accounting, product attempt exhaustion and unintegrated Gateway denial
+PASS 3.0 accepted dependency revision gate and explicit cancellation before spawn
+PASS 3.0 consumed budget, no-progress after success and one bounded strategy switch
+PASS 3.0 cutoff, terminal closure, disabled report, old/missing policy and missing/corrupt state
+PASS 3.0 actual direct-run denial and pinned owned-process termination without signalling foreign identity

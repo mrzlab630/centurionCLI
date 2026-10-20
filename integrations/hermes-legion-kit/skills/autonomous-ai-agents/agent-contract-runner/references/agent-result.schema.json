@@ -131,6 +131,31 @@
     },
     "executorExtensions": {
       "type": "object",
+      "properties": {
+        "review": {
+          "type": "object",
+          "required": ["verdict", "findings", "reviewedOrderId", "reviewedResultSha256", "productSnapshotSha256"],
+          "properties": {
+            "verdict": {"enum": ["pass", "fail", "blocked"]},
+            "findings": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["criterion", "evidence"],
+                "properties": {
+                  "criterion": {"type": "string", "minLength": 1},
+                  "evidence": {"type": "string", "minLength": 1}
+                },
+                "additionalProperties": true
+              }
+            },
+            "reviewedOrderId": {"type": "string", "minLength": 1},
+            "reviewedResultSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "productSnapshotSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          },
+          "additionalProperties": false
+        }
+      },
       "additionalProperties": true
     },
     "scopeDeviations": {

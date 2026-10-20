@@ -1,0 +1,12 @@
+{
+  "verdict": "ACCEPT",
+  "summary": "Report recovery correctly prevents product replay and preserves saved observations. The observed canonical result is created exactly once (line 1400-1402), capture resumption requires complete custody (lines 1316-1317, 1390-1391), and verification reuses saved controller proof without re-execution (lines 1419-1421). State persistence prevents double-spend across interruption boundaries (lines 1336, 1360). The test demonstrates recovery both before and after observe_result, confirms single-launch budget consumption, and validates that tampered candidates are rejected (lines 287-394).",
+  "findings": [],
+  "limitations": [
+    "Q6 capability verification remains disabled in production (line 1727). This is a known release blocker documented in previous context, not a defect in these recovery sources.",
+    "N7 review-based verification profile is similarly disabled (line 1729). This matches stated production constraints.",
+    "Test coverage uses a synthetic CLI fixture (lines 260-273) rather than the real Claude CLI. The actual no-write enforcement depends on the pinned binary's behavior, which these sources correctly delegate to the capability receipt.",
+    "Workspace snapshot relies on Git availability (lines 429-432). The code fails closed when Git inspection fails, which is correct for the documented Git-only scope model.",
+    "The test validates single-launch budget enforcement but does not exercise all budget exhaustion paths or maximum model launch limits under concurrent access."
+  ]
+}

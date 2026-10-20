@@ -1,0 +1,25 @@
+{
+  "inputHashes": {
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": "b6e874204334a16b740dc8d9c97f6e349fdab0f97d3af037161cd9afd23bfc49",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": "c62e97fb3dfa6bd9864b7d99baf5461427b24db00bd34337fe3033624e953a33",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py": "d923ad06d570355c5bf9b8e7d37e330744da9c441c10af54f6deb251ef096ffb"
+  },
+  "requestedModel": "claude-opus-5-5",
+  "reportedModel": "claude-opus-5-5",
+  "stopReason": "end_turn",
+  "requestedEffort": "high",
+  "usage": {
+    "cache_creation_input_tokens": 11337,
+    "cache_read_input_tokens": 41715,
+    "credit_unit": "credit",
+    "credit_unit_plural": "credits",
+    "credit_usage": 0.14334980477611942,
+    "input_tokens": 0,
+    "output_tokens": 470
+  },
+  "credentialsSent": false,
+  "tools": [],
+  "elapsedSeconds": 15.82,
+  "responseSha256": "b638833f6ce7e07e1f6866281c41839807fe31d153a7463dcbb9cfa4d0e2f5aa",
+  "fenceRemoved": true
+}

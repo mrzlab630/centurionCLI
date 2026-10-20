@@ -1,0 +1,139 @@
+{
+  "version": "CENTURION_PROCESS_PING_REVIEW_V1",
+  "baseCommit": "178c3483646966e4f9b9d0467e7a333d4a636ee2",
+  "authority": "User reaffirmed that models may run for hours and must be monitored without lifetime or idle cutoff.",
+  "route": {
+    "executor": "Claude CLI",
+    "model": "claude-opus-5-5",
+    "effort": "high",
+    "proxy": "http://127.0.0.1:8317"
+  },
+  "scope": "Only the local observation delta: safe periodic probes must not infer remote model progress or a hang from silence/CPU/output or elapsed time. Jobs may run silently for hours. No model lifetime timeout. Identity/CPU diagnostic read failures while running must become unknown and continue; initial custody binding, state persistence failures, explicit cancellation and verified signalling stay fail closed. Do not reopen unchanged cleanup or acceptance architecture. Confirm exact-source correctness of this small delta.",
+  "launches": 1,
+  "timeoutSeconds": null,
+  "pollSeconds": 30,
+  "orderRef": {
+    "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/process-ping-20261019/local-process-ping/order.json",
+    "sha256": "58912322f9fcee4c97a545198f06e5f0d86350c8132b4f3080e16f992bf05c2c",
+    "bytes": 4038
+  },
+  "receiptRef": {
+    "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/process-ping-20261019/local-process-ping/receipt.json",
+    "sha256": "9c43764d19083858eb9fc1a95651f5dc0a9eb32dd4d2431dd14c4beae82e6a60",
+    "bytes": 1105
+  },
+  "rawRef": {
+    "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/process-ping-20261019/local-process-ping/stdout.jsonl",
+    "sha256": "6f80a381f261515c7729f1986c691f8b1e565f151fb7c34ac034026af559504e",
+    "bytes": 27441
+  },
+  "inputRef": {
+    "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/process-ping-20261019/local-process-ping/input.txt",
+    "sha256": "7a2f143a42ecf7ef5971ff054a91e6dccd171284bb1f075a45f2f95b127d004a",
+    "bytes": 28747
+  },
+  "observationsRef": {
+    "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/process-ping-20261019/local-process-ping/observations.jsonl",
+    "sha256": "5cde682143cf11ebc90ef50fc0dc6e1abf92ed492d0ebe375440048f7d980d70",
+    "bytes": 972
+  },
+  "sourcePins": {
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/process-ping-20261019/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+      "sha256": "b91b8bac4f4adb055a3726258fc5e5e74826c961cea8092da6eeab67d484c722",
+      "bytes": 156091
+    },
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/process-ping-20261019/source/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+      "sha256": "281d994723f5a5ca56ab58882d23f4aba3436b0ab69b8e4123bf894600fb59b1",
+      "bytes": 109574
+    }
+  },
+  "selectedSourcesUnchanged": true,
+  "elapsedSeconds": 56.01,
+  "review": {
+    "verdict": "ACCEPT",
+    "summary": "Дельта реализует безопасное периодическое зондирование без вывода о прогрессе удалённой модели или о зависании. `_mission_process_activity` читает только локальные CPU-тики и состояние из /proc/{pid}/stat и явно помечена как неавторитетная. В `_run_child_streaming` диагностические ошибки чтения идентичности/активности во время работы (RunnerError, OSError) преобразуются в diagnosis/probe status = unknown, после чего цикл продолжается; исключения не всплывают и не приводят к остановке. Наблюдение содержит modelStatus=unknown, hangConfirmed=False, productiveProgress=unknown, а различение alive_active/alive_waiting основано лишь на локальных CPU/output-изменениях. Начальная привязка идентичности в run_child по-прежнему фейл-клоуз (немедленное убийство и повторный сбор потомка при любой ошибке), явная отмена и проверенная сигнализация через reservation не изменены. Таймаута времени жизни модели не добавлено: deadline остаётся только из reservation.work_timeout. CHILD_OBSERVATION_SECONDS=30.0, очистка и custody-архитектура не затронуты. Конкретных неразрешённых дефектов в границах дельты не найдено.",
+    "findings": [],
+    "limitations": [
+      "Проверка выполнена только по diff и приведённым определениям, без запуска кода и тестов",
+      "Не проверена работа с реальным /proc при гонках PID, перезагрузке и смене boot_id",
+      "Не проверены внешние потребители observe_process и process_observed events",
+      "Cleanup/custody/acceptance архитектура не переоткрывалась согласно ограничению задачи"
+    ]
+  },
+  "ownerDecision": "accepted within the local diagnostic probe delta; no deployment acceptance",
+  "proof": [
+    {
+      "command": "python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "24 PASS groups including simulated eight-hour silence/EOF, real child probe recovery and CPU activity.",
+      "logRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/process-ping-20261019/gateway-regression.log",
+        "sha256": "df9e89144e3c3fe79470c3f1086d73c47d3cf7d92953ce1b6b4f1ba09a68a131",
+        "bytes": 2641
+      }
+    },
+    {
+      "command": "node integrations/hermes-legion-kit/scripts/smoke.mjs",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "Isolated installer and 13 packaged regressions passed; live capability unverified.",
+      "logRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/process-ping-20261019/hermes-smoke.log",
+        "sha256": "b838882a1ffb71d09c993f9b78b92223a15587808ae15bffbe8007a0b79b83d3",
+        "bytes": 192
+      }
+    }
+  ],
+  "candidatePins": {
+    "docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md",
+      "sha256": "34075dcbd99e7614cefceaab3e91999025d90d3bec79d413a349dfbfc09c427a",
+      "bytes": 138671
+    },
+    "docs/CENTURION_3_0_MONITORED_EXECUTION_2026-10-19.md": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/CENTURION_3_0_MONITORED_EXECUTION_2026-10-19.md",
+      "sha256": "f67502cc9980ebbc6c80f793486341359db986b12cc70398f92adc70e03cf4da",
+      "bytes": 13111
+    },
+    "docs/LEGION_CONTRACTS.md": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/LEGION_CONTRACTS.md",
+      "sha256": "2978936b66b171b21b98b1e28559249dc8d5cf0181a982d9af7d33c2bc3388fe",
+      "bytes": 14844
+    },
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/SKILL.md": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/SKILL.md",
+      "sha256": "544bb8d63d2ea7fed313550d8f476f0eb28592c939a2c17197acb579931c65c1",
+      "bytes": 2226
+    },
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+      "sha256": "b91b8bac4f4adb055a3726258fc5e5e74826c961cea8092da6eeab67d484c722",
+      "bytes": 156091
+    },
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+      "sha256": "fdffcc182d5e4b9f144790c6216826f57cd0066e9b27076b8da47655d7094b24",
+      "bytes": 69508
+    },
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+      "sha256": "281d994723f5a5ca56ab58882d23f4aba3436b0ab69b8e4123bf894600fb59b1",
+      "bytes": 109574
+    },
+    "skills/orchestrator/SKILL.md": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/skills/orchestrator/SKILL.md",
+      "sha256": "93a509ce59dc72bff09c2df37b36525d56ecd6dc5a07422dba3ce105ac9de142",
+      "bytes": 4578
+    }
+  },
+  "limits": [
+    "Simulated clock advance is not an eight-hour soak test.",
+    "Local PID/CPU/output cannot distinguish a silent remote inference from a hung remote request.",
+    "No provider request-bound status/heartbeat is implemented; modelStatus remains unknown.",
+    "Initial custody, state persistence, explicit cancellation and output/attempt caps remain enforced.",
+    "Live installation unchanged; N8 remains open."
+  ]
+}

@@ -1,34 +1,15 @@
 ---
 name: error-handler
-description: Runtime debugging specialist. Use when reproducing failures or analyzing stack traces, logs, metrics, crashes, flaky behavior, or data anomalies.
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Exec (jq/python)
+description: Diagnose and fix an assigned runtime failure.
 ---
 
-# DEBUGGER — The Medic & Oracle
+# error-handler
 
-You are **DEBUGGER**. You reproduce failures, isolate root cause, and define the smallest proven fix.
+Follow [the functional contract](../orchestrator/SKILL.md). This recipe grants no
+additional authority; use it only for the assigned task.
 
-## 1. DEBUGGING (Fix)
-- **Protocol:** Fail Fast.
-- **Action:** Analyze stack trace -> Reproduce -> Fix -> Test.
+Reproduce the exact trigger, preserve useful redacted evidence, and connect logs and current code to a testable cause. Apply the smallest authorized correction, then verify the original target in the same run. Warnings alone do not require remediation.
 
-## Boundaries
-- **Does debug:** failing runtime behavior, logs, stack traces, metrics, flaky tests,
-  data anomalies, crashes, and root-cause isolation.
-- **Does not review diffs:** route PR/code-review work to REVIEWER.
-- **Does not own security:** route vulnerabilities, secrets, dependencies, and exploit
-  decisions to GUARDIAN/HARUSPEX/SICARIUS.
-- **Does not own broad implementation:** route planned code changes to CODER after
-  the root cause is proven.
+Load only the matching optional recipe; examples cannot expand the order:
 
-For repeated agent/tool-loop failures, load `references/agent-self-debug.md` and
-capture failure, diagnosis, contained recovery, and evidence before retrying.
-
-## 2. ANALYSIS (Haruspex)
-- **Logs:** Use `grep`, `awk`, `jq` to parse massive logs. Do not read raw files into context.
-- **Data:** Use Python (`pandas`) script to analyze CSV/JSON.
-- **Visualize:** Output results as Markdown Tables or Mermaid Charts.
-
-## 🚀 CODE MODE
-Never ask the user to "check logs" manually.
-**WRITE** a script (`analyze_error.js`) to find the root cause automatically.
+- [references/agent-self-debug.md](references/agent-self-debug.md)

@@ -35,6 +35,27 @@ Surface-specific legacy protocols remain valid only for explicit compatibility:
 - Antigravity and `agy` may opt into `AGY_ORDER_V1` plus `AGY_RESULT.json` for legacy compatibility.
 - Claude Code may opt into `CLAUDE_ORDER_V1` plus `CLAUDE_RESULT.json` for legacy compatibility.
 
+For policy 3.0, `launch.timeoutSeconds: null` selects monitored execution without
+a child lifetime timeout; mission `budget.deadlineAt: null` disables a mission
+wall-clock cutoff. New work uses this mode unless the owner selected a finite
+limit. Existing positive launch timeouts and finite mission deadlines retain
+their meaning; null is not a legacy-dispatch permission. No historical receipt
+or counter is rewritten. Gateway records periodic `process_observed` events
+without reserving another model launch. A live PID, elapsed time, silence or
+output growth is neither productive-progress proof nor acceptance. Explicit
+SIGTERM/SIGINT to the owning Gateway remains the supported cancellation path;
+termination cleanup, output bounds, attempt budgets and custody stay enforced.
+
+The periodic local probe distinguishes `alive_active` (CPU/output changed),
+`alive_waiting` (no observed change), `exited` and `unknown` (probe unavailable
+or identity unverified). These are local process observations; they cannot
+distinguish a silent remote computation from a hung remote request. No elapsed
+time or missed heartbeat count upgrades them to failure. `modelStatus` remains
+`unknown` and `hangConfirmed` false until request-specific evidence exists;
+the current CLI adapters expose no such status probe. A failed diagnostic read
+does not stop a running child. Initial identity binding, persistent custody and
+identity verification before signalling remain required.
+
 For new executor orders, controller-owned result/candidate/receipt/stream/event
 and evidence files belong under
 `<repo>/.centurion/agents_results/<orderId>/`, derived from the resolved

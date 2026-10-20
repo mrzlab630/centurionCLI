@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import atexit
+import copy
 import importlib.util
 import json
 import os
@@ -56,6 +57,19 @@ def install_fake_executor() -> None:
         "executor_name = pathlib.Path(sys.argv[0]).name\n"
         "if executor_name == 'codex' and len(sys.argv) > 4 and sys.argv[1] == 'exec':\n"
         "    del sys.argv[1:6]\n"
+        "if executor_name == 'claude':\n"
+        "    filtered = []\n"
+        "    index = 1\n"
+        "    while index < len(sys.argv):\n"
+        "        if sys.argv[index] in {'--model', '--fallback-model'} and index + 1 < len(sys.argv):\n"
+        "            index += 2\n"
+        "            continue\n"
+        "        if sys.argv[index].startswith('--model=') or sys.argv[index].startswith('--fallback-model='):\n"
+        "            index += 1\n"
+        "            continue\n"
+        "        filtered.append(sys.argv[index])\n"
+        "        index += 1\n"
+        "    sys.argv[1:] = filtered\n"
         "result_path = pathlib.Path(sys.argv[1])\n"
         "artifact_path = pathlib.Path(sys.argv[2])\n"
         "proof_status = sys.argv[3]\n"
@@ -373,7 +387,554 @@ def base_loop_state(
     return {"stateVersion": "AQUILA_LOOP_STATE_V1", "loopId": "loop-fixture", "controller": "Aquila", "project": "loop-fixture", "statePath": str(FIXTURE_ROOT / "placeholder" / "state.json"), "workItem": {"workItemId": "item-1", "objective": "bounded fixture", "status": status, "pendingWorkItems": pending or []}, "iteration": {"current": current, "max": 3}, "budgets": {"startedAt": safe_started_at, "maxWallSeconds": max_wall_seconds}, "candidate": candidate or {"orderId": "", "executor": "", "resultPath": ""}, "verification": {"status": "pending"}, "failures": [], "transitions": []}
 
 
+def mission_regressions() -> None:
+    """Policy 3.0 proof is separate from retained legacy Loop V1 fixtures."""
+    runner = load_runner_module()
+
+    def rejected(fn, marker: str) -> None:
+        try:
+            fn()
+        except (runner.RunnerError, OSError) as exc:
+            assert_case(marker in str(exc), f"expected {marker!r}, got {exc}")
+        else:
+            raise AssertionError(f"expected rejection {marker}")
+
+    def fixture(name: str, *, maximum: int = 8, profile: str = "V0", completion_action: str | None = None, monitored: bool = False):
+        root = FIXTURE_ROOT / ("mission-" + name)
+        root.mkdir()
+        product = root / "src"
+        product.mkdir()
+        target = product / "artifact.txt"
+        order_path, result_path, _, _, _, events_path = make_order(
+            root, "mission-" + name, "pass", True, "python3 -c 'print(\"proof\")'", artifact_path=target,
+            proof_cwd=product, proof_argv=["python3", "-c", 'print("proof")'])
+        order = json.loads(order_path.read_text())
+        order["executor"] = "codex"
+        order["createdAt"] = "2026-10-16T00:00:00Z"
+        order["launch"]["command"] = "codex exec --model gpt-6.1-sol -c model_reasoning_effort=high fixture"
+        order["objective"] = "bounded mission"
+        order["allowedPaths"] = [str(product / "**"), str(artifact_namespace(root, order["orderId"]) / "**")]
+        order["acceptanceCriteria"] = ["bounded criterion"]
+        order["nonGoals"] = ["no deploy"]
+        route = {"objectiveId": "mission-" + name, "attempt": 1, "taskClass": "narrow_mission_fixture", "complexity": "low", "risk": "low", "ambiguity": "low", "reversibility": "high", "evidenceNeed": "low", "executor": "codex", "model": "gpt-6.1-sol", "reasoningEffort": "high", "executionProfile": "implementation", "verificationProfile": profile, "reviewer": "none" if profile == "V0" else "claude-opus-5-5", "confidence": "high", "reasons": ["promotion: independent verification required"] if profile != "V0" else ["exact bounded oracle"], "trustPredicates": {key: True for key in ("localNarrowBlastRadius", "cheapReversal", "deterministicFailureOracle", "noSensitiveOrExternalSideEffects", "requiredArtifactsPass", "requiredProofsPass", "noUncertainty", "noScopeOrAssumptionIssues")}}
+        order["notesForExecutor"] = [ROUTING_PREFIX + json.dumps(route, separators=(",", ":"))]
+        order["context"] = [{"policyVersion": "3.0", "missionId": "mission-" + name,
+            "approvalRef": "approved-fixture", "taskId": "task", "intentId": "product-1", "action": "product",
+            "strategyId": "initial", "dependencyRevisions": {}}]
+        state_path = root / "mission-state.json"
+        order["loopContract"] = {"version": "AQUILA_LOOP_V1", "loopId": "mission-" + name,
+            "statePath": str(state_path), "controller": "Aquila", "phase": "execute",
+            "workItem": {"workItemId": "task", "project": "fixture", "objective": order["objective"]},
+            "iteration": {"current": 1, "max": 3}, "budgets": {"maxWallSeconds": 300},
+            "executorStateWrites": False, "scheduleNextIteration": False, "selfApprove": False}
+        spec = {"policyVersion": "3.0", "missionId": "mission-" + name, "workspace": str(root), "strategyId": "initial",
+            "authority": {"approvalRef": "approved-fixture", "goal": "bounded mission", "nonGoals": ["no deploy"],
+                "criteria": ["bounded criterion"], "allowedActions": ["product", "review", "advisory", "report"],
+                "allowedPaths": [str(product / "**")], "forbiddenPaths": []},
+            "budget": {"maxModelLaunches": maximum, "deadlineAt": (datetime.now(timezone.utc) + timedelta(seconds=300)).isoformat()},
+            "tasks": {"task": {"objective": order["objective"], "acceptanceCriteria": order["acceptanceCriteria"],
+                "allowedPaths": [str(product / "**")], "productPaths": [str(target)], "dependencies": [],
+                "maxProductAttempts": 3, "verificationProfile": profile, "requiredProof": order["proofCommands"],
+                "expectedArtifacts": order["expectedArtifacts"]}}}
+        if completion_action is not None:
+            spec["tasks"]["task"]["completionAction"] = completion_action
+        if monitored:
+            order["launch"]["timeoutSeconds"] = None
+            spec["budget"].pop("deadlineAt")
+            spec["authority"]["budgets"] = {"maxWallSeconds": 1, "maxAttempts": 10}
+        if name == "restart":
+            spec_path = root / "approved-mission.json"
+            write_json(spec_path, spec)
+            prepared = subprocess.run([sys.executable, str(RUNNER), "--init-mission", str(spec_path), "--state", str(state_path)], text=True, capture_output=True)
+            assert_case(prepared.returncode == 0 and json.loads(prepared.stdout)["status"] == "prepared", f"explicit mission preparation CLI: {prepared.stderr}")
+        else:
+            runner.initialize_mission(spec, state_path)
+        policy = runner.PathPolicy(root, order["allowedPaths"], [], order["orderId"])
+        write_json(order_path, order)
+        return order, policy, state_path, target, result_path, order_path, events_path
+
+    def capture(reservation, target: Path, result_path: Path, *, review=None, cite_product=False):
+        reservation.before_spawn()
+        readonly = reservation.meta["action"] in {"review", "advisory"}
+        if not readonly:
+            target.write_text("final product\n")
+        elif not cite_product:
+            target = result_path.parent / ("review.txt" if review is not None else "advisory.txt")
+            target.write_text("review evidence\n" if review is not None else "bounded advisory evidence\n")
+        value = {"resultVersion": "AGENT_RESULT_JSON_V1", "orderId": reservation.order["orderId"], "executor": reservation.order["executor"],
+            "status": "done", "summary": "bounded result", "filesChanged": [] if readonly else [{"path": str(target), "action": "added"}],
+            "artifacts": [{"path": str(target), "exists": True, "type": "fixture", "note": "product"}],
+            "proof": [{"command": "reported only", "cwd": str(target.parent), "status": "pass", "exitCode": 0, "summary": "reported"}],
+            "scopeDeviations": [], "forbiddenPatternHits": [], "remainingRisks": [], "questions": [], "errors": [],
+            "selfReview": {"performed": True, "findings": [], "fixesApplied": []}, "stdoutSummary": "", "stderrSummary": ""}
+        if review is not None:
+            value["executorExtensions"] = {"review": review}
+        write_json(result_path, value)
+        reservation.observe_result(value, result_path, process_stopped=True)
+        proof = {}
+        runner.run_verification_gate(reservation.order, result_path, None, reservation.policy, "fixture-proof", evidence=proof, reservation=reservation)
+        acceptance = reservation.policy.control_namespace / "controller-acceptance.json"
+        write_json(acceptance, {"status": "passed", "orderId": reservation.order["orderId"], "canonicalResultSha256": runner.result_digest(result_path)})
+        return proof, acceptance
+
+    order, policy, path, target, result, _, _ = fixture("monitored", monitored=True)
+    runner.validate_order(order)
+    for invalid_timeout in (False, 0, -1, 1.5, "unlimited", "missing"):
+        invalid = copy.deepcopy(order)
+        if invalid_timeout == "missing":
+            invalid["launch"].pop("timeoutSeconds")
+        else:
+            invalid["launch"]["timeoutSeconds"] = invalid_timeout
+        rejected(lambda: runner.validate_order(invalid), "timeoutSeconds")
+    legacy = copy.deepcopy(order)
+    legacy["context"] = []
+    rejected(lambda: runner.validate_order(legacy), "timeoutSeconds")
+    reservation = runner.reserve_mission_dispatch(order, policy)
+    authority = copy.deepcopy(reservation.state["authority"])
+    assert_case(reservation.state["budget"]["deadlineAt"] is None and reservation.work_timeout(None) is None,
+                "new mission defaults to explicit null deadline; null launch has no implicit work timeout")
+    decision = runner.record_mission_observation(reservation, {"status": "done", "controllerVerified": True,
+        "acceptanceCoverage": ["bounded criterion"], "durationSeconds": 7200})
+    assert_case(decision["decision"] == "allow" and reservation.state["authority"] == authority,
+                "legacy advisory wall budget cannot stop monitored work or rewrite approved authority")
+    capture(reservation, target, result)
+    import result_gateway
+    real_run_child = result_gateway.run_child
+    observed_timeouts = []
+    def final_child(argv, cwd, timeout, *args, **kwargs):
+        observed_timeouts.append(timeout)
+        return real_run_child(argv, cwd, .1 if timeout == 3600 else timeout, *args, **kwargs)
+    proof_argv = [sys.executable, "-c", "import time; time.sleep(.25)"]
+    with mock.patch.object(result_gateway, "run_child", side_effect=final_child):
+        checks = runner._run_final_mission_proof(reservation.state,
+            [{"argv": proof_argv, "cwd": str(policy.repo_path), "command": shlex.join(proof_argv)}], reservation)
+    assert_case(observed_timeouts == [None] and checks[0]["status"] == "pass", "real monitored final proof has no hidden one-hour timeout")
+    reservation.close()
+    stored = json.loads(path.read_text())
+    stored["budget"].pop("deadlineAt")
+    write_json(path, stored)
+    rejected(lambda: runner.load_mission_state(order, policy), "must be explicit")
+    print("PASS 3.0 monitored default, legacy advisory wall-limit isolation, real unbounded final proof and no implicit receipt migration")
+
+    order, policy, path, target, result, _, _ = fixture("restart")
+    first = runner.reserve_mission_dispatch(order, policy)
+    assert_case(first.disposition == "launch" and first.state["budget"]["modelLaunchesUsed"] == 1, "launch reserved before spawn")
+    rejected(lambda: runner.reserve_mission_dispatch(order, policy), "already held")
+    first.close()
+    resumed = runner.reserve_mission_dispatch(order, policy)
+    assert_case(resumed.disposition == "open" and resumed.state["tasks"]["task"]["productAttemptsUsed"] == 1, "restart preserves open reservation/counters")
+    rejected(resumed.before_spawn, "never replay")
+    resumed.close()
+    changed = copy.deepcopy(order)
+    changed["orderId"] = "new-order"
+    rejected(lambda: runner.reserve_mission_dispatch(changed, policy), "cannot be rebound")
+    changed["context"][0]["intentId"] = "new-intent"
+    rejected(lambda: runner.reserve_mission_dispatch(changed, policy), "open or unknown effect")
+    rejected(lambda: runner.initialize_mission({}, path), "already exists")
+    state = json.loads(path.read_text())
+    state["budget"]["modelLaunchesUsed"] = 0
+    write_json(path, state)
+    rejected(lambda: runner.reserve_mission_dispatch(order, policy), "counters disagree")
+    print("PASS 3.0 restart, duplicate delivery, single lock and stable intent identity (no child replay)")
+
+    order, policy, path, _, _, _, _ = fixture("unknown")
+    reservation = runner.reserve_mission_dispatch(order, policy)
+    reservation.before_spawn()
+    reservation.fail("lost result", process_stopped=True)
+    reservation.close()
+    reservation = runner.reserve_mission_dispatch(order, policy)
+    assert_case(reservation.disposition == "closed" and reservation.intent["status"] == "unknown_effect", "lost report never implies no product effect")
+    rejected(lambda: runner.switch_mission_strategy(reservation, "alternate", "new method"), "unknown effect")
+    reservation.close()
+
+    order, policy, path, _, _, _, _ = fixture("write-failure")
+    original = path.read_bytes()
+    with mock.patch.object(runner, "atomic_write_loop_state", side_effect=OSError("injected state write failure")):
+        rejected(lambda: runner.reserve_mission_dispatch(order, policy), "injected state write failure")
+    assert_case(path.read_bytes() == original, "failed reservation leaves state intact and no child authorization")
+    reservation = runner.reserve_mission_dispatch(order, policy)
+    with mock.patch.object(runner, "atomic_write_loop_state", side_effect=OSError("dispatch barrier write failed")):
+        rejected(reservation.before_spawn, "barrier write failed")
+    reservation.close()
+    reservation = runner.reserve_mission_dispatch(order, policy)
+    assert_case(reservation.disposition == "open" and reservation.state["budget"]["modelLaunchesUsed"] == 1, "barrier failure never refunds reservation")
+    reservation.close()
+    print("PASS 3.0 unknown effect and state-write failures preserve budget and prohibit replay")
+
+    order, policy, path, _, _, _, _ = fixture("write-after-replace")
+    reservation = runner.reserve_mission_dispatch(order, policy)
+    real_write = runner.atomic_write_loop_state
+    write_calls = []
+    def fail_after_replace(state_path, value):
+        real_write(state_path, value)
+        write_calls.append(True)
+        if len(write_calls) == 1:
+            raise OSError("injected post-replace fsync failure")
+    with mock.patch.object(runner, "atomic_write_loop_state", side_effect=fail_after_replace):
+        rejected(reservation.before_spawn, "post-replace fsync")
+    reservation.close()
+    unknown = runner.reserve_mission_dispatch(order, policy)
+    assert_case(unknown.disposition == "closed" and unknown.intent["status"] == "unknown_effect" and unknown.state["budget"]["modelLaunchesUsed"] == 1,
+                "ambiguous commit is poisoned without rolling back reservation")
+    unknown.close()
+    print("PASS 3.0 post-replace state failure records unknown commit without refund or launch")
+
+    def advisory_order(order, policy):
+        order["roleForTask"] = "ARCHITECTUS"
+        order["context"][0]["action"] = "advisory"
+        order["allowedPaths"] = [str(policy.control_namespace / "**")]
+        order["proofCommands"] = []
+        order["expectedArtifacts"] = []
+        route = json.loads(order["notesForExecutor"][0][len(ROUTING_PREFIX):])
+        route.update(model="gpt-6-astra", executionProfile="advisory", reviewer="none", reasons=["astra advisory: explicit user request"])
+        order["notesForExecutor"] = [ROUTING_PREFIX + json.dumps(route, separators=(",", ":"))]
+        return runner.PathPolicy(policy.repo_path, order["allowedPaths"], [], order["orderId"])
+
+    order, policy, path, target, result, _, _ = fixture("advisory", profile="V2")
+    prior_state = json.loads(path.read_text())
+    assert_case(prior_state["tasks"]["task"]["completionAction"] == "product", "completion action defaults to product")
+    del prior_state["tasks"]["task"]["completionAction"]
+    del prior_state["authority"]["taskCompletionActions"]
+    prior_state["authoritySha256"] = runner._mission_digest(prior_state["authority"])
+    runner.validate_mission_state(prior_state, path)
+    policy = advisory_order(order, policy)
+    target.write_text("read-only input\n")
+    advisory = runner.reserve_mission_dispatch(order, policy)
+    assert_case(advisory.state["budget"]["modelLaunchesUsed"] == 1 and advisory.state["tasks"]["task"]["productAttemptsUsed"] == 0, "consultation consumes shared launch but no product attempt")
+    proof, acceptance = capture(advisory, target, result)
+    advisory.accept(proof, acceptance)
+    assert_case(advisory.state["tasks"]["task"]["status"] != "accepted", "ordinary consultation never closes a product task")
+    advisory.close()
+    rejected(lambda: runner.complete_mission(order, policy, proof, "advisory-is-not-product"), "unaccepted tasks")
+    print("PASS 3.0 advisory shares mission launch budget without product attempt authority")
+
+    rejected(lambda: fixture("invalid-completion-action", completion_action="review"), "completionAction")
+    order, policy, path, target, result, _, _ = fixture("advisory-completion", profile="V2", completion_action="advisory")
+    rejected(lambda: runner.reserve_mission_dispatch(order, policy), "advisory-only")
+    state = json.loads(path.read_text())
+    assert_case(state["budget"]["modelLaunchesUsed"] == 0 and state["authority"]["taskCompletionActions"] == {"task": "advisory"},
+                "advisory closure is bound during preparation before dispatch")
+    bad = copy.deepcopy(state)
+    bad["tasks"]["task"]["completionAction"] = "product"
+    rejected(lambda: runner.validate_mission_state(bad, path), "completion action binding")
+    bad = copy.deepcopy(state)
+    bad["authority"]["taskCompletionActions"]["task"] = "product"
+    rejected(lambda: runner.validate_mission_state(bad, path), "authority binding")
+    bad = copy.deepcopy(state)
+    bad["authority"]["allowedActions"].remove("advisory")
+    bad["authoritySha256"] = runner._mission_digest(bad["authority"])
+    rejected(lambda: runner.validate_mission_state(bad, path), "lacks mission authority")
+    policy = advisory_order(order, policy)
+    target.write_text("read-only input\n")
+    advisory = runner.reserve_mission_dispatch(order, policy)
+    proof, acceptance = capture(advisory, target, result)
+    runner.verify_workspace_diff(advisory, json.loads(result.read_text()))
+    target.write_text("advisory must not change input\n")
+    rejected(advisory.require_acceptance_ready, "product changed after capture")
+    target.write_text("read-only input\n")
+    advisory.require_acceptance_ready()
+    advisory.accept(proof, acceptance)
+    bad = copy.deepcopy(advisory.state)
+    bad["intents"]["product-1"]["action"] = "product"
+    rejected(lambda: runner.validate_mission_state(bad, path), "declared completion action")
+    assert_case(advisory.state["tasks"]["task"]["status"] == "accepted" and target.read_text() == "read-only input\n",
+                "explicit advisory task accepts only read-only captured result")
+    assert_case(advisory.state["budget"]["modelLaunchesUsed"] == 1 and advisory.state["tasks"]["task"]["productAttemptsUsed"] == 0,
+                "advisory completion requires no product or reviewer launch")
+    advisory.close()
+    duplicate = runner.reserve_mission_dispatch(order, policy)
+    assert_case(duplicate.disposition == "accepted" and duplicate.state["budget"]["modelLaunchesUsed"] == 1,
+                "accepted advisory reload never replays")
+    final_proofs = duplicate.state["tasks"]["task"]["requiredProof"]
+    final_snapshot = runner.mission_snapshot(duplicate.state)["sha256"]
+    duplicate.close()
+    extra = copy.deepcopy(order)
+    extra["context"][0]["intentId"] = "advisory-2"
+    rejected(lambda: runner.reserve_mission_dispatch(extra, policy), "accepted advisory task")
+    rejected(lambda: runner.complete_mission(order, policy, proof, "missing-final-proof"), "coverage missing")
+    final_proof = {"productSnapshotSha256": final_snapshot, "criteria": order["acceptanceCriteria"],
+        "proof": [{"command": item["command"], "cwd": item["cwd"], "required": True, "status": "pass", "exitCode": 0} for item in final_proofs]}
+    target.write_text("tampered input\n")
+    rejected(lambda: runner.complete_mission(order, policy, final_proof, "stale-advice"), "bytes changed")
+    target.write_text("read-only input\n")
+    completed = runner.complete_mission(order, policy, final_proof, "advisory-final-snapshot")
+    runner.validate_mission_state(completed, path)
+    assert_case(completed["status"] == "completed" and len(completed["completion"]["proof"]["proof"]) == 1
+                and completed["completion"]["proof"]["proof"][0]["status"] == "pass",
+                "controller executes required final proof for accepted advisory task")
+    print("PASS 3.0 explicit advisory completion, immutable action binding, wrong-action denial, no replay and final controller proof")
+
+    order, policy, path, target, result, _, _ = fixture("complete")
+    narrowed = copy.deepcopy(order)
+    narrowed["allowedPaths"] = [str(target), str(target.parent), str(policy.control_namespace / "**")]
+    runner._validate_mission_scope(narrowed, policy, runner.load_mission_state(order, policy)[0])
+    for field, value, marker in (("acceptanceCriteria", [], "criteria"), ("proofCommands", [], "proofCommand"), ("allowedPaths", [str(policy.control_namespace / "**")], "empty product scope")):
+        bad = copy.deepcopy(order)
+        bad[field] = value
+        rejected(lambda bad=bad: runner.reserve_mission_dispatch(bad, policy), marker)
+    reservation = runner.reserve_mission_dispatch(order, policy)
+    proof, acceptance = capture(reservation, target, result)
+    with mock.patch.object(runner, "atomic_write_loop_state", side_effect=OSError("acceptance state failed")):
+        rejected(lambda: reservation.accept(proof, acceptance), "acceptance state failed")
+    reservation.close()
+    reservation = runner.reserve_mission_dispatch(order, policy)
+    assert_case(reservation.disposition == "open", "receipt alone does not become state acceptance")
+    reservation.accept(proof, acceptance)
+    reservation.close()
+    duplicate = runner.reserve_mission_dispatch(order, policy)
+    assert_case(duplicate.disposition == "accepted" and duplicate.state["budget"]["modelLaunchesUsed"] == 1, "accepted duplicate returns without launch")
+    duplicate.close()
+    final_proof = copy.deepcopy(proof)
+    rejected(lambda: runner.complete_mission(order, policy, dict(final_proof, criteria=[]), "candidate"), "all criteria")
+    state = runner.complete_mission(order, policy, final_proof, "fixture-revision")
+    assert_case(state["status"] == "completed", "explicit final bytes proof completes mission")
+    bad = copy.deepcopy(order)
+    bad["context"][0]["intentId"] = "another-product"
+    rejected(lambda: runner.reserve_mission_dispatch(bad, policy), "closed")
+    target.write_text("tampered\n")
+    print("PASS 3.0 scope narrowing, criterion/proof preservation, acceptance write failure and final mission completion")
+
+    order, policy, path, target, result, _, _ = fixture("review", profile="V2")
+    product = runner.reserve_mission_dispatch(order, policy)
+    proof, acceptance = capture(product, target, result)
+    rejected(lambda: product.accept(proof, acceptance), "independent review")
+    product.close()
+    review_order = copy.deepcopy(order)
+    review_order.update(orderId="independent-review", executor="claude")
+    review_order["launch"]["command"] = "claude --model claude-opus-5-5 --effort high fixture"
+    review_route = json.loads(review_order["notesForExecutor"][0][len(ROUTING_PREFIX):])
+    review_route.update(executor="claude", model="claude-opus-5-5", executionProfile="terminal_review", terminalGate=True, reviewer="none")
+    review_order["notesForExecutor"] = [ROUTING_PREFIX + json.dumps(review_route, separators=(",", ":"))]
+    review_order["context"][0].update(intentId="review-1", action="review", candidateIntentId="product-1")
+    namespace = artifact_namespace(policy.repo_path, review_order["orderId"])
+    namespace.mkdir(parents=True)
+    review_order["allowedPaths"] = [str(namespace / "**")]
+    review_order["proofCommands"], review_order["expectedArtifacts"] = [], []
+    review_order["context"][0]["reviewBinding"] = {"reviewedOrderId":order["orderId"],
+        "reviewedResultSha256":runner.result_digest(result), "productSnapshotSha256":proof["productSnapshotSha256"]}
+    review_result = namespace / "result.json"
+    review_order["outputContract"]["resultPath"] = str(review_result)
+    review_order["launch"]["resultJsonPath"] = str(review_result)
+    review_policy = runner.PathPolicy(policy.repo_path, review_order["allowedPaths"], [], review_order["orderId"])
+    rejected(lambda: runner.reserve_mission_dispatch(review_order, review_policy), "review allowedPaths must contain exactly")
+    review_order["allowedPaths"] = [str(target), str(namespace / "**")]
+    review_policy = runner.PathPolicy(policy.repo_path, review_order["allowedPaths"], [], review_order["orderId"])
+    review = runner.reserve_mission_dispatch(review_order, review_policy)
+    verdict = {"verdict": "fail", "findings": [], "reviewedOrderId": order["orderId"],
+        "reviewedResultSha256": runner.result_digest(result), "productSnapshotSha256": proof["productSnapshotSha256"]}
+    review_proof, review_acceptance = capture(review, target, review_result, review=verdict)
+    rejected(lambda: review.accept(review_proof, review_acceptance), "fail/blocked/missing")
+    review.fail("review verdict fail", process_stopped=True)
+    assert_case(review.state["budget"]["modelLaunchesUsed"] == 2 and review.state["tasks"]["task"]["productAttemptsUsed"] == 1,
+                "review/new order consumes shared launch but no product attempt")
+    review.close()
+    print("PASS 3.0 independent review required, verdict fail rejects, shared reviewer launch accounting")
+
+    # Exercise the successful independent-review binding on a separate mission.
+    order, policy, path, target, result, _, _ = fixture("review-pass", profile="V2")
+    product = runner.reserve_mission_dispatch(order, policy)
+    proof, acceptance = capture(product, target, result)
+    product.close()
+    review_order = copy.deepcopy(order)
+    review_order.update(orderId="passing-review", executor="claude")
+    review_order["launch"]["command"] = "claude --model claude-opus-5-5 --effort high fixture"
+    route = json.loads(review_order["notesForExecutor"][0][len(ROUTING_PREFIX):])
+    route.update(executor="claude", model="claude-opus-5-5", executionProfile="terminal_review", terminalGate=True, reviewer="none")
+    review_order["notesForExecutor"] = [ROUTING_PREFIX + json.dumps(route, separators=(",", ":"))]
+    review_order["context"][0].update(intentId="review-pass", action="review", candidateIntentId="product-1")
+    namespace = artifact_namespace(policy.repo_path, review_order["orderId"])
+    namespace.mkdir(parents=True)
+    review_order["allowedPaths"] = [str(namespace / "**")]
+    review_order["proofCommands"], review_order["expectedArtifacts"] = [], []
+    review_order["context"][0]["reviewBinding"] = {"reviewedOrderId":order["orderId"],
+        "reviewedResultSha256":runner.result_digest(result), "productSnapshotSha256":proof["productSnapshotSha256"]}
+    review_result = namespace / "result.json"
+    review_order["outputContract"]["resultPath"] = str(review_result)
+    review_order["launch"]["resultJsonPath"] = str(review_result)
+    review_policy = runner.PathPolicy(policy.repo_path, review_order["allowedPaths"], [], review_order["orderId"])
+    rejected(lambda: runner.reserve_mission_dispatch(review_order, review_policy), "review allowedPaths must contain exactly")
+    review_order["allowedPaths"] = [str(target), str(namespace / "**")]
+    review_policy = runner.PathPolicy(policy.repo_path, review_order["allowedPaths"], [], review_order["orderId"])
+    unchanged_state = path.read_bytes()
+    for extra in (str(target.parent / "**"), str(target.parent), str(target.parent / "extra.txt")):
+        bad = copy.deepcopy(review_order)
+        bad["allowedPaths"].append(extra)
+        bad_policy = runner.PathPolicy(policy.repo_path, bad["allowedPaths"], [], bad["orderId"])
+        rejected(lambda: runner.reserve_mission_dispatch(bad, bad_policy), "review allowedPaths must contain exactly")
+        assert_case(path.read_bytes() == unchanged_state, "invalid review scope must not spend a launch")
+    forbidden = copy.deepcopy(review_order)
+    forbidden["forbiddenPaths"] = [str(target)]
+    forbidden_policy = runner.PathPolicy(policy.repo_path, forbidden["allowedPaths"], forbidden["forbiddenPaths"], forbidden["orderId"])
+    rejected(lambda: runner.reserve_mission_dispatch(forbidden, forbidden_policy), "forbidden by forbiddenPaths")
+    assert_case(path.read_bytes() == unchanged_state, "forbidden candidate must not spend a launch")
+    review = runner.reserve_mission_dispatch(review_order, review_policy)
+    verdict = {"verdict": "pass", "findings": [], "reviewedOrderId": order["orderId"],
+        "reviewedResultSha256": runner.result_digest(result), "productSnapshotSha256": proof["productSnapshotSha256"]}
+    review_proof, review_acceptance = capture(review, target, review_result, review=verdict, cite_product=True)
+    assert_case(json.loads(review_result.read_text())["artifacts"][0]["path"] == str(target), "review cites unchanged product")
+    review.accept(review_proof, review_acceptance)
+    review.close()
+    product = runner.reserve_mission_dispatch(order, policy)
+    product.accept(proof, acceptance, review="review-pass")
+    ledger = path.parent / "observations.jsonl"
+    telemetry = {"objectiveId": "telemetry", "attempt": 1, "taskClass": "fixture", "executor": "codex", "model": "gpt-6.1-sol", "reviewer": "claude-opus-5-5", "risk": "low", "status": "done", "failureClass": "none", "resultPath": str(result), "durationSeconds": 0}
+    product.append_telemetry(ledger, telemetry)
+    assert_case(json.loads(ledger.read_text())["modelLaunchesUsed"] == 2, "ledger observes shared state without owning counters")
+    product.close()
+    runner.complete_mission(order, policy, proof, "reviewed-final-revision")
+    assert_case(json.loads(path.read_text())["status"] == "completed", "accepted independent review allows final completion")
+    completed_state = path.read_bytes()
+    duplicate_review = runner.reserve_mission_dispatch(review_order, review_policy)
+    assert_case(duplicate_review.disposition == "accepted", "accepted review stays collectable after product acceptance")
+    duplicate_review.close()
+    assert_case(path.read_bytes() == completed_state, "duplicate review collection must not change state or launch count")
+    new_review = copy.deepcopy(review_order)
+    new_review["context"][0]["intentId"] = "review-extra"
+    rejected(lambda: runner.reserve_mission_dispatch(new_review, review_policy), "review requires captured candidate")
+    assert_case(path.read_bytes() == completed_state, "accepted product must not start another review")
+    print("PASS 3.0 positive bound independent review, final controller proof and observed ledger counters")
+
+    order, policy, path, target, result, _, _ = fixture("correction")
+    product = runner.reserve_mission_dispatch(order, policy)
+    capture(product, target, result)
+    rejected(lambda: runner.prepare_loop_dispatch(order, policy), "legacy Loop dispatch is disabled")
+    rejected(lambda: runner.run_command(order, [sys.executable, "-c", "raise SystemExit(99)"], policy), "direct runner dispatch is disabled")
+    evidence = path.parent / "criterion-finding.txt"
+    evidence.write_text("bounded criterion failed on observed product\n")
+    for attempt_number in (2, 3):
+        runner.prepare_mission_correction(product, "bounded criterion", evidence, "criterion defect", "passing bounded oracle")
+        product.close()
+        correction = copy.deepcopy(order)
+        correction["context"][0].update(intentId=f"product-{attempt_number}", retryReason="criterion defect", expectedEvidence="passing bounded oracle")
+        correction["orderId"] = f"correction-{attempt_number}"
+        correction_ns = artifact_namespace(policy.repo_path, correction["orderId"])
+        correction_ns.mkdir(parents=True)
+        correction["allowedPaths"] = [str(target.parent / "**"), str(correction_ns / "**")]
+        correction["launch"]["resultJsonPath"] = str(correction_ns / "result.json")
+        correction["outputContract"]["resultPath"] = str(correction_ns / "result.json")
+        correction_policy = runner.PathPolicy(policy.repo_path, correction["allowedPaths"], [], correction["orderId"])
+        product = runner.reserve_mission_dispatch(correction, correction_policy)
+        capture(product, target, correction_ns / "result.json")
+    assert_case(product.state["budget"]["modelLaunchesUsed"] == 3 and product.state["tasks"]["task"]["productAttemptsUsed"] == 3, "new orders preserve both cumulative attempt counters")
+    rejected(lambda: runner.prepare_mission_correction(product, "bounded criterion", evidence, "again", "new proof"), "exhausted product")
+    product.close()
+    print("PASS 3.0 criterion-bound correction, new order accounting, product attempt exhaustion and unintegrated Gateway denial")
+
+    order, policy, path, target, result, _, _ = fixture("dependencies")
+    state = json.loads(path.read_text())
+    dep = copy.deepcopy(state["tasks"]["task"])
+    dep.update(allowedPaths=[str(target.parent / "**")], productPaths=[str(target.parent / "input.txt")], dependencies=[])
+    dep["expectedArtifacts"] = [{"path": str(target.parent / "input.txt"), "required": True, "type": "fixture"}]
+    state["tasks"]["input"] = dep
+    state["authority"]["taskCompletionActions"]["input"] = dep["completionAction"]
+    state["authoritySha256"] = runner._mission_digest(state["authority"])
+    state["tasks"]["task"]["dependencies"] = ["input"]
+    write_json(path, state)
+    order["context"][0]["dependencyRevisions"] = {"input": "unaccepted-revision"}
+    rejected(lambda: runner.reserve_mission_dispatch(order, policy), "unaccepted")
+    upstream = copy.deepcopy(order)
+    upstream["orderId"] = "accepted-upstream"
+    upstream["context"][0].update(taskId="input", intentId="input-1", dependencyRevisions={})
+    upstream["expectedArtifacts"] = dep["expectedArtifacts"]
+    upstream_ns = artifact_namespace(policy.repo_path, upstream["orderId"])
+    upstream_ns.mkdir(parents=True)
+    upstream["allowedPaths"] = [str(target.parent / "**"), str(upstream_ns / "**")]
+    upstream_result = upstream_ns / "result.json"
+    upstream["outputContract"]["resultPath"] = str(upstream_result)
+    upstream["launch"]["resultJsonPath"] = str(upstream_result)
+    upstream_policy = runner.PathPolicy(policy.repo_path, upstream["allowedPaths"], [], upstream["orderId"])
+    upstream_reservation = runner.reserve_mission_dispatch(upstream, upstream_policy)
+    upstream_proof, upstream_acceptance = capture(upstream_reservation, target.parent / "input.txt", upstream_result)
+    upstream_reservation.accept(upstream_proof, upstream_acceptance)
+    upstream_reservation.close()
+    rejected(lambda: runner.reserve_mission_dispatch(order, policy), "stale")
+    revision = json.loads(path.read_text())["tasks"]["input"]["acceptance"]["revision"]
+    order["context"][0]["dependencyRevisions"] = {"input": revision}
+    reservation = runner.reserve_mission_dispatch(order, policy)
+    reservation.cancel("explicit fixture cancellation")
+    assert_case(reservation.stop_requested() and reservation.state["status"] == "stopped", "cancel closes dispatch")
+    rejected(reservation.before_spawn, "closed")
+    reservation.close()
+    print("PASS 3.0 accepted dependency revision gate and explicit cancellation before spawn")
+
+    order, policy, path, _, _, _, _ = fixture("strategy", maximum=1)
+    reservation = runner.reserve_mission_dispatch(order, policy)
+    reservation.fail("local pre-spawn failure", process_stopped=True)
+    rejected(lambda: runner.switch_mission_strategy(reservation, "alternate", "new method"), "budget")
+    assert_case(reservation.state["budget"]["modelLaunchesUsed"] == 1, "failed invocation never refunds launch")
+    reservation.close()
+    order, policy, path, _, _, _, _ = fixture("switch")
+    reservation = runner.reserve_mission_dispatch(order, policy)
+    reservation.fail("local pre-spawn failure", process_stopped=True)
+    runner.record_mission_observation(reservation, {"status": "done", "controllerVerified": True, "acceptanceCoverage": ["bounded criterion"]})
+    for _ in range(2):
+        decision = runner.record_mission_observation(reservation, {"status": "blocked", "controllerVerified": True, "acceptanceCoverage": ["bounded criterion"], "blockerHash": "same"})
+    assert_case(decision["decision"] == "escalate" and not decision["requiresOwnerDecision"], "no-progress after success stops strategy internally")
+    runner.switch_mission_strategy(reservation, "alternate", "new evidence method")
+    reservation.state.update(status="blocked", blocker={"decisionOwner": "controller"})
+    reservation.save()
+    rejected(lambda: runner.switch_mission_strategy(reservation, "third", "again"), "one explicit")
+    reservation.close()
+    print("PASS 3.0 consumed budget, no-progress after success and one bounded strategy switch")
+
+    for name, mutation, marker in (("cutoff", lambda s: s["budget"].update(deadlineAt=(datetime.now(timezone.utc) + timedelta(seconds=20)).isoformat(), startedAt=(datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()), "cutoff"),
+            ("stopped", lambda s: s.update(status="stopped"), "closed"), ("failed", lambda s: s.update(status="failed"), "closed")):
+        order, policy, path, _, _, _, _ = fixture(name)
+        state = json.loads(path.read_text())
+        mutation(state)
+        write_json(path, state)
+        rejected(lambda: runner.reserve_mission_dispatch(order, policy), marker)
+        if name == "cutoff":
+            assert_case(json.loads(path.read_text())["status"] == "failed", "cutoff durably closes mission without reactivation")
+        rejected(lambda: runner.run_proof_commands(order, policy), "closed")
+    order, policy, path, _, _, _, _ = fixture("report")
+    order["context"][0]["action"] = "report"
+    rejected(lambda: runner.reserve_mission_dispatch(order, policy), "no trusted no-write")
+    assert_case(json.loads(path.read_text())["budget"]["modelLaunchesUsed"] == 0, "disabled report does not consume launch or product")
+    for version in (None, "2.6", "future"):
+        bad = copy.deepcopy(order)
+        if version is None:
+            del bad["context"][0]["policyVersion"]
+        else:
+            bad["context"][0]["policyVersion"] = version
+        rejected(lambda bad=bad: runner.reserve_mission_dispatch(bad, policy), "policyVersion")
+    path.unlink()
+    rejected(lambda: runner.reserve_mission_dispatch(order, policy), "file not found")
+    assert_case(not path.exists(), "missing state never bootstraps zero counters")
+    path.write_text("{invalid")
+    rejected(lambda: runner.reserve_mission_dispatch(order, policy), "not strict JSON")
+    print("PASS 3.0 cutoff, terminal closure, disabled report, old/missing policy and missing/corrupt state")
+
+    order, policy, path, _, result, order_path, events = fixture("direct-denied")
+    order["createdAt"] = "2026-10-16T00:00:00Z"
+    argv = ["codex", "exec", "--model", "gpt-6.1-sol", "-c", "model_reasoning_effort=high", "fixture"]
+    order["launch"]["command"] = shlex.join(argv)
+    route = {"objectiveId": "direct-denied", "attempt": 1, "taskClass": "routine_implementation", "complexity": "medium", "risk": "low", "ambiguity": "low", "reversibility": "high", "evidenceNeed": "high", "executor": "codex", "model": "gpt-6.1-sol", "reasoningEffort": "high", "executionProfile": "implementation", "verificationProfile": "V2", "reviewer": "claude-opus-5-5", "confidence": "high", "reasons": ["independent implementation review"]}
+    order["notesForExecutor"] = [ROUTING_PREFIX + json.dumps(route, separators=(",", ":"))]
+    write_json(order_path, order)
+    completed = subprocess.run([sys.executable, str(RUNNER), "--order", str(order_path), "--result", str(result), "--events", str(events), "--mode", "run"], capture_output=True, text=True, env={**os.environ, "AQUILA_ATTEMPT_LEDGER": str(FIXTURE_ROOT / "empty-ledger.jsonl")})
+    assert_case(completed.returncode != 0 and "direct runner dispatch is disabled" in completed.stderr, f"3.0 direct denied before child: {completed.stderr}")
+    assert_case(not result.exists() and json.loads(path.read_text())["budget"]["modelLaunchesUsed"] == 0, "direct rejection has no child/counter side effect")
+    process = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(20)"])
+    try:
+        identity = runner._mission_process_identity(process.pid)
+        assert_case(identity is not None, "owned child identity observed")
+        foreign = dict(identity, startTicks="wrong")
+        assert_case(not runner._terminate_mission_process(foreign, (datetime.now(timezone.utc) + timedelta(seconds=2)).isoformat()) and process.poll() is None, "foreign identity never signalled")
+        assert_case(runner._terminate_mission_process(identity, (datetime.now(timezone.utc) + timedelta(seconds=2)).isoformat()), "owned process terminated within shared reserve")
+        process.wait(timeout=3)
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait()
+    print("PASS 3.0 actual direct-run denial and pinned owned-process termination without signalling foreign identity")
+
+
 def main() -> int:
+    if "--mission-only" in sys.argv:
+        (FIXTURE_ROOT / "empty-ledger.jsonl").write_text("")
+        mission_regressions()
+        return 0
     install_fake_executor()
     runner = load_runner_module()
 
@@ -537,15 +1098,30 @@ def main() -> int:
     print("PASS runner rejects duplicate keys, NaN, Infinity, -Infinity, and 1e999 orders")
 
     for mode in ("duplicate_key", "non_finite", "infinity", "negative_infinity", "overflow_non_finite"):
-        completed, _, _, _, _, events_path = run_case(
-            f"strict-result-{mode}",
-            "pass",
-            True,
-            "python3 -c 'print(\"proof ok\")'",
-            result_mode=mode,
+        case_dir = FIXTURE_ROOT / f"strict-result-{mode}"
+        case_dir.mkdir(parents=True)
+        order_path, result_path, _, _, _, events_path = make_order(
+            case_dir, f"strict-result-{mode}", "pass", True, "python3 -c 'print(\"proof ok\")'"
         )
-        assert_case(completed.returncode != 0 and "strict JSON" in completed.stderr, f"runner must reject {mode} result JSON")
-        assert_case("dispatch_started" in events_text(events_path), "strict result fixture must exercise post-dispatch result loading")
+        order = json.loads(order_path.read_text(encoding="utf-8"))
+        valid = json.dumps({"resultVersion":"AGENT_RESULT_JSON_V1", "orderId":order["orderId"], "executor":"other",
+            "status":"done", "summary":"fixture", "filesChanged":[], "artifacts":[],
+            "proof":[], "selfReview":{"performed":True,"findings":[],"fixesApplied":[]},
+            "scopeDeviations":[], "forbiddenPatternHits":[], "remainingRisks":[], "questions":[], "errors":[],
+            "stdoutSummary":"", "stderrSummary":""})
+        literal = {"duplicate_key": '"orderId":"ambiguous"', "non_finite":"\"ambiguous\":NaN",
+                   "infinity":"\"ambiguous\":Infinity", "negative_infinity":"\"ambiguous\":-Infinity",
+                   "overflow_non_finite":"\"ambiguous\":1e999"}[mode]
+        raw = (valid[:-1] + ',' + literal + '}').encode()
+        result_path.write_bytes(raw)
+        module = load_runner_module()
+        policy = module.PathPolicy(Path(order["workspace"]["repoPath"]), order["allowedPaths"], order["forbiddenPaths"], order["orderId"])
+        try:
+            module.verify_result(result_path, order, policy)
+        except (module.RunnerError, module.StrictJSONError) as exc:
+            assert_case("strict JSON" in str(exc), f"runner must reject {mode} result JSON")
+        else:
+            raise AssertionError(f"runner accepted {mode} result JSON")
     print("PASS runner rejects duplicate keys, NaN, Infinity, -Infinity, and 1e999 results")
 
     post_cutover_dir = FIXTURE_ROOT / "post-cutover-routing"
@@ -584,24 +1160,28 @@ def main() -> int:
         "ambiguity": "low",
         "reversibility": "high",
         "evidenceNeed": "high",
-        "executor": "other",
-        "model": "other",
-        "reasoningEffort": "medium",
+        "executor": "claude",
+        "model": "claude-opus-5-5",
+        "reasoningEffort": "high",
         "executionProfile": "implementation",
         "verificationProfile": "V1",
-        "reviewer": "gpt-6-sol",
+        "reviewer": "gpt-6.1-sol",
         "confidence": "high",
         "reasons": ["deterministic proof is incomplete"],
     }
     v3_metadata = dict(
         routing_metadata,
+        executor="codex",
+        model="gpt-6.1-sol",
         risk="high",
         verificationProfile="V3",
-        reviewer="claude-opus-5",
+        reviewer="claude-opus-5-5",
         reasons=["security boundary requires specialist approval"],
         specialistGate={"required": True, "approved": True, "approver": "Boss"},
     )
     missing_payload["riskLevel"] = "high"
+    missing_payload["executor"] = "codex"
+    missing_payload["launch"]["command"] = "codex exec --model gpt-6.1-sol -c model_reasoning_effort=high fixture"
     missing_payload["notesForExecutor"] = [ROUTING_PREFIX + json.dumps(v3_metadata, separators=(",", ":"))]
     write_json(missing_order, missing_payload)
     forged_v3_route = subprocess.run(
@@ -619,6 +1199,8 @@ def main() -> int:
     )
     assert_case("dispatch_started" not in events_text(missing_events), "V3 rejection must precede dispatch")
     missing_payload["riskLevel"] = "low"
+    missing_payload["executor"] = "claude"
+    missing_payload["launch"]["command"] = "claude --model claude-opus-5-5 fixture"
     missing_payload["notesForExecutor"] = ["AQUILA_ROUTING_JSON_V1:" + json.dumps(routing_metadata, separators=(",", ":"))]
     write_json(missing_order, missing_payload)
     valid_route = subprocess.run(
@@ -630,7 +1212,7 @@ def main() -> int:
         capture_output=True,
     )
     assert_case(valid_route.returncode == 0, f"valid post-cutover routing must pass: {valid_route.stderr}")
-    assert_case("aquila_routing_validated:V1:gpt-6-sol:implementation" in events_text(missing_events), "runner must record the validated route")
+    assert_case("aquila_routing_validated:V1:gpt-6.1-sol:implementation" in events_text(missing_events), "runner must record the validated route")
     print("PASS runner enforces post-cutover routing before dispatch and accepts canonical V1")
 
     advisory_dir = FIXTURE_ROOT / "astra-advisory"
@@ -660,6 +1242,25 @@ def main() -> int:
     }
     advisory_order["notesForExecutor"] = ["AQUILA_ROUTING_JSON_V1:" + json.dumps(advisory_routing, separators=(",", ":"))]
     runner_module = load_runner_module()
+    claude_commands = {
+        "accepted explicit fallback": "claude --model claude-opus-5-5 --fallback-model claude-opus-5 --print Review",
+        "accepted attached flags": "claude --model=claude-opus-5-5 --fallback-model=claude-opus-5 --print Review",
+    }
+    for command in claude_commands.values():
+        runner_module.validate_claude_launch(command, "claude-opus-5-5", "claude-opus-5")
+    for label, command, expected in (
+        ("missing fallback", "claude --model claude-opus-5-5 --print Review", "explicit legacy contract"),
+        ("wrong fallback", "claude --model claude-opus-5-5 --fallback-model claude-opus-5-5 --print Review", "explicit legacy contract"),
+        ("duplicate fallback", "claude --model claude-opus-5-5 --fallback-model claude-opus-5 --fallback-model claude-opus-5 --print Review", "explicit legacy contract"),
+        ("prompt-only fallback", "claude --model claude-opus-5-5 Review --fallback-model claude-opus-5", "explicit legacy contract"),
+    ):
+        try:
+            runner_module.validate_claude_launch(command, "claude-opus-5-5", "claude-opus-5")
+        except runner_module.RunnerError as exc:
+            assert_case(expected in str(exc), f"{label} must fail with a focused fallback error: {exc}")
+        else:
+            raise AssertionError(f"{label} Claude launch must fail closed")
+    print("PASS Claude launch validator enforces explicit primary/fallback models and attached forms")
     with mock.patch.dict(os.environ, {"HOME": str(FIXTURE_ROOT / "isolated-home")}, clear=False):
         runner_module.validate_order(advisory_order)
         def reject_advisory(mutator: Any, expected: str) -> None:
@@ -674,7 +1275,7 @@ def main() -> int:
 
         for old, new, message in (
             ("--sandbox read-only", "--sandbox workspace-write", "read-only sandbox"),
-            ("--model gpt-6-astra", "--model gpt-6-sol", "must match routing.model"),
+            ("--model gpt-6-astra", "--model gpt-6.1-sol", "must match routing.model"),
             ("model_reasoning_effort=xhigh", "model_reasoning_effort=high", "must match routing.model"),
             ("--json", "--dangerously-bypass-approvals-and-sandbox", "unsupported option"),
             ("--json", "-c sandbox_mode=workspace-write", "only the reasoning effort"),
@@ -690,7 +1291,7 @@ def main() -> int:
         cwd=ROOT, env={**os.environ, "HOME": str(FIXTURE_ROOT / "isolated-home")},
         check=False, text=True, capture_output=True,
     )
-    assert_case(direct_advisory.returncode != 0 and "requires result_gateway.py" in direct_advisory.stderr,
+    assert_case(direct_advisory.returncode != 0 and "direct runner dispatch is disabled" in direct_advisory.stderr,
                 "Astra advisory direct runner dispatch must fail before child launch")
     assert_case(not advisory_candidate.exists() and not advisory_result.exists() and not direct_advisory_events.exists(),
                 "Astra advisory direct runner rejection must not create custody artifacts")
@@ -707,6 +1308,9 @@ def main() -> int:
     )
     promotion_payload = json.loads(promotion_order.read_text(encoding="utf-8"))
     promotion_payload["createdAt"] = "2026-08-03T11:00:42Z"
+    promotion_payload["executor"] = "codex"
+    promotion_args = shlex.split(promotion_payload["launch"]["command"])
+    promotion_payload["launch"]["command"] = shlex.join(["codex", "exec", "--model", "gpt-6.1-sol", "-c", "model_reasoning_effort=high", *promotion_args[1:]])
     promoted_task_class = "ledger-promoted-implementation"
     v0_metadata = {
         "objectiveId": "runner-promotion",
@@ -717,9 +1321,9 @@ def main() -> int:
         "ambiguity": "low",
         "reversibility": "high",
         "evidenceNeed": "low",
-        "executor": "other",
-        "model": "other",
-        "reasoningEffort": "low",
+        "executor": "codex",
+        "model": "gpt-6.1-sol",
+        "reasoningEffort": "high",
         "executionProfile": "implementation",
         "verificationProfile": "V0",
         "reviewer": "none",
@@ -776,7 +1380,7 @@ def main() -> int:
     promoted_metadata = dict(
         v0_metadata,
         verificationProfile="V2",
-        reviewer="claude-opus-5",
+        reviewer="claude-opus-5-5",
         reasons=["promotion: medium/high escaped V0 defect promotes task class to V2"],
     )
     promotion_payload["notesForExecutor"] = [
@@ -793,7 +1397,7 @@ def main() -> int:
         capture_output=True,
     )
     assert_case(accepted_promotion.returncode == 0, f"canonical promoted V2 route must pass: {accepted_promotion.stderr}")
-    assert_case("aquila_routing_validated:V2:claude-opus-5:implementation" in events_text(promoted_events), "promoted route must retain the expected reviewer")
+    assert_case("aquila_routing_validated:V2:claude-opus-5-5:implementation" in events_text(promoted_events), "promoted route must retain the expected reviewer")
 
     malformed_ledger = promotion_dir / "malformed.jsonl"
     malformed_ledger.write_text("{not-json\n", encoding="utf-8")
@@ -861,7 +1465,7 @@ def main() -> int:
     terminal_payload["createdAt"] = "2026-08-03T11:00:42Z"
     terminal_payload["executor"] = "codex"
     terminal_command = shlex.split(terminal_payload["launch"]["command"])
-    terminal_command[0:1] = ["codex", "exec", "--model", "gpt-6-sol", "-c", "model_reasoning_effort=high"]
+    terminal_command[0:1] = ["codex", "exec", "--model", "gpt-6.1-sol", "-c", "model_reasoning_effort=high"]
     terminal_payload["launch"]["command"] = shlex.join(terminal_command)
     terminal_metadata = {
         "objectiveId": "runner-terminal-promotion",
@@ -873,7 +1477,7 @@ def main() -> int:
         "reversibility": "high",
         "evidenceNeed": "low",
         "executor": "codex",
-        "model": "gpt-6-sol",
+        "model": "gpt-6.1-sol",
         "reasoningEffort": "high",
         "executionProfile": "terminal_review",
         "verificationProfile": "V1",
@@ -901,11 +1505,12 @@ def main() -> int:
 
     terminal_payload["executor"] = "claude"
     terminal_command[0:6] = ["claude"]
+    terminal_command[1:1] = ["--model", "claude-opus-5-5"]
     terminal_payload["launch"]["command"] = shlex.join(terminal_command)
     promoted_terminal_metadata = dict(
         terminal_metadata,
         executor="claude",
-        model="claude-opus-5",
+        model="claude-opus-5-5",
         verificationProfile="V2",
         reasons=["promotion: medium/high escaped V0 defect promotes task class to V2"],
     )
@@ -923,10 +1528,28 @@ def main() -> int:
         capture_output=True,
     )
     promoted_terminal_events_text = events_text(promoted_terminal_events)
-    assert_case(accepted_terminal.returncode == 0, f"canonical promoted terminal V2 route must pass: {accepted_terminal.stderr}")
-    assert_case("aquila_routing_validated:V2:none:terminal_review" in promoted_terminal_events_text, "promoted terminal route must not appoint a recursive reviewer")
-    assert_case(sum("dispatch_started" in line for line in promoted_terminal_events_text.splitlines()) == 1, "promoted terminal V2 route must dispatch exactly once")
-    assert_case(terminal_result.exists() and terminal_artifact.exists(), "promoted terminal V2 route must produce executor outputs")
+    assert_case(accepted_terminal.returncode != 0 and "direct runner dispatch is disabled" in accepted_terminal.stderr,
+                "legacy promoted terminal fixture must remain read-only after Gateway cutover")
+    assert_case("dispatch_started" not in promoted_terminal_events_text, "legacy promoted terminal must not bypass Gateway")
+    assert_case(not terminal_result.exists() and not terminal_artifact.exists(), "legacy promoted terminal must not produce executor outputs")
+
+    with mock.patch.dict(os.environ, promotion_env, clear=False):
+        runner_module = load_runner_module()
+        runner_module.validate_order(terminal_payload)
+        for label, command, expected in (
+            ("missing primary", "claude --print Review", "canonical routing.model"),
+            ("forbidden fallback", "claude --model claude-opus-5-5 --fallback-model claude-opus-5 --print Review", "do not permit --fallback-model"),
+            ("duplicate primary", "claude --model claude-opus-5-5 --model claude-opus-5-5 --print Review", "canonical routing.model"),
+        ):
+            altered = json.loads(json.dumps(terminal_payload))
+            altered["launch"]["command"] = command
+            try:
+                runner_module.validate_order(altered)
+            except runner_module.RunnerError as exc:
+                assert_case(expected in str(exc), f"{label} validate_order rejection must identify fallback enforcement: {exc}")
+            else:
+                raise AssertionError(f"{label} Claude launch must fail through validate_order")
+    print("PASS validate_order enforces canonical Claude V2 model without fallback on admission and rejection")
 
     malformed_terminal_events = artifact_namespace(terminal_dir, "regression-post-cutover-terminal-promotion") / "malformed-ledger-events.jsonl"
     malformed_terminal = subprocess.run(
@@ -1209,12 +1832,12 @@ def main() -> int:
                     "ambiguity": "low",
                     "reversibility": "high",
                     "evidenceNeed": "high",
-                    "executor": "other",
-                    "model": "other",
-                    "reasoningEffort": "medium",
+                    "executor": "codex",
+                    "model": "gpt-6.1-sol",
+                    "reasoningEffort": "xhigh",
                     "executionProfile": "implementation",
                     "verificationProfile": "V3",
-                    "reviewer": "claude-opus-5",
+                    "reviewer": "claude-opus-5-5",
                     "confidence": "high",
                     "reasons": ["security boundary requires specialist approval"],
                     "specialistGate": {"required": True, "approved": True, "approver": "Boss"},
@@ -1223,6 +1846,8 @@ def main() -> int:
             )
         ],
     )
+    canonical_order["executor"] = "codex"
+    canonical_order["launch"]["command"] = "codex exec --model gpt-6.1-sol -c model_reasoning_effort=xhigh fixture"
     canonical_policy = runner_module.PathPolicy(
         Path(canonical_order["workspace"]["repoPath"]),
         canonical_order["allowedPaths"],
@@ -1283,13 +1908,13 @@ def main() -> int:
         "objectiveId": "loop-v0-objective",
         "attempt": 1,
         "taskClass": "narrow_regression_fix",
-        "complexity": "high",
+        "complexity": "low",
         "risk": "low",
         "ambiguity": "low",
         "reversibility": "high",
         "evidenceNeed": "low",
         "executor": "codex",
-        "model": "gpt-6-sol",
+        "model": "gpt-6.1-sol",
         "reasoningEffort": "high",
         "executionProfile": "implementation",
         "verificationProfile": "V0",
@@ -1309,7 +1934,7 @@ def main() -> int:
     }
     v0_payload["notesForExecutor"] = ["AQUILA_ROUTING_JSON_V1:" + json.dumps(v0_routing, separators=(",", ":"))]
     v0_command = shlex.split(v0_payload["launch"]["command"])
-    v0_payload["launch"]["command"] = shlex.join(["codex", "exec", "--model", "gpt-6-sol", "-c", "model_reasoning_effort=high", *v0_command[1:]])
+    v0_payload["launch"]["command"] = shlex.join(["codex", "exec", "--model", "gpt-6.1-sol", "-c", "model_reasoning_effort=high", *v0_command[1:]])
     write_json(v0_order, v0_payload)
     v0_completed = subprocess.run(
         [sys.executable, str(RUNNER), "--order", str(v0_order), "--mode", "run", "--events", str(v0_events), "--result", str(v0_result)],
@@ -1756,6 +2381,8 @@ raise SystemExit(runner.main())
     assert_case(dry_completed.returncode == 0, f"dry-run should remain non-dispatching: {dry_completed.stderr}")
     assert_case(not dry_lock.exists(), "dry-run must not leave a lock file")
     print("PASS dry-run remains non-dispatching without a held lock")
+    (FIXTURE_ROOT / "empty-ledger.jsonl").write_text("")
+    mission_regressions()
     return 0
 
 

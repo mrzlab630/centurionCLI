@@ -1,0 +1,16 @@
+{
+  "probe": "Q6",
+  "status": "unverified",
+  "exitCode": 1,
+  "elapsedSeconds": 1.52,
+  "requestedModel": "claude-opus-5-5",
+  "effort": "high",
+  "binarySha256": "a2b5add7dc4bcd8eaa029f4e8bdac4df7769b4073698db7989d206baf9419c2d",
+  "settingsSha256": "79ce827cfe1b577235a440271ebd5c93af5ed812a7a4561f253c7f0a031f04de",
+  "productUnchanged": true,
+  "credentialsProvided": false,
+  "liveFilesystem": "read-only mount",
+  "modelLaunchesReserved": 1,
+  "stdout": "{\"is_error\":true,\"duration_api_ms\":0,\"num_turns\":1,\"stop_reason\":\"stop_sequence\",\"session_id\":\"254c8acb-9722-4b3d-9dcc-11046d3ea2b0\",\"total_cost_usd\":0,\"usage\":{\"input_tokens\":0,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"output_tokens\":0,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[],\"speed\":\"standard\"},\"modelUsage\":{},\"permission_denials\":[],\"terminal_reason\":\"api_error\",\"fast_mode_state\":\"off\",\"fast_mode_disabled_reason\":\"sdk_opt_in_required\",\"subtype\":\"success\",\"api_error_status\":null,\"result\":\"Not logged in \u00b7 Please run /login\",\"type\":\"result\",\"duration_ms\":21,\"uuid\":\"9359c64f-2585-40ad-9487-e86cfb0d6dca\"}\n",
+  "stderr": ""
+}

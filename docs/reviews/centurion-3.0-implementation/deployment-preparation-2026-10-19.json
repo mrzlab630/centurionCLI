@@ -1,0 +1,973 @@
+{
+  "recordVersion": "CENTURION_DEPLOYMENT_PREPARATION_V1",
+  "date": "2026-10-19",
+  "sourceBase": "018bdd4af5f673d01625b32dfc6fa5f97a753966",
+  "status": "prepared_not_deployed",
+  "sourceRefs": [
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/order_preflight.py",
+      "sha256": "ced6a5d9d01c906c46a056ad0ecdda4dbe9c31568c6559936241243652fb865a",
+      "bytes": 29421
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+      "sha256": "de67b75b4a3de9c3cc5bb7b7ed5daec511e6291c16242dcc72f9f81e396f5c8b",
+      "bytes": 109399
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_order_preflight.py",
+      "sha256": "ea6fd971bf19defb321360e6dc49cc22885f591e48c2316b531e03175ecaa120",
+      "bytes": 21778
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway.py",
+      "sha256": "d95de10971f547a5f218b14fc7345327e15d1f9130acf380a01ce8d122498ab4",
+      "bytes": 95533
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+      "sha256": "84e710feffe5793f0ff0e76b3554ca839f1a11a108389ead8c6885684c7afceb",
+      "bytes": 69651
+    }
+  ],
+  "reviews": [
+    {
+      "task": "explicit-model-route",
+      "receipt": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/explicit-model-route/receipt.json",
+        "sha256": "95ca6a02940506df1ea324b55e2ceca1bfaea836914da17ff52fe9e19b29d99a",
+        "bytes": 1119
+      },
+      "receiptData": {
+        "exitCode": 0,
+        "elapsedSeconds": 15.01,
+        "inputRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/explicit-model-route/input.txt",
+          "sha256": "dab455d7f54846db3d38d02f8f00813c044fc770ccc8da2dcb14d111f5209694",
+          "bytes": 29338
+        },
+        "rawRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/explicit-model-route/stdout.jsonl",
+          "sha256": "8aaa8b96d6ad3e97ff2599f44ff16790d89b1450ebaddad93bee86131868c41a",
+          "bytes": 4718
+        },
+        "sourceUnchanged": true,
+        "sourceCommit": "018bdd4af5f673d01625b32dfc6fa5f97a753966",
+        "model": "claude-opus-5-5",
+        "effort": "high",
+        "localProxy": "http://127.0.0.1:8317",
+        "timeoutSeconds": null,
+        "pollSeconds": 30,
+        "observationsRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/explicit-model-route/observations.jsonl",
+          "sha256": "2fd66538fd00a733b2c35e792ebd62a0c80fd0bf9fd663ab0b987c7384d89f2f",
+          "bytes": 627
+        }
+      },
+      "review": {
+        "findings": [],
+        "verdict": "ACCEPT",
+        "summary": "Изменение корректно отделяет обязательный транспорт BASE_URL от необязательной переменной ANTHROPIC_DEFAULT_OPUS_MODEL. Модель теперь передаётся только через --model из утверждённого routing.model; отчётные запуски используют модель из capability receipt. Валидатор требует локальный прокси без проверки DEFAULT_OPUS_MODEL. Переменная владельца остаётся без изменений и не наследуется дочерними процессами. Существующий allowlist моделей, изоляция профилей, проверка runtime model и отсутствие fallback сохраняются. Регрессии подтверждают, что стale-shell-alias не блокирует утверждённую модель заказа. Capability route остаётся жёстко привязан к claude-opus-5-5/high.",
+        "limitations": [
+          "Фактические запуски валидатора и шлюза не наблюдались; оценка основана на коде и заявленных PASS результатах",
+          "Proof не содержит конкретных выводов regression тестов с --model параметрами",
+          "Не проверено поведение при полном отсутствии ANTHROPIC_DEFAULT_OPUS_MODEL в оболочке владельца",
+          "Старая регрессия regression_result_gateway.py вышла из активной матрицы, неясна причина исключения"
+        ]
+      },
+      "order": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/explicit-model-route/order.json",
+        "sha256": "e55441def2617fc510784f212365bc838c656e20e0e3db4a1937820a18d4548f",
+        "bytes": 2971
+      },
+      "launchBinding": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/explicit-model-route/launch-binding.json",
+        "sha256": "7b0e65307ec54a0da294f58801c2c7909bc6eed0ebd24a1fb95fd1549828f848",
+        "bytes": 1230
+      },
+      "failure": null
+    },
+    {
+      "task": "policy-review/version-scope",
+      "receipt": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/policy-review/version-scope/receipt.json",
+        "sha256": "aa267beed16215b888aedcdfe252a05dc23277d9d1d06d3683458a64b957a1b9",
+        "bytes": 1144
+      },
+      "receiptData": {
+        "exitCode": 1,
+        "elapsedSeconds": 1099.23,
+        "inputRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/policy-review/version-scope/input.txt",
+          "sha256": "057ed525facd8e28ec4072f294191be6acb6b6cc4653f82d9b035759cc6e0379",
+          "bytes": 29432
+        },
+        "rawRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/policy-review/version-scope/stdout.jsonl",
+          "sha256": "d7e2b3776e6105869b6b83cedf3686b5ac7100eaaf98bae3018756c6ee0f3f1e",
+          "bytes": 1138
+        },
+        "sourceUnchanged": true,
+        "sourceCommit": "018bdd4af5f673d01625b32dfc6fa5f97a753966",
+        "model": "claude-opus-5-5",
+        "effort": "high",
+        "localProxy": "http://127.0.0.1:8317",
+        "timeoutSeconds": null,
+        "pollSeconds": 30,
+        "observationsRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/policy-review/version-scope/observations.jsonl",
+          "sha256": "ccb9568813be80485c541d5c11a0fd55b8c9a97b16c74ff3cb85c67ee611ad7a",
+          "bytes": 12893
+        }
+      },
+      "review": null,
+      "order": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/policy-review/version-scope/order.json",
+        "sha256": "8dc84cd40023d863ae36c276d91e4e0aad61dae32015b00c8f347f78425dadb1",
+        "bytes": 2894
+      },
+      "launchBinding": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/policy-review/version-scope/launch-binding.json",
+        "sha256": "e85aa9c6f7cb425f972189b57efb9c422fb9164d9be4585d058d1e7c4c55a6bd",
+        "bytes": 1237
+      },
+      "failure": "API Error: Connection closed mid-response. No verdict."
+    },
+    {
+      "task": "policy-split/codex-scope",
+      "receipt": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/policy-split/codex-scope/receipt.json",
+        "sha256": "b5c35273f91e59b543062ea557a3aeb426ec11cdfa2bfd3dc93d324ac695a403",
+        "bytes": 1130
+      },
+      "receiptData": {
+        "exitCode": 0,
+        "elapsedSeconds": 18.01,
+        "inputRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/policy-split/codex-scope/input.txt",
+          "sha256": "8925c8de9c71a420e8ee0bc671feac80e294575a30ecb280aab62a7f95e7407d",
+          "bytes": 9014
+        },
+        "rawRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/policy-split/codex-scope/stdout.jsonl",
+          "sha256": "e4732c8d8700e69f24c802f40ea8ecd6b5bf22ef40eaf61b583e37abe453df94",
+          "bytes": 8063
+        },
+        "sourceUnchanged": true,
+        "sourceCommit": "018bdd4af5f673d01625b32dfc6fa5f97a753966",
+        "model": "claude-opus-5-5",
+        "effort": "high",
+        "localProxy": "http://127.0.0.1:8317",
+        "timeoutSeconds": null,
+        "pollSeconds": 30,
+        "observationsRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/policy-split/codex-scope/observations.jsonl",
+          "sha256": "7505a001a69cf2f6bf9a8764640fd913361983e8e0484aff2a22dfecf4c3ef67",
+          "bytes": 627
+        }
+      },
+      "review": {
+        "findings": [],
+        "summary": "ПРИНЯТО. Предложенная оговорка о scope CENTURION 3.0 последовательно ограничивает исторические правила маршрутизации, проверки, диспетчеризации, записи результатов, heartbeat и загрузки работой не-3.0. Для явно активированных миссий 3.0 единственным авторитетом являются установленный функциональный контракт и управление маршрутизацией контроллера; устаревшие главы применяются только к историческим или отдельно запрошенным работам не-3.0. Матрица моделей 3.0 (gpt-6.1-sol, gpt-6-luna, gpt-6-astra, claude-opus-5-5) точно зафиксирована, откат к Sonnet/Fable/Gemini/agy явно запрещён для нового 3.0 диспетча. Единоличная власть Gateway на запуск и запись результатов ясна; работники возвращают полезную нагрузку через адаптер и не имеют права записывать канонический результат. Замена heartbeat наблюдением на стороне Gateway явно определена, и устаревшие обязательства heartbeat-helper не применяются к дочерним 3.0. Новая работа моделей 3.0 имеет timeoutSeconds=null и deadlineAt=null по умолчанию, при этом явная отмена и границы попыток остаются в силе. Оговорка правильно подчёркивает, что неизменные правила пользовательского scope/safety/identity/approval остаются авторитетными, никаких новых полномочий не предоставляется, шлюзы V3 не обходятся, и явная пользовательская инструкция побеждает. Следующий управляемый обёрточный контракт загружает существующий функциональный контракт; он согласуется с оговоркой.",
+        "limitations": [
+          "Ограничен текстовым обзором; не проверено выполнение функционального контракта во время выполнения или цепочки загрузчиков",
+          "Нет аудита полного выпуска или инструментальной цепи; не оценивалась реализация контроллера, Gateway или heartbeat",
+          "Не проверены исторические главы на полноту или обратную совместимость не-3.0 работы",
+          "Краевые случаи взаимодействия (устаревшие точные файловые контракты, условия исчерпания бюджета, запросы пользователей о route не-3.0 внутри сессии 3.0) требуют отдельного интеграционного тестирования"
+        ],
+        "verdict": "ACCEPT"
+      },
+      "order": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/policy-split/codex-scope/order.json",
+        "sha256": "2ab7a8cf5c505cbfc6ba2c1c333fe16efec86c636d4178e12e1e6ee1a749be94",
+        "bytes": 2415
+      },
+      "launchBinding": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/policy-split/codex-scope/launch-binding.json",
+        "sha256": "27d4a7b7f31646f9cff961bffba763b32cf137c7b9c8d6c11b0f37c7b0f8186c",
+        "bytes": 1234
+      },
+      "failure": null
+    },
+    {
+      "task": "policy-split/hermes-scope",
+      "receipt": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/policy-split/hermes-scope/receipt.json",
+        "sha256": "b43f2282923265780a5684a3bc446a512d7811152a782476e88a3f0f36531a48",
+        "bytes": 1137
+      },
+      "receiptData": {
+        "exitCode": 0,
+        "elapsedSeconds": 895.32,
+        "inputRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/policy-split/hermes-scope/input.txt",
+          "sha256": "77cf6d1e7ce3b145aee4b9bd13424369270f7c79abd4abf51ece8b9094e1c28d",
+          "bytes": 12854
+        },
+        "rawRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/policy-split/hermes-scope/stdout.jsonl",
+          "sha256": "36e3f93b52144bbf9a5a0b2aea613ca8985e4ae1afe0224dc0bd5f81ab8256e4",
+          "bytes": 5187
+        },
+        "sourceUnchanged": true,
+        "sourceCommit": "018bdd4af5f673d01625b32dfc6fa5f97a753966",
+        "model": "claude-opus-5-5",
+        "effort": "high",
+        "localProxy": "http://127.0.0.1:8317",
+        "timeoutSeconds": null,
+        "pollSeconds": 30,
+        "observationsRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/policy-split/hermes-scope/observations.jsonl",
+          "sha256": "01ff742af9d17a21ececa7b94c30c041dadfd5cb5a772fc27f3354d79fd90110",
+          "bytes": 10500
+        }
+      },
+      "review": {
+        "verdict": "ACCEPT",
+        "summary": "Проверен только текстовый конфликт между исходным SOUL.md и добавленным пунктом policyVersion 3.0. Пункт последовательно выводит старые правила моделей, ревью, диспетчеризации, результата, heartbeat и загрузки глав за пределы 3.0: для 3.0 launch/model/effort/verification/result transport переданы установленному функциональному контракту и контроллеру, заданы утверждённая матрица моделей, Gateway-only запуск и resultPath, наблюдение процесса вместо heartbeat, null-таймауты и явный Claude --model через локальный прокси. Старые правила сохранены для non-3.0; неизменённые пользовательские, safety, identity, proof и approval-правила остаются в силе, новых полномочий пункт не даёт. Неразрешённых текстовых дефектов не найдено.",
+        "findings": [],
+        "limitations": [
+          "Только текстовый обзор: фактическая загрузка цепочки, доступность orchestrator core/agent-contract-runner adapter и поведение установленного функционального контракта во время выполнения не проверялись; согласие контракта с пунктом принято как данность.",
+          "Аудит полного релиза и инструментальной цепочки не проводился; полномочия не предоставлялись. Неизменённые пользовательские, safety, identity, approval и proof-правила остаются авторитетными."
+        ]
+      },
+      "order": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/policy-split/hermes-scope/order.json",
+        "sha256": "c2431c81f9a917391c8683f7207f7b2f8010789b1af2b2d5bef5b9e58245b8ae",
+        "bytes": 2447
+      },
+      "launchBinding": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/policy-split/hermes-scope/launch-binding.json",
+        "sha256": "2f144bb8441ae9d83366d30bbd46e74cf229d3c9d2291b7bb0853783cd53a83c",
+        "bytes": 1235
+      },
+      "failure": null
+    }
+  ],
+  "sourceReviewLaunches": 4,
+  "sourceReviewCompleted": 3,
+  "sourceReviewTransportFailures": 1,
+  "timeoutSeconds": null,
+  "pollSeconds": 30,
+  "automaticRetries": 0,
+  "proof": {
+    "orderPreflight": "13 PASS groups",
+    "reviewLadder": "19 PASS groups",
+    "gatewayV3": "24 PASS groups",
+    "isolatedHermesSmoke": "PASS including 13 packaged regressions",
+    "installer": "10/10 PASS",
+    "codexSmoke": "PASS",
+    "resultBuilder": "26 PASS groups",
+    "responseEnvelope": "7 PASS groups",
+    "pythonCompile": "PASS",
+    "diffCheck": "PASS",
+    "retiredGatewayMain": "FAILED old error-text assertion: expected namespace, observed candidateJsonPath not covered by allowedPaths; excluded historical main, no unrelated correction"
+  },
+  "stagedNativeProbes": {
+    "codex": {
+      "acceptance": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/codex-capability/acceptance.json",
+        "sha256": "962111f5cce43467698cae75dafc16b9fcd506d34fb386f850c351bfe3c3bbfb",
+        "bytes": 2022
+      },
+      "receipt": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/codex-capability/receipt.json",
+        "sha256": "da6fbaa2889e77cac3873d0197df97997329d67c94a6fd012403ffae6415caac",
+        "bytes": 304
+      },
+      "result": {
+        "status": "passed",
+        "candidate": {
+          "canonicalWriter": "Gateway alone writes the canonical result for policyVersion 3.0; workers return native payloads through the selected adapter.",
+          "lunaEffort": "high or xhigh only",
+          "marker": "N8_STAGED_CODEX_19OCT",
+          "timeoutRule": "No. Hours of silence do not authorize killing a running model. New model work has no timeout or deadline unless the owner explicitly requests a finite limit."
+        },
+        "nativeContexts": [
+          {
+            "sessionRef": {
+              "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/n8-preparation/fixture-homes/codex/sessions/2026/10/19/rollout-2026-10-19T11-45-51-01a15356-aaba-7a33-807d-a6c1a6d9057e.jsonl",
+              "sha256": "a991f5a5a28c28645465c7801c594d08b97235c096953b6266d06bb2f6d6cc53",
+              "bytes": 111736
+            },
+            "model": "gpt-6.1-sol",
+            "effort": "high",
+            "sandbox": {
+              "type": "read-only"
+            }
+          }
+        ],
+        "rawRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/codex-capability/stdout.jsonl",
+          "sha256": "fe2ca0645dc1eed2c0353a7ca72327c9afb2179937a5cd6543aebc84c91055f7",
+          "bytes": 18302
+        },
+        "configRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/n8-preparation/fixture-homes/codex/config.toml",
+          "sha256": "e77a425b945e79d0b7c344a311c258556ce4cce0f57c958a653519512af3c977",
+          "bytes": 189
+        },
+        "adapterRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          "sha256": "de67b75b4a3de9c3cc5bb7b7ed5daec511e6291c16242dcc72f9f81e396f5c8b",
+          "bytes": 109399
+        },
+        "limitations": [
+          "Staged native chain, not installed Gateway round-trip.",
+          "Model metadata is not upstream attestation."
+        ]
+      }
+    },
+    "hermes": {
+      "acceptance": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/hermes-capability/acceptance.json",
+        "sha256": "fdb805ee0e80d88becb5b05b4ee4019f40007345619f7f30d870479e34f7c18d",
+        "bytes": 1848
+      },
+      "receipt": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/hermes-capability/receipt.json",
+        "sha256": "a09fa00b6dc71833a3e3f92f3a0bf1f049472984c6433804a2f7aca6828fd4c7",
+        "bytes": 304
+      },
+      "result": {
+        "status": "passed",
+        "candidate": {
+          "marker": "N8_STAGED_HERMES_19OCT",
+          "canonicalWriter": "Gateway alone writes the canonical result at outputContract.resultPath and creates controller receipts; workers return native payloads through the selected adapter and never write the canonical result or invoke a finalizer.",
+          "lunaEffort": "gpt-6-luna is allowed only at high or xhigh.",
+          "timeoutRule": "No. Hours of silence do not authorize killing or retrying a running model. New model work uses launch.timeoutSeconds=null and budget.deadlineAt=null unless the owner explicitly requests finite limits. Explicit cancellation targets the owning Gateway with SIGTERM/SIGINT, not an unverified worker PID."
+        },
+        "rawRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/hermes-capability/stdout.jsonl",
+          "sha256": "00ff4d68a7f75a5c7c95f11e4411a667dedfeb5d437496c6530f3fc54157d089",
+          "bytes": 16136
+        },
+        "configRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/n8-preparation/fixture-homes/hermes/config.yaml",
+          "sha256": "a4bb554ed8ab8e8e631e756eac91cba406dda3f2c839aeb98f22c20462e41f40",
+          "bytes": 417
+        },
+        "adapterRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          "sha256": "de67b75b4a3de9c3cc5bb7b7ed5daec511e6291c16242dcc72f9f81e396f5c8b",
+          "bytes": 109399
+        },
+        "model": "gpt-6.1-sol",
+        "effort": "high",
+        "limitations": [
+          "Staged Hermes config and read-only OS wrapper, not a live installed canary.",
+          "Model metadata is not upstream attestation; no worker delegation requested."
+        ]
+      }
+    }
+  },
+  "reportCapability": {
+    "acceptance": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/report-capability/acceptance.json",
+      "sha256": "1ba7cc4d8e4ee0f9e37063e85dcff8fab5e7e56643dbf035288ffbc60df1a935",
+      "bytes": 1049
+    },
+    "result": {
+      "status": "passed",
+      "reportCapabilityRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/report-capability/report-capability.json",
+        "sha256": "d0242df83b4e3ccfa846d783b0803e9214116fc122be311b9aeb69b148732743",
+        "bytes": 2740
+      },
+      "adapterRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+        "sha256": "de67b75b4a3de9c3cc5bb7b7ed5daec511e6291c16242dcc72f9f81e396f5c8b",
+        "bytes": 109399
+      },
+      "basis": "Current report_launch native structured result plus exact-wrapper OS write denial",
+      "newModelLaunches": 0,
+      "limitations": [
+        "Read-only source review was the native no-tools request; no new P6 product effect.",
+        "Native reported model is not upstream attestation; live installed chain remains unproven.",
+        "Profile/binary/settings/baseUrl pins must still match at actual use."
+      ]
+    }
+  },
+  "installationFixture": {
+    "summary": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/n8-preparation/summary.json",
+      "sha256": "16f87a16dc3a2cddf6d74ad1e82aada8a18a75ec64f41e8f60d846aa2dde8054",
+      "bytes": 4952
+    },
+    "clients": [
+      {
+        "client": "codex",
+        "fixtureFilesVerified": 124,
+        "manifest": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/n8-preparation/fixture-homes/codex/centurion/installed-chain.json",
+          "sha256": "f3b40cd3de05daff4e77229bb3a97079d7b6d8d245b2330226c4997d0e58f3f4",
+          "bytes": 98119
+        },
+        "audit": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/n8-preparation/codex-fixture-audit.json",
+          "sha256": "36eb7ef67d1bacf14aba7c35f55e9987f9f0e08e57a6b2ba29d909c8a14d7079",
+          "bytes": 89448
+        },
+        "liveDryRun": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/n8-preparation/codex-live-dry-run.json",
+          "sha256": "251eb254e14b0dac57689b3e61c5d2f2aa50e8e165c4a72c797c24791ed7bb67",
+          "bytes": 8353
+        },
+        "capability": "excluded",
+        "liveLoadedChainProven": false
+      },
+      {
+        "client": "claude",
+        "fixtureFilesVerified": 158,
+        "manifest": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/n8-preparation/fixture-homes/claude/centurion/installed-chain.json",
+          "sha256": "c57a3c60f5e970f23098723242b84404da946cfabdfd2ed92adf4c43caca5c9a",
+          "bytes": 136744
+        },
+        "audit": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/n8-preparation/claude-fixture-audit.json",
+          "sha256": "7563cc6ead3080d21ce962f2c7079d5220da54258e4762770a02315137977ab9",
+          "bytes": 124423
+        },
+        "liveDryRun": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/n8-preparation/claude-live-dry-run.json",
+          "sha256": "207be7a935c6d3b79ecc9d439f94901e75bf935f5f29b12a187422de361c386e",
+          "bytes": 11085
+        },
+        "capability": "excluded",
+        "liveLoadedChainProven": false
+      },
+      {
+        "client": "hermes",
+        "fixtureFilesVerified": 56,
+        "manifest": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/n8-preparation/fixture-homes/hermes/centurion/installed-chain.json",
+          "sha256": "d47ca59752df2140213881c1b6da3b7525eae94c059e3c6176e83a75c7f486b3",
+          "bytes": 68899
+        },
+        "audit": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/n8-preparation/hermes-fixture-audit.json",
+          "sha256": "fa124fbe6edbb40671ef8d329a2cfb22f22c4b24c74fb54f43412d3f4f6913f1",
+          "bytes": 64840
+        },
+        "liveDryRun": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/n8-preparation/hermes-live-dry-run.json",
+          "sha256": "783971517293a611d8e4a5d7f4630948fb642b1286c71b72c528f91cc1023457",
+          "bytes": 5802
+        },
+        "capability": "excluded",
+        "liveLoadedChainProven": false
+      }
+    ],
+    "livePreimagesVerified": 332,
+    "liveFilesChanged": 0,
+    "historicalMissionsVerified": 6,
+    "historicalReadback": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/n8-preparation/historical-evidence-readback.json",
+      "sha256": "0a7116b8948e7ebfa686b4fb04c02ada527fbd7c37c5453989c384fbf6d6955c",
+      "bytes": 14214
+    }
+  },
+  "policyDecision": {
+    "status": "root_adopted_for_explicit_3_0_cutover_not_applied_live",
+    "authority": "Prior user authorization of new version/model matrix/autonomy and current instruction to use best approach and continue deployment preparation.",
+    "text": "\n\n## CENTURION policyVersion 3.0 scope\n\nFor an explicitly activated CENTURION policyVersion 3.0 mission only, the\ninstalled selected functional contract and controller routing govern launch,\nmodel, effort, verification pairing and result transport. The historical\nroute/review/direct-dispatch and delegation/custody/launch chapter requirements\nabove apply to historical or separately requested non-3.0 work. For 3.0, load\nthe installed orchestrator core and agent-contract-runner adapter where available;\nload only selected domain recipes for the assigned task. Legacy chapters cannot\nrestore a retired route, alternate dispatcher or another controller.\n\nUse the approved exact model/effort pair: gpt-6.1-sol for Sol work, gpt-6-luna\nonly at high or xhigh, gpt-6-astra only for read-only advice, and claude-opus-5-5\nfor its approved specialist/reviewer role. No Sonnet, Fable, Gemini/agy or legacy\nmodel fallback in new 3.0 dispatch. The controller enforces independent review\npairing and existing risk floors; no self-approval or recursive reviewer.\n\nGateway alone launches new 3.0 children and creates outputContract.resultPath\nand controller receipts. Workers return the native payload through the selected\nadapter and never write the canonical result or call a finalizer. Legacy exact\nfile-output contracts retain their separate non-3.0 path and grant no 3.0 launch\nauthority. Gateway process/events observation replaces legacy heartbeat-helper\nlaunch obligations for these children. Missing result formatting never permits\nreplaying completed product work.\n\nNew model work has launch.timeoutSeconds=null and mission budget.deadlineAt=null\nunless the owner explicitly requests a finite limit. Observe the owning process\nabout every 30 seconds; silence or elapsed time does not authorize termination,\nretry or a claim of remote model health. Existing finite historical orders and\nlaunch/attempt limits remain unchanged; explicit cancellation and bounded cleanup\nremain required. Claude uses the local ANTHROPIC_BASE_URL and exact --model from\nthe approved route; ANTHROPIC_DEFAULT_OPUS_MODEL is not the order's authority.\n\nAll independent user authority, scope, safety, identity, proof, approval and\nno-secret/no-hidden-change requirements remain effective. This clause grants no\nnew permissions, cannot waive V3 or specialist gates, and does not activate a\n3.0 mission by itself. Current explicit user and higher-priority instructions win.\n",
+    "proposals": [
+      {
+        "client": "codex",
+        "livePath": "/home/mrz/.codex/AGENTS.md",
+        "original": {
+          "path": "/home/mrz/.codex/AGENTS.md",
+          "sha256": "074f7ee50bc40a7e3cf08ac9d72851e9194c1c51da7580a58e708c89d98ad11d",
+          "bytes": 8416
+        },
+        "proposed": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/n8-preparation/codex-instruction.proposed.md",
+          "sha256": "44840226e0be776486372631d7777785ba41ed15748a2055960a1d4ccefece20",
+          "bytes": 10860
+        },
+        "preservedOriginalBytes": 8416,
+        "appliedToLive": false
+      },
+      {
+        "client": "hermes",
+        "livePath": "/home/mrz/.hermes/SOUL.md",
+        "original": {
+          "path": "/home/mrz/.hermes/SOUL.md",
+          "sha256": "352f911f3af4027562eaff549c4e1656a7ac7cb3acb68d0ef73095f5225dde3e",
+          "bytes": 12669
+        },
+        "proposed": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/n8-preparation/hermes-instruction.proposed.md",
+          "sha256": "636b4ddeac0a7dc818db25a39aa29b37e11964be5e5e2f688bf1a6a59f09ae4d",
+          "bytes": 15113
+        },
+        "preservedOriginalBytes": 12669,
+        "appliedToLive": false
+      }
+    ],
+    "reason": "Version-scoped clarification implements approved behavior, preserves original bytes and independent authority/safety limits; native staged probes agree."
+  },
+  "remaining": [
+    "live config/route/binary/adapter capability bindings",
+    "no-new-work drain and idle service stop",
+    "fresh targeted backup/rollback and native policy preimage recalculation",
+    "sequential allowlist install and readback",
+    "one real installed Gateway canary before reopening dispatch"
+  ],
+  "limits": [
+    "Staged capability is not full live loaded-chain proof.",
+    "Requested/reported model is client evidence, not upstream attestation.",
+    "No live homes/config/auth/service changes; historical budgets and product missions unchanged."
+  ],
+  "capabilityContinuation": {
+    "sourceBase": "4feeba4b70371028c2db743f36549ce3c78f55ed",
+    "status": "prepared_not_deployed",
+    "summaryRef": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/summary.json",
+      "sha256": "d0e7ed49b9658ff05daf8c43d1d96fa1c26c35a147a941a3f3057d2c5b992290",
+      "bytes": 4389
+    },
+    "clients": [
+      {
+        "client": "codex",
+        "capabilityRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/codex-capability.json",
+          "sha256": "c2fa1b5776e776d01729bf72bd62f24988244877756d8c91b7b5c38a9899bbad",
+          "bytes": 1498
+        },
+        "binding": {
+          "client": "codex",
+          "adapterVersion": "centurion-native-v3",
+          "binaryPath": "/home/mrz/.nvm/versions/node/v26.2.0/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex",
+          "binarySha256": "399ff69c431c066e40de318fba45c2b07f45a76b19939d247ee4828fc70c4215",
+          "binaryVersion": "codex-cli 0.163.0",
+          "configPath": "/home/mrz/.codex/config.toml",
+          "configSha256": "3d2e116f589f5fdc96bb7ab1fab90230ee852b78f0dda20ad9b70d5b998e9d4e",
+          "routePath": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/codex-route.json",
+          "routeSha256": "3c10608728e27f7c99b72933a79772d09bc65d30cdfcb349798b651cfc355b03",
+          "adapterSha256": "de67b75b4a3de9c3cc5bb7b7ed5daec511e6291c16242dcc72f9f81e396f5c8b",
+          "supportedFlags": [
+            "--model",
+            "--sandbox",
+            "--output-schema",
+            "--output-last-message",
+            "--json"
+          ],
+          "nativeSchemaSupported": true,
+          "permissionMode": "read-only probe; product permission must match approved order",
+          "extractionMode": "output-last-message",
+          "evidencePath": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/codex-evidence.json",
+          "evidenceSha256": "7d44b89fb6137a923e10505795a0b1dced28e46e9f3e056d36edbf9104a78e93",
+          "liveDispatchProven": false,
+          "scope": "exact route and declared maintenance invocation; not all configurations"
+        },
+        "evidenceRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/codex-evidence.json",
+          "sha256": "7d44b89fb6137a923e10505795a0b1dced28e46e9f3e056d36edbf9104a78e93",
+          "bytes": 2847
+        },
+        "evidence": {
+          "status": "passed",
+          "nativeCurrentConfig": {
+            "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/codex/acceptance.json",
+            "sha256": "c4a0f570a834b86b1819176f4034120e1af21c3277e55247137918c687280ffa",
+            "bytes": 3276
+          },
+          "stagedInstructions": {
+            "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/codex-capability/acceptance.json",
+            "sha256": "962111f5cce43467698cae75dafc16b9fcd506d34fb386f850c351bfe3c3bbfb",
+            "bytes": 2022
+          },
+          "metadata": {
+            "version": {
+              "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/codex-version.stdout",
+              "sha256": "15c9db57c80035537f94bea647d07608a1fab5148f5482c0a0d1d7422b7fb69e",
+              "bytes": 18
+            },
+            "help": {
+              "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/codex-help.stdout",
+              "sha256": "df0d864ca2076f7654288c6a1e3394e3eaa2ea8f15021df2524efdd90c70986c",
+              "bytes": 4331
+            }
+          },
+          "additionalRuntimePins": [
+            {
+              "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+              "sha256": "de67b75b4a3de9c3cc5bb7b7ed5daec511e6291c16242dcc72f9f81e396f5c8b",
+              "bytes": 109399
+            },
+            {
+              "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/order_preflight.py",
+              "sha256": "ced6a5d9d01c906c46a056ad0ecdda4dbe9c31568c6559936241243652fb865a",
+              "bytes": 29421
+            },
+            {
+              "path": "/home/mrz/.nvm/versions/node/v26.2.0/lib/node_modules/@openai/codex/bin/codex.js",
+              "sha256": "61b0194f3bb6534439c8d26a3ed57d0805f84b884588b761795323eeb92fcf70",
+              "bytes": 8790
+            },
+            {
+              "path": "/home/mrz/.nvm/versions/node/v26.2.0/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex",
+              "sha256": "399ff69c431c066e40de318fba45c2b07f45a76b19939d247ee4828fc70c4215",
+              "bytes": 296865480
+            },
+            {
+              "path": "/home/mrz/.codex/config.toml",
+              "sha256": "3d2e116f589f5fdc96bb7ab1fab90230ee852b78f0dda20ad9b70d5b998e9d4e",
+              "bytes": 14013
+            }
+          ],
+          "limitations": [
+            "Actual current config bytes tested with declared read-only overrides and isolated runtime home.",
+            "No native installed 3.0 instruction or Gateway mission in this check.",
+            "Native reported metadata is not upstream model attestation."
+          ],
+          "liveDispatchProven": false
+        },
+        "dryRunRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/codex-live-dry-run.stdout",
+          "sha256": "a8240af1e64b76079b5826da8dea7c1c82400f2bcc4c763b6da95754109496dd",
+          "bytes": 9675
+        },
+        "dryRunStatus": "recorded",
+        "targetCount": 125,
+        "retiredCount": 8,
+        "cutoverCommand": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/codex-cutover-command.json",
+          "sha256": "26c95d9ea3e1fec349054dc41286011e61757810c5ae8b899d95cda343cc64a0",
+          "bytes": 1942
+        }
+      },
+      {
+        "client": "hermes",
+        "capabilityRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/hermes-capability.json",
+          "sha256": "f3fa8c6a7f028be2612a80f29d751df09dd8a2528f895443524d05546aa2f896",
+          "bytes": 1561
+        },
+        "binding": {
+          "client": "hermes",
+          "adapterVersion": "centurion-native-v3",
+          "binaryPath": "/home/mrz/.local/bin/hermes",
+          "binarySha256": "50ee1f5317728de2ddcf07f902ed82653d187094065b795b5092b4a7fd5935ff",
+          "binaryVersion": "Hermes Agent v0.22.2 (2026.9.24) · stable · local d923a5eb487a\nInstall directory: /home/mrz/.hermes/hermes-agent\nInstall method: git\nPython: 3.14.7\nOpenAI SDK: 2.24.0",
+          "configPath": "/home/mrz/.hermes/config.yaml",
+          "configSha256": "66976db4d48480f6e524839fa5ef5ad26afcd693f0fc13eaab98d6b53af5a138",
+          "routePath": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/hermes-route.json",
+          "routeSha256": "307522877c6c7bde0ad9016482084f16bcc6ccd1775260879aaccd6151af40e0",
+          "adapterSha256": "de67b75b4a3de9c3cc5bb7b7ed5daec511e6291c16242dcc72f9f81e396f5c8b",
+          "supportedFlags": [
+            "--model",
+            "--provider",
+            "--reasoning",
+            "--toolsets",
+            "--max-turns",
+            "--format",
+            "--query"
+          ],
+          "nativeSchemaSupported": false,
+          "permissionMode": "read-only OS wrapper; terminal toolset explicitly selected",
+          "extractionMode": "stream-json result.text",
+          "evidencePath": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/hermes-evidence.json",
+          "evidenceSha256": "ef6a05270000e6aaf7e613c4b4deaf18d698e9ee8faf7d4475de02af82091bd3",
+          "liveDispatchProven": false,
+          "scope": "exact route and declared maintenance invocation; not all configurations"
+        },
+        "evidenceRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/hermes-evidence.json",
+          "sha256": "ef6a05270000e6aaf7e613c4b4deaf18d698e9ee8faf7d4475de02af82091bd3",
+          "bytes": 3428
+        },
+        "evidence": {
+          "status": "passed",
+          "nativeCurrentConfig": {
+            "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/hermes-r2/acceptance.json",
+            "sha256": "d713a14be983510cfb9f97335af99d25a2e4f75befcc1e191275477dae63742e",
+            "bytes": 3102
+          },
+          "stagedInstructions": {
+            "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/hermes-capability/acceptance.json",
+            "sha256": "fdb805ee0e80d88becb5b05b4ee4019f40007345619f7f30d870479e34f7c18d",
+            "bytes": 1848
+          },
+          "metadata": {
+            "version": {
+              "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/hermes-version.stdout",
+              "sha256": "e90376ed390ffa9de961eaa7821a502f9630310684404cbfa247355824b62b53",
+              "bytes": 169
+            },
+            "help": {
+              "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/hermes-help.stdout",
+              "sha256": "5e59bb8dba871300b79b6958dbce816cd5a853772d86e2ad22f12f53d22eb682",
+              "bytes": 7126
+            }
+          },
+          "additionalRuntimePins": [
+            {
+              "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+              "sha256": "de67b75b4a3de9c3cc5bb7b7ed5daec511e6291c16242dcc72f9f81e396f5c8b",
+              "bytes": 109399
+            },
+            {
+              "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/order_preflight.py",
+              "sha256": "ced6a5d9d01c906c46a056ad0ecdda4dbe9c31568c6559936241243652fb865a",
+              "bytes": 29421
+            },
+            {
+              "path": "/home/mrz/.local/bin/hermes",
+              "sha256": "50ee1f5317728de2ddcf07f902ed82653d187094065b795b5092b4a7fd5935ff",
+              "bytes": 70
+            },
+            {
+              "path": "/home/mrz/.hermes/hermes-agent/.hermes/bin/hermes",
+              "sha256": "7ecc5f72fc52110c71fd7dba7ebda942e110e7e2efd285d14c066289ed8048b4",
+              "bytes": 7564
+            },
+            {
+              "path": "/home/mrz/.hermes/config.yaml",
+              "sha256": "66976db4d48480f6e524839fa5ef5ad26afcd693f0fc13eaab98d6b53af5a138",
+              "bytes": 29407
+            },
+            {
+              "path": "/home/mrz/.hermes/hermes-agent/install-stamp.json",
+              "sha256": "c2a825ae5b3c62ea9a5722d2743e68b5986af5e10234fbd3fe76361c5a840b8c",
+              "bytes": 380
+            },
+            {
+              "path": "/home/mrz/.hermes/hermes-agent/hermes_cli/main.py",
+              "sha256": "88a7fc166d3bfaac082d44bbfc36c93b53c50f7508ca96e32206dc3f1edfaa82",
+              "bytes": 151085
+            },
+            {
+              "path": "/home/mrz/.hermes/hermes-agent/cli.py",
+              "sha256": "04e9c76fc5596766d4fad1f28a1583ccbc0f9709371dd8a5f60ab91b34105ebb",
+              "bytes": 79921
+            },
+            {
+              "path": "/home/mrz/.hermes/installs/e89392d879733aed/facts.json",
+              "sha256": "f23d0067502fd1a5c7701cea01915ef4539e825cdd2c06d198fbf534530210f6",
+              "bytes": 476
+            }
+          ],
+          "limitations": [
+            "Actual current config bytes tested with declared read-only overrides and isolated runtime home.",
+            "No native installed 3.0 instruction or Gateway mission in this check.",
+            "Native reported metadata is not upstream model attestation."
+          ],
+          "liveDispatchProven": false
+        },
+        "dryRunRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/hermes-live-dry-run.stdout",
+          "sha256": "1988af90e746034448260ab28e3bcdedec09c83045ee9af417dee1dbd6a3d244",
+          "bytes": 7176
+        },
+        "dryRunStatus": "recorded",
+        "targetCount": 57,
+        "retiredCount": 5,
+        "cutoverCommand": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/hermes-cutover-command.json",
+          "sha256": "f1273845b2c45ae6c6d69d621fd4f40d1da5d81d8ff16b35f3293492d17dec95",
+          "bytes": 1084
+        }
+      },
+      {
+        "client": "claude",
+        "capabilityRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/claude-capability.json",
+          "sha256": "e15665d881d2482eb64fffdfb477f7f2c88bc181f6b94ad704f605aec2c44463",
+          "bytes": 1591
+        },
+        "binding": {
+          "client": "claude",
+          "adapterVersion": "centurion-native-v3",
+          "binaryPath": "/home/mrz/.local/share/claude/versions/2.1.224",
+          "binarySha256": "a2b5add7dc4bcd8eaa029f4e8bdac4df7769b4073698db7989d206baf9419c2d",
+          "binaryVersion": "2.1.224 (Claude Code)",
+          "configPath": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/explicit-model-route/settings.json",
+          "configSha256": "a5d257bab91684b76c5119c480012d56f802441c62562f4fb65eedb07ce134d3",
+          "routePath": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/claude-route.json",
+          "routeSha256": "e7b1a827c5fbf597372cdc76bf37c7d3323a3d39e770828790ec9d1413c6836a",
+          "adapterSha256": "de67b75b4a3de9c3cc5bb7b7ed5daec511e6291c16242dcc72f9f81e396f5c8b",
+          "supportedFlags": [
+            "--model",
+            "--effort",
+            "--tools",
+            "--strict-mcp-config",
+            "--mcp-config",
+            "--settings",
+            "--setting-sources",
+            "--no-session-persistence",
+            "--output-format",
+            "--json-schema"
+          ],
+          "nativeSchemaSupported": true,
+          "permissionMode": "native-profile-readonly; no tools/MCP/hooks",
+          "extractionMode": "structured_output",
+          "evidencePath": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/claude-evidence.json",
+          "evidenceSha256": "f7c64785782bf79de1bb57471fabbbae6f71c8b7e4ad18daf8c771ea7e99ea01",
+          "liveDispatchProven": false,
+          "scope": "no-tools report branch only; not product executor"
+        },
+        "evidenceRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/claude-evidence.json",
+          "sha256": "f7c64785782bf79de1bb57471fabbbae6f71c8b7e4ad18daf8c771ea7e99ea01",
+          "bytes": 3167
+        },
+        "evidence": {
+          "status": "passed",
+          "reportCapability": {
+            "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/report-capability/report-capability.json",
+            "sha256": "d0242df83b4e3ccfa846d783b0803e9214116fc122be311b9aeb69b148732743",
+            "bytes": 2740
+          },
+          "nativeLaunch": {
+            "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/explicit-model-route/launch-binding.json",
+            "sha256": "7b0e65307ec54a0da294f58801c2c7909bc6eed0ebd24a1fb95fd1549828f848",
+            "bytes": 1230
+          },
+          "nativeAcceptance": {
+            "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/report-capability/acceptance.json",
+            "sha256": "1ba7cc4d8e4ee0f9e37063e85dcff8fab5e7e56643dbf035288ffbc60df1a935",
+            "bytes": 1049
+          },
+          "metadata": {
+            "version": {
+              "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/claude-version.stdout",
+              "sha256": "04c17979550bbf8920aabb1bcc9b39aa2027ab2f78a0ebc49efc9fe59681d352",
+              "bytes": 22
+            },
+            "help": {
+              "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/claude-help.stdout",
+              "sha256": "71ad650f59e08ae40ede14c534db4f49d8590ee5a4f92f6da2882d3a5560fea6",
+              "bytes": 16890
+            }
+          },
+          "additionalRuntimePins": [
+            {
+              "path": "/home/mrz/.local/share/claude/versions/2.1.224",
+              "sha256": "a2b5add7dc4bcd8eaa029f4e8bdac4df7769b4073698db7989d206baf9419c2d",
+              "bytes": 295676936
+            },
+            {
+              "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/explicit-model-route/settings.json",
+              "sha256": "a5d257bab91684b76c5119c480012d56f802441c62562f4fb65eedb07ce134d3",
+              "bytes": 30
+            },
+            {
+              "path": "/home/mrz/.claude.json",
+              "sha256": "7cc37199aeadd4e624500e7c2c1da5c57cf34348500f2003bb23791480ff3eec",
+              "bytes": 103555
+            },
+            {
+              "path": "/usr/bin/bwrap",
+              "sha256": "523da3e7399044be5163aee6f57a77a6bef7454376e28f0a0627920bae1b76b6",
+              "bytes": 80424
+            },
+            {
+              "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+              "sha256": "de67b75b4a3de9c3cc5bb7b7ed5daec511e6291c16242dcc72f9f81e396f5c8b",
+              "bytes": 109399
+            }
+          ],
+          "ownerInteractiveSettings": {
+            "path": "/home/mrz/.claude/settings.json",
+            "sha256": "e52a82ec475423809b9caffdb9a5101fb2644ef662bd7d7b6b243ed58a062b21",
+            "bytes": 1520
+          },
+          "limitations": [
+            "Bound only to the no-tools native-profile-readonly report branch; does not enable a Claude product executor.",
+            "Global interactive settings are not inherited; their configured legacy fallback is not active in this profile.",
+            "No new Claude inference or live installed Gateway mission."
+          ],
+          "liveDispatchProven": false
+        },
+        "dryRunRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/claude-live-dry-run.stdout",
+          "sha256": "56db6d37a96e620e511bb4fa020c15c630d5bc30a0fbf554168ca064a92fdb25",
+          "bytes": 12474
+        },
+        "dryRunStatus": "recorded",
+        "targetCount": 159,
+        "retiredCount": 16,
+        "cutoverCommand": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/claude-cutover-command.json",
+          "sha256": "92f900a0e7c6c9d94b5622d9f7278e642db73745e4c6294fa8f63c8f79747c76",
+          "bytes": 1902
+        }
+      }
+    ],
+    "nativeProbeReceipts": [
+      {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/codex/receipt.json",
+        "sha256": "3b79afb8a34b3bd977b1dadf63b906483ce5250f941afa4e40b1e192c3a49dc0",
+        "bytes": 304,
+        "receiptData": {
+          "childStarted": true,
+          "startedAt": "2026-10-19T09:27:40.664058Z",
+          "closedAt": "2026-10-19T09:28:15.391240Z",
+          "durationMs": 34727,
+          "exitCode": 0,
+          "timedOut": false,
+          "drainTimedOut": false,
+          "terminationSignal": null,
+          "error": null,
+          "captureLimited": false,
+          "processStopped": true
+        }
+      },
+      {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/hermes-r2/receipt.json",
+        "sha256": "176397c914579ed1872a1d5ba114d8eb96d8e3d6ae52767e8120168185d43141",
+        "bytes": 304,
+        "receiptData": {
+          "childStarted": true,
+          "startedAt": "2026-10-19T09:44:10.484669Z",
+          "closedAt": "2026-10-19T09:44:23.017833Z",
+          "durationMs": 12533,
+          "exitCode": 0,
+          "timedOut": false,
+          "drainTimedOut": false,
+          "terminationSignal": null,
+          "error": null,
+          "captureLimited": false,
+          "processStopped": true
+        }
+      }
+    ],
+    "preparationFailure": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/hermes/preparation-failure.json",
+      "sha256": "3c1627d13b6acb3f01eda36ac56cfded05dea7786eff7d34680c952fbc930590",
+      "bytes": 288
+    },
+    "readbackRef": {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/explicit-claude-20261019/live-bindings/installer/final-readback.json",
+      "sha256": "b0fa4255396ed5ead4a2dd01efba3b8939a01f68ee146335f2f606210b1eb12f",
+      "bytes": 454
+    },
+    "readback": {
+      "sourceCommit": "4feeba4b70371028c2db743f36549ce3c78f55ed",
+      "livePreimagesVerified": 332,
+      "newTargetsStillAbsent": 38,
+      "includesThreeInstalledManifests": true,
+      "drainMarkerPresent": false,
+      "runtimeSnapshot": {
+        "gateway_state": "running",
+        "active_agents": 0,
+        "active_work": null,
+        "updated_at": "2026-10-19T09:59:36.050109+00:00"
+      },
+      "liveInstallPerformed": false,
+      "modelsLaunched": 2,
+      "historicalPilotsRerun": false
+    },
+    "remaining": [
+      "actual drain",
+      "fresh targeted backup and rollback proof",
+      "reviewed clause live application",
+      "sequential live install/readback",
+      "real installed Gateway canary before reopening ingress"
+    ],
+    "claudeScope": "no-tools report only; interactive global fallback not inherited"
+  }
+}

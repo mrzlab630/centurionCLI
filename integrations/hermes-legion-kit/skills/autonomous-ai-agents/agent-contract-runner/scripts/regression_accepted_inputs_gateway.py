@@ -37,6 +37,7 @@ def make_stage(name: str, profile: str, *, inputs: list[dict[str, Any]] | None =
     if profile == "advisory":
         order.update(roleForTask="ARCHITECTUS", riskLevel="medium")
         order["allowedPaths"] = [str(namespace / "**")]
+        order["proofCommands"] = []
         route = fixture.routing_metadata(
             order["orderId"], executor, taskClass="architecture_advisory",
             complexity="high", risk="medium", ambiguity="high", model="gpt-6-astra",
@@ -52,20 +53,23 @@ def make_stage(name: str, profile: str, *, inputs: list[dict[str, Any]] | None =
         ])
     elif profile == "terminal_review":
         order.update(roleForTask="REVIEWER", riskLevel="medium")
+        command = shlex.split(order["launch"]["command"])
+        command = ["claude", "--model", "claude-opus-5-5", "--effort", "high", "--output-format", "json", *command[7:]]
+        order["launch"]["command"] = shlex.join(command)
         route = fixture.routing_metadata(
-            order["orderId"], executor, risk="medium", model="claude-opus-5",
+            order["orderId"], executor, risk="medium", model="claude-opus-5-5",
             executionProfile="terminal_review", verificationProfile="V2", reviewer="none",
             terminalGate=True, reasoningEffort="high",
         )
     else:
         order.update(roleForTask="CODER", riskLevel="medium")
         route = fixture.routing_metadata(
-            order["orderId"], executor, risk="medium", model="gpt-6-sol",
+            order["orderId"], executor, risk="medium", model="gpt-6.1-sol",
             reasoningEffort="high", executionProfile="implementation", verificationProfile="V2",
-            reviewer="claude-opus-5",
+            reviewer="claude-opus-5-5",
         )
         command = shlex.split(order["launch"]["command"])
-        command[command.index("--model") + 1] = "gpt-6-sol"
+        command[command.index("--model") + 1] = "gpt-6.1-sol"
         command[command.index("-c") + 1] = "model_reasoning_effort=high"
         order["launch"]["command"] = shlex.join(command)
     fixture.set_routing(order, route)
@@ -97,6 +101,10 @@ def add_proof(paths: dict[str, Any], argv: list[str]) -> None:
 def accepted(paths: dict[str, Any]) -> dict[str, Any]:
     completed = fixture.run_gateway(paths)
     assert completed.returncode == 0, completed.stderr or completed.stdout
+    if 'awaiting_review' in completed.stdout:
+        fixture.independent_review(paths)
+        completed = fixture.run_gateway(paths)
+        assert completed.returncode == 0 and 'accepted' in completed.stdout, completed.stderr+completed.stdout
     result = fixture.read_json(Path(paths["result"]))
     acceptance = fixture.read_json(Path(paths["namespace"]) / "controller-acceptance.json")
     assert result["status"] == "done"
@@ -134,7 +142,7 @@ def main() -> int:
     implementation_anchor_hash = sha256(implementation_anchor)
     verify_anchor(implementation_anchor, fixture.ROOT, expected_sha256=implementation_anchor_hash)
 
-    reviewer = make_stage("input-chain-review", "terminal_review", inputs=[implementation_input])
+    reviewer = make_stage("input-chain-consumer", "implementation", inputs=[implementation_input], product=True)
     fixture.set_lineage_order(
         reviewer, Path(implementation["side_effect"]), implementation_anchor, implementation_anchor_hash,
     )
@@ -147,9 +155,9 @@ def main() -> int:
     assert proof["observedChecks"]["inputResults"] == nested
     review_anchor = Path(reviewer["namespace"]) / "lineage-anchor.json"
     verify_anchor(review_anchor, fixture.ROOT, expected_sha256=acceptance["lineageAnchorSha256"])
-    assert fixture.read_json(Path(reviewer["result"]))["filesChanged"] == []
+    assert fixture.read_json(Path(reviewer["result"]))["filesChanged"] == [{"path":str(reviewer["side_effect"]),"action":"added"}]
     assert Path(implementation["side_effect"]).read_text(encoding="utf-8") == "effect\n"
-    print("PASS Gateway accepts Astra advisory -> Sol implementation -> independent Opus terminal review with nested inputResults and separate product lineage")
+    print("PASS 3.0 Gateway accepts Astra -> Sol candidate -> independent Opus review -> acceptance -> downstream Sol with nested inputResults and separate product lineage")
 
     for kind in ("acceptance", "artifact"):
         predecessor = make_stage(f"input-preflight-{kind}-advisory", "advisory")
@@ -189,7 +197,8 @@ def main() -> int:
     Path(predecessor["test_count"]).write_bytes(original_input_bytes)
     retry_after_restoration = fixture.run_gateway(successor)
     assert retry_after_restoration.returncode != 0
-    assert "already exists" in retry_after_restoration.stderr, retry_after_restoration.stderr
+    retry_state = json.loads(retry_after_restoration.stdout)
+    assert retry_state == {"status": "rejected", "replayAllowed": False}, retry_state
     assert result_path.read_bytes() == canonical_bytes
     assert Path(successor["test_count"]).read_text(encoding="utf-8") == "launch\n"
     assert Path(successor["side_effect"]).read_text(encoding="utf-8") == "effect\n"

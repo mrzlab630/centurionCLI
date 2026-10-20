@@ -1,0 +1,271 @@
+{
+  "recordedAt": "2026-10-17T09:10:21.431549+00:00",
+  "branch": "feat/centurioncli/v3-implementation",
+  "baseCommit": "c4d1d39cae404470fa9ff6538e459f611bea2248",
+  "productVersion": "3.0.0-rc.1",
+  "status": "offline_checks_passed_final_review_and_pilot_incomplete",
+  "releaseStatus": "blocked",
+  "localInstall": "not_performed_readiness_condition_not_met",
+  "userLocalInstallAuthorization": "already_given_if_ready",
+  "changedSourceHashes": {
+    "integrations/codex-legion-kit/scripts/codex-surface-audit.mjs": "e53aae052428690f0187d2caf219827bbb0def92b945fc29c158240584faea53",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": "e1489aeb727ffc4a1afbf11cde142dd001df17baf858688d5961fde11b7e06f0",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/order_preflight.py": "4c7c343bcb6c26285cfa91d1961e0cbd14709f63acf277341ed6d7b40147ae35",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_contract_runner.py": "2d6b361bb5201f1222df3a3db87479ed6a66b03cfcf3fdc6a3b6edb63e8741f7",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_order_preflight.py": "03c6c37335e62fb821a6e06fd6c8be8ac1c99f273da3dec34e71e2a5b2e02350",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_response_envelope.py": "7003691ded606ebaf251e6c4fcdd74780b4091f4e3532b20985c2be9b8219305",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway.py": "574be1cef7259a359079bd13c575d351305578df6bacf6b0a010c7386f131cde",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py": "173cc08f765688ad264088f030a22199923439fbd69e4ba8069b2826b458fb08",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": "59762ee2b6d64f102c799f44dbe135a94c7e9bbb4d1501558b736bccfb2f7710",
+    "scripts/install-owned-files.mjs": "2709679dd5c909ca80f7f8d1738df33877b1b352dbdd04d2bd6e229fd9f880c7",
+    "tests/install-owned-files.test.mjs": "00318c9e44c185b648792708bd02782e8f87dea3eb0a88fecef21aeba792fc59"
+  },
+  "independentReview": {
+    "first": "REVISE; owner adjudication records reproduced F4 and narrow F5 defect, both fixed",
+    "followup": "timeout 240s; no verdict",
+    "followupSourceHashesMatch": {
+      "integrations/codex-legion-kit/scripts/codex-surface-audit.mjs": true,
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": true,
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/order_preflight.py": true,
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_contract_runner.py": true,
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_order_preflight.py": true,
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway.py": true,
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py": true,
+      "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": true,
+      "scripts/install-owned-files.mjs": true,
+      "tests/install-owned-files.test.mjs": true
+    },
+    "supplementaryRegressionAfterReviewSubmission": "regression_response_envelope.py updated existing dual-output expectation; full packaged smoke passed after change",
+    "sourceReviewLaunches": 2,
+    "isPilotAcceptance": false
+  },
+  "proof": {
+    "installerTests": "10/10 passed",
+    "missionRegression": "13 groups passed",
+    "hermesPackagedSmoke": "13 current regression entrypoints passed",
+    "noProviderReportSandbox": "actual bwrap synthetic-profile test passed with product write denied",
+    "static": "Python AST and git diff --check passed",
+    "toolPrerequisites": "native sandbox, named Hermes route, MCP tool listing, actual local browser page/screenshot verified without inference; model continuation not proved"
+  },
+  "capabilityBudget": {
+    "historicalLaunches": 1,
+    "currentWindowLaunches": 7,
+    "totalLaunches": 8,
+    "maximum": 8,
+    "status": "exhausted; no reset"
+  },
+  "capabilityObservations": [
+    {
+      "probe": "Q1",
+      "exitCode": 1,
+      "elapsedSeconds": 3.98,
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "status": "failed_capability",
+      "cost": "unmeasured",
+      "raw": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/v3-local-rollout-20261017/Q1/stdout.jsonl",
+        "sha256": "360605befdc5e82102b83670517518057a00bb59d7b452915150845614f1f321",
+        "bytes": 394
+      }
+    },
+    {
+      "probe": "Q2",
+      "exitCode": 0,
+      "elapsedSeconds": 9.6,
+      "model": "gpt-6-luna",
+      "effort": "high",
+      "status": "failed_capability",
+      "cost": "unmeasured",
+      "raw": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/v3-local-rollout-20261017/Q2/stdout.jsonl",
+        "sha256": "7dab5214701475ca4b67ab113677ea263e4558cd3f95e33b47414d64d76f96ba",
+        "bytes": 900
+      }
+    },
+    {
+      "probe": "Q3",
+      "exitCode": 0,
+      "elapsedSeconds": 14.76,
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "status": "failed_capability",
+      "cost": "unmeasured",
+      "raw": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/v3-local-rollout-20261017/Q3/stdout.jsonl",
+        "sha256": "6f033b786090803a370bb1f3b4840af1ed88dfbfbba70b55b57e990e6ead6a47",
+        "bytes": 1243
+      }
+    },
+    {
+      "probe": "Q4",
+      "exitCode": 1,
+      "elapsedSeconds": 13.76,
+      "model": "claude-opus-5-5",
+      "effort": "high",
+      "status": "failed_capability",
+      "cost": "unmeasured",
+      "raw": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/v3-local-rollout-20261017/Q4/stdout.jsonl",
+        "sha256": "02b482a385a50deba2ecd0c2beb329c658a891cfce05d27f892a4aef2b197f94",
+        "bytes": 3379
+      }
+    },
+    {
+      "probe": "Q5",
+      "exitCode": 0,
+      "elapsedSeconds": 19.42,
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "status": "failed_capability",
+      "cost": "unmeasured",
+      "raw": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/v3-local-rollout-20261017/Q5/stdout.jsonl",
+        "sha256": "da733d90e6eefad6a0c70e123ebf1899efcd0f8a69761f8d677a3f2f189e873b",
+        "bytes": 2295
+      }
+    }
+  ],
+  "q6": {
+    "nativeProxyInference": "observed_success",
+    "productUnchanged": true,
+    "reportCapabilityReceipt": "not_issued",
+    "limitations": [
+      "Raw result label Q6-local-proxy is stale; folder/order/ledger bind Q6-native-profile",
+      "Native profile before-probe pin not recorded; new production launch mode not tested with live recovery",
+      "Existing native state read by CLI; no new credential supplied, not a claim of absent auth header",
+      "No P6 recovery proof"
+    ],
+    "rawNativeResponse": "q6-native-response.json"
+  },
+  "missions": {
+    "P1": "not_run",
+    "P2": "not_run",
+    "P3": "not_run",
+    "P4": "not_run",
+    "P5": "not_run",
+    "P6": "not_run"
+  },
+  "workerArtifacts": [
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/v3-local-rollout-20261017/advisory_closure-result.json",
+      "sha256": "66ef3e00ce742ce0b8ed84a7108af7a33f0472e25a97e353aca7d07ec259ac0b",
+      "bytes": 9517
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/v3-local-rollout-20261017/installer_migration-result.json",
+      "sha256": "e232f0c0b0183cfda93e61c60af04ae24c7f37157147674e8ee1d7aeda5dc1f4",
+      "bytes": 14003
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/v3-local-rollout-20261017/pilot-harness-result.json",
+      "sha256": "b65dcc4e4100eeb1f7db3ece800b4031b0ac26dd5b803037181b919668a6bbcf",
+      "bytes": 9493
+    }
+  ],
+  "preservation": {
+    "originalDirtyFiles": 9,
+    "sourceMismatch": [],
+    "liveConfigurationFiles": 4,
+    "liveMismatch": []
+  },
+  "evidence": [
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/oct17/claude-review-order.json",
+      "sha256": "3d9aa7e3d8e658b2369cab6d86d0097aefed5c6e365a4043a8126f265d8d0858",
+      "bytes": 2656
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/oct17/claude-review-receipt.json",
+      "sha256": "2a6664db63a4505e217f782f17972e44b9d4856cfce77e845c63b522353437e2",
+      "bytes": 2929
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/oct17/claude-review.json",
+      "sha256": "e9e581a9b4f02a7740a96feda0e7691011a33f080607822fe6d7483fd683abb4",
+      "bytes": 11103
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/oct17/claude-review-native-response.json",
+      "sha256": "d56208a5fafe2e09efc41595eb5181dc89a5e9a91c560c2de154df71b206514d",
+      "bytes": 22757
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/oct17/claude-review-followup-order.json",
+      "sha256": "bfbe0b0bf2fa41795bd8819661599008b755dcc6a0426edd8ab279d9ae31950a",
+      "bytes": 2656
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/oct17/claude-review-followup-timeout.json",
+      "sha256": "793995a2b7e5bb72b0146e6b7ae0181550a2bda469bf83267b4280dccd0439a1",
+      "bytes": 2056
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/oct17/review-findings-resolution.json",
+      "sha256": "99e0fb1d1e7ebac79b1d6632a0c51947659a8a3267fa629047d9485e9c2ba470",
+      "bytes": 2207
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/oct17/n7-budget.json",
+      "sha256": "dfcce2e3dc1cf9d9ff6af7659844408d593e37544723103d296369c4ccb59461",
+      "bytes": 2606
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/oct17/f3-adjudication.json",
+      "sha256": "25b9c8623670d51069c1c4aab2a971592e3505475e258071768cb27a1d1dee85",
+      "bytes": 2635
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/oct17/preservation.json",
+      "sha256": "8bf64e841f1ed5917f86a1578c6acbd3696e401b1dace386cfc7bf110adcb289",
+      "bytes": 107
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/oct17/native-sandbox.json",
+      "sha256": "f36d6c09812fe20fabd16131c42a170100eb06a3e2e9bb543d8d369804aa0e6b",
+      "bytes": 102
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/oct17/tool-prerequisites.json",
+      "sha256": "548257dc21acf2208f21bec4d19321c2de44388dc79fce6a03fe88703dafaa2f",
+      "bytes": 3834
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/oct17/installer-regression.log",
+      "sha256": "64f327e01c5d0f5348952a9032e042a1f7ae6dc897c34c3e6854213242a2cd3a",
+      "bytes": 1157
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/oct17/hermes-smoke.log",
+      "sha256": "b838882a1ffb71d09c993f9b78b92223a15587808ae15bffbe8007a0b79b83d3",
+      "bytes": 192
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/oct17/mission-regression.log",
+      "sha256": "9642c58c3d17910273d944903c0becfc8f99d6d25c09c551f1ac80ecefadb729",
+      "bytes": 1256
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/oct17/preflight-regression.log",
+      "sha256": "10d64fb8c7588be358765bbc7b943fa27d86aaae149fe283e8498d6153d77979",
+      "bytes": 904
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/oct17/q6-native-response.json",
+      "sha256": "36956fe1af03c7b40744a8d53689966a7723e7d61a6ab3904670880603987d1c",
+      "bytes": 1951
+    },
+    {
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/oct17/final-static.json",
+      "sha256": "4a8905769c3bab419570bc647bb04eeee69ffcd17d9583a7d26e78ee8c4bd38f",
+      "bytes": 1064
+    }
+  ],
+  "remaining": [
+    "New explicit N7 window without counter reset and corrected prerequisites; loaded instruction chain proof",
+    "Actual Q1-Q6 and P1-P6 with independent review/no replay",
+    "Completed final independent review and owner acceptance",
+    "Exact reviewed legacy migration, fresh backups and safe active-process cutover, readback/canary/rollback"
+  ],
+  "cost": "unmeasured; native client list-price estimates are not supplier cost"
+}

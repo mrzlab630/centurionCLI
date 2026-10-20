@@ -1,0 +1,1049 @@
+{
+  "evidenceVersion": 1,
+  "date": "2026-10-16",
+  "baseCommit": "ab1c851749baf4d6deb354c12c2f609498ca678a",
+  "limitations": [
+    "Plan review only; implementation and rollout not performed",
+    "Provider-reported model identity is not independent attestation",
+    "Raw external pages remain temporary research artifacts; tables checked against fetched pages"
+  ],
+  "firstReview": {
+    "order": {
+      "contract": "CLAUDE_ORDER v1",
+      "orderId": "centurion-v3-plan-review-20261016-r1",
+      "owner": "reviewer",
+      "workspace": "/tmp/centurion-v3-plan-a1ta6gn3/review-workspace",
+      "allowedPaths": [
+        ".centurion/agents_results/centurion-v3-plan-review-20261016-r1/CLAUDE_RESULT.json"
+      ],
+      "readOnlyInputs": [
+        "inputs/scope-probe.json",
+        "inputs/reproductions.json",
+        "inputs/regressions.json",
+        "inputs/SOURCE_EXCERPTS.txt",
+        "inputs/MODEL_RESEARCH.md",
+        "inputs/AUDIT.md",
+        "inputs/PLAN.md"
+      ],
+      "nonGoals": [
+        "No implementation or edits",
+        "No model additions",
+        "No installation or release",
+        "No other agents or network tools",
+        "Do not treat old policies as target requirements"
+      ],
+      "forbiddenActions": [
+        "product writes",
+        "tool execution",
+        "credential access",
+        "recursive review"
+      ],
+      "proofCommands": [
+        "manual review of all supplied plan, audit and source excerpts; no shell execution requested"
+      ],
+      "outputContract": {
+        "resultPath": "/tmp/centurion-v3-plan-a1ta6gn3/review-workspace/.centurion/agents_results/centurion-v3-plan-review-20261016-r1/CLAUDE_RESULT.json",
+        "resultVersion": "AGENT_RESULT_JSON_V1"
+      },
+      "context": {
+        "ExecutionDecision": {
+          "taskClass": "independent_implementation_plan_review",
+          "complexity": "high",
+          "risk": "low",
+          "ambiguity": "medium",
+          "reversibility": "high",
+          "evidenceNeed": "high",
+          "executor": "claude",
+          "model": "claude-opus-5-5",
+          "reasoningEffort": "high",
+          "executionProfile": "terminal_review",
+          "verificationProfile": "read_only_plan_review",
+          "confidence": "high",
+          "reasons": [
+            "User explicitly requested Claude through local provider",
+            "No tools or filesystem mutation available to model",
+            "Review plan completeness and simplification; not production acceptance"
+          ]
+        },
+        "candidateSha256": "f93494233c774596a0ec0cafa21d6c425e83a1d7ca4963ae563cfbfdac607b58",
+        "authority": "User requested new numbered version, consolidated plan, independent Claude review, improvements and Git fixation."
+      }
+    },
+    "receipt": {
+      "requestedModel": "claude-opus-5-5",
+      "reportedModel": "claude-opus-5-5",
+      "requestedEffort": "high",
+      "httpStatus": 200,
+      "stopReason": "end_turn",
+      "usage": {
+        "cache_creation_input_tokens": 26722,
+        "cache_read_input_tokens": 79018,
+        "credit_unit": "credit",
+        "credit_unit_plural": "credits",
+        "credit_usage": 0.5038116604975125,
+        "input_tokens": 0,
+        "output_tokens": 17995
+      },
+      "candidateSha256": "f93494233c774596a0ec0cafa21d6c425e83a1d7ca4963ae563cfbfdac607b58",
+      "rawResponseSha256": "afe8ddae0b98c63da22ce828c0cfef86c83a10a419bc0dab5c3e2a262391506f",
+      "rawTextSha256": "a136ef7075452fab9a589ea0554c48b60b889c549a5dd30137f3d68dca9bf4bf",
+      "decodedTextSha256": "be3d90b2169c3d36bcd8c189d1292791754c3d8ff902615429c54a330e93052a",
+      "transportNormalization": "Removed outer json fence and decoded escaped whitespace only outside JSON strings; raw response preserved; no semantic fields repaired.",
+      "semanticAcceptance": "advisory findings considered individually; canonical contract not accepted",
+      "tools": [],
+      "credentialsSent": false
+    },
+    "contract": {
+      "ok": false,
+      "failures": [
+        "result.remainingRisks must be an array"
+      ]
+    },
+    "guard": {
+      "ok": false,
+      "mode": "canonical",
+      "changed": [
+        ".centurion/agents_results/centurion-v3-plan-review-20261016-r1/CLAUDE_RESULT.json"
+      ],
+      "productChanged": [],
+      "scopeViolations": [],
+      "forbiddenHits": [],
+      "resultFile": ".centurion/agents_results/centurion-v3-plan-review-20261016-r1/CLAUDE_RESULT.json",
+      "responseEnvelope": {
+        "version": "AGENT_RESPONSE_ENVELOPE_V1",
+        "transport": "raw_json",
+        "rawEvidencePath": "/tmp/centurion-v3-plan-a1ta6gn3/CLAUDE_SNAPSHOT.json.responses/CLAUDE_RESULT.json.be3d90b2169c3d36bcd8c189d1292791754c3d8ff902615429c54a330e93052a.raw.bin",
+        "rawSha256": "be3d90b2169c3d36bcd8c189d1292791754c3d8ff902615429c54a330e93052a",
+        "rawBytes": 41023,
+        "normalizedCandidatePath": "/tmp/centurion-v3-plan-a1ta6gn3/CLAUDE_SNAPSHOT.json.responses/CLAUDE_RESULT.json.be3d90b2169c3d36bcd8c189d1292791754c3d8ff902615429c54a330e93052a.candidate.json",
+        "normalizedSha256": "be3d90b2169c3d36bcd8c189d1292791754c3d8ff902615429c54a330e93052a",
+        "normalizedBytes": 41023
+      },
+      "responseReceipt": "/tmp/centurion-v3-plan-a1ta6gn3/CLAUDE_SNAPSHOT.json.responses/CLAUDE_RESULT.json.be3d90b2169c3d36bcd8c189d1292791754c3d8ff902615429c54a330e93052a.response-envelope.json",
+      "responseErrors": [
+        {
+          "code": "RESPONSE_SCHEMA_ERROR",
+          "message": "result.remainingRisks must be an array"
+        }
+      ],
+      "failures": [
+        "result.remainingRisks must be an array"
+      ]
+    }
+  },
+  "sourceChecks": [
+    {
+      "url": "https://artificialanalysis.ai/models/releases/comparisons/gpt-6-1-sol-vs-claude-sonnet-5-5",
+      "snapshot_exists": true,
+      "snapshot_sha256": "f89f3c5c56553a1fe81564e0b35ec4535e57bb2e32720d0dd824a666affae801",
+      "status": 200,
+      "final": "https://artificialanalysis.ai/models/releases/comparisons/gpt-6-1-sol-vs-claude-sonnet-5-5",
+      "bytes": 808375,
+      "text_chars": 8480
+    },
+    {
+      "url": "https://artificialanalysis.ai/models/releases/comparisons/gpt-6-1-sol-vs-claude-opus-5-5",
+      "snapshot_exists": true,
+      "snapshot_sha256": "4dc76c0230655887eb943b2212e98c076477444dca0d08d4694860587ed6ec10",
+      "status": 200,
+      "final": "https://artificialanalysis.ai/models/releases/comparisons/gpt-6-1-sol-vs-claude-opus-5-5",
+      "bytes": 809161,
+      "text_chars": 8449
+    },
+    {
+      "url": "https://artificialanalysis.ai/models/releases/comparisons/claude-opus-5-5-vs-gpt-6-astra",
+      "snapshot_exists": true,
+      "snapshot_sha256": "3eee6ca3458cef083dffd5e2bdbd541d93ea7814329583674c905b9768eb1d15",
+      "status": 200,
+      "final": "https://artificialanalysis.ai/models/releases/comparisons/claude-opus-5-5-vs-gpt-6-astra",
+      "bytes": 809696,
+      "text_chars": 8458
+    },
+    {
+      "url": "https://artificialanalysis.ai/models/releases/comparisons/claude-opus-5-5-vs-claude-fable-5-1",
+      "snapshot_exists": true,
+      "snapshot_sha256": "41c9e546e84083dd122362e0956be982894f2555dcf866d3b833a7c986d7f7c7",
+      "status": 200,
+      "final": "https://artificialanalysis.ai/models/releases/comparisons/claude-opus-5-5-vs-claude-fable-5-1",
+      "bytes": 810564,
+      "text_chars": 8672
+    },
+    {
+      "url": "https://artificialanalysis.ai/models/releases/gpt-6-luna",
+      "snapshot_exists": true,
+      "snapshot_sha256": "65ef13db5141f56af6b348c0b23ea98b62816612d8433fa9f526a08f1d0064d6",
+      "status": 200,
+      "final": "https://artificialanalysis.ai/models/releases/gpt-6-luna",
+      "bytes": 949564,
+      "text_chars": 9152
+    },
+    {
+      "url": "https://artificialanalysis.ai/methodology/intelligence-benchmarking",
+      "snapshot_exists": true,
+      "snapshot_sha256": "6803604029c6920119c6d2ae6bfc5706b91241511acca1d02752dcbffa5edf3b",
+      "status": 200,
+      "final": "https://artificialanalysis.ai/methodology/intelligence-benchmarking",
+      "bytes": 967517,
+      "text_chars": 142225
+    },
+    {
+      "url": "https://www.anthropic.com/claude-opus-5-5",
+      "status": 200,
+      "final": "https://www.anthropic.com/claude-opus-5-5",
+      "bytes": 463848,
+      "text_chars": 40420
+    },
+    {
+      "url": "https://www.anthropic.com/claude-sonnet-5-5",
+      "status": 200,
+      "final": "https://www.anthropic.com/claude-sonnet-5-5",
+      "bytes": 285042,
+      "text_chars": 20088
+    },
+    {
+      "url": "https://www.anthropic.com/claude-fable-and-mythos-5-1",
+      "status": 200,
+      "final": "https://www.anthropic.com/claude-fable-and-mythos-5-1",
+      "bytes": 357616,
+      "text_chars": 37820
+    },
+    {
+      "url": "https://www.qodo.ai/blog/which-llm-should-review-your-code/",
+      "snapshot_exists": true,
+      "snapshot_sha256": "2583c7741fe94a38e16b0d2d7552633a87976e22980a2d3cba4f0ab74c0583e9",
+      "status": 200,
+      "final": "https://www.qodo.ai/blog/which-llm-should-review-your-code/",
+      "bytes": 133225,
+      "text_chars": 11250
+    },
+    {
+      "url": "https://www.coderabbit.ai/blog/opus-5-5-model-review",
+      "snapshot_exists": true,
+      "snapshot_sha256": "8e7e595ea5b17966ffd191e865924815655e286aa37c1da713123c47fbb059f5",
+      "status": 200,
+      "final": "https://www.coderabbit.ai/blog/opus-5-5-model-review",
+      "bytes": 268023,
+      "text_chars": 13853
+    },
+    {
+      "url": "https://www.coderabbit.ai/blog/sonnet-5-5-model-review",
+      "snapshot_exists": true,
+      "snapshot_sha256": "05e97849ff55d6ad542bf693ff109dc90c4fb9b4fccece4e761971f3f285e94d",
+      "status": 200,
+      "final": "https://www.coderabbit.ai/blog/sonnet-5-5-model-review",
+      "bytes": 315266,
+      "text_chars": 24101
+    },
+    {
+      "url": "https://www.coderabbit.ai/blog/gpt-6-astra-code-review-evaluation",
+      "snapshot_exists": true,
+      "snapshot_sha256": "00bac9424c45031144bef5a129f5eab0cfb0d5bb26032a7dc00c9dbd534cf017",
+      "status": 200,
+      "final": "https://www.coderabbit.ai/blog/gpt-6-astra-code-review-evaluation",
+      "bytes": 260487,
+      "text_chars": 12372
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5",
+      "snapshot_exists": true,
+      "snapshot_sha256": "a9a669ab60b48a9efaec8d943995422f3d8096472256f2efb54f64e837897837",
+      "status": 200,
+      "final": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5",
+      "bytes": 441623,
+      "text_chars": 24946
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5",
+      "snapshot_exists": true,
+      "snapshot_sha256": "b0987e9c6037f127d3868097ed446e47d92cc1f4f53d1f252afa9d98ab7d76a4",
+      "status": 200,
+      "final": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5-5",
+      "bytes": 443506,
+      "text_chars": 25890
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1",
+      "snapshot_exists": true,
+      "snapshot_sha256": "340ccb6d41902463aa51071950044a14ad0b65f1fea99b2a2ed1c2e3693982e3",
+      "status": 200,
+      "final": "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1",
+      "bytes": 1076027,
+      "text_chars": 31260
+    },
+    {
+      "url": "https://www.mindstudio.ai/blog/opus-5-5-vs-gpt-6-astra",
+      "snapshot_exists": true,
+      "snapshot_sha256": "c89b125702f38f120662f58e0d5401ec0449e51b203de08a1793259a27e5cf9d",
+      "status": 200,
+      "final": "https://www.mindstudio.ai/blog/opus-5-5-vs-gpt-6-astra",
+      "bytes": 92828,
+      "text_chars": 12418
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/latest-model",
+      "status": 200,
+      "final": "https://developers.openai.com/api/docs/guides/latest-model",
+      "bytes": 499995,
+      "text_chars": 45387
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/model-selection",
+      "status": 200,
+      "final": "https://developers.openai.com/api/docs/guides/model-selection",
+      "bytes": 384618,
+      "text_chars": 16314
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+      "status": 200,
+      "final": "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+      "bytes": 451033,
+      "text_chars": 15959
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+      "status": 200,
+      "final": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+      "bytes": 449142,
+      "text_chars": 15739
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/models/gpt-6-astra",
+      "status": 200,
+      "final": "https://developers.openai.com/api/docs/models/gpt-6-astra",
+      "bytes": 450136,
+      "text_chars": 15527
+    },
+    {
+      "url": "https://deploymentsafety.openai.com/gpt-6-1-sol",
+      "snapshot_exists": true,
+      "snapshot_sha256": "e5ea8991583c3d92adc50cec73678d90a3432ec10176e72c4c71a97970958668",
+      "status": 200,
+      "final": "https://deploymentsafety.openai.com/gpt-6-1-sol",
+      "bytes": 543573,
+      "text_chars": 44015
+    },
+    {
+      "url": "https://artificialanalysis.ai/models/releases/comparisons/gpt-6-1-sol-vs-gpt-6-luna",
+      "snapshot_exists": true,
+      "snapshot_sha256": "476e7876abb37f7e898773c6eac7f28475d4c962d5c563933983928b1635263c",
+      "status": 200,
+      "final": "https://artificialanalysis.ai/models/releases/comparisons/gpt-6-1-sol-vs-gpt-6-luna",
+      "bytes": 813009,
+      "text_chars": 8428
+    }
+  ],
+  "numericChecks": [
+    {
+      "model": "Claude Opus 5.5 (high with fallback)",
+      "metric": "Intelligence Index",
+      "expected": "54",
+      "observed": "54",
+      "match": true
+    },
+    {
+      "model": "Claude Opus 5.5 (xhigh with fallback)",
+      "metric": "Intelligence Index",
+      "expected": "56",
+      "observed": "56",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Astra (high)",
+      "metric": "Intelligence Index",
+      "expected": "51",
+      "observed": "51",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Astra (xhigh)",
+      "metric": "Intelligence Index",
+      "expected": "52",
+      "observed": "52",
+      "match": true
+    },
+    {
+      "model": "GPT-6.1 Sol (high)",
+      "metric": "Intelligence Index",
+      "expected": "50",
+      "observed": "50",
+      "match": true
+    },
+    {
+      "model": "GPT-6.1 Sol (xhigh)",
+      "metric": "Intelligence Index",
+      "expected": "51",
+      "observed": "51",
+      "match": true
+    },
+    {
+      "model": "Claude Fable 5.1 (high with fallback)",
+      "metric": "Intelligence Index",
+      "expected": "51",
+      "observed": "51",
+      "match": true
+    },
+    {
+      "model": "Claude Fable 5.1 (xhigh with fallback)",
+      "metric": "Intelligence Index",
+      "expected": "53",
+      "observed": "53",
+      "match": true
+    },
+    {
+      "model": "Claude Sonnet 5.5 (high with fallback)",
+      "metric": "Intelligence Index",
+      "expected": "47",
+      "observed": "47",
+      "match": true
+    },
+    {
+      "model": "Claude Sonnet 5.5 (xhigh with fallback)",
+      "metric": "Intelligence Index",
+      "expected": "52",
+      "observed": "52",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Luna (high)",
+      "metric": "Intelligence Index",
+      "expected": "33",
+      "observed": "33",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Luna (xhigh)",
+      "metric": "Intelligence Index",
+      "expected": "35",
+      "observed": "35",
+      "match": true
+    },
+    {
+      "model": "GPT-6.1 Sol (low)",
+      "metric": "Intelligence Index",
+      "expected": "42",
+      "observed": "42",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Luna (high)",
+      "metric": "Intelligence Index",
+      "expected": "33",
+      "observed": "33",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Luna (xhigh)",
+      "metric": "Intelligence Index",
+      "expected": "35",
+      "observed": "35",
+      "match": true
+    },
+    {
+      "model": "GPT-6.1 Sol (low)",
+      "metric": "Terminal-Bench 4.0",
+      "expected": "30.8%",
+      "observed": "30.8%",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Luna (high)",
+      "metric": "Terminal-Bench 4.0",
+      "expected": "4.5%",
+      "observed": "4.5%",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Luna (xhigh)",
+      "metric": "Terminal-Bench 4.0",
+      "expected": "8.1%",
+      "observed": "8.1%",
+      "match": true
+    },
+    {
+      "model": "GPT-6.1 Sol (low)",
+      "metric": "AutomationBench-AA",
+      "expected": "52.6%",
+      "observed": "52.6%",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Luna (high)",
+      "metric": "AutomationBench-AA",
+      "expected": "47.8%",
+      "observed": "47.8%",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Luna (xhigh)",
+      "metric": "AutomationBench-AA",
+      "expected": "47.8%",
+      "observed": "47.8%",
+      "match": true
+    },
+    {
+      "model": "GPT-6.1 Sol (low)",
+      "metric": "SciCode",
+      "expected": "53.2%",
+      "observed": "53.2%",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Luna (high)",
+      "metric": "SciCode",
+      "expected": "50.3%",
+      "observed": "50.3%",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Luna (xhigh)",
+      "metric": "SciCode",
+      "expected": "51.7%",
+      "observed": "51.7%",
+      "match": true
+    },
+    {
+      "model": "GPT-6.1 Sol (low)",
+      "metric": "GDP.pdf",
+      "expected": "27.0%",
+      "observed": "27.0%",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Luna (high)",
+      "metric": "GDP.pdf",
+      "expected": "18.2%",
+      "observed": "18.2%",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Luna (xhigh)",
+      "metric": "GDP.pdf",
+      "expected": "18.6%",
+      "observed": "18.6%",
+      "match": true
+    },
+    {
+      "model": "GPT-6.1 Sol (low)",
+      "metric": "AA-Omniscience",
+      "expected": "38",
+      "observed": "38",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Luna (high)",
+      "metric": "AA-Omniscience",
+      "expected": "-6",
+      "observed": "-6",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Luna (xhigh)",
+      "metric": "AA-Omniscience",
+      "expected": "-2",
+      "observed": "-2",
+      "match": true
+    },
+    {
+      "model": "Claude Opus 5.5 (high with fallback)",
+      "metric": "Terminal-Bench 4.0",
+      "expected": "56.6%",
+      "observed": "56.6%",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Astra (high)",
+      "metric": "Terminal-Bench 4.0",
+      "expected": "54.0%",
+      "observed": "54.0%",
+      "match": true
+    },
+    {
+      "model": "GPT-6.1 Sol (high)",
+      "metric": "Terminal-Bench 4.0",
+      "expected": "51.5%",
+      "observed": "51.5%",
+      "match": true
+    },
+    {
+      "model": "Claude Sonnet 5.5 (high with fallback)",
+      "metric": "Terminal-Bench 4.0",
+      "expected": "43.9%",
+      "observed": "43.9%",
+      "match": true
+    },
+    {
+      "model": "Claude Opus 5.5 (high with fallback)",
+      "metric": "GDPval-AA v2.1",
+      "expected": "1704",
+      "observed": "1704",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Astra (high)",
+      "metric": "GDPval-AA v2.1",
+      "expected": "1523",
+      "observed": "1523",
+      "match": true
+    },
+    {
+      "model": "GPT-6.1 Sol (high)",
+      "metric": "GDPval-AA v2.1",
+      "expected": "1511",
+      "observed": "1511",
+      "match": true
+    },
+    {
+      "model": "Claude Sonnet 5.5 (high with fallback)",
+      "metric": "GDPval-AA v2.1",
+      "expected": "1549",
+      "observed": "1549",
+      "match": true
+    },
+    {
+      "model": "Claude Opus 5.5 (high with fallback)",
+      "metric": "GDP.pdf",
+      "expected": "28.8%",
+      "observed": "28.8%",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Astra (high)",
+      "metric": "GDP.pdf",
+      "expected": "31.0%",
+      "observed": "31.0%",
+      "match": true
+    },
+    {
+      "model": "GPT-6.1 Sol (high)",
+      "metric": "GDP.pdf",
+      "expected": "32.0%",
+      "observed": "32.0%",
+      "match": true
+    },
+    {
+      "model": "Claude Sonnet 5.5 (high with fallback)",
+      "metric": "GDP.pdf",
+      "expected": "25.2%",
+      "observed": "25.2%",
+      "match": true
+    },
+    {
+      "model": "Claude Opus 5.5 (high with fallback)",
+      "metric": "AA-Omniscience",
+      "expected": "41",
+      "observed": "41",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Astra (high)",
+      "metric": "AA-Omniscience",
+      "expected": "44",
+      "observed": "44",
+      "match": true
+    },
+    {
+      "model": "GPT-6.1 Sol (high)",
+      "metric": "AA-Omniscience",
+      "expected": "41",
+      "observed": "41",
+      "match": true
+    },
+    {
+      "model": "Claude Sonnet 5.5 (high with fallback)",
+      "metric": "AA-Omniscience",
+      "expected": "21",
+      "observed": "21",
+      "match": true
+    },
+    {
+      "model": "Claude Opus 5.5 (high with fallback)",
+      "metric": "AutomationBench-AA",
+      "expected": "63.2%",
+      "observed": "63.2%",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Astra (high)",
+      "metric": "AutomationBench-AA",
+      "expected": "66.6%",
+      "observed": "66.6%",
+      "match": true
+    },
+    {
+      "model": "GPT-6.1 Sol (high)",
+      "metric": "AutomationBench-AA",
+      "expected": "64.5%",
+      "observed": "64.5%",
+      "match": true
+    },
+    {
+      "model": "Claude Sonnet 5.5 (high with fallback)",
+      "metric": "AutomationBench-AA",
+      "expected": "59.4%",
+      "observed": "59.4%",
+      "match": true
+    },
+    {
+      "model": "Claude Opus 5.5 (high with fallback)",
+      "metric": "SciCode",
+      "expected": "60.4%",
+      "observed": "60.4%",
+      "match": true
+    },
+    {
+      "model": "GPT-6 Astra (high)",
+      "metric": "SciCode",
+      "expected": "55.4%",
+      "observed": "55.4%",
+      "match": true
+    },
+    {
+      "model": "GPT-6.1 Sol (high)",
+      "metric": "SciCode",
+      "expected": "55.8%",
+      "observed": "55.8%",
+      "match": true
+    },
+    {
+      "model": "Claude Sonnet 5.5 (high with fallback)",
+      "metric": "SciCode",
+      "expected": "53.7%",
+      "observed": "53.7%",
+      "match": true
+    }
+  ],
+  "regressions": [
+    {
+      "check": "regression_review_ladder.py",
+      "exitCode": 0,
+      "tail": "PASS pre-cutover order remains valid without routing metadata\nPASS post-cutover missing, duplicate, malformed, noncanonical, and non-finite metadata fail closed\nPASS V0-V2 routes select the enforced reviewer and V0 selects none\nPASS explicit and effective V3 routes fail closed without trusted approval evidence\nPASS Claude-owned V2/V3 implementation cannot select its own Opus reviewer\nPASS executor model identity alone does not force senior review\nPASS Gemini 3.8 Flash is accepted for the PICTOR creative/UI route\nPASS Gemini 3.8 Flash cannot silently become a general implementation route\nPASS evidenceNeed=high raises Codex effort without reducing existing none, low, high, or xhigh floors\nPASS Luna is limited to clear, bounded work; Sol with a proof gap requires independent Claude review\nPASS V0 separates pre-execution trust from controller-owned post-execution proof\nPASS V0 trust predicates and V2/V3 hard floors cannot be weakened\nPASS gpt-6.1-sol is the primary Sol route and gpt-6-sol requires an explicit pre-side-effect fallback reason\nPASS terminal reviewer orders enforce V2/V3 floors, V3 gate, and no recursive reviewer\nPASS explicit Astra advice is V2/V3 read-only non-review routing and cannot waive floors or impersonate roles\nPASS escaped V0 and Sol-miss promotions enforce production floors with canonical reasons\nPASS ledger rejects duplicate keys, NaN, Infinity, -Infinity, 1e999, and programmatic non-finite values\nPASS ledger snapshot is shared-locked, read-only, fail-closed, and lineage-unique\n"
+    },
+    {
+      "check": "regression_order_preflight.py",
+      "exitCode": 0,
+      "tail": "PASS deterministic positive plan preserves compatible candidate surface\nPASS candidate/canonical alias rejected\nPASS pre-existing canonical result rejected\nPASS bare AGY file adapter compatibility stays bounded; real CLI and custody checks remain strict\nPASS Codex/Claude/agy default prompts, stdin metadata, delimiters, option values and one-token arity; legacy fixtures preserved\nPASS declared scratch path is bounded by allowed paths and fresh order namespace\nPASS typed artifact preview requires and checks supplied digest/media type\nPASS stale handoff identity rejected\nPASS exact/recursive path coverage and planned-only forbidden conflicts\nPASS control paths outside fresh order namespace rejected before dispatch\nPASS actual runner boundary prevents child launch on invalid candidate preflight\n"
+    },
+    {
+      "check": "regression_progress_drift_detector.py",
+      "exitCode": 0,
+      "tail": "PASS progress, no-progress, repeated signatures, and order-renaming regressions\nPASS material progress, budgets, scope drift, acceptance regression, and conflicting evidence\nPASS first-attempt behavior, immutable inputs, bounded JSON, and no permit/dispatch fields\n"
+    },
+    {
+      "check": "regression_blocker_packet_projection.py",
+      "exitCode": 0,
+      "tail": "regression_blocker_packet_projection: PASS (21 checks)\n"
+    },
+    {
+      "check": "regression_legion_handoffs.py",
+      "exitCode": 0,
+      "tail": "_recursive_review) ... ok\ntest_candidate_symlink_rejected_even_with_same_bytes (__main__.HandoffTests.test_candidate_symlink_rejected_even_with_same_bytes) ... ok\ntest_child_cannot_change_objective_or_task_class (__main__.HandoffTests.test_child_cannot_change_objective_or_task_class) ... ok\ntest_child_cannot_lower_parent_review_floor (__main__.HandoffTests.test_child_cannot_lower_parent_review_floor) ... ok\ntest_execution_saves_binding_and_review_completes (__main__.HandoffTests.test_execution_saves_binding_and_review_completes) ... ok\ntest_explicit_escalation_not_lost_and_executor_alias_rejected (__main__.HandoffTests.test_explicit_escalation_not_lost_and_executor_alias_rejected) ... ok\ntest_gemini_launch_binds_flags_not_prompt_text (__main__.HandoffTests.test_gemini_launch_binds_flags_not_prompt_text) ... ok\ntest_missing_or_mutated_candidate_rejected (__main__.HandoffTests.test_missing_or_mutated_candidate_rejected) ... ok\ntest_result_changed_during_review_cannot_complete_loop (__main__.HandoffTests.test_result_changed_during_review_cannot_complete_loop) ... ok\ntest_route_or_digest_omission_cannot_bypass_binding (__main__.HandoffTests.test_route_or_digest_omission_cannot_bypass_binding) ... ok\ntest_terminal_product_edit_closes_direct_custody_as_rejected (__main__.HandoffTests.test_terminal_product_edit_closes_direct_custody_as_rejected) ... ok\ntest_terminal_reviewer_cannot_report_product_fixes (__main__.HandoffTests.test_terminal_reviewer_cannot_report_product_fixes) ... ok\n\n----------------------------------------------------------------------\nRan 12 tests in 0.132s\n\nOK\n"
+    }
+  ],
+  "reproductions": {
+    "routes": [
+      {
+        "input": "review code diff",
+        "primaryLegionary": "coder",
+        "adjacentLegionaries": [
+          "reviewer"
+        ],
+        "guardianGate": false
+      },
+      {
+        "input": "add unit tests for API handler",
+        "primaryLegionary": "coder",
+        "adjacentLegionaries": [
+          "tester"
+        ],
+        "guardianGate": false
+      },
+      {
+        "input": "update PostgreSQL database schema",
+        "primaryLegionary": "indagator",
+        "adjacentLegionaries": [],
+        "guardianGate": false
+      },
+      {
+        "input": "сделай миграцию базы PostgreSQL",
+        "primaryLegionary": "ludifex",
+        "adjacentLegionaries": [],
+        "guardianGate": false
+      },
+      {
+        "input": "fix bug in product title",
+        "primaryLegionary": "reviewer",
+        "adjacentLegionaries": [
+          "security"
+        ],
+        "guardianGate": true
+      },
+      {
+        "input": "fix typo in README, no production changes",
+        "primaryLegionary": "documenter",
+        "adjacentLegionaries": [
+          "reviewer",
+          "security"
+        ],
+        "guardianGate": true
+      },
+      {
+        "input": "implement endpoint without UI changes",
+        "primaryLegionary": "aedilis",
+        "adjacentLegionaries": [
+          "coder"
+        ],
+        "guardianGate": false
+      },
+      {
+        "input": "проверить код без изменений",
+        "primaryLegionary": "coder",
+        "adjacentLegionaries": [],
+        "guardianGate": false
+      }
+    ],
+    "risk": [
+      {
+        "reasons": "local typo",
+        "profile": "V0"
+      },
+      {
+        "reasons": "no production changes",
+        "profile": "V3"
+      },
+      {
+        "reasons": "no dependency changes",
+        "profile": "V3"
+      },
+      {
+        "reasons": "no security impact",
+        "profile": "V3"
+      }
+    ]
+  },
+  "scopeProbe": {
+    "decisionVersion": "AQUILA_PROGRESS_DECISION_V1",
+    "decision": "replan",
+    "reasonCodes": [
+      "goal_drift_paths",
+      "empty_or_first_attempt"
+    ],
+    "repeatedSignatures": [],
+    "progressSignals": [],
+    "goalDrift": {
+      "detected": true,
+      "beforeMutation": true,
+      "findings": [
+        {
+          "kind": "paths",
+          "added": [],
+          "removed": [
+            "src/b.py"
+          ],
+          "beforeMutation": true
+        }
+      ]
+    },
+    "budgetState": {
+      "maxAttempts": null,
+      "maxWallSeconds": null,
+      "maxCostUsd": null,
+      "observedAttempts": 0,
+      "observedWallSeconds": 0.0,
+      "observedCostUsd": 0.0,
+      "exhausted": [],
+      "arithmeticError": false
+    },
+    "requiresOwnerDecision": true
+  },
+  "finalReview": {
+    "order": {
+      "contract": "CLAUDE_ORDER v1",
+      "orderId": "centurion-v3-plan-review-20261016-r3",
+      "owner": "reviewer",
+      "workspace": "/tmp/centurion-v3-plan-a1ta6gn3/review-r3-workspace",
+      "allowedPaths": [
+        ".centurion/agents_results/centurion-v3-plan-review-20261016-r3/CLAUDE_RESULT.json"
+      ],
+      "readOnlyInputs": [
+        "inputs/PLAN.md"
+      ],
+      "nonGoals": [
+        "No implementation or edits",
+        "No model additions",
+        "No installation or release",
+        "No other agents or network tools",
+        "Do not treat old policies as target requirements"
+      ],
+      "forbiddenActions": [
+        "product writes",
+        "tool execution",
+        "credential access",
+        "recursive review"
+      ],
+      "proofCommands": [
+        "manual review of all supplied plan, audit and source excerpts; no shell execution requested"
+      ],
+      "outputContract": {
+        "resultPath": "/tmp/centurion-v3-plan-a1ta6gn3/review-r3-workspace/.centurion/agents_results/centurion-v3-plan-review-20261016-r3/CLAUDE_RESULT.json",
+        "resultVersion": "AGENT_RESULT_JSON_V1"
+      },
+      "context": {
+        "ExecutionDecision": {
+          "taskClass": "independent_implementation_plan_review",
+          "complexity": "high",
+          "risk": "low",
+          "ambiguity": "medium",
+          "reversibility": "high",
+          "evidenceNeed": "high",
+          "executor": "claude",
+          "model": "claude-opus-5-5",
+          "reasoningEffort": "high",
+          "executionProfile": "terminal_review",
+          "verificationProfile": "read_only_plan_review",
+          "confidence": "high",
+          "reasons": [
+            "User requested Claude plan review and improvements",
+            "Single bounded closure review of corrected plan; no recursive reviewers",
+            "Tools disabled; canonical output checked by controller"
+          ]
+        },
+        "candidateSha256": "f8bf1c05470289eb33163bf074fea90e6a706899f649c0327b8ca872ac63878c",
+        "authority": "User requested new numbered version, consolidated plan, independent Claude review, improvements and Git fixation.",
+        "technicalRetryOf": "centurion-v3-plan-review-20261016-r2",
+        "retryReason": "Previous response exhausted 9000 tokens entirely in thinking and produced no text; same candidate, same model and effort, larger output budget."
+      }
+    },
+    "receipt": {
+      "requestedModel": "claude-opus-5-5",
+      "reportedModel": "claude-opus-5-5",
+      "requestedEffort": "high",
+      "httpStatus": 200,
+      "stopReason": "end_turn",
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 17040,
+        "cache_read_input_tokens": 91,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 17040,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 21448,
+        "output_tokens_details": {
+          "thinking_tokens": 18289
+        },
+        "service_tier": "standard",
+        "inference_geo": "global"
+      },
+      "elapsedSeconds": 332.04,
+      "candidateSha256": "f8bf1c05470289eb33163bf074fea90e6a706899f649c0327b8ca872ac63878c",
+      "rawResponseSha256": "82998562f011b3a66f65649c69307ba5d4e6c1aa2a6ce6d026d7361d4299bd49",
+      "rawTextSha256": "3b5f81d5dfd179a7516aed6da30636eb9eb531972809f51dfdff591830eccab6",
+      "tools": [],
+      "credentialsSent": false
+    },
+    "guard": {
+      "ok": true,
+      "mode": "canonical",
+      "productChanged": [],
+      "scopeViolations": [],
+      "failures": [],
+      "proof": "Observed output from repository claude-order-guard verify on r3 workspace/snapshot/result; canonical shape and input immutability passed."
+    },
+    "canonicalResult": "claude-result.json",
+    "reviewedCandidate": "candidate-reviewed.md"
+  },
+  "incompleteRequest": {
+    "order": {
+      "contract": "CLAUDE_ORDER v1",
+      "orderId": "centurion-v3-plan-review-20261016-r2",
+      "owner": "reviewer",
+      "workspace": "/tmp/centurion-v3-plan-a1ta6gn3/review-r2-workspace",
+      "allowedPaths": [
+        ".centurion/agents_results/centurion-v3-plan-review-20261016-r2/CLAUDE_RESULT.json"
+      ],
+      "readOnlyInputs": [
+        "inputs/PLAN.md"
+      ],
+      "nonGoals": [
+        "No implementation or edits",
+        "No model additions",
+        "No installation or release",
+        "No other agents or network tools",
+        "Do not treat old policies as target requirements"
+      ],
+      "forbiddenActions": [
+        "product writes",
+        "tool execution",
+        "credential access",
+        "recursive review"
+      ],
+      "proofCommands": [
+        "manual review of all supplied plan, audit and source excerpts; no shell execution requested"
+      ],
+      "outputContract": {
+        "resultPath": "/tmp/centurion-v3-plan-a1ta6gn3/review-r2-workspace/.centurion/agents_results/centurion-v3-plan-review-20261016-r2/CLAUDE_RESULT.json",
+        "resultVersion": "AGENT_RESULT_JSON_V1"
+      },
+      "context": {
+        "ExecutionDecision": {
+          "taskClass": "independent_implementation_plan_review",
+          "complexity": "high",
+          "risk": "low",
+          "ambiguity": "medium",
+          "reversibility": "high",
+          "evidenceNeed": "high",
+          "executor": "claude",
+          "model": "claude-opus-5-5",
+          "reasoningEffort": "high",
+          "executionProfile": "terminal_review",
+          "verificationProfile": "read_only_plan_review",
+          "confidence": "high",
+          "reasons": [
+            "User requested Claude plan review and improvements",
+            "Single bounded closure review of corrected plan; no recursive reviewers",
+            "Tools disabled; canonical output checked by controller"
+          ]
+        },
+        "candidateSha256": "f8bf1c05470289eb33163bf074fea90e6a706899f649c0327b8ca872ac63878c",
+        "authority": "User requested new numbered version, consolidated plan, independent Claude review, improvements and Git fixation."
+      }
+    },
+    "receipt": {
+      "requestedModel": "claude-opus-5-5",
+      "reportedModel": "claude-opus-5-5",
+      "requestedEffort": "high",
+      "httpStatus": 200,
+      "stopReason": "max_tokens",
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 16952,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 16952,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 9000,
+        "output_tokens_details": {
+          "thinking_tokens": 9000
+        },
+        "service_tier": "standard",
+        "inference_geo": "global"
+      },
+      "elapsedSeconds": 242.53,
+      "candidateSha256": "f8bf1c05470289eb33163bf074fea90e6a706899f649c0327b8ca872ac63878c",
+      "rawResponseSha256": "5cbebf044010e46fc8188b9d3900cfec07283dd0b88e333b39add67cca2de29d",
+      "rawTextSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tools": [],
+      "credentialsSent": false
+    },
+    "accepted": false,
+    "reason": "max_tokens; no textual review"
+  },
+  "artifactHashes": {
+    "claude-result.json": "99d6e8ac5e3b6daf46645ff0497622495c29cb0f728f694bfc2161dc59dc31dc",
+    "candidate-r1.md": "f93494233c774596a0ec0cafa21d6c425e83a1d7ca4963ae563cfbfdac607b58",
+    "claude-r1-response.json": "afe8ddae0b98c63da22ce828c0cfef86c83a10a419bc0dab5c3e2a262391506f",
+    "candidate-reviewed.md": "f8bf1c05470289eb33163bf074fea90e6a706899f649c0327b8ca872ac63878c"
+  }
+}

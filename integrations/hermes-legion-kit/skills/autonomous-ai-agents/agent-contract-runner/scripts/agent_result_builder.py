@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import os
@@ -23,7 +24,11 @@ from response_envelope import (
     response_state_errors,
     validate_response_handoff,
     valid_media_type,
+    MAX_CANDIDATE_BYTES,
+    MAX_ORDER_BYTES,
+    read_bounded_file,
 )
+from order_preflight import PreflightError, controller_context, review_binding
 from strict_json import StrictJSONError, strict_json_load_bytes, strict_json_load_path
 from agent_artifact_namespace import ArtifactNamespaceError, artifact_namespace, validate_order_id
 from review_ladder import RoutingError, validate_order_routing, validate_terminal_review_result
@@ -35,6 +40,132 @@ PACKAGED_SCHEMA = Path(__file__).resolve().parent.parent / "references" / "agent
 
 class BuilderError(ValueError):
     """Raised when result construction cannot be finalized safely."""
+
+
+class ProtocolFailure(BuilderError):
+    """The raw response is retained, but no executor result was created."""
+
+    def __init__(self, receipt: Path):
+        self.receipt = receipt
+        super().__init__(f"protocol failure; no canonical result; receipt: {receipt}")
+
+
+def native_result_schema(order: dict[str, Any], routing: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Project required author fields into the API's strict schema subset.
+
+    Conditional success semantics remain enforced by the canonical validator;
+    the native generation schema is not the result acceptance authority.
+    """
+    schema, _ = _load_schema(PACKAGED_SCHEMA)
+    projection = copy.deepcopy(schema)
+    projection["properties"] = {key: projection["properties"][key] for key in projection["required"]}
+    for key in ("orderId", "executor"):
+        projection["properties"][key] = {"const": order[key]}
+    handoff = order.get("outputContract", {}).get("handoff")
+    if handoff is not None:
+        projection["properties"]["handoff"] = {
+            "type": "object", "properties": {key: {"const": value} for key, value in handoff.items()},
+            "required": list(handoff),
+        }
+        projection["required"].append("handoff")
+        artifact = copy.deepcopy(projection["properties"]["artifacts"]["items"])
+        present, absent = copy.deepcopy(artifact), copy.deepcopy(artifact)
+        present["required"] += ["sha256", "mediaType"]
+        present["properties"]["exists"] = {"const": True}
+        absent["properties"]["exists"] = {"const": False}
+        projection["properties"]["artifacts"]["items"] = {"anyOf": [present, absent]}
+    if routing is None and "createdAt" in order:
+        routing = validate_order_routing(order)
+    if controller_context(order) is not None and isinstance(routing, dict) and routing.get("executionProfile") == "terminal_review":
+        projection["required"].append("executorExtensions")
+        extension = copy.deepcopy(schema["properties"]["executorExtensions"])
+        projection["properties"]["executorExtensions"] = extension
+        extension["required"] = ["review"]
+        binding = review_binding(order, routing)
+        review = extension["properties"]["review"]
+        for key, value in binding.items():
+            review["properties"][key] = {"const": value}
+        review["properties"]["findings"]["description"] = (
+            "Only unresolved criterion violations belong in findings; put positive evidence in proof or summary."
+        )
+        variants = []
+        for verdict in ("pass", "fail", "blocked"):
+            variant = copy.deepcopy(review)
+            variant["properties"]["verdict"] = {"const": verdict}
+            if verdict == "pass":
+                variant["properties"]["findings"]["maxItems"] = 0
+            elif verdict == "fail":
+                variant["properties"]["findings"]["minItems"] = 1
+            variants.append(variant)
+        extension["properties"]["review"] = {"anyOf": variants}
+    return _native_schema_subset(projection)
+
+
+def _native_schema_subset(node: dict[str, Any]) -> dict[str, Any]:
+    """Close required-only objects; omit unsupported canonical composition."""
+    supported = {"type", "enum", "pattern", "format", "minimum", "maximum", "exclusiveMinimum",
+                 "exclusiveMaximum", "multipleOf", "minItems", "maxItems", "description", "title"}
+    result = {key: copy.deepcopy(value) for key, value in node.items() if key in supported}
+    values = [node["const"]] if "const" in node else node.get("enum")
+    if values is not None:
+        result["enum"] = values
+        if "type" not in result:
+            types = {type(value) for value in values}
+            if types == {str}:
+                result["type"] = "string"
+            elif types == {bool}:
+                result["type"] = "boolean"
+            else:
+                raise BuilderError("native schema literal requires an explicit supported scalar type")
+    if "anyOf" in node:
+        result["anyOf"] = [_native_schema_subset(branch) for branch in node["anyOf"]]
+    if node.get("type") == "object":
+        required = node.get("required", [])
+        result["properties"] = {key: _native_schema_subset(node["properties"][key]) for key in required}
+        result["required"] = list(required)
+        result["additionalProperties"] = False
+    if node.get("type") == "array":
+        result["items"] = _native_schema_subset(node["items"])
+    return result
+
+
+def validate_review_binding(candidate: dict[str, Any], order: dict[str, Any], routing: dict[str, Any] | None) -> list[str]:
+    try:
+        binding = review_binding(order, routing)
+    except (PreflightError, ArtifactNamespaceError) as exc:
+        return [f"RESPONSE_IDENTITY_ERROR: {exc}"]
+    if binding is None:
+        return []
+    extension = candidate.get("executorExtensions")
+    review = extension.get("review") if isinstance(extension, dict) else None
+    if not isinstance(review, dict):
+        return ["RESPONSE_SCHEMA_ERROR: 3.0 reviewer requires executorExtensions.review"]
+    errors = []
+    for key, expected in binding.items():
+        if review.get(key) != expected:
+            errors.append(f"RESPONSE_IDENTITY_ERROR: review.{key} must match original order/attempt binding")
+    if review.get("verdict") == "pass" and review.get("findings"):
+        errors.append("RESPONSE_SCHEMA_ERROR: pass review cannot contain unresolved findings")
+    if review.get("verdict") == "fail" and not review.get("findings"):
+        errors.append("RESPONSE_SCHEMA_ERROR: fail review requires criterion/evidence findings")
+    return errors
+
+
+def record_protocol_failure(order: dict[str, Any], order_bytes: bytes, evidence_dir: Path,
+                            candidate_bytes: bytes, errors: list[str], *, complete: bool = True,
+                            binding: dict[str, Any] | None = None) -> Path:
+    raw = preserve_original(candidate_bytes, evidence_dir)
+    receipt = {
+        "version": "AGENT_PROTOCOL_FAILURE_V1", "orderId": order["orderId"], "executor": order["executor"],
+        "orderSha256": hashlib.sha256(order_bytes).hexdigest(), "canonicalFinalized": False,
+        "candidate": {"path": str(raw), "sha256": hashlib.sha256(candidate_bytes).hexdigest(),
+                      "bytes": len(candidate_bytes), "complete": complete},
+        "errors": sorted(set(errors)), "launchBinding": binding,
+        "reportRecovery": {"enabled": False, "reason": "no proven no-write report capability", "productReplayAllowed": False},
+    }
+    path = evidence_dir / "protocol-failure.json"
+    create_only_finalize(path, receipt)
+    return path
 
 
 def resolve_schema_path(explicit: Path | None = None) -> Path:
@@ -121,12 +252,21 @@ def validate_candidate(candidate: Any, order: dict[str, Any], validator: Draft20
                 resolved = path.resolve(strict=False)
                 if namespace not in resolved.parents:
                     errors.append(f"Astra advisory artifacts[{index}] must stay in the control namespace")
+    errors.extend(validate_review_binding(candidate, order, routing))
+    proof_items = candidate.get("proof")
+    if isinstance(proof_items, list):
+        for index, item in enumerate(proof_items):
+            if not isinstance(item, dict):
+                continue
+            exit_code = item.get("exitCode")
+            if item.get("status") == "pass" and (type(exit_code) is not int or exit_code != 0):
+                errors.append(f"proof[{index}].status=pass requires exitCode=0")
     if candidate.get("status") == "done":
         proof = candidate.get("proof")
         if not isinstance(proof, list) or not proof:
             errors.append("done result requires at least one proof entry")
-        elif any(not isinstance(item, dict) or item.get("status") != "pass" for item in proof):
-            errors.append("done result requires every proof[].status to be pass")
+        elif any(not isinstance(item, dict) or item.get("status") != "pass" or type(item.get("exitCode")) is not int or item.get("exitCode") != 0 for item in proof):
+            errors.append("done result requires every proof[].status=pass with exitCode=0")
         self_review = candidate.get("selfReview")
         if not isinstance(self_review, dict) or self_review.get("performed") is not True:
             errors.append("done result requires selfReview.performed=true")
@@ -179,6 +319,12 @@ def preserve_normalized(parsed: ParsedResponse, evidence_dir: Path) -> Path:
 
 def _allowed_response_transports(order: dict[str, Any]) -> tuple[str, ...]:
     output_contract = order.get("outputContract")
+    if controller_context(order) is not None:
+        from response_envelope import validate_handoff_order
+        if order.get("orderVersion") != "AGENT_ORDER_JSON_V1" or not isinstance(output_contract, dict) or "handoff" not in output_contract or validate_handoff_order(order):
+            raise BuilderError("3.0 requires strict V1 order and exact handoff before adaptation")
+        if output_contract.get("resultVersion") != RESULT_VERSION or output_contract.get("proseAllowedAfterJson") is True:
+            raise BuilderError("3.0 requires AGENT_RESULT_JSON_V1 without prose transport")
     if not isinstance(output_contract, dict):
         return (RAW_JSON, JSON_FENCE)
     declared = output_contract.get("acceptedTransports")
@@ -199,7 +345,10 @@ def create_only_finalize(result_path: Path, payload: dict[str, Any]) -> None:
         os.fchmod(fd, 0o600)
         offset = 0
         while offset < len(encoded):
-            offset += os.write(fd, encoded[offset:])
+            written = os.write(fd, encoded[offset:])
+            if written < 1:
+                raise OSError("create-only write made no progress")
+            offset += written
         os.fsync(fd)
         os.close(fd)
         fd = -1
@@ -281,13 +430,20 @@ def build_result(
     result_path: Path,
     evidence_dir: Path,
     schema_path: Path | None = None,
+    *, protocol_binding: dict[str, Any] | None = None, expected_order_sha256: str | None = None,
+    expected_candidate_sha256: str | None = None,
 ) -> dict[str, Any]:
     try:
-        order = strict_json_load_path(order_path, "order")
-    except (OSError, StrictJSONError) as exc:
+        order_bytes, order_complete = read_bounded_file(order_path, MAX_ORDER_BYTES)
+        if not order_complete:
+            raise BuilderError("order exceeds byte limit or changed while reading")
+        order = strict_json_load_bytes(order_bytes, "order")
+    except (OSError, StrictJSONError, ResponseEnvelopeError) as exc:
         raise BuilderError(f"could not load order: {exc}") from exc
     if not isinstance(order, dict):
         raise BuilderError("order must be a JSON object")
+    if expected_order_sha256 is not None and hashlib.sha256(order_bytes).hexdigest() != expected_order_sha256:
+        raise BuilderError("order changed after Gateway launch; no canonical result")
     for key in ("orderId", "executor"):
         if not isinstance(order.get(key), str) or not order[key].strip():
             raise BuilderError(f"order.{key} must be a non-empty string")
@@ -307,15 +463,17 @@ def build_result(
         raise BuilderError("candidate and canonical result must be distinct")
 
     _, validator = _load_schema(resolve_schema_path(schema_path))
+    if controller_context(order) is not None and resolve_schema_path(schema_path).resolve() != PACKAGED_SCHEMA.resolve():
+        raise BuilderError("3.0 requires packaged canonical schema")
     if any(component.is_symlink() for component in (candidate_path, *candidate_path.parents)):
         raise BuilderError("candidate path must not contain symlinks")
     if candidate_path.exists() and not candidate_path.is_file():
         raise BuilderError("candidate must be a regular file")
     try:
-        candidate_bytes = candidate_path.read_bytes()
+        candidate_bytes, candidate_complete = read_bounded_file(candidate_path, MAX_CANDIDATE_BYTES)
     except FileNotFoundError:
-        candidate_bytes = b""
-    except OSError as exc:
+        candidate_bytes, candidate_complete = b"", False
+    except (OSError, ResponseEnvelopeError) as exc:
         raise BuilderError(f"could not read candidate: {exc}") from exc
     parse_errors: list[str] = []
     parsed_response: ParsedResponse | None = None
@@ -332,10 +490,18 @@ def build_result(
     if isinstance(candidate, dict) and "responseEnvelope" in candidate:
         parse_errors.append("RESPONSE_FORMAT_ERROR: candidate responseEnvelope is controller-owned and must not be supplied by executor")
     errors = parse_errors + validate_candidate(candidate, order, validator)
+    if expected_candidate_sha256 is not None and hashlib.sha256(candidate_bytes).hexdigest() != expected_candidate_sha256:
+        errors.append("RESPONSE_IDENTITY_ERROR: candidate changed after Gateway capture")
+    if not candidate_complete:
+        errors.append("RESPONSE_LIMIT_ERROR: candidate is missing, partial, or changed while being read")
     if errors and not any("RESPONSE_" in error for error in errors):
         identity_error = any(error.startswith(("orderId:", "executor:")) for error in errors)
         errors.insert(0, "RESPONSE_IDENTITY_ERROR" if identity_error else "RESPONSE_SCHEMA_ERROR")
     if errors:
+        if controller_context(order) is not None:
+            receipt = record_protocol_failure(order, order_bytes, evidence_dir, candidate_bytes, errors,
+                                              complete=candidate_complete, binding=protocol_binding)
+            raise ProtocolFailure(receipt)
         evidence_path = preserve_original(candidate_bytes, evidence_dir)
         payload = failed_result(order, evidence_path, sorted(set(errors)))
         schema_errors = _schema_errors(validator, payload)
@@ -372,7 +538,7 @@ def main() -> int:
     args = build_parser().parse_args()
     try:
         payload = build_result(args.order, args.candidate, args.result, args.evidence_dir, args.schema)
-    except (BuilderError, OSError) as exc:
+    except (BuilderError, OSError, PreflightError, ResponseEnvelopeError) as exc:
         print(f"error: {exc}", file=__import__("sys").stderr)
         return 1
     print(json.dumps({"status": "finalized", "resultStatus": payload["status"], "path": str(args.result)}, sort_keys=True))

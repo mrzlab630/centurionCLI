@@ -1,8 +1,8 @@
 {
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "centurion-legion",
-  "version": "0.5.0",
-  "description": "CENTURION Legion routing, bounded execution, and CLAUDE_ORDER v1 guardrails for Claude Code.",
+  "version": "1.0.0",
+  "description": "CENTURION 3.0 selected bounded native instruction surfaces.",
   "author": {
     "name": "CENTURION",
     "email": "noreply@example.com"

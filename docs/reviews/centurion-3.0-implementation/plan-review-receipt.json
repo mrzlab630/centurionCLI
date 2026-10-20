@@ -1,0 +1,28 @@
+{
+  "requestedModel": "claude-opus-5-5",
+  "reportedModel": "claude-opus-5-5",
+  "stopReason": "end_turn",
+  "inputHashes": {
+    "docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md": "9c6b203755b8beca59d0ea82d33a7427e71b3aed751171510ee73d8234433e89",
+    "docs/reviews/centurion-3.0-plan/implementation-order.json": "763cf0b1b176757806cde8a557c304003bb1d4a3bf387dee5f8715e1ddbe4b2b"
+  },
+  "tools": [],
+  "credentialsSent": false,
+  "normalization": "one complete outer JSON Markdown fence stripped for advisory document review only",
+  "responseSha256": "1ce3e099338ed5e50ee45217f08ee9b61a7b4061df8bd89aeef03f6d4debf79f",
+  "usage": {
+    "input_tokens": 4,
+    "cache_creation_input_tokens": 34456,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 34456,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 419,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "standard",
+    "inference_geo": "global"
+  }
+}

@@ -279,6 +279,8 @@ def _verify_one(repo: Path, current_order_id: str, item: dict[str, Any], index: 
         _path_equal(repo, output.get("resultPath"), result_path, "predecessor outputContract.resultPath")
 
     result, result_digest = _json(repo, result_path, "predecessor result")
+    if "reporting" in acceptance:
+        closure = _verify_reporting(repo, predecessor_id, acceptance, closure, result_digest, order_digest)
     if result_digest != item["resultSha256"]:
         raise AcceptedInputError(f"inputResults[{index}] canonical result digest mismatch")
     if result.get("resultVersion") != RESULT_VERSION or result.get("orderId") != predecessor_id or result.get("status") != "done" or result.get("executor") != executor:
@@ -307,6 +309,60 @@ def _verify_one(repo: Path, current_order_id: str, item: dict[str, Any], index: 
         raise AcceptedInputError(f"inputResults[{index}] controller proof does not bind Gateway receipts")
     if proof.get("scope") != "post_execution_proof" or not isinstance(proof.get("observedChecks"), dict):
         raise AcceptedInputError(f"inputResults[{index}] controller proof lacks observed post-execution checks")
+    # V3 cannot inherit a pinned-but-malformed author response or a review of
+    # different attempt bytes. Imports stay local to avoid the runner boundary.
+    from order_preflight import controller_context
+    try:
+        context = controller_context(order)
+        if context is not None:
+            from agent_result_builder import PACKAGED_SCHEMA, _load_schema, validate_candidate
+            _, validator = _load_schema(PACKAGED_SCHEMA)
+            candidate_errors = validate_candidate(result, order, validator)
+            if candidate_errors:
+                raise AcceptedInputError("predecessor response validation failed: " + "; ".join(candidate_errors))
+            from response_envelope import parse_response_bytes
+            envelope = result.get("responseEnvelope")
+            if not isinstance(envelope, dict):
+                raise AcceptedInputError("predecessor lacks controller response envelope")
+            raw_path = _control_path(repo, predecessor_id, envelope.get("rawEvidencePath"), "response raw evidence")
+            normalized_path = _control_path(repo, predecessor_id, envelope.get("normalizedCandidatePath"), "normalized candidate")
+            raw, raw_hash = _read_bytes(repo, raw_path, "response raw evidence")
+            normalized, normalized_hash = _read_bytes(repo, normalized_path, "normalized candidate")
+            parsed = parse_response_bytes(raw, allowed_transports=order["outputContract"].get("acceptedTransports"))
+            author = {key: value for key, value in result.items() if key != "responseEnvelope"}
+            if (envelope.get("version") != "AGENT_RESPONSE_ENVELOPE_V1" or envelope.get("transport") != parsed.transport
+                or envelope.get("rawSha256") != raw_hash or envelope.get("normalizedSha256") != normalized_hash
+                or envelope.get("rawBytes") != len(raw) or envelope.get("normalizedBytes") != len(normalized)
+                or parsed.normalized_bytes != normalized or parsed.value != author):
+                raise AcceptedInputError("predecessor raw/candidate/result envelope binding mismatch")
+            review = result.get("executorExtensions", {}).get("review")
+            if review is not None and review.get("verdict") != "pass":
+                raise AcceptedInputError("predecessor review verdict is not pass")
+            if "protocolFailure" in closure or closure.get("canonicalFinalized") is not True:
+                raise AcceptedInputError("report recovery is disabled without a proven no-write capability")
+            for label in ("stdout", "stderr", "candidate"):
+                capture = closure.get(label)
+                if not isinstance(capture, dict) or capture.get("complete") is not True:
+                    raise AcceptedInputError(f"predecessor {label} capture is incomplete")
+                capture_path = _control_path(repo, predecessor_id, capture.get("path"), f"closure.{label}.path")
+                content, capture_hash = _read_bytes(repo, capture_path, f"predecessor {label} capture")
+                if capture_hash != capture.get("sha256") or len(content) != capture.get("bytes"):
+                    raise AcceptedInputError(f"predecessor {label} capture digest/size mismatch")
+            if closure["candidate"]["sha256"] != raw_hash or closure["candidate"]["bytes"] != len(raw):
+                raise AcceptedInputError("predecessor captured candidate is not the original author envelope")
+            extraction = closure["candidate"].get("extraction")
+            if extraction is not None and extraction.get("rawSha256") != closure["stdout"].get("sha256"):
+                raise AcceptedInputError("predecessor extraction is not bound to raw stdout")
+            from review_ladder import validate_order_routing
+            import json
+            routing = validate_order_routing(order)
+            route_hash = hashlib.sha256(json.dumps(routing, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode()).hexdigest()
+            if start.get("routing") != routing or closure.get("routing") != routing or start.get("routingSha256") != route_hash or closure.get("routingSha256") != route_hash:
+                raise AcceptedInputError("predecessor routing binding mismatch")
+    except AcceptedInputError:
+        raise
+    except (ValueError, OSError, KeyError) as exc:
+        raise AcceptedInputError(f"predecessor 3.0 contract validation failed: {exc}") from exc
     if len({result_path, acceptance_path, proof_path, closure_path, start_path, order_path}) != 6:
         raise AcceptedInputError(f"inputResults[{index}] control paths must be distinct")
 
@@ -336,6 +392,8 @@ def _verify_one(repo: Path, current_order_id: str, item: dict[str, Any], index: 
                 matches.append(reported)
         if len(matches) != 1 or matches[0].get("exists") is not True:
             raise AcceptedInputError(f"inputResults[{index}] artifact is not reported as existing: {artifact_path}")
+        if context is not None and (matches[0].get("sha256") != expected["sha256"] or matches[0].get("mediaType") != expected["mediaType"]):
+            raise AcceptedInputError(f"inputResults[{index}] selected artifact metadata is not bound to original result")
         expected_artifacts.append({"path": str(artifact_path), "sha256": actual_hash, "mediaType": expected["mediaType"]})
 
     seen_orders.add(predecessor_id)
@@ -351,6 +409,85 @@ def _verify_one(repo: Path, current_order_id: str, item: dict[str, Any], index: 
         "artifacts": expected_artifacts,
         "nested": nested,
     }
+
+
+def _verify_reporting(repo: Path, order_id: str, acceptance: dict[str, Any], original: dict[str, Any],
+                      result_digest: str, order_digest: str) -> dict[str, Any]:
+    """Verify both immutable chains, then project the collected report closure.
+
+    Original malformed closure/raw is never rewritten to masquerade as success.
+    """
+    ref = acceptance["reporting"]
+    path = _control_path(repo, order_id, ref.get("path"), "report recovery closure")
+    report, digest = _json(repo, path, "report recovery closure")
+    if digest != ref.get("sha256") or report.get("version") != "CENTURION_REPORT_RECOVERY_V1" or report.get("status") != "passed" or report.get("orderId") != order_id or report.get("canonicalResultSha256") != result_digest:
+        raise AcceptedInputError("report recovery closure/result binding failed")
+    refs = report.get("originalRefs", {})
+    for name, saved in refs.items():
+        saved_path = _control_path(repo, order_id, saved.get("path"), "original recovery " + name)
+        raw, digest = _read_bytes(repo, saved_path, "original recovery " + name)
+        if digest != saved.get("sha256") or len(raw) != saved.get("bytes"):
+            raise AcceptedInputError("original report recovery custody changed")
+    if (set(refs) != {"order", "start", "closure", "protocol", "candidate"} or refs["order"]["sha256"] != order_digest
+            or refs["closure"]["sha256"] != acceptance["closureSha256"] or refs["start"]["sha256"] != acceptance["startReceiptSha256"]):
+        raise AcceptedInputError("report recovery lacks original order/launch/raw binding")
+    protocol, _ = _json(repo, Path(refs["protocol"]["path"]), "original protocol failure")
+    if (protocol.get("candidate", {}).get("sha256") != refs["candidate"]["sha256"] or
+            protocol.get("candidate", {}).get("complete") is not True or protocol.get("orderSha256") != order_digest):
+        raise AcceptedInputError("report recovery original raw is incomplete or changed")
+    if original.get("canonicalFinalized") is not False or original.get("childStarted") is not True or original.get("exitCode") != 0 or original.get("timedOut") or original.get("drainTimedOut"):
+        raise AcceptedInputError("report recovery cannot cover an unknown product effect")
+    report_start, _ = _json(repo, Path(report["startRef"]["path"]), "report start")
+    for key in ("originalRefs", "capabilityRef", "snapshot", "idempotencyKey"):
+        if report_start.get(key) != report.get(key):
+            raise AcceptedInputError("report start/closure binding mismatch")
+    key = report.get("idempotencyKey")
+    if not isinstance(key, list) or len(key) != 4 or key[-1] != 1:
+        raise AcceptedInputError("report idempotency ordinal must be one")
+    captures = {}
+    for label, name in (("candidate", "candidateRef"), ("stdout", "stdoutRef"), ("stderr", "stderrRef"), ("start", "startRef")):
+        saved = report[name]
+        saved_path = _control_path(repo, order_id, saved.get("path"), "report " + label)
+        raw, digest = _read_bytes(repo, saved_path, "report " + label)
+        if digest != saved.get("sha256") or len(raw) != saved.get("bytes"):
+            raise AcceptedInputError("report capture binding changed")
+        captures[label] = dict(saved, complete=True)
+    cap_ref = report["capabilityRef"]
+    # Capability receipts belong to the controller and may be shared across
+    # workspaces. Only this exact ref, already bound by report start/closure,
+    # may be external. Keep the descriptor-relative, no-symlink bounded reader;
+    # product and other control paths remain confined to their repository.
+    if (not isinstance(cap_ref, dict) or set(cap_ref) != {"path", "sha256", "bytes"}
+            or not isinstance(cap_ref["path"], str) or not Path(cap_ref["path"]).is_absolute()
+            or type(cap_ref["bytes"]) is not int or not 0 < cap_ref["bytes"] <= 1024 * 1024):
+        raise AcceptedInputError("report capability reference invalid")
+    _digest(cap_ref["sha256"], "report capability digest")
+    cap_root = Path("/")
+    cap_path = _lexical_path(cap_root, cap_ref["path"], "report capability")
+    cap_raw, cap_hash = _read_bytes(cap_root, cap_path, "report capability")
+    if cap_hash != cap_ref["sha256"] or len(cap_raw) != cap_ref["bytes"]:
+        raise AcceptedInputError("report capability binding invalid")
+    try:
+        cap = strict_json_load_bytes(cap_raw, "report capability")
+    except StrictJSONError as exc:
+        raise AcceptedInputError(str(exc)) from exc
+    if (not isinstance(cap, dict) or cap.get("version") != "CENTURION_NO_TOOLS_REPORT_V1"
+            or cap.get("probe") != {"status": "passed", "toolsDenied": True, "mcpDisabled": True,
+                                    "hooksDisabled": True, "isolatedConfig": True, "productUnchanged": True}):
+        raise AcceptedInputError("report capability binding invalid")
+    for row in report["snapshot"]["files"]:
+        product = _lexical_path(repo, row["path"], "recovery product snapshot")
+        if row["sha256"] is None:
+            if product.exists():
+                raise AcceptedInputError("recovery deleted product reappeared")
+        else:
+            raw, digest = _read_bytes(repo, product, "recovery product")
+            if digest != row["sha256"] or len(raw) != row["bytes"]:
+                raise AcceptedInputError("recovery product snapshot changed")
+    projected = dict(original, canonicalResultSha256=result_digest, canonicalStatus="done", canonicalFinalized=True,
+                     controllerErrors=[], candidate=captures["candidate"], stdout=captures["stdout"], stderr=captures["stderr"])
+    projected.pop("protocolFailure", None)
+    return projected
 
 
 def _verify_order_inputs(repo: Path, order: Mapping[str, Any], seen_orders: set[str], depth: int) -> list[dict[str, Any]]:

@@ -4,21 +4,24 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import fcntl
 import hashlib
 import json
 import os
-import re
 import secrets
+import select
 import shlex
+import signal
 import subprocess
 import sys
 import tempfile
-from datetime import datetime, timezone
+import tomllib
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-from attempt_ledger import LedgerError, load_attempt_history
+from attempt_ledger import LedgerError, append_attempt, load_attempt_history
 from agent_artifact_namespace import (
     ArtifactNamespaceError,
     artifact_namespace,
@@ -26,7 +29,14 @@ from agent_artifact_namespace import (
     require_no_symlink_components,
 )
 from direct_custody import CustodyError, close_direct_attempt, finalize_direct_attempt, start_direct_attempt
-from review_ladder import PROFILE_RANK, REVIEWER_BY_PROFILE, RoutingError, validate_order_routing, validate_terminal_review_result
+from review_ladder import (
+    PROFILE_RANK,
+    REVIEWER_BY_PROFILE,
+    REVIEWER_FALLBACK_BY_PROFILE,
+    RoutingError,
+    validate_order_routing,
+    validate_terminal_review_result,
+)
 from strict_json import StrictJSONError, strict_json_load_path
 from accepted_inputs import AcceptedInputError, verify_input_results
 from response_envelope import ResponseEnvelopeError, parse_response_bytes, validate_handoff_order, validate_response_handoff, response_state_errors, valid_media_type
@@ -43,6 +53,11 @@ LOOP_STATE_VERSION = "AQUILA_LOOP_STATE_V1"
 LOOP_PHASES = {"execute", "verify"}
 LOOP_WORK_STATUSES = {"ready", "awaiting_verification", "blocked", "completed"}
 LOOP_VERIFICATION_STATUSES = {"pending", "pass", "fail", "blocked"}
+MISSION_STATE_VERSION = "CENTURION_MISSION_STATE_V1"
+MISSION_POLICY = "3.0"
+MISSION_TERMINAL = {"completed", "failed", "stopped"}
+MISSION_OPEN_INTENTS = {"reserved", "dispatching", "running", "captured", "reportable"}
+MISSION_RESERVE_SECONDS = 30
 ATTEMPT_LEDGER_ENV = "AQUILA_ATTEMPT_LEDGER"
 REQUIRED_ORDER_FIELDS = [
     "orderVersion",
@@ -234,6 +249,31 @@ class PathPolicy:
             raise RunnerError(str(exc)) from exc
 
 
+def prepare_order_namespace(policy: PathPolicy) -> Path:
+    """Create and validate the controller evidence namespace before dispatch.
+
+    Result Gateway deliberately does not call this helper: a Gateway invoked
+    without controller preparation must continue to reject a missing evidence
+    directory.
+    """
+    namespace = policy.control_namespace
+    try:
+        require_no_symlink_components(namespace)
+        namespace.mkdir(parents=True, exist_ok=True)
+        require_no_symlink_components(namespace)
+        evidence = require_control_path(namespace / "evidence", namespace, "order evidence directory")
+        if evidence.exists() and evidence.is_symlink():
+            raise RunnerError(f"order evidence directory must not be a symlink: {evidence}")
+        evidence.mkdir(exist_ok=True)
+        if not evidence.is_dir():
+            raise RunnerError(f"order evidence directory is not a directory: {evidence}")
+        fd, probe = tempfile.mkstemp(prefix=".order-evidence-probe.", dir=evidence)
+        os.close(fd)
+        Path(probe).unlink(missing_ok=True)
+    except (ArtifactNamespaceError, OSError) as exc:
+        raise RunnerError(f"could not prepare order evidence directory: {exc}") from exc
+    return evidence
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
@@ -344,23 +384,14 @@ def canonical_proof_argv(proof: dict[str, Any], label: str, *, required: bool) -
     return argv_value
 
 
-def parse_reasoning_effort_scalar(raw_value: str) -> str:
-    """Parse only the bounded scalar accepted by Codex routing metadata."""
-    value = raw_value.strip()
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-        value = value[1:-1]
-    if not re.fullmatch(r"[A-Za-z0-9_-]{1,16}", value):
-        raise RunnerError("Codex model_reasoning_effort must be a bounded scalar")
-    return value
-
-
 def validate_codex_launch(command: str, model: str, effort: str, *, advisory: bool = False) -> tuple[str, str] | None:
     """Bind the recorded route to the CLI invocation before either dispatcher starts."""
     try:
         argv = shlex.split(command)
     except ValueError as exc:
         raise RunnerError(f"launch.command cannot be parsed safely: {exc}") from exc
-    if len(argv) < 2 or Path(argv[0]).name != "codex" or argv[1] != "exec":
+    exec_index = 2 if argv[1:2] == ["--no-daemon"] else 1
+    if len(argv) <= exec_index or Path(argv[0]).name != "codex" or argv[exec_index] != "exec":
         raise RunnerError("Codex launch.command must start with codex exec and explicit model/effort flags")
     models: list[str] = []
     efforts: list[str] = []
@@ -377,7 +408,7 @@ def validate_codex_launch(command: str, model: str, effort: str, *, advisory: bo
         "--ignore-rules", "--worktree", "--approve-for-me",
         "--dangerously-bypass-approvals-and-sandbox", "--dangerously-bypass-hook-trust",
     }
-    index = 2
+    index = exec_index + 1
     while index < len(argv):
         token = argv[index]
         if token == "--":
@@ -386,7 +417,7 @@ def validate_codex_launch(command: str, model: str, effort: str, *, advisory: bo
             index += 1  # This argv element is prompt text; later options still apply.
             continue
         name, separator, attached = token.partition("=")
-        if advisory and name not in {"--model", "-m", "-c", "--config", "-s", "--sandbox", "-C", "--cd", "-o", "--output-last-message", "--json"} and not token.startswith(("-m", "-c", "-s", "-C", "-o")):
+        if advisory and name not in {"--model", "-m", "-c", "--config", "-s", "--sandbox", "-C", "--cd", "-o", "--output-last-message", "--output-schema", "--json"} and not token.startswith(("-m", "-c", "-s", "-C", "-o")):
             raise RunnerError(f"Astra advisory launch has an unsupported option: {token}")
         if name in {"--oss", "--local-provider", "--profile", "-p", "--ignore-user-config"} or token.startswith("-p"):
             raise RunnerError("Codex launch.command must not override the selected provider or profile")
@@ -442,7 +473,12 @@ def validate_codex_launch(command: str, model: str, effort: str, *, advisory: bo
         if advisory and key != "model_reasoning_effort":
             raise RunnerError("Astra advisory launch permits only the reasoning effort config override")
         if key == "model_reasoning_effort":
-            efforts.append(parse_reasoning_effort_scalar(raw_value))
+            raw_value = raw_value.strip()
+            try:
+                parsed_value = tomllib.loads(f"value = {raw_value}")["value"]
+            except tomllib.TOMLDecodeError:
+                parsed_value = raw_value
+            efforts.append(parsed_value if isinstance(parsed_value, str) else "")
     if models != [model] or efforts != [effort]:
         raise RunnerError("Codex launch.command --model and -c model_reasoning_effort must match routing.model and routing.reasoningEffort exactly")
     if advisory:
@@ -495,6 +531,50 @@ def validate_gemini_launch(command: str, model: str, effort: str) -> None:
         index += 1
     if values["--model"] != [model] or values["--effort"] != [effort]:
         raise RunnerError("Gemini launch --model and --effort must match the recorded route exactly")
+
+
+def validate_claude_launch(command: str, model: str, fallback_model: str | None, effort: str | None = None) -> None:
+    """Bind Claude's primary and ordered fallback models to the actual argv."""
+    try:
+        argv = shlex.split(command)
+    except ValueError as exc:
+        raise RunnerError(f"launch.command cannot be parsed safely: {exc}") from exc
+    if not argv or Path(argv[0]).name != "claude":
+        raise RunnerError("Claude launch.command must start with claude")
+
+    values = {"--model": [], "--fallback-model": [], "--effort": []}
+    prompt_started = False
+    index = 1
+    while index < len(argv):
+        token = argv[index]
+        if token == "--":
+            break
+        if prompt_started:
+            break
+        if not token.startswith("-") or token == "-":
+            prompt_started = True
+            index += 1
+            continue
+        name, separator, attached = token.partition("=")
+        if name in values:
+            if separator:
+                value = attached
+            elif index + 1 < len(argv) and not argv[index + 1].startswith("-"):
+                index += 1
+                value = argv[index]
+            else:
+                raise RunnerError(f"Claude launch option {name} requires a value")
+            values[name].append(value)
+        index += 1
+
+    if values["--model"] != [model]:
+        raise RunnerError("Claude launch.command must contain exactly one --model matching routing.model")
+    if values["--fallback-model"] != ([] if fallback_model is None else [fallback_model]):
+        raise RunnerError(
+            "Claude fallback must match the explicit legacy contract; active 3.0 has no fallback"
+        )
+    if effort is not None and values["--effort"] != [effort]:
+        raise RunnerError("Claude launch.command requires exactly one --effort matching routing.reasoningEffort")
 
 
 def validate_files_changed(items: list[Any], policy: PathPolicy) -> None:
@@ -598,8 +678,11 @@ def validate_proof(items: list[Any]) -> None:
                 f"proof[{index}].status must be one of: "
                 + ", ".join(sorted(PROOF_STATUSES))
             )
-        if not isinstance(proof_obj.get("exitCode"), int) and proof_obj.get("exitCode") is not None:
+        exit_code = proof_obj.get("exitCode")
+        if type(exit_code) is not int and exit_code is not None:
             raise RunnerError(f"proof[{index}].exitCode must be integer or null")
+        if proof_obj["status"] == "pass" and (type(exit_code) is not int or exit_code != 0):
+            raise RunnerError(f"proof[{index}].status=pass requires exitCode=0")
         require_string_value(proof_obj, "summary", f"proof[{index}].summary")
 
 
@@ -610,8 +693,8 @@ def validate_done_semantics(result: dict[str, Any]) -> None:
     proof = result.get("proof")
     if not isinstance(proof, list) or not proof:
         raise RunnerError("done result requires at least one proof entry")
-    if any(not isinstance(item, dict) or item.get("status") != "pass" for item in proof):
-        raise RunnerError("done result requires every proof[].status to be pass")
+    if any(not isinstance(item, dict) or item.get("status") != "pass" or type(item.get("exitCode")) is not int or item.get("exitCode") != 0 for item in proof):
+        raise RunnerError("done result requires every proof[].status=pass with exitCode=0")
     self_review = result.get("selfReview")
     if not isinstance(self_review, dict) or self_review.get("performed") is not True:
         raise RunnerError("done result requires selfReview.performed=true")
@@ -661,6 +744,12 @@ def validate_order(order: dict[str, Any]) -> tuple[list[str], PathPolicy]:
     for key in ["orderId", "createdAt", "roleForTask", "objective"]:
         require_nonempty_string(order, key)
     require_order_lists(order)
+    mission = mission_context(order)
+    if mission is not None:
+        if not isinstance(order.get("loopContract"), dict):
+            raise RunnerError("policy 3.0 orders require loopContract.statePath")
+        if order["loopContract"].get("loopId") != mission["missionId"]:
+            raise RunnerError("mission loopContract.loopId must match missionId")
 
     workspace = require_object(order["workspace"], "workspace")
     for key in ["repoPath", "branchOrWorktree", "projectName"]:
@@ -670,8 +759,9 @@ def validate_order(order: dict[str, Any]) -> tuple[list[str], PathPolicy]:
     launch = require_object(order["launch"], "launch")
     for key in ["surface", "command", "resultJsonPath"]:
         require_nonempty_string(launch, key, f"launch.{key}")
-    if not isinstance(launch.get("timeoutSeconds"), int) or launch["timeoutSeconds"] < 1:
-        raise RunnerError("launch.timeoutSeconds must be a positive integer")
+    timeout = launch.get("timeoutSeconds")
+    if "timeoutSeconds" not in launch or (timeout is None and mission is None) or (timeout is not None and (type(timeout) is not int or timeout < 1)):
+        raise RunnerError("launch.timeoutSeconds must be a positive integer or explicit null for policy 3.0 monitored execution")
     policy.control_path(launch["resultJsonPath"], "launch.resultJsonPath")
     for key in ["stdoutPath", "stderrPath"]:
         if key in launch:
@@ -723,7 +813,7 @@ def validate_order(order: dict[str, Any]) -> tuple[list[str], PathPolicy]:
         proof_obj = require_object(proof, f"proofCommands[{index}]")
         require_nonempty_string(proof_obj, "command", f"proofCommands[{index}].command")
         require_nonempty_string(proof_obj, "cwd", f"proofCommands[{index}].cwd")
-        cwd = policy.order_path(proof_obj["cwd"], f"proofCommands[{index}].cwd")
+        cwd = _mission_path({"workspace":str(policy.repo_path)}, proof_obj["cwd"]) if mission is not None else policy.order_path(proof_obj["cwd"], f"proofCommands[{index}].cwd")
         if not cwd.is_dir():
             raise RunnerError(f"proofCommands[{index}].cwd must be an existing directory: {cwd}")
         if not isinstance(proof_obj.get("required"), bool):
@@ -742,6 +832,13 @@ def validate_order(order: dict[str, Any]) -> tuple[list[str], PathPolicy]:
     if routing is not None:
         if routing["model"] == "gemini-3.8-flash":
             validate_gemini_launch(launch["command"], routing["model"], routing["reasoningEffort"])
+        if order["executor"] == "claude":
+            validate_claude_launch(
+                launch["command"],
+                routing["model"],
+                None if mission is not None else REVIEWER_FALLBACK_BY_PROFILE.get(routing["verificationProfile"]),
+                routing["reasoningEffort"] if mission is not None else None,
+            )
         if order["executor"] == "codex":
             advisory = routing["executionProfile"] == "advisory"
             advisory_paths = validate_codex_launch(launch["command"], routing["model"], routing["reasoningEffort"], advisory=advisory)
@@ -749,7 +846,7 @@ def validate_order(order: dict[str, Any]) -> tuple[list[str], PathPolicy]:
                 assert advisory_paths is not None
                 output_path, working_dir = advisory_paths
                 policy.control_path(output_path, "Astra advisory --output-last-message")
-                if "loopContract" in order:
+                if "loopContract" in order and mission is None:
                     raise RunnerError("Astra advisory cannot own a product implementation loop")
                 if order["proofCommands"]:
                     raise RunnerError("Astra advisory cannot run controller proof commands")
@@ -764,8 +861,10 @@ def validate_order(order: dict[str, Any]) -> tuple[list[str], PathPolicy]:
             "aquila_routing_validated:"
             f"{routing['verificationProfile']}:{routing['reviewer']}:{routing['executionProfile']}"
         )
+    elif mission is not None:
+        raise RunnerError("policy 3.0 requires explicit canonical routing; no legacy fallback")
     if "loopContract" in order:
-        if routing is not None:
+        if routing is not None and mission is None:
             phase = require_object(order["loopContract"], "loopContract").get("phase")
             expected_execution_profile = "terminal_review" if phase == "verify" else "implementation"
             if routing["executionProfile"] != expected_execution_profile:
@@ -786,6 +885,15 @@ def validate_loop_order(order: dict[str, Any], policy: PathPolicy) -> Path:
     contract = loop_contract(order)
     if contract is None:
         raise RunnerError("loopContract must be an object")
+    if mission_context(order) is not None:
+        # 3.0 owns mission/task/attempt counters in its explicitly versioned
+        # state, not duplicated Loop V1 workItem/iteration/candidate fields.
+        require_nonempty_string(contract, "statePath", "loopContract.statePath")
+        path = _mission_path({"workspace": str(policy.repo_path)}, contract["statePath"])
+        if any(policy._matches(target, policy.allowed) or policy._matches(target, policy.forbidden)
+               for target in (path, loop_lock_path(path))):
+            raise RunnerError("mission state/lock must be outside executor allowedPaths and controller forbiddenPaths")
+        return path
     if contract.get("version") != LOOP_VERSION:
         raise RunnerError(f"loopContract.version must be {LOOP_VERSION}")
     if contract.get("controller") != "Aquila":
@@ -888,9 +996,1068 @@ def atomic_write_loop_state(state_path: Path, state: dict[str, Any]) -> None:
             os.fsync(handle.fileno())
         os.chmod(temp_name, mode)
         os.replace(temp_name, state_path)
+        directory_fd = os.open(state_path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
     finally:
         if os.path.exists(temp_name):
             os.unlink(temp_name)
+
+
+def mission_context(order: dict[str, Any], *, required: bool = False) -> dict[str, Any] | None:
+    """Controller metadata, never inferred from executor text or routing policy."""
+    from order_preflight import controller_context, PreflightError
+    try:
+        meta = controller_context(order, required=required)
+    except PreflightError as exc:
+        raise RunnerError(str(exc)) from exc
+    if meta is None:
+        return None
+    for key in ("missionId", "approvalRef", "taskId", "intentId", "action", "strategyId"):
+        require_nonempty_string(meta, key, f"mission context.{key}")
+    if meta["action"] not in {"product", "review", "advisory", "report"}:
+        raise RunnerError("unknown mission action")
+    require_object(meta.get("dependencyRevisions"), "mission context.dependencyRevisions")
+    return meta
+
+
+def _mission_digest(value: Any) -> str:
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()).hexdigest()
+
+
+def _mission_time(value: Any) -> datetime:
+    if not isinstance(value, str):
+        raise RunnerError("mission timestamp must be a timezone-bearing string")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            raise ValueError("timezone missing")
+        return parsed.astimezone(timezone.utc)
+    except ValueError as exc:
+        raise RunnerError(f"invalid mission timestamp: {exc}") from exc
+
+
+def _mission_int(value: Any, label: str, minimum: int = 0) -> int:
+    if type(value) is not int or value < minimum:
+        raise RunnerError(f"{label} must be an integer >= {minimum}")
+    return value
+
+
+def _mission_strings(value: Any, label: str, *, nonempty: bool = False) -> list[str]:
+    if not isinstance(value, list) or (nonempty and not value) or any(not isinstance(v, str) or not v.strip() for v in value):
+        raise RunnerError(f"{label} must be an array of non-empty strings")
+    if len(value) != len(set(value)):
+        raise RunnerError(f"{label} contains duplicates")
+    return value
+
+
+def _mission_path(state: dict[str, Any], value: str) -> Path:
+    root = Path(state["workspace"]).resolve()
+    raw = Path(value)
+    path = raw if raw.is_absolute() else root / raw
+    try:
+        require_no_symlink_components(path)
+    except ArtifactNamespaceError as exc:
+        raise RunnerError(str(exc)) from exc
+    resolved = path.resolve()
+    if resolved != root and root not in resolved.parents:
+        raise RunnerError("mission path escapes workspace")
+    return resolved
+
+
+def _mission_path_subset(state: dict[str, Any], requested: list[str], approved: list[str]) -> bool:
+    def rule(value: str) -> tuple[Path, bool]:
+        recursive = value.endswith("/**")
+        base = value[:-3] if recursive else value
+        if any(c in base for c in "*?[") or ".." in Path(base).parts:
+            raise RunnerError("mission paths support only exact paths and trailing /**")
+        return _mission_path(state, base), recursive
+    parents = [rule(value) for value in approved]
+    for value in requested:
+        path, recursive = rule(value)
+        if not any((path == parent and (wide or not recursive)) or (wide and parent in path.parents)
+                   for parent, wide in parents):
+            return False
+    return True
+
+
+def validate_mission_state(state: dict[str, Any], state_path: Path) -> None:
+    if state.get("stateVersion") != MISSION_STATE_VERSION or state.get("policyVersion") != MISSION_POLICY:
+        raise RunnerError("not an explicitly prepared 3.0 mission state; migration is never implicit")
+    if state.get("controller") != "Aquila" or state.get("statePath") != str(state_path):
+        raise RunnerError("mission controller/statePath mismatch")
+    for key in ("missionId", "workspace", "strategyId"):
+        require_nonempty_string(state, key)
+    if state.get("status") not in {"ready", "running", "verifying", "blocked", *MISSION_TERMINAL}:
+        raise RunnerError("invalid mission status")
+    if type(state.get("cancelled")) is not bool:
+        raise RunnerError("mission cancelled must be boolean")
+    authority = require_object(state.get("authority"), "mission authority")
+    for key in ("approvalRef", "goal"):
+        require_nonempty_string(authority, key)
+    for key in ("nonGoals", "criteria", "allowedActions", "allowedPaths", "forbiddenPaths"):
+        _mission_strings(authority.get(key), f"authority.{key}", nonempty=key in {"criteria", "allowedActions", "allowedPaths"})
+    if state.get("authoritySha256") != _mission_digest(authority):
+        raise RunnerError("mission authority binding changed")
+    budget = require_object(state.get("budget"), "mission budget")
+    require_nonempty_string(budget, "startedAt", "mission budget.startedAt")
+    started_at = _mission_time(budget["startedAt"])
+    if "deadlineAt" not in budget:
+        raise RunnerError("mission budget.deadlineAt must be explicit (timestamp or null)")
+    deadline = _mission_time(budget["deadlineAt"]) if budget["deadlineAt"] is not None else None
+    used = _mission_int(budget.get("modelLaunchesUsed"), "modelLaunchesUsed")
+    maximum = _mission_int(budget.get("maxModelLaunches"), "maxModelLaunches", 1)
+    if used > maximum or (deadline is not None and deadline <= started_at + timedelta(seconds=30)):
+        raise RunnerError("invalid mission budget/deadline")
+    if state.get("stopDeadlineAt") and deadline is not None and _mission_time(state["stopDeadlineAt"]) > deadline:
+        raise RunnerError("termination reserve cannot extend the original mission deadline")
+    if state.get("stopDeadlineAt"):
+        _mission_time(state["stopDeadlineAt"])
+    if state["cancelled"] and state["status"] != "stopped":
+        raise RunnerError("cancelled mission must remain stopped")
+    _mission_int(state.get("strategySwitchesUsed"), "strategySwitchesUsed")
+    if state["strategySwitchesUsed"] > 1:
+        raise RunnerError("only one strategy switch is allowed")
+    tasks = require_object(state.get("tasks"), "mission tasks")
+    intents = require_object(state.get("intents"), "mission intents")
+    completion_actions = authority.get("taskCompletionActions")
+    if completion_actions is not None and (not isinstance(completion_actions, dict) or set(completion_actions) != set(tasks)):
+        raise RunnerError("task completion action coverage changed")
+    require_list(state, "observations")
+    if used != len(intents):
+        raise RunnerError("launch counters disagree with persisted intents")
+    covered: set[str] = set()
+    for task_id, task in tasks.items():
+        require_object(task, "mission task")
+        require_nonempty_string(task, "objective")
+        completion_action = task.get("completionAction", "product")
+        if completion_action not in ("product", "advisory"):
+            raise RunnerError("task completionAction must be product or advisory")
+        if completion_action != (completion_actions.get(task_id) if completion_actions is not None else "product"):
+            raise RunnerError("task completion action binding changed")
+        if completion_action not in authority["allowedActions"]:
+            raise RunnerError("task completion action lacks mission authority")
+        for key in ("acceptanceCriteria", "allowedPaths", "productPaths", "dependencies"):
+            _mission_strings(task.get(key), f"task.{key}", nonempty=key in {"acceptanceCriteria", "allowedPaths", "productPaths"})
+        covered.update(task["acceptanceCriteria"])
+        if not set(task["acceptanceCriteria"]).issubset(authority["criteria"]):
+            raise RunnerError("task criteria expand mission")
+        if not _mission_path_subset(state, task["allowedPaths"], authority["allowedPaths"]) or not _mission_path_subset(state, task["productPaths"], task["allowedPaths"]):
+            raise RunnerError("task paths expand authority")
+        for path in task["productPaths"]:
+            if path.endswith("/**"):
+                raise RunnerError("productPaths must enumerate final product files")
+            if authority["forbiddenPaths"] and _mission_path_subset(state, [path], authority["forbiddenPaths"]):
+                raise RunnerError("required product path is forbidden")
+        if any(dep not in tasks or dep == task_id for dep in task["dependencies"]):
+            raise RunnerError("unknown or self task dependency")
+        if task.get("verificationProfile") not in {"V0", "V1", "V2", "V3"}:
+            raise RunnerError("task verification profile is required")
+        if task.get("status") not in {"ready", "running", "verifying", "accepted"}:
+            raise RunnerError("invalid task status")
+        acceptance = task.get("acceptance")
+        if task["status"] == "accepted":
+            acceptance = require_object(acceptance, "task acceptance")
+            accepted_intent = intents.get(acceptance.get("intentId"))
+            if (not isinstance(accepted_intent, dict) or accepted_intent.get("status") != "accepted" or
+                    accepted_intent.get("action") != completion_action or accepted_intent.get("taskId") != task_id or
+                    acceptance.get("criteria") != task["acceptanceCriteria"] or
+                    acceptance.get("snapshotSha256") != accepted_intent.get("snapshot", {}).get("sha256") or
+                    acceptance.get("revision") != acceptance.get("snapshotSha256")):
+                raise RunnerError("task acceptance is not bound to its declared completion action")
+        elif acceptance is not None:
+            raise RunnerError("unaccepted task cannot carry acceptance")
+        count = _mission_int(task.get("productAttemptsUsed"), "task.productAttemptsUsed")
+        limit = _mission_int(task.get("maxProductAttempts"), "task.maxProductAttempts", 1)
+        if count > limit or count != sum(i.get("taskId") == task_id and i.get("action") == "product" for i in intents.values()):
+            raise RunnerError("product attempt counter disagrees with intents")
+        require_list(task, "requiredProof")
+        require_list(task, "expectedArtifacts")
+        if not task["requiredProof"]:
+            raise RunnerError("task requires controller proof")
+        for proof in task["requiredProof"]:
+            if not isinstance(proof, dict) or proof.get("required") is not True:
+                raise RunnerError("task requiredProof must be required")
+            canonical_proof_argv(proof, "task.requiredProof", required=True)
+            if not _mission_path(state, proof["cwd"]).is_dir():
+                raise RunnerError("proof cwd must be an existing workspace directory")
+    if covered != set(authority["criteria"]) or not tasks:
+        raise RunnerError("all mission criteria must retain task coverage")
+    def walk(task_id: str, visiting: set[str]) -> None:
+        if task_id in visiting:
+            raise RunnerError("cyclic task dependencies")
+        for dep in tasks[task_id]["dependencies"]:
+            walk(dep, visiting | {task_id})
+    for task_id in tasks:
+        walk(task_id, set())
+    for intent_id, intent in intents.items():
+        require_object(intent, "mission intent")
+        if intent.get("intentId") != intent_id or intent.get("taskId") not in tasks:
+            raise RunnerError("invalid intent identity")
+        if intent.get("action") not in {"product", "review", "advisory", "report"} or intent.get("status") not in {*MISSION_OPEN_INTENTS, "accepted", "rejected", "unknown_effect"}:
+            raise RunnerError("invalid intent action/status")
+        if type(intent.get("reportAttemptsUsed")) is not int or intent["reportAttemptsUsed"] not in {0, 1}:
+            raise RunnerError("reportAttemptsUsed must be 0 or 1")
+        if intent["status"] in {"captured", "accepted"}:
+            if intent.get("processStopped") is not True or intent.get("effect") != "observed":
+                raise RunnerError("captured/accepted intent requires observed effect and stopped process")
+            ref = require_object(intent.get("resultRef"), "intent result reference")
+            if _mission_file_ref(Path(ref["path"])) != ref:
+                raise RunnerError("captured result reference bytes changed")
+        if intent["status"] == "accepted":
+            _check_mission_refs(intent)
+    if state["status"] == "completed" and (any(t["status"] != "accepted" for t in tasks.values()) or
+            any(i["status"] in {*MISSION_OPEN_INTENTS, "unknown_effect"} for i in intents.values()) or
+            any(_mission_process_identity(p["pid"]) == p for i in intents.values() for p in i.get("proofProcesses", [])) or not state.get("completion")):
+        raise RunnerError("completed mission has unaccepted criteria/open effects or missing final proof")
+
+
+def initialize_mission(spec: dict[str, Any], state_path: Path) -> dict[str, Any]:
+    """Explicit controller preparation only; never used by resume or dispatch."""
+    state_path = state_path.absolute()
+    if spec:
+        require_nonempty_string(spec, "workspace", "mission workspace")
+        state_path = _mission_path({"workspace": spec["workspace"]}, str(state_path))
+    try:
+        require_no_symlink_components(state_path)
+    except ArtifactNamespaceError as exc:
+        raise RunnerError(str(exc)) from exc
+    lock = LoopStateLock(loop_lock_path(state_path)).acquire()
+    try:
+        if state_path.exists() or state_path.is_symlink():
+            raise RunnerError("mission state already exists; no reset or implicit migration")
+        if spec.get("policyVersion") != MISSION_POLICY:
+            raise RunnerError("new approved mission must explicitly select policyVersion=3.0")
+        state = copy.deepcopy(spec)
+        for key in ("status", "intents", "observations", "modelLaunchesUsed", "stateVersion"):
+            if key in spec:
+                raise RunnerError(f"mission preparation cannot import mutable field {key}")
+        state.update(stateVersion=MISSION_STATE_VERSION, controller="Aquila", statePath=str(state_path),
+                     status="ready", intents={}, observations=[], cancelled=False, strategySwitchesUsed=0)
+        state["workspace"] = str(Path(state["workspace"]).resolve())
+        if not Path(state["workspace"]).is_dir():
+            raise RunnerError("mission workspace does not exist")
+        if "modelLaunchesUsed" in state["budget"]:
+            raise RunnerError("mission preparation cannot reset imported launch counters")
+        # Only explicit preparation gets the new default; loading old state
+        # never changes an approved deadline or migrates historical receipts.
+        state["budget"].setdefault("deadlineAt", None)
+        state["budget"]["modelLaunchesUsed"] = 0
+        state["budget"]["startedAt"] = utc_now()
+        for task in state["tasks"].values():
+            if any(key in task for key in ("productAttemptsUsed", "acceptance", "status")):
+                raise RunnerError("mission preparation cannot import task counters/acceptance")
+            task.setdefault("completionAction", "product")
+            task.update(productAttemptsUsed=0, status="ready", acceptance=None)
+        completion_actions = {task_id: task["completionAction"] for task_id, task in state["tasks"].items()}
+        if state["authority"].get("taskCompletionActions", completion_actions) != completion_actions:
+            raise RunnerError("task completion action binding changed")
+        state["authority"]["taskCompletionActions"] = completion_actions
+        state["authoritySha256"] = _mission_digest(state["authority"])
+        validate_mission_state(state, state_path)
+        atomic_write_loop_state(state_path, state)
+        return state
+    finally:
+        lock.release()
+
+
+def load_mission_state(order: dict[str, Any], policy: PathPolicy) -> tuple[dict[str, Any], Path]:
+    meta = mission_context(order, required=True)
+    contract = require_object(order.get("loopContract"), "mission loopContract")
+    path = _mission_path({"workspace": str(policy.repo_path)}, contract.get("statePath", ""))
+    if policy._matches(path, policy.allowed) or policy._matches(loop_lock_path(path), policy.allowed):
+        raise RunnerError("mission state/lock must be outside executor allowedPaths")
+    if policy._matches(path, policy.forbidden) or policy._matches(loop_lock_path(path), policy.forbidden):
+        raise RunnerError("mission state/lock forbidden to controller")
+    state = require_object(load_json(path), "mission state")
+    validate_mission_state(state, path)
+    if state["missionId"] != meta["missionId"] or contract.get("loopId") != state["missionId"]:
+        raise RunnerError("mission binding mismatch")
+    if str(policy.repo_path) != state["workspace"] or meta["approvalRef"] != state["authority"]["approvalRef"]:
+        raise RunnerError("mission workspace/approval binding mismatch")
+    return state, path
+
+
+def mission_work_timeout(state: dict[str, Any], requested: float | None) -> float | None:
+    if requested is not None and (isinstance(requested, bool) or not isinstance(requested, (int, float)) or not 0 < requested < float("inf")):
+        raise RunnerError("mission requested timeout must be null or positive and finite")
+    if state["cancelled"] or state.get("stopDeadlineAt") or state["status"] in MISSION_TERMINAL or state["status"] == "blocked":
+        raise RunnerError("mission dispatch is closed")
+    if state["budget"]["deadlineAt"] is None:
+        return float(requested) if requested is not None else None
+    remaining = (_mission_time(state["budget"]["deadlineAt"]) - datetime.now(timezone.utc)).total_seconds() - MISSION_RESERVE_SECONDS
+    if remaining <= 0:
+        raise RunnerError("mission work cutoff reached (30-second reserve)")
+    return min(float(requested), remaining) if requested is not None else remaining
+
+
+def mission_stop_deadline(state: dict[str, Any]) -> datetime:
+    """Cleanup stays bounded even when productive work has no wall deadline."""
+    deadlines = [datetime.now(timezone.utc) + timedelta(seconds=MISSION_RESERVE_SECONDS)]
+    for value in (state.get("stopDeadlineAt"), state["budget"]["deadlineAt"]):
+        if value is not None:
+            deadlines.append(_mission_time(value))
+    return min(deadlines)
+
+
+def mission_snapshot(state: dict[str, Any], task_ids: list[str] | None = None) -> dict[str, Any]:
+    paths = sorted({path for task_id in (task_ids or list(state["tasks"])) for path in state["tasks"][task_id]["productPaths"]})
+    rows = []
+    for value in paths:
+        path = _mission_path(state, value)
+        if path.exists() and not path.is_file():
+            raise RunnerError("product snapshot requires regular files")
+        content = path.read_bytes() if path.exists() else None
+        rows.append({"path": str(path), "sha256": hashlib.sha256(content).hexdigest() if content is not None else None,
+                     "bytes": len(content) if content is not None else 0})
+    return {"files": rows, "sha256": _mission_digest(rows)}
+
+
+def workspace_snapshot(state: dict[str, Any]) -> dict[str, Any]:
+    """Dirty baseline using the existing guard walk/exclusion approach.
+
+    Hash chunks, lstat modes and symlink targets; never follow directory links.
+    Control custody and the explicit mission store are not product bytes.
+    """
+    root = Path(state["workspace"])
+    ignored = {".git", "node_modules", "dist", "build", "coverage", ".venv", "vendor", "__pycache__"}
+    control = root / ".centurion" / "agents_results"
+    store = Path(state["statePath"])
+    # Generated directories are skipped only when they contain no tracked product
+    # path. A dirty baseline may deliberately keep source under `build/` or `dist/`.
+    tracked: set[Path] = set()
+    # Only the declared workspace root establishes the fail-closed Git scope;
+    # temporary fixture parents may themselves live under another repository.
+    known_git = (root / ".git").exists()
+    try:
+        # Bound both Git wall time and bytes retained in controller memory.
+        with tempfile.TemporaryFile() as output:
+            completed = subprocess.run(["git", "-C", str(root), "ls-files", "-z"],
+                stdout=output, stderr=subprocess.DEVNULL, timeout=5, check=False)
+            output.seek(0)
+            raw = output.read(8 * 1024 * 1024 + 1)
+        if completed.returncode:
+            if known_git:
+                raise RunnerError("workspace Git inspection failed; scope snapshot unavailable")
+        elif len(raw) > 8 * 1024 * 1024:
+            raise RunnerError("workspace Git inspection byte limit exceeded")
+        else:
+            tracked = {root / os.fsdecode(value) for value in raw.split(b"\0") if value}
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        if known_git:
+            raise RunnerError(f"workspace Git inspection failed; scope snapshot unavailable: {exc}") from exc
+    scoped = {root / value if not Path(value).is_absolute() else Path(value)
+              for task in state.get("tasks", {}).values() for value in task.get("productPaths", [])}
+    included = tracked | scoped
+    rows = {}
+    for directory, dirs, files in os.walk(root, followlinks=False):
+        base = Path(directory)
+        dirs[:] = sorted(name for name in dirs if (
+            name not in ignored
+            or any(path == base / name or path.is_relative_to(base / name) or (base / name).is_relative_to(path)
+                   for path in included)
+        ) and name != ".git" and base / name != control)
+        links = [name for name in dirs if (base / name).is_symlink()]
+        dirs[:] = [name for name in dirs if name not in links]
+        for name in sorted(files + links):
+            path = base / name
+            if path in {store, loop_lock_path(store)} or (path.parent == store.parent and path.name.startswith(store.name + ".")):
+                continue
+            st = path.lstat()
+            if path.is_symlink():
+                digest = hashlib.sha256(os.readlink(path).encode()).hexdigest()
+                kind = "symlink"
+            elif path.is_file():
+                hasher = hashlib.sha256()
+                with path.open("rb") as stream:
+                    for chunk in iter(lambda: stream.read(65536), b""):
+                        hasher.update(chunk)
+                digest, kind = hasher.hexdigest(), "file"
+            else:
+                raise RunnerError("unsupported workspace entry")
+            rows[str(path)] = {"sha256": digest, "mode": st.st_mode, "kind": kind}
+    return rows
+
+
+def verify_workspace_diff(reservation: Any, result: dict[str, Any]) -> list[dict[str, Any]]:
+    before = reservation.intent["workspaceBaseline"]
+    after = workspace_snapshot(reservation.state)
+    changed = sorted(path for path in before.keys() | after.keys() if before.get(path) != after.get(path))
+    declared = {str(reservation.policy.resolve_under_repo(item["path"])) for item in result["filesChanged"]
+                if reservation.policy.control_namespace not in reservation.policy.resolve_under_repo(item["path"]).parents}
+    if reservation.meta["action"] != "product" and changed:
+        raise RunnerError("non-product dispatch changed workspace")
+    rows = []
+    for value in changed:
+        reservation.policy.order_path(value, "observed workspace diff")
+        if value not in declared:
+            raise RunnerError(f"unreported workspace change: {value}")
+        rows.append({"path": value, "before": before.get(value), "after": after.get(value)})
+    reservation.intent["workspaceAfter"] = after
+    reservation.intent["workspaceDiff"] = rows
+    return rows
+
+
+def _mission_file_ref(path: Path) -> dict[str, Any]:
+    try:
+        require_no_symlink_components(path)
+    except ArtifactNamespaceError as exc:
+        raise RunnerError(str(exc)) from exc
+    if not path.is_file():
+        raise RunnerError(f"mission evidence is not a regular file: {path}")
+    data = path.read_bytes()
+    return {"path": str(path.resolve()), "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data)}
+
+
+def _check_mission_refs(intent: dict[str, Any]) -> None:
+    for key in ("resultRef", "acceptanceRef"):
+        ref = intent.get(key)
+        if not isinstance(ref, dict) or _mission_file_ref(Path(ref["path"])) != ref:
+            raise RunnerError("accepted intent evidence bytes changed or missing")
+
+
+def _validate_mission_scope(order: dict[str, Any], policy: PathPolicy, state: dict[str, Any]) -> dict[str, Any]:
+    meta = mission_context(order, required=True)
+    if meta["taskId"] not in state["tasks"]:
+        raise RunnerError("unknown mission task")
+    task = state["tasks"][meta["taskId"]]
+    authority = state["authority"]
+    try:
+        route = validate_order_routing(order)
+    except RoutingError as exc:
+        raise RunnerError(f"mission routing invalid: {exc}") from exc
+    if route is None:
+        raise RunnerError("policy 3.0 requires canonical routing without legacy fallback")
+    expected_profile = {"product": "implementation", "review": "terminal_review", "advisory": "advisory", "report": "implementation"}[meta["action"]]
+    if route["executionProfile"] != expected_profile or PROFILE_RANK[route["verificationProfile"]] < PROFILE_RANK[task["verificationProfile"]]:
+        raise RunnerError("mission action/verification profile does not match approved task")
+    if task["verificationProfile"] == "V0" and route["verificationProfile"] != "V0" and meta["action"] == "product":
+        raise RunnerError("higher verification floor requires explicit task preparation; no V0 acceptance bypass")
+    if meta["action"] not in authority["allowedActions"]:
+        raise RunnerError("requested action lacks mission authority")
+    if meta["action"] == "product" and task.get("completionAction", "product") != "product":
+        raise RunnerError("product dispatch cannot complete an advisory-only task")
+    if meta["strategyId"] != state["strategyId"]:
+        raise RunnerError("stale mission strategy")
+    if order["objective"] != task["objective"] or order["acceptanceCriteria"] != task["acceptanceCriteria"]:
+        raise RunnerError("task objective/acceptance criteria changed or weakened")
+    if not set(authority["nonGoals"]).issubset(order["nonGoals"]):
+        raise RunnerError("mission nonGoals were removed")
+    product_rules = []
+    for value in order["allowedPaths"]:
+        base = policy.resolve_under_repo(value[:-3] if value.endswith("/**") else value)
+        if base == policy.control_namespace or policy.control_namespace in base.parents:
+            continue
+        product_rules.append(value)
+    advisory = meta["action"] in {"advisory", "review"}
+    if advisory:
+        if meta["action"] == "review":
+            candidate = state["intents"].get(meta.get("candidateIntentId"))
+            existing = state["intents"].get(meta["intentId"], {})
+            accepted_collection = (existing.get("status") == "accepted"
+                                   and existing.get("orderSha256") == _mission_digest(order)
+                                   and existing.get("candidateIntentId") == meta.get("candidateIntentId"))
+            if (not candidate or candidate.get("action") != "product" or candidate.get("taskId") != meta["taskId"]
+                    or (candidate.get("status") != "captured"
+                        and not (accepted_collection and candidate.get("status") == "accepted"))):
+                raise RunnerError("review requires captured candidate intent")
+            expected = {Path(row["path"]).resolve() for row in candidate["snapshot"]["files"]}
+            product_patterns = [(mode, pattern) for mode, pattern in policy.allowed
+                                if pattern != policy.control_namespace and policy.control_namespace not in pattern.parents]
+            if any(mode != "exact" for mode, _ in product_patterns) or {p for _, p in product_patterns} != expected:
+                raise RunnerError("review allowedPaths must contain exactly captured product files plus custody namespace")
+            for path in expected:
+                policy.order_path(path, "review candidate product path")
+        elif product_rules or order["proofCommands"]:
+            raise RunnerError("advisory cannot write product scope or run product proof")
+        if order["proofCommands"]:
+            raise RunnerError("read-only advisory/review cannot run product proof")
+        for item in order["expectedArtifacts"]:
+            policy.control_path(item["path"], "advisory artifact")
+    if not advisory and (not product_rules or not _mission_path_subset(state, product_rules, task["allowedPaths"])):
+        raise RunnerError("requested paths expand task authority or empty product scope")
+    if not advisory and not _mission_path_subset(state, task["productPaths"], product_rules):
+        raise RunnerError("scope narrowing removed required product/proof coverage")
+    if not _mission_path_subset(state, authority["forbiddenPaths"], order["forbiddenPaths"]):
+        raise RunnerError("mission forbidden paths were removed")
+    if not advisory and (order["proofCommands"] != task["requiredProof"] or order["expectedArtifacts"] != task["expectedArtifacts"]):
+        raise RunnerError("required proof/artifact coverage changed")
+    deps = meta["dependencyRevisions"]
+    if set(deps) != set(task["dependencies"]):
+        raise RunnerError("dependency revision binding is incomplete")
+    for dep, revision in deps.items():
+        accepted = state["tasks"][dep].get("acceptance")
+        if not accepted or revision != accepted["revision"] or mission_snapshot(state, [dep])["sha256"] != accepted["snapshotSha256"]:
+            raise RunnerError("dependency is unaccepted or revision/snapshot is stale")
+    return task
+
+
+def _mission_process_identity(pid: int) -> dict[str, Any] | None:
+    if type(pid) is not int or pid <= 0:
+        raise RunnerError("mission process PID must be a positive integer")
+    try:
+        raw = Path(f"/proc/{pid}/stat").read_text()
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise RunnerError("mission process identity cannot be read; effect remains unknown") from exc
+    try:
+        fields = raw[raw.rindex(")") + 2:].split()
+        if fields[0] == "Z":
+            return None
+        return {"pid": pid, "startTicks": fields[19], "bootId": Path("/proc/sys/kernel/random/boot_id").read_text().strip()}
+    except (OSError, ValueError, IndexError) as exc:
+        raise RunnerError("mission process identity cannot be verified; effect remains unknown") from exc
+
+
+def _mission_process_activity(pid: int) -> dict[str, Any] | None:
+    """Read non-authoritative process activity without changing its identity."""
+    if type(pid) is not int or pid <= 0:
+        raise RunnerError("mission process PID must be a positive integer")
+    try:
+        raw = Path(f"/proc/{pid}/stat").read_text()
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise RunnerError("mission process activity cannot be read; liveness remains unknown") from exc
+    try:
+        fields = raw[raw.rindex(")") + 2:].split()
+        if fields[0] == "Z":
+            return None
+        return {
+            "pid": pid,
+            "startTicks": fields[19],
+            "state": fields[0],
+            "cpuTicks": int(fields[11]) + int(fields[12]),
+        }
+    except (OSError, ValueError, IndexError) as exc:
+        raise RunnerError("mission process activity cannot be verified; liveness remains unknown") from exc
+
+
+def _terminate_mission_process(identity: dict[str, Any], deadline_at: str, *, signal_to_send: signal.Signals = signal.SIGTERM,
+                               wait: bool = True) -> bool:
+    """Signal a pinned PID, never a reused PID or unverified process group."""
+    pid = identity["pid"]
+    current = _mission_process_identity(pid)
+    if current is None:
+        return True
+    if current != identity or not hasattr(os, "pidfd_open") or not hasattr(signal, "pidfd_send_signal"):
+        return False
+    try:
+        pidfd = os.pidfd_open(pid)
+    except ProcessLookupError:
+        return True
+    try:
+        if _mission_process_identity(pid) != identity:
+            return False
+        remaining = (_mission_time(deadline_at) - datetime.now(timezone.utc)).total_seconds()
+        if wait and remaining <= 0:
+            return False
+        signal.pidfd_send_signal(pidfd, signal_to_send)
+        if not wait:
+            return True
+        if select.select([pidfd], [], [], min(10, remaining))[0]:
+            return True
+        remaining = (_mission_time(deadline_at) - datetime.now(timezone.utc)).total_seconds()
+        if remaining <= 0:
+            return False
+        signal.pidfd_send_signal(pidfd, signal.SIGKILL)
+        return bool(select.select([pidfd], [], [], remaining)[0])
+    except ProcessLookupError:
+        return True
+    finally:
+        os.close(pidfd)
+
+
+class MissionReservation:
+    """One Gateway transaction. The held LoopStateLock is the only writer lock."""
+
+    def __init__(self, order: dict[str, Any], policy: PathPolicy, state: dict[str, Any], path: Path,
+                 lock: LoopStateLock, disposition: str) -> None:
+        self.order, self.policy, self.state, self.path, self.lock = order, policy, state, path, lock
+        self.meta = mission_context(order, required=True)
+        self.intent = state["intents"][self.meta["intentId"]]
+        self.disposition = disposition
+        self.closed = False
+        self.write_failed = False
+
+    def save(self) -> None:
+        if self.closed or self.write_failed or self.lock._handle is None:
+            raise RunnerError("mission reservation is closed")
+        validate_mission_state(self.state, self.path)
+        try:
+            atomic_write_loop_state(self.path, self.state)
+        except OSError:
+            # replace may have succeeded before fsync failed. Do not roll back
+            # spent counters; poison acceptance/effect, then abandon this object.
+            self.write_failed = True
+            if self.intent["status"] == "accepted":
+                task = self.state["tasks"][self.meta["taskId"]]
+                if self.meta["action"] == task.get("completionAction", "product"):
+                    task.update(status="verifying", acceptance=None)
+            self.intent.update(status="unknown_effect", effect="unknown_effect")
+            if self.state["status"] not in MISSION_TERMINAL:
+                self.state.update(status="blocked", blocker={"decisionOwner": "controller", "reason": "state write failed; unknown commit outcome"})
+            try:
+                atomic_write_loop_state(self.path, self.state)
+            except OSError:
+                pass
+            raise
+
+    def append_telemetry(self, ledger_path: Path, row: dict[str, Any]) -> dict[str, Any]:
+        """Ledger observes committed state; it cannot reserve/refund authority."""
+        persisted, _ = load_mission_state(self.order, self.policy)
+        intent = persisted["intents"][self.meta["intentId"]]
+        observed = dict(row, policyVersion=MISSION_POLICY, missionId=persisted["missionId"], taskId=self.meta["taskId"],
+                        dispatchIntentId=self.meta["intentId"], attemptKind=intent["action"], orderId=intent["orderId"],
+                        modelLaunchesUsed=persisted["budget"]["modelLaunchesUsed"],
+                        productAttemptsUsed=persisted["tasks"][self.meta["taskId"]]["productAttemptsUsed"],
+                        reportAttemptsUsed=intent["reportAttemptsUsed"])
+        return append_attempt(ledger_path, observed)
+
+    def close(self) -> None:
+        self.disposition = "closed"
+        self.lock.release()
+        self.closed = True
+
+    def work_timeout(self, requested_seconds: float | None) -> float | None:
+        if self.closed or self.write_failed or self.lock._handle is None:
+            raise RunnerError("mission reservation is closed")
+        return mission_work_timeout(self.state, requested_seconds)
+
+    def observe_process(self, observation: dict[str, Any]) -> None:
+        """Latest controller liveness evidence, never productive progress/proof."""
+        self.intent["processObservation"] = observation
+        self.save()
+
+    def stop_requested(self) -> bool:
+        try:
+            self.work_timeout(1)
+        except RunnerError:
+            return True
+        return False
+
+    def before_spawn(self) -> None:
+        if self.disposition != "launch" or self.intent["status"] != "reserved":
+            raise RunnerError("intent is not a fresh launch reservation; never replay")
+        self.work_timeout(self.order["launch"]["timeoutSeconds"])
+        self.intent.update(status="dispatching", effect="unknown_effect")
+        self.save()
+
+    def record_process(self, pid: int, *, auxiliary: bool = False) -> None:
+        if self.intent["status"] not in ({"captured", "reportable", "accepted"} if auxiliary else {"dispatching"}):
+            raise RunnerError("process requires persisted dispatch barrier")
+        identity = _mission_process_identity(pid)
+        if identity is None:
+            raise RunnerError("child identity unavailable; do not accept or replay")
+        if auxiliary:
+            self.intent.setdefault("proofProcesses", []).append(identity)
+        else:
+            self.intent.update(status="running", process=identity, processStopped=False)
+        self.save()
+
+    def terminate_owned_process(self, identity: dict[str, Any] | None = None) -> bool:
+        identity = identity or self.intent.get("process")
+        if "stopDeadlineAt" not in self.state:
+            self.state["stopDeadlineAt"] = mission_stop_deadline(self.state).isoformat()
+            self.save()
+        stopped = bool(identity) and _terminate_mission_process(identity, self.state["stopDeadlineAt"])
+        self.intent["processStopped"] = stopped
+        if not stopped:
+            self.intent.update(status="unknown_effect", effect="unknown_effect")
+        self.save()
+        return stopped
+
+    def request_owned_process_stop(self, identity: dict[str, Any] | None = None) -> bool:
+        """Request TERM without blocking the stream reader; cleanup remains bounded by stopDeadlineAt."""
+        identity = identity or self.intent.get("process")
+        if "stopDeadlineAt" not in self.state:
+            self.state["stopDeadlineAt"] = mission_stop_deadline(self.state).isoformat()
+            self.save()
+        sent = bool(identity) and _terminate_mission_process(identity, self.state["stopDeadlineAt"], wait=False)
+        self.intent["terminationRequested"] = True
+        self.intent["processStopped"] = not sent and _mission_process_identity(identity["pid"]) is None if identity else False
+        self.save()
+        return sent
+
+    def force_owned_process_stop(self, identity: dict[str, Any] | None = None) -> bool:
+        """Escalate a still-owned child to SIGKILL without waiting inside the reader."""
+        identity = identity or self.intent.get("process")
+        return bool(identity) and _terminate_mission_process(
+            identity, self.state["stopDeadlineAt"],
+            signal_to_send=signal.SIGKILL, wait=False)
+
+    def cancel(self, reason: str) -> None:
+        if self.state["status"] in {"completed", "failed"}:
+            raise RunnerError("terminal mission cannot be reactivated or rewritten by cancellation")
+        stop_deadline = self.state.get("stopDeadlineAt") or mission_stop_deadline(self.state).isoformat()
+        self.state.update(cancelled=True, status="stopped", stopReason=reason,
+                          stopDeadlineAt=stop_deadline)
+        self.save()
+
+    def observe_result(self, result: dict[str, Any], result_path: Path, *, process_stopped: bool) -> None:
+        if self.intent["status"] not in {"dispatching", "running", "reportable"}:
+            raise RunnerError("result observation requires an open dispatch")
+        if not process_stopped or (self.intent.get("process") and _mission_process_identity(self.intent["process"]["pid"]) == self.intent["process"]):
+            raise RunnerError("child stop is unconfirmed")
+        result_path = self.policy.control_path(result_path, "mission canonical result")
+        if result_path != self.policy.resolve_under_repo(self.order["outputContract"]["resultPath"]):
+            raise RunnerError("mission result path binding mismatch")
+        canonical, _ = verify_result(result_path, self.order, self.policy)
+        if canonical != result:
+            raise RunnerError("canonical result does not match observation")
+        if self.meta["action"] in {"review", "advisory"} and mission_snapshot(self.state, [self.meta["taskId"]]) != self.intent["beforeSnapshot"]:
+            raise RunnerError("review/advisory mutated product bytes")
+        self.intent.update(status="captured", processStopped=True, effect="observed", resultStatus=result["status"],
+                           resultRef=_mission_file_ref(result_path), snapshot=mission_snapshot(self.state, [self.meta["taskId"]]))
+        if self.state["status"] not in MISSION_TERMINAL:
+            self.state["status"] = "verifying"
+            self.state["tasks"][self.meta["taskId"]]["status"] = "verifying"
+        self.save()
+
+    def fail(self, reason: str, *, process_stopped: bool = False) -> None:
+        if self.intent["status"] == "accepted":
+            raise RunnerError("accepted intent cannot be rewritten")
+        if self.intent.get("process") and _mission_process_identity(self.intent["process"]["pid"]) == self.intent["process"]:
+            process_stopped = False
+        observed = self.intent.get("effect") == "observed"
+        known_not_started = self.intent["status"] == "reserved"
+        self.intent.update(status="rejected" if (observed or known_not_started) and process_stopped else "unknown_effect",
+                           processStopped=process_stopped, failure=reason)
+        if self.state["status"] not in MISSION_TERMINAL:
+            self.state.update(status="blocked", blocker={"decisionOwner": "controller", "reason": reason})
+        self.save()
+
+    def accept(self, proof_checks: dict[str, Any], acceptance_path: Path, review: Any = None) -> dict[str, Any]:
+        self.work_timeout(1)
+        if self.intent["status"] != "captured" or self.intent.get("resultStatus") != "done" or not self.intent.get("processStopped"):
+            raise RunnerError("acceptance requires a stopped, captured done result")
+        task = self.state["tasks"][self.meta["taskId"]]
+        _validate_mission_scope(self.order, self.policy, self.state)
+        snapshot = mission_snapshot(self.state, [self.meta["taskId"]])
+        if snapshot != self.intent["snapshot"]:
+            raise RunnerError("product changed after candidate snapshot; reproof required")
+        _validate_mission_proof(proof_checks, self.order["proofCommands"], snapshot["sha256"], task["acceptanceCriteria"])
+        self.require_acceptance_ready(review)
+        acceptance_path = self.policy.control_path(acceptance_path, "mission controller acceptance")
+        receipt = require_object(load_json(acceptance_path), "controller acceptance")
+        if receipt.get("status") != "passed" or receipt.get("orderId") != self.order["orderId"] or receipt.get("canonicalResultSha256") != self.intent["resultRef"]["sha256"]:
+            raise RunnerError("controller acceptance receipt binding failed")
+        if _mission_file_ref(Path(self.intent["resultRef"]["path"])) != self.intent["resultRef"]:
+            raise RunnerError("result bytes changed before acceptance")
+        if self.meta["action"] == "review":
+            self.intent["review"] = self._validated_review()
+        self.intent.update(status="accepted", acceptanceRef=_mission_file_ref(acceptance_path), proof=proof_checks)
+        if self.intent.get("reportIntentId"):
+            report = self.state["intents"][self.intent["reportIntentId"]]
+            report.update(status="accepted", processStopped=True, effect="observed", resultRef=self.intent["resultRef"],
+                          acceptanceRef=self.intent["acceptanceRef"], snapshot=self.intent["snapshot"])
+        _check_mission_refs(self.intent)
+        if self.meta["action"] == task.get("completionAction", "product"):
+            task.update(status="accepted", acceptance={"intentId": self.meta["intentId"], "revision": snapshot["sha256"],
+                                                       "snapshotSha256": snapshot["sha256"], "criteria": list(task["acceptanceCriteria"])})
+        self.save()
+        return self.intent
+
+    def require_acceptance_ready(self, review: str | None = None) -> None:
+        """Call before writing a passing terminal receipt; capture can await review."""
+        self.work_timeout(1)
+        if self.intent["status"] != "captured" or self.intent.get("resultStatus") != "done" or not self.intent.get("processStopped"):
+            raise RunnerError("acceptance requires stopped captured done result")
+        _validate_mission_scope(self.order, self.policy, self.state)
+        if mission_snapshot(self.state, [self.meta["taskId"]]) != self.intent["snapshot"]:
+            raise RunnerError("product changed after capture; acceptance/review must be refreshed")
+        if "workspaceAfter" in self.intent and workspace_snapshot(self.state) != self.intent["workspaceAfter"]:
+            raise RunnerError("workspace bytes changed after controller proof")
+        task = self.state["tasks"][self.meta["taskId"]]
+        if any(_mission_process_identity(p["pid"]) == p for p in self.intent.get("proofProcesses", [])):
+            raise RunnerError("proof process remains open")
+        if self.meta["action"] == "review":
+            self._validated_review()
+        if self.meta["action"] == "product" and task["verificationProfile"] != "V0":
+            reviewed = self.state["intents"].get(review)
+            if not reviewed or reviewed["status"] != "accepted" or reviewed.get("candidateIntentId") != self.meta["intentId"]:
+                raise RunnerError("accepted independent review is required")
+            _check_mission_refs(reviewed)
+
+    def _validated_review(self) -> dict[str, Any]:
+        result = require_object(load_json(Path(self.intent["resultRef"]["path"])), "review result")
+        extensions = require_object(result.get("executorExtensions"), "review result extensions")
+        verdict = require_object(extensions.get("review"), "review verdict")
+        candidate = self.state["intents"].get(self.meta.get("candidateIntentId"))
+        if not candidate or candidate["action"] != "product" or candidate["status"] != "captured" or candidate["taskId"] != self.meta["taskId"]:
+            raise RunnerError("review candidate intent is unavailable")
+        if verdict.get("verdict") != "pass" or not isinstance(verdict.get("findings"), list) or verdict["findings"]:
+            raise RunnerError("review fail/blocked/missing verdict does not accept product")
+        if (verdict.get("reviewedOrderId") != candidate["orderId"] or
+                verdict.get("reviewedResultSha256") != candidate["resultRef"]["sha256"] or
+                verdict.get("productSnapshotSha256") != candidate["snapshot"]["sha256"] or
+                self.intent["snapshot"] != candidate["snapshot"] or self.order["executor"] == candidate["executor"]):
+            raise RunnerError("independent review binding mismatch")
+        if _mission_file_ref(Path(candidate["resultRef"]["path"])) != candidate["resultRef"]:
+            raise RunnerError("reviewed candidate result bytes changed")
+        return verdict
+
+
+def reserve_mission_dispatch(order: dict[str, Any], policy: PathPolicy) -> MissionReservation:
+    meta = mission_context(order, required=True)
+    contract = require_object(order.get("loopContract"), "mission loopContract")
+    path = _mission_path({"workspace": str(policy.repo_path)}, contract.get("statePath", ""))
+    lock = LoopStateLock(loop_lock_path(path)).acquire()
+    try:
+        state, path = load_mission_state(order, policy)
+        task = _validate_mission_scope(order, policy, state)
+        old = state["intents"].get(meta["intentId"])
+        if old:
+            if old["orderSha256"] != _mission_digest(order):
+                raise RunnerError("existing intent cannot be rebound to a new order/model/reviewer")
+            disposition = "accepted" if old["status"] == "accepted" else ("open" if old["status"] in MISSION_OPEN_INTENTS else "closed")
+            if disposition == "accepted":
+                _check_mission_refs(old)
+                if mission_snapshot(state, [meta["taskId"]]) != old["snapshot"]:
+                    raise RunnerError("accepted intent product snapshot is stale; never replay")
+            return MissionReservation(order, policy, state, path, lock, disposition)
+        try:
+            mission_work_timeout(state, order["launch"]["timeoutSeconds"])
+        except RunnerError as exc:
+            if state["status"] not in MISSION_TERMINAL and state["budget"]["deadlineAt"] is not None and (_mission_time(state["budget"]["deadlineAt"]) - datetime.now(timezone.utc)).total_seconds() <= 30:
+                state.update(status="failed", failure="mission work cutoff reached; dispatch closed")
+                atomic_write_loop_state(path, state)
+            raise exc
+        if state["budget"]["modelLaunchesUsed"] >= state["budget"]["maxModelLaunches"]:
+            state.update(status="failed", failure="mission model-launch budget exhausted")
+            atomic_write_loop_state(path, state)
+            raise RunnerError("mission model-launch budget exhausted")
+        if any(i["status"] in {"reserved", "dispatching", "running", "unknown_effect"} for i in state["intents"].values()):
+            raise RunnerError("open or unknown effect requires reconciliation; never replay")
+        if meta["action"] == "report":
+            raise RunnerError("report-only dispatch disabled: no trusted no-write capability verifier")
+        if task["verificationProfile"] == "V3":
+            raise RunnerError("V3 remains disabled without trusted approval verifier")
+        if meta["action"] == "advisory" and task.get("completionAction", "product") == "advisory" and task["status"] == "accepted":
+            raise RunnerError("accepted advisory task must not restart consultation")
+        if meta["action"] == "product":
+            if task["status"] == "accepted":
+                raise RunnerError("accepted task must not restart development")
+            if task["productAttemptsUsed"] >= task["maxProductAttempts"]:
+                state.update(status="failed", failure="task product-attempt budget exhausted")
+                atomic_write_loop_state(path, state)
+                raise RunnerError("task product-attempt budget exhausted")
+            if task["productAttemptsUsed"] and (not meta.get("retryReason") or not meta.get("expectedEvidence")):
+                raise RunnerError("product retry requires reason and expected new evidence")
+            if any(i["taskId"] == meta["taskId"] and i["action"] == "product" and i["status"] == "captured" for i in state["intents"].values()):
+                raise RunnerError("captured product requires acceptance/review or explicit criterion-bound correction")
+            task["productAttemptsUsed"] += 1
+            task["status"] = "running"
+        if meta["action"] == "review":
+            candidate = state["intents"].get(meta.get("candidateIntentId"))
+            if not candidate or candidate["status"] != "captured" or candidate["action"] != "product":
+                raise RunnerError("review requires captured candidate intent")
+            if candidate["executor"] == order["executor"] or mission_snapshot(state, [meta["taskId"]]) != candidate["snapshot"]:
+                raise RunnerError("review requires independent executor and current candidate bytes")
+            # A reviewer may read the captured product, but only the exact
+            # product files bound by the candidate snapshot plus its own
+            # controller custody namespace. Reject a custody-only review order
+            # before spending a model launch; otherwise the model can produce a
+            # valid review that controller acceptance must reject later.
+            for row in candidate["snapshot"].get("files", []):
+                if not isinstance(row, dict) or not isinstance(row.get("path"), str):
+                    raise RunnerError("review candidate snapshot contains an invalid product path")
+                policy.order_path(row["path"], "review candidate product path")
+            from order_preflight import review_binding
+            binding = review_binding(order, validate_order_routing(order))
+            if binding != {"reviewedOrderId": candidate["orderId"], "reviewedResultSha256": candidate["resultRef"]["sha256"],
+                           "productSnapshotSha256": candidate["snapshot"]["sha256"]}:
+                raise RunnerError("review controller candidate binding mismatch")
+        state["budget"]["modelLaunchesUsed"] += 1
+        state["status"] = "verifying" if meta["action"] == "review" else "running"
+        state["intents"][meta["intentId"]] = {"intentId": meta["intentId"], "taskId": meta["taskId"], "action": meta["action"],
+            "orderId": order["orderId"], "orderSha256": _mission_digest(order), "executor": order["executor"],
+            "candidateIntentId": meta.get("candidateIntentId"), "status": "reserved", "effect": "not_started",
+            "reservedAt": utc_now(), "reportAttemptsUsed": 0, "processStopped": False,
+            "beforeSnapshot": mission_snapshot(state, [meta["taskId"]]), "workspaceBaseline": workspace_snapshot(state)}
+        validate_mission_state(state, path)
+        atomic_write_loop_state(path, state)
+        return MissionReservation(order, policy, state, path, lock, "launch")
+    except BaseException:
+        lock.release()
+        raise
+
+
+def _validate_mission_proof(checks: dict[str, Any], required: list[dict[str, Any]], snapshot: str, criteria: list[str]) -> None:
+    if checks.get("productSnapshotSha256") != snapshot or checks.get("criteria") != criteria:
+        raise RunnerError("controller proof must bind all criteria to final product bytes")
+    observed = checks.get("proof")
+    if not isinstance(observed, list) or len(observed) != len(required):
+        raise RunnerError("required controller proof coverage missing")
+    for check, proof in zip(observed, required):
+        if (check.get("command") != proof["command"] or Path(check.get("cwd", "")).resolve() != Path(proof["cwd"]).resolve()
+                or check.get("required") is not True or check.get("status") != "pass" or check.get("exitCode") != 0):
+            raise RunnerError("required controller proof did not pass")
+
+
+def _run_final_mission_proof(state: dict[str, Any], proofs: list[dict[str, Any]], reservation: Any) -> list[dict[str, Any]]:
+    checks = []
+    for proof in proofs:
+        timeout = mission_work_timeout(state, None if reservation.order["launch"]["timeoutSeconds"] is None else 3600)
+        try:
+            from result_gateway import run_child
+            observed = run_child(proof["argv"], _mission_path(state, proof["cwd"]), timeout, 10,
+                                 reservation=reservation, auxiliary=True)
+            if observed["error"] or not observed.get("processStopped"):
+                raise RunnerError("final controller proof incomplete")
+            completed = subprocess.CompletedProcess(proof["argv"], observed["exitCode"])
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise RunnerError(f"final integration proof incomplete: {exc}") from exc
+        mission_work_timeout(state, 1)
+        if completed.returncode != 0:
+            raise RunnerError(f"final integration proof failed: {proof['command']}")
+        checks.append({"command": proof["command"], "cwd": proof["cwd"], "required": True, "status": "pass",
+                       "exitCode": completed.returncode, "summary": "controller observed final integration proof"})
+    return checks
+
+
+def complete_mission(order: dict[str, Any], policy: PathPolicy, final_proof: dict[str, Any], project_revision: str) -> dict[str, Any]:
+    _, path = load_mission_state(order, policy)
+    lock = LoopStateLock(loop_lock_path(path)).acquire()
+    try:
+        state, path = load_mission_state(order, policy)
+        mission_work_timeout(state, 1)
+        if not project_revision:
+            raise RunnerError("final project revision is required")
+        for task_id, task in state["tasks"].items():
+            if task["status"] != "accepted" or not task.get("acceptance"):
+                raise RunnerError("mission has unaccepted tasks/criteria")
+            _check_mission_refs(state["intents"][task["acceptance"]["intentId"]])
+            if mission_snapshot(state, [task_id])["sha256"] != task["acceptance"]["snapshotSha256"]:
+                raise RunnerError("accepted task bytes changed after review; integration reproof/review required")
+        if any(i["status"] in {*MISSION_OPEN_INTENTS, "unknown_effect"} for i in state["intents"].values()):
+            raise RunnerError("mission has open/unknown effect intents")
+        if any(_mission_process_identity(p["pid"]) == p for i in state["intents"].values() for p in i.get("proofProcesses", [])):
+            raise RunnerError("mission has open proof processes")
+        snapshot = mission_snapshot(state)
+        proofs = [proof for task in state["tasks"].values() for proof in task["requiredProof"]]
+        _validate_mission_proof(final_proof, proofs, snapshot["sha256"], state["authority"]["criteria"])
+        final_reservation = MissionReservation(order, policy, state, path, lock, "open")
+        previous_signals = {}
+        try:
+            for sig in (signal.SIGTERM, signal.SIGINT):
+                previous_signals[sig] = signal.signal(sig, lambda signum, frame: final_reservation.cancel(f"final proof signal {signum}"))
+            observed = _run_final_mission_proof(state, proofs, final_reservation)
+        finally:
+            for sig, handler in previous_signals.items():
+                signal.signal(sig, handler)
+        if mission_snapshot(state) != snapshot:
+            raise RunnerError("final proof changed product bytes; acceptance/review must be refreshed")
+        mission_work_timeout(state, 1)
+        final_proof = dict(final_proof, proof=observed)
+        state.update(status="completed", completion={"projectRevision": project_revision, "snapshot": snapshot,
+                                                     "proof": final_proof, "completedAt": utc_now()})
+        try:
+            atomic_write_loop_state(path, state)
+        except OSError:
+            state.update(status="failed", completion=None, failure="final state write failed; completion unconfirmed")
+            try:
+                atomic_write_loop_state(path, state)
+            except OSError:
+                pass
+            raise
+        return state
+    finally:
+        lock.release()
+
+
+def record_mission_observation(reservation: MissionReservation, observation: dict[str, Any]) -> dict[str, Any]:
+    """Persist controller-verified evidence, not arbitrary result hashes as progress."""
+    from progress_drift_detector import evaluate_progress
+    from blocker_packet_projection import build_blocker_packet
+    state = reservation.state
+    if state["status"] in MISSION_TERMINAL:
+        raise RunnerError("terminal mission cannot record new development")
+    row = copy.deepcopy(observation)
+    state["observations"].append(row)
+    # A strategy switch resets the no-progress window, never cumulative counters.
+    start = state.get("strategyObservationStart", 0)
+    progress_budgets = None
+    if state["budget"]["deadlineAt"] is None:
+        # Legacy advisory wall limits cannot close monitored work. Project
+        # them out without changing approved authority or finite old missions.
+        declared = state["authority"].get("budgets")
+        progress_budgets = {key: value for key, value in declared.items()
+                            if key not in {"maxWallSeconds", "wallTimeSeconds", "wallSeconds"}} if isinstance(declared, dict) else {}
+    advisory = evaluate_progress(state["authority"], state["observations"][start:], budgets=progress_budgets)
+    state["progressDecision"] = advisory
+    if advisory["decision"] != "allow":
+        state.update(status="blocked", blocker={"decisionOwner": "customer" if advisory["requiresOwnerDecision"] else "controller",
+                                               "reason": advisory["reasonCodes"]})
+        state["blockerPacket"] = build_blocker_packet(reservation.order, None, loop_state=advisory)
+    reservation.save()
+    return advisory
+
+
+def switch_mission_strategy(reservation: MissionReservation, strategy_id: str, reason: str) -> None:
+    state = reservation.state
+    if state["status"] != "blocked" or (state.get("blocker") or {}).get("decisionOwner") != "controller":
+        raise RunnerError("strategy switch requires an internal controller blocker")
+    if state["strategySwitchesUsed"] or not strategy_id or strategy_id == state["strategyId"] or not reason:
+        raise RunnerError("only one explicit strategy switch is allowed")
+    candidate = dict(state, status="running")
+    mission_work_timeout(candidate, 1)
+    if state["budget"]["modelLaunchesUsed"] >= state["budget"]["maxModelLaunches"]:
+        raise RunnerError("strategy switch cannot replenish budget")
+    if any(i["status"] in {"reserved", "dispatching", "running", "unknown_effect"} for i in state["intents"].values()):
+        raise RunnerError("strategy switch cannot replay open/unknown effect")
+    state.update(status="running", strategyId=strategy_id, strategySwitchesUsed=1,
+                 strategySwitch={"reason": reason, "at": utc_now()}, blocker=None,
+                 strategyObservationStart=len(state["observations"]))
+    reservation.save()
+
+
+def prepare_mission_correction(reservation: MissionReservation, criterion: str, evidence_path: Path,
+                               reason: str, expected_evidence: str) -> None:
+    """A failed criterion can be corrected without inventing customer approval."""
+    state = reservation.state
+    if state["status"] not in {"running", "verifying", "blocked"} or (state.get("blocker") or {}).get("decisionOwner") == "customer":
+        raise RunnerError("correction cannot reactivate terminal/external blocked mission")
+    if state.get("progressDecision", {}).get("decision") in {"escalate", "replan", "block"}:
+        raise RunnerError("stopped strategy requires the one bounded strategy switch")
+    task_id = reservation.meta["taskId"]
+    task = state["tasks"][task_id]
+    if criterion not in task["acceptanceCriteria"] or not reason or not expected_evidence:
+        raise RunnerError("correction must bind an existing criterion and expected evidence")
+    if task["status"] == "accepted" or task["productAttemptsUsed"] >= task["maxProductAttempts"]:
+        raise RunnerError("accepted task or exhausted product attempts cannot be corrected implicitly")
+    if any(i["status"] in {"reserved", "dispatching", "running", "unknown_effect"} for i in state["intents"].values()):
+        raise RunnerError("correction cannot replay an open/unknown effect")
+    mission_work_timeout(dict(state, status="running"), 1)
+    if state["budget"]["modelLaunchesUsed"] >= state["budget"]["maxModelLaunches"]:
+        raise RunnerError("correction cannot replenish launch budget")
+    evidence = _mission_file_ref(_mission_path(state, str(evidence_path)))
+    for intent in state["intents"].values():
+        if intent["taskId"] == task_id and intent["action"] == "product" and intent["status"] == "captured":
+            intent.update(status="rejected", correctionEvidence=evidence)
+    task.update(status="ready", acceptance=None)
+    state.update(status="running", blocker=None, correction={"taskId": task_id, "criterion": criterion, "evidence": evidence,
+                 "reason": reason, "expectedEvidence": expected_evidence, "at": utc_now()})
+    reservation.save()
+
+
+def cancel_mission(reservation: MissionReservation, reason: str) -> None:
+    reservation.cancel(reason)
+
+
+def resume_mission(reservation: MissionReservation, owner_decision: dict[str, Any]) -> None:
+    state = reservation.state
+    if state["status"] != "blocked" or (state.get("blocker") or {}).get("decisionOwner") != "customer":
+        raise RunnerError("only externally blocked missions may resume by owner decision")
+    if owner_decision.get("approvalRef") != state["authority"]["approvalRef"] or owner_decision.get("missionId") != state["missionId"] or not owner_decision.get("decisionRef"):
+        raise RunnerError("matching recorded owner decision is required")
+    candidate = dict(state, status="running")
+    mission_work_timeout(candidate, 1)
+    state.update(status="running", ownerDecision=copy.deepcopy(owner_decision), blocker=None)
+    reservation.save()
 
 
 def loop_result_metadata(result: dict[str, Any]) -> dict[str, Any]:
@@ -916,6 +2083,8 @@ def check_loop_budget(state: dict[str, Any]) -> None:
 
 
 def prepare_loop_dispatch(order: dict[str, Any], policy: PathPolicy) -> tuple[dict[str, Any], Path]:
+    if mission_context(order) is not None:
+        raise RunnerError("policy 3.0 requires reserve_mission_dispatch; legacy Loop dispatch is disabled")
     contract = loop_contract(order)
     if contract is None:
         raise RunnerError("loopContract missing")
@@ -1156,6 +2325,7 @@ def finalize_direct_response(order_path: Path, paths: tuple[Path, Path] | None, 
 
 
 def run_command(order: dict[str, Any], argv: list[str], policy: PathPolicy) -> subprocess.CompletedProcess[str]:
+    raise RunnerError("direct runner dispatch is disabled; legacy orders are read-only; use policy 3.0 result_gateway.py")
     timeout = order["launch"]["timeoutSeconds"]
     try:
         return subprocess.run(
@@ -1216,12 +2386,17 @@ def check_expected_artifacts(
     return checks
 
 
-def run_proof_commands(order: dict[str, Any], policy: PathPolicy) -> list[dict[str, Any]]:
+def run_proof_commands(order: dict[str, Any], policy: PathPolicy, reservation: Any = None) -> list[dict[str, Any]]:
+    if mission_context(order) is not None and reservation is None:
+        raise RunnerError("3.0 proof dispatch is closed without the locked Gateway mission reservation")
     launch_timeout = order["launch"]["timeoutSeconds"]
     checks = []
     for index, proof in enumerate(order["proofCommands"]):
+        if mission_context(order) is not None:
+            state, _ = load_mission_state(order, policy)
+            launch_timeout = mission_work_timeout(state, order["launch"]["timeoutSeconds"])
         command = proof["command"]
-        cwd_path = policy.order_path(proof["cwd"], f"proofCommands[{index}].cwd")
+        cwd_path = _mission_path({"workspace":str(policy.repo_path)}, proof["cwd"]) if mission_context(order) is not None else policy.order_path(proof["cwd"], f"proofCommands[{index}].cwd")
         required = proof["required"]
         proof_argv = proof.get("argv")
         if loop_contract(order) is not None and proof_argv is None:
@@ -1239,7 +2414,14 @@ def run_proof_commands(order: dict[str, Any], policy: PathPolicy) -> list[dict[s
             check["summary"] = f"cwd does not exist: {cwd_path}"
         else:
             try:
-                if proof_argv is None:
+                if reservation is not None:
+                    from result_gateway import run_child
+                    observed = run_child(proof_argv, cwd_path, reservation.work_timeout(launch_timeout), 10,
+                                         reservation=reservation, auxiliary=True)
+                    if observed["error"] or not observed.get("processStopped"):
+                        raise RunnerError("controller proof incomplete")
+                    completed = subprocess.CompletedProcess(proof_argv, observed["exitCode"], observed["stdout"].decode(errors="replace"), observed["stderr"].decode(errors="replace"))
+                elif proof_argv is None:
                     # Deprecated compatibility path for legacy non-loop orders only.
                     completed = subprocess.run(
                         command,
@@ -1360,16 +2542,23 @@ def run_verification_gate(
     passed_event: str,
     evidence: dict[str, Any] | None = None,
     event_sink: Callable[..., None] | None = None,
+    reservation: Any = None,
 ) -> dict[str, Any]:
     emit = event_sink or append_event
     result_sha256 = result_digest(result_path)
+    mission = mission_context(order)
+    product_before = None
+    if mission is not None:
+        state, _ = load_mission_state(order, policy)
+        mission_work_timeout(state, order["launch"]["timeoutSeconds"])
+        product_before = mission_snapshot(state, [mission["taskId"]])
     result, result_artifact_paths = verify_result(result_path, order, policy)
     artifact_checks = check_expected_artifacts(order, policy, result_artifact_paths, result_path)
     if evidence is not None:
         evidence["artifacts"] = artifact_checks
     emit(events_path, "expected_artifacts_checked", orderId=order["orderId"], artifacts=artifact_checks)
     verify_required_artifact_checks(artifact_checks)
-    proof_checks = run_proof_commands(order, policy)
+    proof_checks = run_proof_commands(order, policy, reservation)
     if evidence is not None:
         evidence["proof"] = proof_checks
     emit(events_path, "proof_commands_checked", orderId=order["orderId"], proof=proof_checks)
@@ -1390,6 +2579,15 @@ def run_verification_gate(
             raise RunnerError("V0 result has unresolved " + ", ".join(unresolved))
     if result_digest(result_path) != result_sha256:
         raise RunnerError("result bytes changed during controller verification")
+    if mission is not None:
+        state, _ = load_mission_state(order, policy)
+        mission_work_timeout(state, 1)
+        product_after = mission_snapshot(state, [mission["taskId"]])
+        if product_before != product_after:
+            raise RunnerError("product bytes changed during controller proof; reproof required")
+        if evidence is not None:
+            evidence["productSnapshotSha256"] = product_after["sha256"]
+            evidence["criteria"] = list(state["tasks"][mission["taskId"]]["acceptanceCriteria"])
     if evidence is not None:
         evidence["resultSha256"] = result_sha256
     emit(events_path, passed_event, orderId=order["orderId"], resultStatus=result["status"])
@@ -1437,16 +2635,48 @@ def commit_result_and_terminal(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Validate and run AGENT_ORDER_JSON_V1 handoffs.")
-    parser.add_argument("--order", required=True, type=Path, help="Path to AGENT_ORDER_JSON_V1 order JSON")
+    parser.add_argument("--order", type=Path, help="Path to AGENT_ORDER_JSON_V1 order JSON")
+    parser.add_argument("--init-mission", type=Path, help="Explicit approved mission preparation spec")
+    parser.add_argument("--state", type=Path, help="State path for --init-mission")
+    parser.add_argument("--complete-mission", type=Path, help="Controller final proof bound to integrated product bytes")
+    parser.add_argument("--project-revision", help="Final accepted project revision")
     parser.add_argument("--mode", choices=["dry-run", "run"], default="dry-run", help="Dispatch mode")
-    parser.add_argument("--events", required=True, type=Path, help="Append-only JSONL event log path")
-    parser.add_argument("--result", required=True, type=Path, help="Expected AGENT_RESULT_JSON_V1 result path")
+    parser.add_argument("--events", type=Path, help="Append-only JSONL event log path")
+    parser.add_argument("--result", type=Path, help="Expected AGENT_RESULT_JSON_V1 result path")
     parser.add_argument("--validate-only", action="store_true", help="Only validate the order")
     return parser
 
 
 def main() -> int:
     args = build_parser().parse_args()
+    if args.init_mission is not None:
+        if args.order is not None or args.state is None or args.mode != "dry-run" or args.validate_only:
+            print("error: --init-mission requires --state and cannot be combined with dispatch options", file=sys.stderr)
+            return 2
+        try:
+            spec = require_object(load_json(args.init_mission), "mission preparation spec")
+            state = initialize_mission(spec, args.state)
+            print(json.dumps({"status": "prepared", "missionId": state["missionId"], "statePath": state["statePath"]}, sort_keys=True))
+            return 0
+        except (RunnerError, OSError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+    if args.complete_mission is not None:
+        if args.order is None or not args.project_revision or args.mode != "dry-run":
+            print("error: --complete-mission requires --order and --project-revision without dispatch", file=sys.stderr)
+            return 2
+        try:
+            order = require_object(load_json(args.order), "order")
+            _, policy = validate_order(order)
+            state = complete_mission(order, policy, require_object(load_json(args.complete_mission), "final proof"), args.project_revision)
+            print(json.dumps({"status": state["status"], "missionId": state["missionId"]}, sort_keys=True))
+            return 0
+        except (RunnerError, OSError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+    if args.order is None or args.events is None or args.result is None:
+        print("error: --order, --events and --result are required for validation/dispatch", file=sys.stderr)
+        return 2
     events_path = args.events
     loop_lock: LoopStateLock | None = None
     direct_custody: dict[str, Any] | None = None
@@ -1459,6 +2689,9 @@ def main() -> int:
     try:
         order = require_object(load_json(args.order), "order")
         notes, policy = validate_order(order)
+        mission = mission_context(order)
+        if args.mode == "run" and not args.validate_only:
+            raise RunnerError("direct runner dispatch is disabled; legacy orders are read-only; use policy 3.0 result_gateway.py")
         result_path, events_path = validate_runtime_paths(order, policy, args.result, args.events)
         try:
             verify_input_results(order, policy.repo_path)
@@ -1476,11 +2709,16 @@ def main() -> int:
         append_event(events_path, "order_validated", orderId=order["orderId"], executor=order["executor"], notes=notes)
 
         if loop_contract(order) is not None:
-            if args.mode == "run" and not args.validate_only:
+            if mission is not None:
+                state, _ = load_mission_state(order, policy)
+                _validate_mission_scope(order, policy, state)
+                mission_work_timeout(state, order["launch"]["timeoutSeconds"])
+            elif args.mode == "run" and not args.validate_only:
                 state_path = validate_loop_order(order, policy)
                 loop_lock = LoopStateLock(loop_lock_path(state_path)).acquire()
                 append_event(events_path, "aquila_loop_state_lock_acquired", orderId=order["orderId"], statePath=str(state_path), lockPath=str(loop_lock.path))
-            prepare_loop_dispatch(order, policy)
+            if mission is None:
+                prepare_loop_dispatch(order, policy)
             append_event(events_path, "aquila_loop_dispatch_preflight_passed", orderId=order["orderId"], phase=order["loopContract"]["phase"])
 
         if args.validate_only:
@@ -1516,6 +2754,7 @@ def main() -> int:
                 terminalPath=str(direct_custody["terminal"]),
             )
         try:
+            prepare_order_namespace(policy)
             completed = run_command(order, argv, policy)
         except CommandTimeoutError as exc:
             executor_ran = True

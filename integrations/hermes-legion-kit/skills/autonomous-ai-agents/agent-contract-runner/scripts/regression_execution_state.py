@@ -105,6 +105,24 @@ def main() -> int:
         validate_state(state)
         schema_validates(state)
 
+        mission_order = copy.deepcopy(order)
+        mission_order["context"] = [{"policyVersion": "3.0", "missionId": "mission"}]
+        mission_order_path = root / "mission-order.json"
+        mission_order_path.write_text(json.dumps(mission_order))
+        mission_projection = project(mission_order_path, result_path)
+        check(mission_projection["execution"]["status"] == "awaiting_verification", "3.0 worker done is capture, never mission completion")
+        schema_validates(mission_projection)
+        rejects(lambda: project(mission_order_path, result_path, legacy_terminal_compat=True), "legacy terminal compatibility")
+        mutable = root / "mutable-mission.json"
+        mutable.write_bytes(b"controller-owned mission bytes\n")
+        mission_order["workspace"]["repoPath"] = str(root)
+        mission_order["loopContract"]["statePath"] = str(mutable)
+        mission_order_path.write_text(json.dumps(mission_order))
+        collision = subprocess.run([sys.executable, str(SCRIPT_DIR / "execution_state.py"), "project", "--order", str(mission_order_path),
+                                   "--result", str(result_path), "--output", str(mutable)], capture_output=True, text=True)
+        check(collision.returncode != 0 and "collides" in collision.stderr, "read-only projection cannot overwrite mutable mission")
+        check(mutable.read_bytes() == b"controller-owned mission bytes\n", "mutable mission bytes preserved")
+
         legacy_order = copy.deepcopy(json.loads(order_path.read_text(encoding="utf-8")))
         legacy_order["loopContract"].pop("phase")
         legacy_order_path = root / "legacy-order.json"

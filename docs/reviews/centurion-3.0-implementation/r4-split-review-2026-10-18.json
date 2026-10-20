@@ -1,0 +1,580 @@
+{
+  "version": "CENTURION_SPLIT_SOURCE_REVIEW_RECORD_V1",
+  "sourceCommit": "8f83d35482fa318e2f83146402c1bbf565e3273a",
+  "codeCommit": "7475ae92f953b71acde694f4d7a8db3e53f5918b",
+  "authority": "User requested decomposition of large Claude tasks to reduce timeout risk.",
+  "route": {
+    "executor": "Claude CLI 2.1.224",
+    "model": "claude-opus-5-5",
+    "effort": "high",
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:8317"
+  },
+  "execution": "Read-only bwrap product mounts, native profile mounted read-only, no worker tools/MCP/hooks, only StructuredOutput.",
+  "priorTimeoutReceipt": {
+    "path": "/tmp/centurion-v3-oct18-r4/control/p6-delta-review/receipt.json",
+    "sha256": "916f7813975a14f1a0201845d042915867be60b57855ee60e19f8b1e938e55fc",
+    "bytes": 2783
+  },
+  "initialManifestRef": {
+    "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/manifest.json",
+    "sha256": "47304db34e640e445756d03e1dfc96bd68bf12f7399d5574d06b9338b47eef40",
+    "bytes": 2940
+  },
+  "refinementManifestRef": {
+    "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/refinement-manifest.json",
+    "sha256": "541af9e327291cc2d430e8454367bf84d142443a897f62e6d22168e09c03bae4",
+    "bytes": 2245
+  },
+  "launches": 6,
+  "acceptedSlices": 4,
+  "timeouts": 2,
+  "perLaunchTimeoutSeconds": 300,
+  "automaticRetries": 0,
+  "historicalPilotLaunchCounters": "unchanged; no P mission replay",
+  "executionDeviations": [
+    {
+      "description": "R3 was launched before R2 finished after a premature status poll; initial maxConcurrent=1 was exceeded. Both were read-only. Subsequent launches were sequential.",
+      "observedOverlap": [
+        {
+          "first": "R2-capability-reader",
+          "second": "R3-recovery-binding",
+          "seconds": 12.25
+        }
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "R1-media",
+      "scope": "MIME comparison only: generic legacy projections may accept extension metadata; concrete types and all execution facts remain exact; neither input is mutated.",
+      "selections": [
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          1313,
+          1370
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+          465,
+          499
+        ]
+      ],
+      "sourcePins": {
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          "sha256": "c1fc241fd09f820ef95238fcd16bb502ed7b599ff4dc8f6fffdfb4f3d550f841",
+          "bytes": 104238
+        },
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+          "sha256": "f043ec73945dd82955d1073342b852f56e3d8f33507dcab530327170b913c316",
+          "bytes": 46084
+        }
+      },
+      "orderRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R1-media/order.json",
+        "sha256": "d483b03c5417dff2a99e3f1d52177db675dd6a59b433bc3d0637cbbf265b9507",
+        "bytes": 2449
+      },
+      "receiptRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R1-media/receipt.json",
+        "sha256": "b18df3eea61d06a08d8535940e269c018711588f9bb4b302d6c8d5490a607ef5",
+        "bytes": 749
+      },
+      "receipt": {
+        "exitCode": 0,
+        "elapsedSeconds": 11.4,
+        "inputRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R1-media/input.txt",
+          "sha256": "9b1a5dafb0e15069e73e78a47b5f19da7ac176145717dd89cbd443dd615145ca",
+          "bytes": 8885
+        },
+        "rawRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R1-media/stdout.jsonl",
+          "sha256": "638a471aa0c64de85599b8f18359e65614adda965bee7cb1f31255ec228bb221",
+          "bytes": 8311
+        },
+        "sourceUnchanged": true,
+        "sourceCommit": "8f83d35482fa318e2f83146402c1bbf565e3273a",
+        "model": "claude-opus-5-5",
+        "effort": "high",
+        "localProxy": "http://127.0.0.1:8317"
+      },
+      "reviewRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R1-media/review.json",
+        "sha256": "0b5d4a2ebadd64e661b6056032b3d3a95282b01e8d62f9894a2b8f6be99d9315",
+        "bytes": 1576
+      },
+      "review": {
+        "verdict": "ACCEPT",
+        "summary": "Срез R1-media корректен. Нормализация MIME в сравнительных копиях ограничена точным контрактом: generic-legacy application/octet-stream может быть принят как стандартный extension-derived дескриптор (text/plain для effect.txt); явные конкретные типы остаются точными; ни проекция, ни отчёт, ни канонические байты не мутируют (L1368 мутирует только локальную копию actual для сравнения). Регрессионные кейсы подтверждают отказ на измененных конкретных типах и несвязанных медиатипах (L479-L486). Домен ограничен extension metadata; content proof остается вне области.",
+        "findings": [],
+        "limitations": [
+          "Не проверена корректность _mission_file_ref, resolve_under_repo или order_path — вне области среза R1-media",
+          "Не проверена логика P6 EFFECT_ONCE append или controller authorization — внешний контекст",
+          "Не проверена полнота строгого MIME словаря strict=True — поведение stdlib mimetypes вне области кода",
+          "Не проверена валидация filesChanged и proof (L1352-L1356) — вне MIME comparison scope"
+        ]
+      },
+      "ownerDecision": "accepted_for_assigned_source_slice"
+    },
+    {
+      "id": "R2-capability-reader",
+      "scope": "External capability reader only: controller-bound absolute ref, bounded regular-file read, no symlink components, exact digest/length and complete deny-probe. Caller custody is independently assigned to R3.",
+      "selections": [
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py",
+          29,
+          44
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py",
+          57,
+          86
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py",
+          116,
+          175
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py",
+          453,
+          477
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+          499,
+          517
+        ]
+      ],
+      "sourcePins": {
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py",
+          "sha256": "c1b96e780599eeb95a96cad28e3e056f38f4803ec1e0c28ac094bb6f00d6de54",
+          "bytes": 31328
+        },
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+          "sha256": "f043ec73945dd82955d1073342b852f56e3d8f33507dcab530327170b913c316",
+          "bytes": 46084
+        }
+      },
+      "orderRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R2-capability-reader/order.json",
+        "sha256": "cdb5619d10165128018515c6f77a58000b740a17d7148c14a0878d2dcd4dfb57",
+        "bytes": 2958
+      },
+      "receiptRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R2-capability-reader/receipt.json",
+        "sha256": "49d497d8ffc7b22f97856156dce1697affd7deeaee9a67b32544e42bfd9106b1",
+        "bytes": 779
+      },
+      "receipt": {
+        "exitCode": 124,
+        "elapsedSeconds": 300.0,
+        "inputRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R2-capability-reader/input.txt",
+          "sha256": "b7ab24514b61f6fcdca2c0b67c481532a656b57326b8c0b469b6686a5042aaaf",
+          "bytes": 10125
+        },
+        "rawRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R2-capability-reader/stdout.jsonl",
+          "sha256": "8a84da626ae987b6c4e318c2bc65df6f1d4a077d991e4915b2accd3338544408",
+          "bytes": 248360
+        },
+        "sourceUnchanged": true,
+        "sourceCommit": "8f83d35482fa318e2f83146402c1bbf565e3273a",
+        "model": "claude-opus-5-5",
+        "effort": "high",
+        "localProxy": "http://127.0.0.1:8317"
+      },
+      "reviewRef": null,
+      "review": null,
+      "ownerDecision": "incomplete_timeout_not_a_verdict"
+    },
+    {
+      "id": "R3-recovery-binding",
+      "scope": "Integration of the reviewed MIME and external-receipt deltas with saved report collection: one report reservation, no product replay, unchanged raw/candidate/projection, controller-to-downstream bindings. R1 covers MIME internals and R2 the external reader. Focus on regressions from these deltas; do not redesign the controller.",
+      "selections": [
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          1373,
+          1515
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py",
+          249,
+          285
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py",
+          414,
+          455
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py",
+          478,
+          490
+        ]
+      ],
+      "sourcePins": {
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+          "sha256": "c1fc241fd09f820ef95238fcd16bb502ed7b599ff4dc8f6fffdfb4f3d550f841",
+          "bytes": 104238
+        },
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py",
+          "sha256": "c1b96e780599eeb95a96cad28e3e056f38f4803ec1e0c28ac094bb6f00d6de54",
+          "bytes": 31328
+        }
+      },
+      "orderRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R3-recovery-binding/order.json",
+        "sha256": "3353d3fb098213c191c978d06c6fc8cb14d6f3529ad25142053c80fa054da589",
+        "bytes": 2894
+      },
+      "receiptRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R3-recovery-binding/receipt.json",
+        "sha256": "56c425c6f5f3a1d50653e4fac6447bcff18bc3f6a3fb0f77cc9135a53ecea8f4",
+        "bytes": 773
+      },
+      "receipt": {
+        "exitCode": 0,
+        "elapsedSeconds": 12.25,
+        "inputRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R3-recovery-binding/input.txt",
+          "sha256": "c024160cffc045a71f0063f9be68770e007b9b2e3021044d2edceec2e01fffc4",
+          "bytes": 21015
+        },
+        "rawRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R3-recovery-binding/stdout.jsonl",
+          "sha256": "96c61caa6521a57a57164c01f77ba1cd80c9633507898c15fddff6abe2145ccb",
+          "bytes": 8150
+        },
+        "sourceUnchanged": true,
+        "sourceCommit": "8f83d35482fa318e2f83146402c1bbf565e3273a",
+        "model": "claude-opus-5-5",
+        "effort": "high",
+        "localProxy": "http://127.0.0.1:8317"
+      },
+      "reviewRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R3-recovery-binding/review.json",
+        "sha256": "b9acc26933f61f8bc656c96fa81f9b596aa9157ee5811b24dd9647c9d5eaf481",
+        "bytes": 1521
+      },
+      "review": {
+        "verdict": "ACCEPT",
+        "summary": "Интеграционная логика связывания отчёта восстановления с сохранённой коллекцией корректна. Один резерв отчёта, продукт не перезапускается, projection/raw/candidate неизменны. Авторизация capability контроллером присутствует (1444). Приёмка downstream проверяет immutable chains (414–455), исходную custody (426–437), snapshot продукта (478–486), projection closure согласно спецификации (487–489). Нормализация метаданных MIME (text/plain vs application/octet-stream для effect.txt) ограничена только comparison copies, как требуется. Регрессий от дельт R1/R2 не обнаружено.",
+        "findings": [],
+        "limitations": [
+          "Не проверялись внутренние детали MIME и external reader (зона R1/R2)",
+          "Не анализировался полный контроллер recovery custody и projection builder (вне scope R3)",
+          "Не верифицировалось поведение run_child и extract_stdout_candidate (внешние зависимости)",
+          "Не проверялся многократный restart с capture_resume=True (код читается корректно, runtime не тестировался)"
+        ]
+      },
+      "ownerDecision": "accepted_for_assigned_source_slice"
+    },
+    {
+      "id": "R4-worker-contract",
+      "scope": "Instructions only: canonical result ownership, native author payload, read-only review scope, honest negative review/proof, explicit correction authorization. Compare supplied runtime validation. Host AGENTS/SOUL reconciliation and full-release acceptance are outside this source review.",
+      "selections": [
+        [
+          "skills/orchestrator/SKILL.md",
+          1,
+          55
+        ],
+        [
+          "skills/reviewer/SKILL.md",
+          1,
+          21
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/SKILL.md",
+          1,
+          11
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          580,
+          625
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          671,
+          704
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          2400,
+          2460
+        ]
+      ],
+      "sourcePins": {
+        "skills/orchestrator/SKILL.md": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/skills/orchestrator/SKILL.md",
+          "sha256": "0599890ebe0b5d9038035565cd8cf474efb6b710619dc79beee494fe8e5c325d",
+          "bytes": 3551
+        },
+        "skills/reviewer/SKILL.md": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/skills/reviewer/SKILL.md",
+          "sha256": "8b24c94d4c036f9abbb0553fbb9f25fbe74ff4355fa7a3b01e72df8fe96017f8",
+          "bytes": 1512
+        },
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/SKILL.md": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/SKILL.md",
+          "sha256": "e4d06adce5afa901bd18646940c8c85d01e9070b47a889351e8732739ccae63e",
+          "bytes": 1133
+        },
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          "sha256": "4dff66aadf97ee7c9b9f1470e23750a12f8a949cdfbe0e86fa9d84fdea19b00b",
+          "bytes": 151660
+        }
+      },
+      "orderRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R4-worker-contract/order.json",
+        "sha256": "8da78b27a77beb356cdb7145b081ebc240da05d30daee72a15675972a6a6a5ac",
+        "bytes": 3488
+      },
+      "receiptRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R4-worker-contract/receipt.json",
+        "sha256": "8eaff2aeebdfea77f8b7325dc29298606a011952c7f77999bfd349262942f4ad",
+        "bytes": 775
+      },
+      "receipt": {
+        "exitCode": 124,
+        "elapsedSeconds": 300.0,
+        "inputRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R4-worker-contract/input.txt",
+          "sha256": "336359c793ef22e2166f1433b510888100b31812e0c4c283da84931138e7bc64",
+          "bytes": 16945
+        },
+        "rawRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R4-worker-contract/stdout.jsonl",
+          "sha256": "78cef42ba9d5a7988318e49afb5d89d5cd7796df1b12c1247a5c4edf821abf97",
+          "bytes": 263587
+        },
+        "sourceUnchanged": true,
+        "sourceCommit": "8f83d35482fa318e2f83146402c1bbf565e3273a",
+        "model": "claude-opus-5-5",
+        "effort": "high",
+        "localProxy": "http://127.0.0.1:8317"
+      },
+      "reviewRef": null,
+      "review": null,
+      "ownerDecision": "incomplete_timeout_not_a_verdict"
+    },
+    {
+      "id": "R2a-open-file",
+      "scope": "One question: does descriptor-relative opening reject symlink traversal and non-regular files without blocking on FIFO, while keeping the read bounded? Inspect only these existing primitives now used for the controller-pinned external receipt. Reference authorization is assigned to R2b.",
+      "selections": [
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py",
+          23,
+          35
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py",
+          57,
+          86
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py",
+          116,
+          164
+        ]
+      ],
+      "sourcePins": {
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py",
+          "sha256": "c1b96e780599eeb95a96cad28e3e056f38f4803ec1e0c28ac094bb6f00d6de54",
+          "bytes": 31328
+        }
+      },
+      "orderRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R2a-open-file/order.json",
+        "sha256": "1fc9780fbe8e8b7d1a58b61fc3833d1ca1d73a942ea9f44c2954cea1e002bedc",
+        "bytes": 2264
+      },
+      "receiptRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R2a-open-file/receipt.json",
+        "sha256": "a6e1f27df5aade10f50b713191641c56433da793194b0af49e98a7a76f956862",
+        "bytes": 760
+      },
+      "receipt": {
+        "exitCode": 0,
+        "elapsedSeconds": 10.65,
+        "inputRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R2a-open-file/input.txt",
+          "sha256": "d099fda83107db7167c0b2a67a621cfea883c177fd2f0a1627b4a1b917c49a53",
+          "bytes": 6062
+        },
+        "rawRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R2a-open-file/stdout.jsonl",
+          "sha256": "cb73ce3bc8d221847e317d319902405cffe28efa14dca021b9c55b1ed46a2a40",
+          "bytes": 8315
+        },
+        "sourceUnchanged": true,
+        "sourceCommit": "8f83d35482fa318e2f83146402c1bbf565e3273a",
+        "model": "claude-opus-5-5",
+        "effort": "high",
+        "localProxy": "http://127.0.0.1:8317"
+      },
+      "reviewRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R2a-open-file/review.json",
+        "sha256": "9be130a93709bcaf21dc6a85d982b28a8bf6803411dcc1912da907ae43bd78c1",
+        "bytes": 1581
+      },
+      "review": {
+        "verdict": "ACCEPT",
+        "summary": "Примитив descriptor-relative открытия корректно отвергает обход через symlink и нерегулярные файлы без блокировки на FIFO, сохраняя ограниченное чтение. O_NOFOLLOW применён ко всем дескрипторам (строки 33-34), O_NONBLOCK предотвращает блокировку на FIFO (строка 33), проверка S_ISREG до чтения отвергает специальные файлы (строка 143), двойное ограничение MAX_CONTROL_BYTES защищает от TOCTOU (строки 145-151), fstat-сравнение подтверждает неизменность (строки 142, 152-155). Данный срез соответствует требованиям.",
+        "findings": [],
+        "limitations": [
+          "Не проверял контекст авторизации контроллера (назначен R2b)",
+          "Не проверял интеграцию с вызывающими компонентами за пределами показанных примитивов",
+          "Не проверял корректность версий протокола (строки 25-30) относительно других компонентов системы",
+          "Не оценивал общую архитектуру принятия входных данных, только заданные примитивы безопасного открытия"
+        ]
+      },
+      "ownerDecision": "accepted_for_assigned_source_slice"
+    },
+    {
+      "id": "R2b-check-receipt",
+      "scope": "One question: does this changed validation accept only the controller-bound capability receipt (absolute path, digest, length, version, deny-probe)? The ref is pinned in controller authority and matched across report start/closure before this fragment. R2a reviews the reader independently: it rejects symlink traversal/non-regular files and caps reads at 16 MiB. Do not re-audit the reader or whole trust architecture.",
+      "selections": [
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py",
+          41,
+          44
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py",
+          438,
+          477
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+          499,
+          517
+        ]
+      ],
+      "sourcePins": {
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py",
+          "sha256": "c1b96e780599eeb95a96cad28e3e056f38f4803ec1e0c28ac094bb6f00d6de54",
+          "bytes": 31328
+        },
+        "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+          "sha256": "f043ec73945dd82955d1073342b852f56e3d8f33507dcab530327170b913c316",
+          "bytes": 46084
+        }
+      },
+      "orderRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R2b-check-receipt/order.json",
+        "sha256": "2a8e9ee04e9e4ae159aee6677e8acdbc08c3d7627abd50fd9c743296943bffbe",
+        "bytes": 2868
+      },
+      "receiptRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R2b-check-receipt/receipt.json",
+        "sha256": "3be2990e054aebe2520c3dbd3f9fd43be7328fd0995705fa9fcb4420b50cc014",
+        "bytes": 770
+      },
+      "receipt": {
+        "exitCode": 0,
+        "elapsedSeconds": 102.58,
+        "inputRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R2b-check-receipt/input.txt",
+          "sha256": "c03184a50e6323fb8f0b54a88c709ba9c938ec9ecfa9cdc5459b457eefd44229",
+          "bytes": 6707
+        },
+        "rawRef": {
+          "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R2b-check-receipt/stdout.jsonl",
+          "sha256": "fbd92397d225cff8eb4084ef7a4d89632597d8df69adecb45e85771262850c6a",
+          "bytes": 90159
+        },
+        "sourceUnchanged": true,
+        "sourceCommit": "8f83d35482fa318e2f83146402c1bbf565e3273a",
+        "model": "claude-opus-5-5",
+        "effort": "high",
+        "localProxy": "http://127.0.0.1:8317"
+      },
+      "reviewRef": {
+        "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/.centurion/review-split-20261018/R2b-check-receipt/review.json",
+        "sha256": "52d7ada62481f60c098db45e64155322e4f10e23bd6d2cdd8faf74d76aaf8f91",
+        "bytes": 2861
+      },
+      "review": {
+        "verdict": "ACCEPT",
+        "summary": "Проверка действительно принимает только controller-bound capability-квитанцию: ref обязан иметь ровно поля {path, sha256, bytes}; path — строка и абсолютный (строка 461); sha256 — 64 lowercase-hex (строки 42, 464); bytes — int в диапазоне (0, 1 MiB] и затем сверяется с фактической длиной (строки 462, 468); содержимое читается один раз и сверяется по digest (строка 468), после чего парсится строгим JSON и проверяются version = CENTURION_NO_TOOLS_REPORT_V1 и точный deny-probe (status=passed, toolsDenied, mcpDisabled, hooksDisabled, isolatedConfig, productUnchanged) (строки 474–476). Дополнительно ref сверяется с report start/closure (строки 441–443), а сам startRef проходит проверку длины/дайджеста (строки 448–454). В пределах заданного вопроса дефектов, влияющих на корректность или безопасность, не выявлено.",
+        "findings": [],
+        "limitations": [
+          "Пиннинг ref в controller mission authority и равенство capabilityRef между report start/closure приняты по условию задачи; код authority-привязки не предоставлен и не переаудировался.",
+          "Свойства внешнего чтения (отказ symlink/non-regular, лимит 16 MiB) — зона R2a; здесь не перепроверялись. Тест на symlink (regression_result_gateway_v3.py:510–515) лишь подтверждает отказ, но его реализация относится к reader.",
+          "Семантика _lexical_path, _read_bytes, _control_path и strict_json_load_bytes (в т.ч. обработка NUL/URI-подобных форм пути и дубликатов ключей JSON) не предоставлена и не оценивалась.",
+          "Прямое чтение стартового отчёта _json(repo, Path(report[\"startRef\"][\"path\"])) на строке 440 выполняется до проверки startRef на строках 448–454; порядок чтения/верификации вне заданного вопроса и не квалифицирован как дефект из-за отсутствия кода _json/_control_path.",
+          "Весь остальной trust architecture и требование нахождения квитанции вне product workspace (разрешено downstream-дельтой) не переаудировались."
+        ]
+      },
+      "ownerDecision": "accepted_for_assigned_source_slice"
+    }
+  ],
+  "remainingTasks": [
+    {
+      "id": "R4a-result-ownership",
+      "status": "planned_not_launched",
+      "question": "Do these instructions consistently reserve canonical result creation for Gateway and keep reviewer artifacts within the assigned scope?",
+      "inputs": [
+        [
+          "skills/orchestrator/SKILL.md",
+          14,
+          36
+        ],
+        [
+          "skills/reviewer/SKILL.md",
+          7,
+          10
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/SKILL.md",
+          7,
+          10
+        ]
+      ],
+      "acceptance": "No worker finalizer/canonical write, no implicit legacy dispatch, filesChanged=[] for review, predecessor bindings are not out-of-scope artifacts."
+    },
+    {
+      "id": "R4b-proof-and-correction",
+      "status": "planned_not_launched",
+      "question": "Are negative review/proof outcomes and correction authorization consistent with the result validator?",
+      "inputs": [
+        [
+          "skills/orchestrator/SKILL.md",
+          43,
+          57
+        ],
+        [
+          "skills/reviewer/SKILL.md",
+          12,
+          17
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          671,
+          704
+        ],
+        [
+          "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py",
+          2406,
+          2455
+        ]
+      ],
+      "acceptance": "Only executed proof is reported, failing proof is not relabelled pass/done, a failed check cannot authorize an automatic product retry."
+    }
+  ],
+  "ownerConclusion": "P6 MIME, external reader/binding and recovery integration slices accepted. Worker instruction source review remains incomplete. No confirmed fixes from completed slices; N8 remains unaccepted.",
+  "proofBoundary": "This run reviewed source only. Prior runtime regressions were not rerun; production code and live homes were not changed. CLI success and source slice acceptance do not approve deployment."
+}

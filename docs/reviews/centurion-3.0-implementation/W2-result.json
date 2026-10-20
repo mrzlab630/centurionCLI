@@ -1,0 +1,236 @@
+{
+  "resultVersion": "AGENT_RESULT_JSON_V1",
+  "orderId": "centurion-v3-W2",
+  "executor": "codex",
+  "status": "done",
+  "summary": "W2 tunnel/admission implemented at base 2b332e5 on feat/centurioncli/v3-tunnel. Strict 3.0 ingress/adapters, derived review projections/binding, bounded capture and protocol-failure/no-replay behavior are covered by focused offline regressions. Root remains final acceptor; no commit or installation performed.",
+  "filesChanged": [
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/references/agent-result.schema.json",
+      "action": "modified",
+      "sha256": "c3c3fbc96486184a8c373359fe24558d8f7558a1ee445be631f1b6832e49c66a"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py",
+      "action": "modified",
+      "sha256": "379490d923a84eea963bbd63a881b8f623b3c86fd3c529e581c9d5e0dbed06af"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_result_builder.py",
+      "action": "modified",
+      "sha256": "3f00daa1c459729a26481a54bff840b321fa6c0bf4b18943dd64b843be275c74"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/order_preflight.py",
+      "action": "added",
+      "sha256": "a4a1bf78aaa7c623064eb9c20c8c85c32c4092a7f413135ec0b4675dde27b637"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_result_builder.py",
+      "action": "modified",
+      "sha256": "acd1967c10cfa5e4482e30362b9c34d729d644d90b7072d0523d52d9c6950ae1"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_order_preflight.py",
+      "action": "added",
+      "sha256": "bf88615cccb90ce29d5d2158e5bb25a4c563075090417ca229741bf2af095ad3"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_response_envelope.py",
+      "action": "modified",
+      "sha256": "faf58996e85fac5c2c40e068b1b096630eea13705ebabf5fc4aa160a59bc541d"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+      "action": "added",
+      "sha256": "7c9573c68ca761e6cc6ecb91226112abf9903c81c46d5ee5a56cbd4760b4f1ee"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/response_envelope.py",
+      "action": "modified",
+      "sha256": "ba0122665c498e23cdf89ea69011b3dcd75c88ee0eda15c4e8fb905365479dd0"
+    },
+    {
+      "path": "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
+      "action": "modified",
+      "sha256": "4b262766e23aa8a46a9403000efcf12269add261043d2c17d677cd45ccc5cf38"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W2.diff",
+      "exists": true,
+      "type": "implementation-diff",
+      "note": "W2 bounded implementation/proof artifact",
+      "mediaType": "text/plain",
+      "sha256": "03e0d6f503ad014e2e502aa94893832eaa9c90cbc032013c72e3b25db08537f6"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W2_changed_files.json",
+      "exists": true,
+      "type": "proof-evidence",
+      "note": "W2 bounded implementation/proof artifact",
+      "mediaType": "application/json",
+      "sha256": "697aed8110ea8b1b42b73f3367e141cc478b517be2bb181fb97270834d0e45a8"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W2_syntax.log",
+      "exists": true,
+      "type": "proof-evidence",
+      "note": "W2 bounded implementation/proof artifact",
+      "mediaType": "text/plain",
+      "sha256": "910cfb2f227228069179d48390fe04d42faea1ecd4559ed973918be5eb51c1fd"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W2_preflight.log",
+      "exists": true,
+      "type": "proof-evidence",
+      "note": "W2 bounded implementation/proof artifact",
+      "mediaType": "text/plain",
+      "sha256": "10d64fb8c7588be358765bbc7b943fa27d86aaae149fe283e8498d6153d77979"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W2_envelope.log",
+      "exists": true,
+      "type": "proof-evidence",
+      "note": "W2 bounded implementation/proof artifact",
+      "mediaType": "text/plain",
+      "sha256": "049e647ede36e81668c66696ae6eb99c164db88b02aa1e6522f5d2b8fc460f2a"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W2_builder.log",
+      "exists": true,
+      "type": "proof-evidence",
+      "note": "W2 bounded implementation/proof artifact",
+      "mediaType": "text/plain",
+      "sha256": "68f4d2a0a3c9299e58d7a60032cb0369c3c26146fbb2444d607bb1b2b076fc94"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W2_gateway_v3.log",
+      "exists": true,
+      "type": "proof-evidence",
+      "note": "W2 bounded implementation/proof artifact",
+      "mediaType": "text/plain",
+      "sha256": "d4e41816359ef8f3e2b233c39d214a4b99486f275bea7c87d20e7dde15fa33f0"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W2_inputs.log",
+      "exists": true,
+      "type": "proof-evidence",
+      "note": "W2 bounded implementation/proof artifact",
+      "mediaType": "text/plain",
+      "sha256": "f2dfea9eb8d553b11472dcf672c13331cc9564bdd3119fa87c7043efa87881bc"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W2_inputs_gateway.log",
+      "exists": true,
+      "type": "proof-evidence",
+      "note": "W2 bounded implementation/proof artifact",
+      "mediaType": "text/plain",
+      "sha256": "bb7e83dd73f5076c0631aeb6d939a2b91c02f7970d7543f98e8883a89faa819c"
+    },
+    {
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/W2_gateway_legacy.log",
+      "exists": true,
+      "type": "proof-evidence",
+      "note": "W2 bounded implementation/proof artifact",
+      "mediaType": "text/plain",
+      "sha256": "cdb2e040fe06a12b831318bfbaff7d61ada92bd604f59801c5e2e145e7f058ea"
+    }
+  ],
+  "proof": [
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_order_preflight.py",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-tunnel",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "Legacy planner fixtures plus strict V1/version/transport, prompt argv, namespace, selected environment and policy-context rejection.",
+      "logPath": "/tmp/centurion-v3-implementation-hjr_gs82/W2_preflight.log"
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_response_envelope.py",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-tunnel",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "Exact raw/fence parsing and raw/canonical custody; derived review schema and Claude structured_output/dual candidate/stale identity rejection; legacy direct adapters.",
+      "logPath": "/tmp/centurion-v3-implementation-hjr_gs82/W2_envelope.log"
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_agent_result_builder.py",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-tunnel",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "Create-only finalization, strict schema/identity, real failed/blocked preservation and V3 protocol receipts for malformed/oversized raw.",
+      "logPath": "/tmp/centurion-v3-implementation-hjr_gs82/W2_builder.log"
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway_v3.py",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-tunnel",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "Real fake-CLI child proof: valid Codex native projection, Claude structured review pass/fail/blocked/missing/stale, protocol receipts, accepted raw binding, zero replay, bounded stream/frame capture, ENOSPC failure.",
+      "logPath": "/tmp/centurion-v3-implementation-hjr_gs82/W2_gateway_v3.log"
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_accepted_inputs.py",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-tunnel",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "14 accepted-input semantic/custody/path/depth tests passed.",
+      "logPath": "/tmp/centurion-v3-implementation-hjr_gs82/W2_inputs.log"
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_accepted_inputs_gateway.py",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-tunnel",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "Legacy accepted advisory/implementation/review chain and input drift/no-replay regressions passed.",
+      "logPath": "/tmp/centurion-v3-implementation-hjr_gs82/W2_inputs_gateway.log"
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/regression_result_gateway.py",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-tunnel",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "Affected Gateway compatibility regression passed, including timeout/drain, tool loops, capture failures, proof/Loop/lineage, routing, receipt and monitor checks. One complete run; no full runner integration suite.",
+      "logPath": "/tmp/centurion-v3-implementation-hjr_gs82/W2_gateway_legacy.log"
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 - <<'PY'\nimport ast, json, subprocess\nfrom pathlib import Path\nfrom jsonschema import Draft202012Validator\npaths = subprocess.check_output([\"git\",\"diff\",\"--name-only\"],text=True).splitlines() + subprocess.check_output([\"git\",\"ls-files\",\"--others\",\"--exclude-standard\"],text=True).splitlines()\nfor name in paths:\n    if name.endswith(\".py\"): ast.parse(Path(name).read_bytes(),filename=name)\nDraft202012Validator.check_schema(json.loads(Path(\"integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/references/agent-result.schema.json\").read_bytes()))\nsubprocess.run([\"git\",\"diff\",\"--check\"],check=True)\nPY",
+      "cwd": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-tunnel",
+      "status": "pass",
+      "exitCode": 0,
+      "summary": "All 9 changed/added Python files parsed; canonical Draft 2020-12 schema valid; git diff --check passed.",
+      "logPath": "/tmp/centurion-v3-implementation-hjr_gs82/W2_syntax.log"
+    }
+  ],
+  "selfReview": {
+    "performed": true,
+    "findings": [],
+    "fixesApplied": [
+      "Corrected new schema guard and native-output fixtures after focused failures.",
+      "Verified every changed file is within the five W2 modules, their directly related regressions, or the authorized canonical result schema.",
+      "Checked raw/order/candidate binding, failure receipts, create-only writes, partial capture and disabled report recovery."
+    ]
+  },
+  "scopeDeviations": [],
+  "forbiddenPatternHits": [],
+  "remainingRisks": [
+    "W3 must make active dispatch policy-required and Gateway-only, reject direct/new legacy dispatch, bind controller context to its authoritative mission/task/product-attempt state, reserve launches atomically before spawn, and enforce budget/deadline/cancellation/30-second closure reserve and TERM <=10s. W2 does not confer authority from a context field. Compatibility paths without policy context remain legacy until W3 entrypoint integration.",
+    "Exact W2 context interface: order.context contains exactly one object with policyVersion=\"3.0\". Terminal-review context additionally contains reviewBinding with exactly reviewedOrderId, reviewedResultSha256 and productSnapshotSha256; it must name exactly one inputResults entry. W3 must compute and recheck the product snapshot digest from its controller-owned snapshot before dispatch and acceptance; W2 verifies the immutable binding and author echo, not live product-snapshot authorship.",
+    "W3 should consume closure.canonicalFinalized=false plus closure.protocolFailure (path/hash) as protocol failure/unknown effect without an executor result. Canonical result and controller acceptance are absent on this path. An existing start/candidate/protocol receipt blocks repeated product dispatch. Budget and restart state remain W3-owned, including ENOSPC/incomplete closure recovery.",
+    "Report-only recovery is intentionally disabled: protocol receipts explicitly set enabled=false and productReplayAllowed=false because no proven no-write capability exists. No report child or product replay is launched. Accepted-input verification rejects a reporting/protocol-failure chain until a separately authorized and proven reporting integration exists.",
+    "Root runner integration needs: call order_preflight.plan_order/validate_tunnel_launch as appropriate; allow --output-schema in the existing advisory validate_codex_launch option allowlist. Current advisory validator rejects that flag before the W2 native projection check. agent_contract_runner.py was not edited.",
+    "Root must reconcile validate_claude_launch with the W1 no-legacy-fallback policy: the base runner requires --fallback-model claude-opus-5, so compatibility/native-Claude fixtures use that existing requirement. No model route or fallback was added by W2.",
+    "Native projections are generated by agent_result_builder.native_result_schema from the packaged canonical schema. Strict post-adapter validation passed fake-CLI tests; real provider schema-subset/capability probes and installed runtime readback were not run. Root must prove the intended runtime route under N7; file-candidate mode is available without a native flag.",
+    "Finite limits: order 1 MiB; candidate 4 MiB; stdout 16 MiB; stderr 4 MiB; JSONL/newline-free frame 4 MiB. Overflow retains a bounded prefix marked incomplete, terminates the child group and rejects acceptance. These limits are fixture-tested, not a claim to support larger provider payloads.",
+    "The 3.0 child environment is allowlisted for the selected CLI; unsupported launch env/stdin overrides fail preflight. Host-specific runtime environment requirements outside this explicit allowlist need a bounded compatibility decision, not silent full-environment inheritance.",
+    "No live provider call, installation, production action, full runner integration suite or independent Opus review was performed. Root/independent reviewer acceptance is still required. Existing same-UID custody/race and product-authorship limitations are not removed by this bounded change.",
+    "Heartbeat helper attempted once: ~/.hermes/bin/heartbeat-helper.sh codex centurion-v3-W2 working ... failed with mkdir: Read-only file system at the global heartbeat root. It was not retried or redirected without an assigned heartbeat path; final result and proof artifacts are writable and complete.",
+    "An initial baseline batch passed envelope/builder, then its long Gateway run was interrupted before a completion result was collected. The subsequent complete affected Gateway regression passed. Final focused W2 logs contain only passing checks; no repeated full integration suite was run."
+  ],
+  "questions": [],
+  "errors": [],
+  "stdoutSummary": "10 scoped files changed; syntax/schema/diff-check and 7 affected regression scripts passed. Full diff and per-file SHA-256 manifest are attached. Original order_preflight/regression files were read/copied from centurion-gpt6-main and adapted only in this worktree. No commit.",
+  "stderrSummary": "Earlier new-fixture/schema-guard failures were corrected and focused checks rerun successfully. Global heartbeat directory is read-only; recorded as a limitation."
+}

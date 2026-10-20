@@ -1,0 +1,36 @@
+{
+  "review": "claude-review-1/review.json",
+  "findings": [
+    {
+      "id": "F1",
+      "disposition": "not_reproduced",
+      "reason": "Native if branch appends error and does not enter chained elif text branch; native_override=False has no production caller. Added native-missing-valid-text rejection and unselected companion-text regression; both pass.",
+      "proof": "gateway-regression.log"
+    },
+    {
+      "id": "F2",
+      "disposition": "partial_improvement",
+      "reason": "Absolute pinned bwrap argv cannot silently fall through to Claude when sandbox spawn/mount fails. Existing child check rejects nonzero exit. Added os.access X_OK for CLI/sandbox before launch reservation to avoid spending a turn on changed execute permissions; no fallback existed.",
+      "proof": "regression_result_gateway_v3.py real bwrap synthetic-profile write-denial and nonexecutable-CLI case"
+    },
+    {
+      "id": "F3",
+      "disposition": "not_reproduced",
+      "reason": "Authority digest checked before task loop; allowedActions membership checked for every task before accepted branch. Actual accepted advisory tamper rejected with stale hash, and still rejected when digest recomputed.",
+      "proof": "f3-adjudication.json"
+    },
+    {
+      "id": "F4",
+      "disposition": "confirmed_and_fixed",
+      "reason": "Malformed prior preservedInstruction ranges could bypass managed audit and accumulate previous wrapper in custom prefix. Reproduced before fix. Shared validator now enforces canonical markers, nonempty body and preserved-region boundaries for both upgrade/audit. Migration record claim inaccurate; new current wrapper was always inserted.",
+      "proof": "installer_migration-result.json reviewResolution; installer 10 tests"
+    },
+    {
+      "id": "F5",
+      "disposition": "partial_confirmed_and_fixed",
+      "reason": "Foreign hostname and nonempty userinfo already rejected. Empty userinfo http://@localhost:8317 was admitted; now require username/password is None and reject whitespace before normalized parsing; cases tested.",
+      "proof": "regression_order_preflight.py"
+    }
+  ],
+  "releaseReadiness": "blocked by exhausted/incomplete N7; no live install"
+}

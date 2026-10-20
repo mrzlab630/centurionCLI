@@ -1,9 +1,15 @@
-# Source this before non-interactive Claude Code proxy runs.
-# Copy to a private shell snippet if your local proxy values differ.
+# Claude CLI always uses the owner's local proxy; no public-endpoint fallback.
+# Supply the owner's configured values in the launcher environment. A service or
+# noninteractive subprocess must not assume that ~/.bashrc has exported them.
+: "${ANTHROPIC_BASE_URL:?Set the configured local proxy URL}"
+export ANTHROPIC_BASE_URL
 
-export ANTHROPIC_BASE_URL="${ANTHROPIC_BASE_URL:-http://127.0.0.1:8317}"
-export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-proxy}"
-export ANTHROPIC_DEFAULT_OPUS_MODEL="${ANTHROPIC_DEFAULT_OPUS_MODEL:-claude-opus-5}"
-export ANTHROPIC_DEFAULT_SONNET_MODEL="${ANTHROPIC_DEFAULT_SONNET_MODEL:-claude-sonnet-5}"
-export ANTHROPIC_DEFAULT_HAIKU_MODEL="${ANTHROPIC_DEFAULT_HAIKU_MODEL:-claude-haiku-4-5-20251001}"
-export NO_PROXY="${NO_PROXY:-127.0.0.1,localhost}"
+# The Gateway preserves ANTHROPIC_BASE_URL in the Claude child environment and
+# supplies --model from the approved routing.model (or report capability route).
+# ANTHROPIC_DEFAULT_OPUS_MODEL may remain in the owner's interactive shell for
+# the opus alias; it is neither required nor inherited by Gateway children.
+# This example does not launch a child, change configuration, or supply credentials.
+# The local proxy requires no password or Anthropic account login.
+# Not logged in before API activity: inspect the child environment and CLI mode.
+# --bare has a separate client-side API-key/apiKeyHelper requirement; validate the
+# selected mode through the proxy rather than prompting the owner to use /login.

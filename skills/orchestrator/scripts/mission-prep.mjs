@@ -59,7 +59,18 @@ const skills = roots.flatMap((root) => fs.readdirSync(root, { withFileTypes: tru
     };
   }));
 
-const keywords = [...new Set(task.toLowerCase()
+const lower = task.toLowerCase().replace(
+  /(?<![\p{L}\p{N}_])(?:no|without|do not|don't|без|не)\s+(?!only\b|только)[^,;.!?\n]*?(?=\s+(?:but|and|however|но|а|и)\s+|[,;.!?\n]|$)/gu,
+  ' ',
+);
+
+function matchesTerm(text, term) {
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const suffix = /[а-яё]/u.test(term) ? '[\\p{L}]*' : '(?:s|es|ing|ed)?';
+  return new RegExp(`(?<![\\p{L}\\p{N}_])${escaped}${suffix}(?![\\p{L}\\p{N}_])`, 'u').test(text);
+}
+
+const keywords = [...new Set(lower
   .replace(/[^a-z0-9а-яё_\-\s]/giu, ' ')
   .split(/\s+/)
   .filter((word) => word.length >= 4))];
@@ -72,7 +83,7 @@ const skillAliases = {
   security: ['security', 'безопас', 'секрет', 'secret', 'mcp', 'supply', 'dependency', 'vulner'],
   reviewer: ['review', 'ревью', 'code review', 'diff', 'pr', 'pre merge', 'bug risk'],
   researcher: ['research', 'изуч', 'github', 'repo', 'docs', 'web', 'докум'],
-  coder: ['code', 'код', 'implement', 'реализ', 'feature', 'api', 'endpoint', 'исправь код'],
+  coder: ['code', 'код', 'implement', 'реализ', 'feature', 'api', 'endpoint', 'исправь код', 'fix', 'bug'],
   refactorer: ['refactor', 'рефактор', 'cleanup', 'tech debt', 'техдолг', 'без изменения поведения'],
   documenter: ['readme', 'docs', 'documentation', 'документац', 'jsdoc', 'api docs'],
   'error-handler': ['debug', 'stack trace', 'logs', 'логи', 'crash', 'runtime', 'root cause', 'flaky'],
@@ -96,10 +107,8 @@ const skillAliases = {
 };
 
 function aliasScore(skillName, lowerTask) {
-  return (skillAliases[skillName] || []).reduce((sum, alias) => sum + (lowerTask.includes(alias) ? 2 : 0), 0);
+  return (skillAliases[skillName] || []).reduce((sum, alias) => sum + (matchesTerm(lowerTask, alias) ? 2 : 0), 0);
 }
-
-const lower = task.toLowerCase();
 
 const scored = skills.map((skill) => ({
   ...skill,
@@ -124,8 +133,9 @@ const routeRules = [
   ['pictor', ['open design', 'open-design', 'landing page', 'лендинг', 'html prototype', 'create dashboard', 'revise dashboard', 'создать интерфейс', 'изменить интерфейс', 'реализовать интерфейс']],
   ['aedilis', ['ui', 'ux', 'interface', 'интерфейс', 'layout', 'shadcn', 'radix', 'dashboard', 'form', 'table']],
   ['praeco', ['telegram api', 'bot api', 'mini apps sdk', 'grammy', 'callback_data', 'telegram payments']],
+  ['pontifex', ['docker', 'infrastructure', 'infra', 'deploy', 'ci', 'postgres', 'postgresql', 'database', 'db', 'база', 'базы', 'бд', 'миграци']],
   ['orator', ['twitter', 'reddit', 'social', 'посты', 'posts', 'thread', 'caption', 'hashtags']],
-  ['indagator', ['seo', 'keyword', 'schema', 'sitemap', 'serp', 'organic', 'search visibility']],
+  ['indagator', ['seo', 'keyword', 'schema markup', 'schema.org', 'sitemap', 'serp', 'organic', 'search visibility']],
   ['aleator', ['gamification', 'геймификац', 'streak', 'achievement', 'retention mechanics', 'motivation']],
   ['mercator', ['marketing', 'growth', 'campaign', 'funnel', 'positioning', 'go-to-market']],
   ['augur', ['phantom1225', 'scamnet', 'dump timing', 'sniper', 'bonding curve']],
@@ -135,9 +145,9 @@ const routeRules = [
   ['error-handler', ['debug', 'stack trace', 'logs', 'логи', 'crash', 'runtime', 'root cause']],
   ['architect', ['architecture', 'архитект', 'system design', 'adr', 'module boundary']],
   ['researcher', ['research', 'изучи', 'изуч', 'docs', 'github', 'repo', 'web']],
-  ['coder', ['code', 'код', 'implement', 'реализ', 'fix code', 'исправь код', 'api', 'endpoint']],
+  ['coder', ['code', 'код', 'implement', 'реализ', 'fix code', 'исправь код', 'api', 'endpoint', 'fix', 'bug']],
   ['tester', ['test', 'coverage', 'eval', 'проверк', 'qa', 'тест']],
-  ['reviewer', ['review', 'code review', 'diff', 'pr', 'bug risk', 'ревью кода']],
+  ['reviewer', ['review', 'code review', 'diff', 'pr', 'bug risk', 'ревью кода', 'проверить код', 'проверь код']],
   ['security', ['security', 'secret', 'vulner', 'mcp', 'install', 'supply', 'безопас', 'защит']],
   ['context-optimizer', ['context', 'context window', 'token budget', 'token load', 'skill surface', 'memory', 'контекст', 'навык', 'скил']],
   ['skill-quartermaster', ['findskills', 'external skill', 'install skill', 'new skill']],
@@ -145,7 +155,7 @@ const routeRules = [
 ];
 
 let legionaries = routeRules
-  .filter(([, terms]) => terms.some((term) => lower.includes(term)))
+  .filter(([, terms]) => terms.some((term) => matchesTerm(lower, term)))
   .map(([name]) => name);
 
 function prioritize(items, owner) {
@@ -156,21 +166,27 @@ const openDesignProductionIntent = [
   'open design', 'open-design', 'landing page html', 'html prototype',
   'создать лендинг', 'создать интерфейс', 'изменить интерфейс',
   'реализовать интерфейс', 'revise dashboard', 'create dashboard'
-].some((term) => lower.includes(term));
+].some((term) => matchesTerm(lower, term));
 const uxArchitectureIntent = [
   'ux', 'visual review', 'design brief', 'дизайн бриф', 'спроектировать',
   'информационная архитектура', 'user flow'
-].some((term) => lower.includes(term));
+].some((term) => matchesTerm(lower, term));
+const reviewIntent = ['review code', 'code review', 'review diff', 'review pr', 'проверить код', 'проверь код']
+  .some((term) => matchesTerm(lower, term));
+const testIntent = /(?<![\p{L}\p{N}_])(?:add|write|create|implement|добавить|написать|создать)\s+(?:(?:unit|integration|e2e|regression|модульные|интеграционные)\s+)?(?:tests?|тест[\p{L}]*)(?![\p{L}\p{N}_])/u.test(lower);
 
 if (openDesignProductionIntent) legionaries = prioritize(legionaries, 'pictor');
 else if (uxArchitectureIntent) legionaries = prioritize(legionaries, 'aedilis');
+else if (reviewIntent) legionaries = prioritize(legionaries, 'reviewer');
+else if (testIntent) legionaries = prioritize(legionaries, 'tester');
+else if (legionaries.includes('pontifex')) legionaries = prioritize(legionaries, 'pontifex');
 
-const guardianHardTerms = ['install', 'mcp', 'secret', 'wallet', 'prod', 'cloud', 'external', 'curl', 'npx', 'безопас', 'security', 'supply', 'vulner', 'опас'];
+const guardianHardTerms = ['install', 'mcp', 'secret', 'wallet', 'prod', 'production', 'cloud', 'external', 'curl', 'npx', 'безопас', 'security', 'supply', 'vulnerability', 'опас', 'database', 'postgresql', 'migration', 'миграци'];
 const guardianRiskContext = /(risk|risky|риск)/.test(lower)
   && /(skill|capability|ability|install|mcp|external|способн|навык|скил|установ)/.test(lower);
 const guardianTokenContext = /token/.test(lower)
   && /(api|access|auth|secret|credential|env|ключ|секрет|доступ)/.test(lower);
-const guardianNeeded = guardianHardTerms.some((term) => lower.includes(term))
+const guardianNeeded = guardianHardTerms.some((term) => matchesTerm(lower, term))
   || guardianRiskContext
   || guardianTokenContext;
 

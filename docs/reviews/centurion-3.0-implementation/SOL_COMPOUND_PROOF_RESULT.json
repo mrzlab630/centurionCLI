@@ -1,0 +1,428 @@
+{
+  "artifacts": [
+    {
+      "exists": true,
+      "mediaType": "application/json",
+      "note": "A25 commands/outputs/counters and the resolved pre-A27 harness preparation error",
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/observations.json",
+      "sha256": "fc7f7e354ce67842d3eeb4256ff27e06ef679bac92fdd2e2d59b7c9412e01270",
+      "type": "offline-proof-evidence"
+    },
+    {
+      "exists": true,
+      "mediaType": "application/json",
+      "note": "Actual Gateway A27 primary/auxiliary PIDs, commands/outputs, restart states, canary and cleanup",
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/observations-a27.json",
+      "sha256": "1733e857e03e2a77a54fbaf7f109f97a412aae12ebb68ad6a19faccd6a9b306e",
+      "type": "offline-proof-evidence"
+    },
+    {
+      "exists": true,
+      "mediaType": "application/json",
+      "note": "Full source hashes before the A25 proof",
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/source-hashes-before.json",
+      "sha256": "be8dc0fb5814357402fdf37f775bcfcb2dc59594a2d8e5981744de07cec21f7f",
+      "type": "offline-proof-evidence"
+    },
+    {
+      "exists": true,
+      "mediaType": "application/json",
+      "note": "Full source hashes after A25; unchanged",
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/source-hashes-after.json",
+      "sha256": "be8dc0fb5814357402fdf37f775bcfcb2dc59594a2d8e5981744de07cec21f7f",
+      "type": "offline-proof-evidence"
+    },
+    {
+      "exists": true,
+      "mediaType": "application/json",
+      "note": "Full source hashes before A27; identical to A25",
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/source-hashes-before-a27.json",
+      "sha256": "be8dc0fb5814357402fdf37f775bcfcb2dc59594a2d8e5981744de07cec21f7f",
+      "type": "offline-proof-evidence"
+    },
+    {
+      "exists": true,
+      "mediaType": "application/json",
+      "note": "Full source hashes after A27; unchanged",
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/source-hashes-after-a27.json",
+      "sha256": "be8dc0fb5814357402fdf37f775bcfcb2dc59594a2d8e5981744de07cec21f7f",
+      "type": "offline-proof-evidence"
+    },
+    {
+      "exists": true,
+      "mediaType": "application/json",
+      "note": "Current read-only source hashes at report finalization; root must compare after concurrent changes",
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/source-hashes-final-readback.json",
+      "sha256": "be8dc0fb5814357402fdf37f775bcfcb2dc59594a2d8e5981744de07cec21f7f",
+      "type": "offline-proof-evidence"
+    },
+    {
+      "exists": true,
+      "mediaType": "application/json",
+      "note": "Readback assertions, exact run counts, observed signal records and proof boundaries",
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/final-evidence-checks.json",
+      "sha256": "183b28c2ebd402a34c6e948046b9aed39fa19af566c6ae80800318df2339ff2d",
+      "type": "offline-proof-evidence"
+    },
+    {
+      "exists": true,
+      "mediaType": "text/plain",
+      "note": "Initial harness source including the pre-A27 directory collision; A25 was not rerun",
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/initial-harness.py",
+      "sha256": "d0cc7e65d59697bc0936bcbb9be54f06a4d03a957299eab324caf883d7580d35",
+      "type": "offline-proof-evidence"
+    },
+    {
+      "exists": true,
+      "mediaType": "text/plain",
+      "note": "Disposable harness with A27-only continuation",
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/compound_proof.py",
+      "sha256": "a0e04ffb4bad1a3e15ab8e05dbf5115d9b3e6ed297c8bf811ddc1faa18e04274",
+      "type": "offline-proof-evidence"
+    },
+    {
+      "exists": true,
+      "mediaType": "text/plain",
+      "note": "Deterministic fake native CLI, no provider/network calls",
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/codex",
+      "sha256": "f871f657fdd4c4f12835910941bb4987bc9a995b41b5eabf05376f5431e1fb0b",
+      "type": "offline-proof-evidence"
+    },
+    {
+      "exists": true,
+      "mediaType": "text/plain",
+      "note": "Unchanged local/interface integration check and bounded auxiliary proof process",
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/checks.py",
+      "sha256": "1f4b30f4b9fb2c87c17a981bbdcbde48ee26909522ec99159db758b2bcccbf63",
+      "type": "offline-proof-evidence"
+    },
+    {
+      "exists": true,
+      "mediaType": "text/plain",
+      "note": "Unregistered local process canary, with explicit signal recording and stop-file cleanup",
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/foreign_canary.py",
+      "sha256": "6e43e32c3041c3635bca6427a4ae6002238fe063c05b0ee7e971dd42a2b5046d",
+      "type": "offline-proof-evidence"
+    },
+    {
+      "exists": true,
+      "mediaType": "application/json",
+      "note": "SHA-256 inventory of all disposable scripts, output logs, specs, raw custody, mission snapshots and evidence files before finalization",
+      "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/evidence-manifest.json",
+      "sha256": "9fdc1647d8c553a12b028dce697a15e79b9fe250a98ad1ffc4ec3541ede0ff4f",
+      "type": "offline-proof-evidence"
+    }
+  ],
+  "errors": [
+    "Resolved disposable harness preparation error: FileExistsError before the first A27 Gateway launch. Evidence is preserved in observations.json. A25 was not rerun; A27-only continuation passed. No runtime defect observed."
+  ],
+  "executor": "codex",
+  "filesChanged": [
+    {
+      "action": "added",
+      "path": "/home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/docs/reviews/centurion-3.0-implementation/SOL_COMPOUND_PROOF_RESULT.json"
+    }
+  ],
+  "forbiddenPatternHits": [],
+  "orderId": "centurion-v3-compound-proof-20261016",
+  "proof": [
+    {
+      "command": "/usr/bin/python3 /home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py --order /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/.centurion/agents_results/gateway-a25-incompatible-b/order.json --complete-mission /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/a25-incompatible-final-proof-input.json --project-revision a25-incompatible-fixture-bytes",
+      "cwd": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7",
+      "evidencePath": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/observations.json",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "observations": {
+        "acceptedEvidenceHashes": {
+          "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/.centurion/agents_results/gateway-a25-incompatible-a/controller-acceptance.json": "71958dc8db615b76e466d03cc064a21b0b9e166fbbfe15a10ecf2470663157ee",
+          "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/.centurion/agents_results/gateway-a25-incompatible-a/result.json": "f16b84c9a193ced6b0b6a14d433c13cb664e2fd7a8df2a3328c17f65d95bb009",
+          "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/.centurion/agents_results/gateway-a25-incompatible-b/controller-acceptance.json": "fadb41678f393ffb664589962b196cf25aac838fe026d0c2e3890249fc131ce5",
+          "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/.centurion/agents_results/gateway-a25-incompatible-b/result.json": "5277fb037f9e5d887a5e74344644a37c90108f0f46a4f33636d3e70d06b383e5"
+        },
+        "acceptedTasks": {
+          "a": "accepted",
+          "b": "accepted"
+        },
+        "case": "a25-incompatible",
+        "completion": null,
+        "completionExitCode": 1,
+        "criterionAndProofHashesUnchanged": true,
+        "integrationTrace": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/.centurion/agents_results/gateway-a25-incompatible-a/check-trace.jsonl",
+        "missionStatus": "verifying",
+        "modelLaunchesUsed": 2,
+        "passed": true,
+        "productAttemptsUsed": {
+          "a": 1,
+          "b": 1
+        },
+        "productSnapshot": {
+          "files": [
+            {
+              "bytes": 16,
+              "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/a25-incompatible/a.json",
+              "sha256": "424f99cadeb122fa898be92a5aacb8b36cc7425cdad0fd609d68e3aba8c080d3"
+            },
+            {
+              "bytes": 17,
+              "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/a25-incompatible/b.json",
+              "sha256": "648f2583dc982fe208d6eda6721434e6f21cbad4c797a4ea207ae96e81d907eb"
+            }
+          ],
+          "sha256": "8d3cb2aab5d7501b14953ff1d5b51a2d09bc7f8a2f0279c3f375fb9dba744a7e"
+        },
+        "requirement": "A25",
+        "statePath": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/a25-incompatible/mission-state.json"
+      },
+      "sourceHashesMatchBeforeAfter": true,
+      "status": "pass",
+      "stderr": "error: final integration proof failed: /usr/bin/python3 /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/checks.py slice-a /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/a25-incompatible/a.json /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/a25-incompatible/b.json /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/.centurion/agents_results/gateway-a25-incompatible-a/check-trace.jsonl\n",
+      "stdout": "",
+      "summary": "PASS expected rejection: two individually Gateway-accepted tasks; declared assembled-interface check returned 41 and actual complete_mission returned 1. Mission remains verifying, completion absent; accepted task state/evidence, product bytes and counters (launches=2; attempts=1+1) unchanged."
+    },
+    {
+      "command": "/usr/bin/python3 /home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py --order /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/.centurion/agents_results/gateway-a25-compatible-b/order.json --complete-mission /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/a25-compatible-final-proof-input.json --project-revision a25-compatible-fixture-bytes",
+      "cwd": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7",
+      "evidencePath": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/observations.json",
+      "exitCode": 0,
+      "expectedExitCode": 0,
+      "observations": {
+        "acceptedEvidenceHashes": {
+          "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/.centurion/agents_results/gateway-a25-compatible-a/controller-acceptance.json": "24a1aeb25b16445270aeecf55d870dca44ea4474f645e5532724804b0d017aee",
+          "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/.centurion/agents_results/gateway-a25-compatible-a/result.json": "7fb789d076a4bda7cf1a7198a8722705e4303b9a58297a94e8cfe6e35bb6ea9c",
+          "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/.centurion/agents_results/gateway-a25-compatible-b/controller-acceptance.json": "6acf5c1f006112eb9f9ad7863a83529587bc5c93f7104789b93cb7e08e6230b4",
+          "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/.centurion/agents_results/gateway-a25-compatible-b/result.json": "ff3453241076ec03fc5a3a98b06319977a1d02a31595c7503863e031ef7b7f10"
+        },
+        "acceptedTasks": {
+          "a": "accepted",
+          "b": "accepted"
+        },
+        "case": "a25-compatible",
+        "completion": {
+          "completedAt": "2026-10-16T18:18:11.304342Z",
+          "projectRevision": "a25-compatible-fixture-bytes",
+          "proof": {
+            "criteria": [
+              "a contains a valid named interface",
+              "b contains a valid named interface"
+            ],
+            "productSnapshotSha256": "23d33a3159b80923a6ab3703984564e34fcf64385243f82fdf965a8cc313acbd",
+            "proof": [
+              {
+                "command": "/usr/bin/python3 /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/checks.py slice-a /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/a25-compatible/a.json /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/a25-compatible/b.json /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/.centurion/agents_results/gateway-a25-compatible-a/check-trace.jsonl",
+                "cwd": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7",
+                "exitCode": 0,
+                "required": true,
+                "status": "pass",
+                "summary": "controller observed final integration proof"
+              },
+              {
+                "command": "/usr/bin/python3 /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/checks.py slice-b /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/a25-compatible/a.json /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/a25-compatible/b.json /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/.centurion/agents_results/gateway-a25-compatible-b/check-trace.jsonl",
+                "cwd": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7",
+                "exitCode": 0,
+                "required": true,
+                "status": "pass",
+                "summary": "controller observed final integration proof"
+              }
+            ]
+          },
+          "snapshot": {
+            "files": [
+              {
+                "bytes": 16,
+                "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/a25-compatible/a.json",
+                "sha256": "424f99cadeb122fa898be92a5aacb8b36cc7425cdad0fd609d68e3aba8c080d3"
+              },
+              {
+                "bytes": 17,
+                "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/a25-compatible/b.json",
+                "sha256": "edb1dd08d83eabbb94a19eca4698ea818a5c131d278720ee916bcda680873635"
+              }
+            ],
+            "sha256": "23d33a3159b80923a6ab3703984564e34fcf64385243f82fdf965a8cc313acbd"
+          }
+        },
+        "completionExitCode": 0,
+        "criterionAndProofHashesUnchanged": true,
+        "integrationTrace": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/.centurion/agents_results/gateway-a25-compatible-a/check-trace.jsonl",
+        "missionStatus": "completed",
+        "modelLaunchesUsed": 2,
+        "passed": true,
+        "productAttemptsUsed": {
+          "a": 1,
+          "b": 1
+        },
+        "productSnapshot": {
+          "files": [
+            {
+              "bytes": 16,
+              "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/a25-compatible/a.json",
+              "sha256": "424f99cadeb122fa898be92a5aacb8b36cc7425cdad0fd609d68e3aba8c080d3"
+            },
+            {
+              "bytes": 17,
+              "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/a25-compatible/b.json",
+              "sha256": "edb1dd08d83eabbb94a19eca4698ea818a5c131d278720ee916bcda680873635"
+            }
+          ],
+          "sha256": "23d33a3159b80923a6ab3703984564e34fcf64385243f82fdf965a8cc313acbd"
+        },
+        "requirement": "A25",
+        "statePath": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-qdk2zti7/a25-compatible/mission-state.json"
+      },
+      "sourceHashesMatchBeforeAfter": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "{\"missionId\": \"a25-compatible\", \"status\": \"completed\"}\n",
+      "summary": "PASS same fixture positive control: matching v1/v1 bytes; actual complete_mission returned completed/0 after rerunning both unchanged required proof commands. No extra project build."
+    },
+    {
+      "command": "/usr/bin/python3 /home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py --order /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/.centurion/agents_results/gateway-a27-primary-cutoff/order.json --candidate /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/.centurion/agents_results/gateway-a27-primary-cutoff/candidate.json --candidate-source file --start-receipt /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/.centurion/agents_results/gateway-a27-primary-cutoff/start.json --closure /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/.centurion/agents_results/gateway-a27-primary-cutoff/closure.json --evidence-dir /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/.centurion/agents_results/gateway-a27-primary-cutoff/evidence --events /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/.centurion/agents_results/gateway-a27-primary-cutoff/events.jsonl --termination-grace-seconds 0.2 --schema /home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/references/agent-result.schema.json",
+      "cwd": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv",
+      "evidencePath": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/observations-a27.json",
+      "exitCode": 124,
+      "expectedExitCode": 124,
+      "observations": {
+        "acceptanceReceipt": null,
+        "actualGatewayMain": true,
+        "auxiliaryControllerProof": false,
+        "cancelled": false,
+        "case": "a27-primary-cutoff",
+        "foreignCanaryAliveAndNoSignals": true,
+        "foreignCanaryPid": 3,
+        "gatewayExitCode": 124,
+        "intentStatus": "unknown_effect",
+        "launchCountBeforeAndAfterRestart": 1,
+        "missionStatus": "blocked",
+        "modelLaunchesUsed": 1,
+        "originalDeadlineAt": "2026-10-16T18:19:44.469291+00:00",
+        "ownedIdentity": {
+          "bootId": "074f9441-5551-4734-8b9e-d7ccf31cb374",
+          "pid": 6,
+          "startTicks": "198601020"
+        },
+        "ownedIdentityAfter": null,
+        "ownedProcessStopped": true,
+        "passed": true,
+        "processStoppedState": true,
+        "productAttemptsUsed": 1,
+        "productSnapshot": {
+          "files": [
+            {
+              "bytes": 32,
+              "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/a27-primary-cutoff/product.txt",
+              "sha256": "b95e5dd2d2a2c85f3ff04618be4d34eb1d9bdb89b5dfb9be92216908ccb573b5"
+            }
+          ],
+          "sha256": "3d0f74464861a415c56e2fde345a42c38348074c7a6538d036d4b0412c532dce"
+        },
+        "requirement": "A27",
+        "restartExitCode": 1,
+        "signalLog": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/.centurion/agents_results/gateway-a27-primary-cutoff/owned-signals.jsonl",
+        "statePath": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/a27-primary-cutoff/mission-state.json",
+        "stopDeadlineAt": "2026-10-16T18:19:44.469291+00:00",
+        "trigger": "actual wall-clock cutoff"
+      },
+      "sourceHashesMatchBeforeAfter": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "{\"canonicalFinalized\": false, \"closurePath\": \"/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/.centurion/agents_results/gateway-a27-primary-cutoff/closure.json\", \"receiptPath\": \"/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/.centurion/agents_results/gateway-a27-primary-cutoff/evidence/protocol-failure.json\", \"status\": \"protocol_failure\"}\n",
+      "summary": "PASS actual Gateway main across real work cutoff (~5.1s): owned primary SIGTERM/stopped, exit 124; blocked/unknown_effect, no acceptance and canonicalFinalized=false. Restart returned 1/unknown_effect/replayAllowed=false; state/product/counters unchanged, launches=1."
+    },
+    {
+      "command": "/usr/bin/python3 /home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py --order /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/.centurion/agents_results/gateway-a27-proof-cancel/order.json --candidate /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/.centurion/agents_results/gateway-a27-proof-cancel/candidate.json --candidate-source file --start-receipt /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/.centurion/agents_results/gateway-a27-proof-cancel/start.json --closure /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/.centurion/agents_results/gateway-a27-proof-cancel/closure.json --evidence-dir /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/.centurion/agents_results/gateway-a27-proof-cancel/evidence --events /tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/.centurion/agents_results/gateway-a27-proof-cancel/events.jsonl --termination-grace-seconds 0.2 --schema /home/mrz/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/references/agent-result.schema.json",
+      "cwd": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv",
+      "evidencePath": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/observations-a27.json",
+      "exitCode": 1,
+      "expectedExitCode": 1,
+      "observations": {
+        "acceptanceReceipt": {
+          "canonicalResultSha256": "0c0f9bde92e80f0a8259e288a40f68c68cd2fb8b03a2cb65c54e40cbd88cf9fa",
+          "closureSha256": "176fd788018171c37d226f2ae74dd4b20d6783a80cecf7f841317a12c34861f4",
+          "completedAt": "2026-10-16T18:19:16.131245Z",
+          "lineageAnchorSha256": null,
+          "orderId": "gateway-a27-proof-cancel",
+          "orderSha256": "4be7e129038fb9d42eaa964f3baa8dc4377be0944f984ff063a202cbb9c64f48",
+          "proofReceiptSha256": "d52f7b0c2a7af5045d3cc9431b0403d3590f7dd8b47982ee89d3f0032a7ffef1",
+          "reason": "controller proof incomplete",
+          "runId": "bd42bb06ecaf02bc13f504902c7126c613e2a4f070f9aee40b7b85e28e905f08",
+          "startReceiptSha256": "510eca07088da140578eceda0c613c0c2a81f3ec36d633c313471889c7bf4cff",
+          "status": "rejected",
+          "version": "AQUILA_CONTROLLER_ACCEPTANCE_V1"
+        },
+        "actualGatewayMain": true,
+        "auxiliaryControllerProof": true,
+        "cancelled": true,
+        "case": "a27-proof-cancel",
+        "foreignCanaryAliveAndNoSignals": true,
+        "foreignCanaryPid": 3,
+        "gatewayExitCode": 1,
+        "intentStatus": "rejected",
+        "launchCountBeforeAndAfterRestart": 1,
+        "missionStatus": "stopped",
+        "modelLaunchesUsed": 1,
+        "originalDeadlineAt": "2026-10-16T18:21:15.229698+00:00",
+        "ownedIdentity": {
+          "bootId": "074f9441-5551-4734-8b9e-d7ccf31cb374",
+          "pid": 12,
+          "startTicks": "198601600"
+        },
+        "ownedIdentityAfter": null,
+        "ownedProcessStopped": true,
+        "passed": true,
+        "processStoppedState": true,
+        "productAttemptsUsed": 1,
+        "productSnapshot": {
+          "files": [
+            {
+              "bytes": 32,
+              "path": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/a27-proof-cancel/product.txt",
+              "sha256": "b95e5dd2d2a2c85f3ff04618be4d34eb1d9bdb89b5dfb9be92216908ccb573b5"
+            }
+          ],
+          "sha256": "a8e3f8e42e862ad71bd241588e6e90fb8de81b76d1a34f36a4a9bf304365400f"
+        },
+        "requirement": "A27",
+        "restartExitCode": 1,
+        "signalLog": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/.centurion/agents_results/gateway-a27-proof-cancel/proof-signals.jsonl",
+        "statePath": "/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/a27-proof-cancel/mission-state.json",
+        "stopDeadlineAt": "2026-10-16T18:19:46.022305+00:00",
+        "trigger": "Gateway SIGTERM"
+      },
+      "sourceHashesMatchBeforeAfter": true,
+      "status": "pass",
+      "stderr": "",
+      "stdout": "{\"controllerVerification\": \"rejected\", \"lineage\": null, \"path\": \"/tmp/centurion-v3-implementation-hjr_gs82/compound-proof/result-gateway-regression-7fkextyv/.centurion/agents_results/gateway-a27-proof-cancel/result.json\", \"resultStatus\": \"done\", \"status\": \"closed\"}\n",
+      "summary": "PASS actual Gateway main during auxiliary controller proof: SIGTERM to Gateway after proof PID was persisted; owned proof SIGTERM/stopped, exit 1; stopped/cancelled/rejected, rejected acceptance receipt. Captured executor done result remains unaccepted. Restart returned 1/rejected/replayAllowed=false; state/product/counters unchanged, launches=1."
+    }
+  ],
+  "questions": [],
+  "remainingRisks": [
+    "Offline fixture proof only; does not establish N7, release acceptance, real providers/installers/deployments or high-risk approval gates. No full or unrelated suite was run.",
+    "Root must compare all recorded source hashes with concurrent worker changes. All 16 recorded source/schema paths were stable during this proof; the evidence applies to those exact bytes.",
+    "One independent local canary in a separate session; alive/no signals during Gateway activity; stop-file cleanup and wait/reap.",
+    "Cutoff deliberately leaves the owned stopped primary intent unknown_effect/unaccepted because no canonical result was produced. This is preserved uncertainty, not a completion claim."
+  ],
+  "resultVersion": "AGENT_RESULT_JSON_V1",
+  "scopeDeviations": [],
+  "selfReview": {
+    "findings": [
+      "The first harness attempt had a disposable fixture directory collision; it did not modify product source and its completed A25 evidence was retained.",
+      "A25 incompatible mission ended in verifying rather than completed and retained accepted slices/counters; this is the required bounded rejection, not release acceptance.",
+      "A27 auxiliary Gateway emitted a rejected controller acceptance receipt; receipt presence is not treated as accepted success because its status is rejected.",
+      "A proof checks standalone export if B is absent and matching interfaces if B is present. This exact command was declared before slices and rerun by complete_mission with both files. B proof checks its own import. No proof/criterion/scope/authority change after slice acceptance.",
+      "All four case bodies ran once. The initial A27 directory collision occurred before order creation or Gateway launch; only the two A27 cases were continued. A25 commands were not repeated.",
+      "Observed source hashes match before/after every command and both batches. Product source, plan, other reports and previous evidence were not edited.",
+      "Readback verified the declared integration trace exit 41/0, every accepted A25 intent field except appended proof PIDs, unchanged A27 restart state, exact owned SIGTERM logs, and signal-free canary cleanup."
+    ],
+    "fixesApplied": [
+      "Removed the duplicate directory mkdir from the disposable A27 harness; continuation writes separate observations-a27.json and retains initial observations.",
+      "Final result proof entries contain the exact executed CLI commands and expected negative-case exit codes; no unrun schema command is claimed."
+    ],
+    "performed": true,
+    "schemaValidation": "Draft202012Validator against existing references/agent-result.schema.json in finalize_result.py; all artifact digests also read back."
+  },
+  "status": "done",
+  "stderrSummary": "Expected A25 negative-case stderr: final integration proof failed (declared check exit 41). Other Gateway/runner commands had empty stderr. Initial harness traceback was FileExistsError during A27 fixture preparation, corrected only under /tmp.",
+  "stdoutSummary": "A25 incompatible: two Gateway accepted slices; complete_mission exit 1 with final integration proof failed and no completion. A25 compatible: complete_mission exit 0, status completed. A27 primary: Gateway exit 124, mission blocked, intent unknown_effect, owned PID stopped, restart exit 1 and launch count remained 1. A27 auxiliary: Gateway exit 1, mission stopped/cancelled, intent rejected, owned proof PID stopped, rejected receipt status rejected, restart exit 1 and launch count remained 1. Foreign canary had no signals.",
+  "summary": "Bounded offline proof passed for A25 and A27 using the actual policy-3.0 runner and Result Gateway with deterministic local fake native CLI/processes. A25 incompatible accepted slices were retained while complete_mission rejected the declared integration proof; compatible bytes completed as a positive control. A27 actual Gateway primary cutoff and SIGTERM during auxiliary controller proof stopped the owned PID, prevented acceptance/completion and restart replay, and never signalled a foreign canary."
+}

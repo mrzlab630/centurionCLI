@@ -1,0 +1,11 @@
+{
+  "worker": "centurion-v3-integration",
+  "status": "controller_interrupted_before_result",
+  "processExitCode": 143,
+  "productChangesPreserved": true,
+  "canonicalWorkerResultAvailable": false,
+  "reportedHung": false,
+  "clarification": "Root stopped the CLI while it was still correcting regressions. No evidence of runtime deadlock was established; no completion claim is accepted.",
+  "successor": "centurion-v3-finish-runtime",
+  "log": "/tmp/centurion-v3-implementation-hjr_gs82/INTEGRATION_LOG.txt"
+}

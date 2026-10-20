@@ -1,0 +1,41 @@
+{
+  "baseCommit": "71d2b9327901a9ac9ea2464fc663345f5c45c847",
+  "candidateCommit": "444bb851505fa5e027afc28edc181c74cfc131ee",
+  "inputHashes": {
+    "docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md": "3af4c35493fbd80f8739c0916c64a5e77b374f4e8a0f4eaae34c3741bb48750a",
+    "integrations/hermes-legion-kit/scripts/smoke.mjs": "2707a766b02b7cb85d47ba14e753b14daa9f366d2e573ad0227f7d2d3d03adb3",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/accepted_inputs.py": "e475fd9e73d400042f6a0d4bfda1160ac45b920f5b4b774852d4df602eec0789",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_contract_runner.py": "c62e97fb3dfa6bd9864b7d99baf5461427b24db00bd34337fe3033624e953a33",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/agent_result_builder.py": "3f00daa1c459729a26481a54bff840b321fa6c0bf4b18943dd64b843be275c74",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/attempt_ledger.py": "8da168685969ab3634dcea15002e4101e13b48e7cfe7ac5b87b94462a34eda1c",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/blocker_packet_projection.py": "d07dceecf0455e6422680c0f9bff7ae60fb41326f828816c1ae04c3398d5b809",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/execution_state.py": "9f8ff49b79e2ec5c995b0bb48c0e88ea66a31c68ab78167c58b8c763007c9a7d",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/order_preflight.py": "8f4311bdb74303146f373ee7c6a4d4936e399a0cb505644666d90705fff76926",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/progress_drift_detector.py": "57e97fed6a95b50184ce0c7de31cbbc32c55fdeaa1c2979a51ca9c0b7a1f7eee",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/response_envelope.py": "ba0122665c498e23cdf89ea69011b3dcd75c88ee0eda15c4e8fb905365479dd0",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py": "c81dce148d74e4010ba5b109de558ab5dc68b6c66c8000ff0196d02c758c3f15",
+    "integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/review_ladder.py": "aaeaf5af9772d9f4c32ec84efec9a323e0a58a1fe41e6eac3893e4535a461705",
+    "scripts/install-owned-files.mjs": "4915dc07852f6d3eba57a1ca8fce04edbf732a06cae12bd4bc4158952e0cc745",
+    "skills/orchestrator/scripts/mission-prep.mjs": "44b8e12f192e461f958c7da672d3043cc1e720cd518bacdb31dedd841d43bfc6"
+  },
+  "context": {
+    "ExecutionDecision": {
+      "taskClass": "integrated_candidate_review",
+      "complexity": "high",
+      "risk": "medium",
+      "ambiguity": "high",
+      "reversibility": "high",
+      "evidenceNeed": "high",
+      "executor": "claude",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "high",
+      "executionProfile": "read_only_terminal_review",
+      "verificationProfile": "root_acceptance",
+      "confidence": "high",
+      "reasons": [
+        "Independent review of completed Sol implementation and concrete final source bytes."
+      ]
+    }
+  },
+  "scope": "Final supplied code; no tools, mutations, external delegation or release approval."
+}
