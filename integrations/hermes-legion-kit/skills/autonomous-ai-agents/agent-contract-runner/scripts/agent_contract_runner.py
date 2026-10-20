@@ -9,6 +9,7 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 import secrets
 import select
 import shlex
@@ -16,7 +17,6 @@ import signal
 import subprocess
 import sys
 import tempfile
-import tomllib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -384,6 +384,16 @@ def canonical_proof_argv(proof: dict[str, Any], label: str, *, required: bool) -
     return argv_value
 
 
+def parse_reasoning_effort_scalar(raw_value: str) -> str:
+    """Parse only the bounded scalar accepted by Codex routing metadata."""
+    value = raw_value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        value = value[1:-1]
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,16}", value):
+        raise RunnerError("Codex model_reasoning_effort must be a bounded scalar")
+    return value
+
+
 def validate_codex_launch(command: str, model: str, effort: str, *, advisory: bool = False) -> tuple[str, str] | None:
     """Bind the recorded route to the CLI invocation before either dispatcher starts."""
     try:
@@ -473,12 +483,7 @@ def validate_codex_launch(command: str, model: str, effort: str, *, advisory: bo
         if advisory and key != "model_reasoning_effort":
             raise RunnerError("Astra advisory launch permits only the reasoning effort config override")
         if key == "model_reasoning_effort":
-            raw_value = raw_value.strip()
-            try:
-                parsed_value = tomllib.loads(f"value = {raw_value}")["value"]
-            except tomllib.TOMLDecodeError:
-                parsed_value = raw_value
-            efforts.append(parsed_value if isinstance(parsed_value, str) else "")
+            efforts.append(parse_reasoning_effort_scalar(raw_value))
     if models != [model] or efforts != [effort]:
         raise RunnerError("Codex launch.command --model and -c model_reasoning_effort must match routing.model and routing.reasoningEffort exactly")
     if advisory:
