@@ -3,7 +3,7 @@
   "date": "2026-10-20",
   "productVersion": "3.0.0-rc.2",
   "branch": "feat/centurioncli/v3-implementation",
-  "head": "e43e4ad",
+  "head": "0fcdd16",
   "workingTree": "clean after release commit",
   "status": "prepared_pending_capability_refresh",
   "adapterPath": "/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",

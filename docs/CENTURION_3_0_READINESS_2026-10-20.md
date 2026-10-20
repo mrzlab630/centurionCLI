@@ -1,7 +1,7 @@
 # CENTURION 3.0 readiness — 2026-10-20
 
 Candidate: `3.0.0-rc.2` on `feat/centurioncli/v3-implementation`.
-Release commit `e43e4ad` contains the bounded-capture fix in
+Release commit `0fcdd16` contains the bounded-capture fix in
 `integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py`.
 
 ## Completed in this continuation
