@@ -3,9 +3,9 @@
   "date": "2026-10-20",
   "productVersion": "3.0.0-rc.2",
   "branch": "feat/centurioncli/v3-implementation",
-  "head": "0fcdd16",
-  "workingTree": "clean after release commit",
-  "status": "prepared_pending_capability_refresh",
+  "sourceReleaseCommit": "0fcdd16",
+  "workingTree": "clean after rollout verification",
+  "status": "installed_and_canary_verified",
   "adapterPath": "/projects/al/centurionCLI/worktrees/centurion-v3-implementation/integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py",
   "adapterSha256": "3afe864194e230bd8730778fe9f5338b6d536595564cbb30feba8a85778a59fe",
   "diffSha256": "2ea86cf347c4d69e13110f4b0e6325c9c904831bf26da348b7d58c8392a9bf20",
@@ -28,13 +28,26 @@
   },
   "capabilityRefresh": {
     "required": true,
-    "performed": false,
-    "reason": "adapter hash changed after prior native probes"
+    "performed": true,
+    "reason": null
   },
   "n8": {
-    "drainPerformed": false,
-    "liveInstallPerformed": false,
-    "canaryPerformed": false
+    "drainPerformed": true,
+    "liveInstallPerformed": true,
+    "canaryPerformed": true,
+    "canaryRecord": ".centurion/n8-real-canary-20261020T132226Z/canary-record.json",
+    "controllerAcceptance": "passed",
+    "controllerProof": "passed",
+    "filesChanged": []
   },
-  "historicalPilotsRerun": false
+  "historicalPilotsRerun": false,
+  "rollback": {
+    "archive": ".centurion/v3-rollout-prep-20261020/installer/owner-preimage-20261020T125211Z.tar.gz",
+    "sha256": "b5eae004561bcc43475c57267367027970d0cd7a0d8a5afec7a1d38558ce9eaf",
+    "backupBatchIds": {
+      "codex": "6c239c56-26f1-4768-8c0b-0025fcde5ac5",
+      "claude": "507a38ac-d2c8-4813-b23c-d10724ff9cde",
+      "hermes": "ca9bbeba-72f9-470f-abd3-475d6b8f4242"
+    }
+  }
 }

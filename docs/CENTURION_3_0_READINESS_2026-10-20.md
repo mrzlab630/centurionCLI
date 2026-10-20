@@ -1,6 +1,6 @@
 # CENTURION 3.0 readiness — 2026-10-20
 
-Candidate: `3.0.0-rc.2` on `feat/centurioncli/v3-implementation`.
+Candidate: `3.0.0-rc.2`, sourced from `feat/centurioncli/v3-implementation`.
 Release commit `0fcdd16` contains the bounded-capture fix in
 `integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contract-runner/scripts/result_gateway.py`.
 
@@ -27,31 +27,30 @@ Offline proof on the current bytes:
 - `syntax-and-diff-check` — PASS
 
 
-Isolated current-source installs passed for Codex, Hermes and Claude, each
-writing a `CENTURION_INSTALLED_CHAIN_V1` manifest with product version
-`3.0.0-rc.2`. No live home was used by these installs.
+The live sequential rollout completed for Codex → Claude → Hermes. Each live
+home now has a `CENTURION_INSTALLED_CHAIN_V1` manifest with product version
+`3.0.0-rc.2`; installed file hashes, modes and effective instruction readback
+passed. Rollback batch IDs are recorded in the rollout preparation receipt.
 
-## Remaining gate before N8
+## N8 rollout result
 
-Status: **prepared_pending_capability_refresh**.
+Status: **installed_and_canary_verified**.
 
-The previous native capability receipts were bound to the old adapter SHA and
-are invalidated by this change. The cutover package contains a new preparation
-namespace under `.centurion/v3-rollout-prep-20261020/installer/`, but its native
-probes were not rerun; those records must not authorize dispatch yet.
+Fresh capability probes passed for the installed Codex, Claude and Hermes
+surfaces against adapter SHA-256
+`3afe864194e230bd8730778fe9f5338b6d536595564cbb30feba8a85778a59fe`.
+The installed Hermes Gateway is running with Telegram and Mattermost connected,
+zero active agents, no active work and no ESTOP marker.
 
-N8 still requires, in order:
+The harmless real-provider Gateway canary passed through the installed Hermes
+Gateway:
 
-1. Fresh maintenance capability probes for every enabled client and fresh
-   evidence hashes against the current adapter.
-2. Version-scoped instruction migration after a targeted backup and preimage
-   check.
-3. External no-new-work drain, service stop only after idle/ingress proof, and
-   sequential Codex → Claude → Hermes installation.
-4. Installed hash/mode/effective-instruction readback and one harmless Gateway
-   canary proving canonical result/controller acceptance.
+- policy version: `3.0`;
+- executor/model: `codex` / `gpt-6.1-sol` (`xhigh`);
+- canonical result: `done`;
+- controller acceptance and proof: `passed`;
+- product files changed: `[]`.
 
-Historical direct-dispatch regression mains remain intentionally excluded from
-3.0; they are not silently relabeled as passing. No live install, service
-restart, drain, production dispatch or canary was performed in this readiness
-pass.
+Evidence: `.centurion/n8-real-canary-20261020T132226Z/canary-record.json` and
+its `controller-acceptance.json` / `controller-proof.json` records. Historical
+direct-dispatch regression mains remain intentionally excluded from 3.0.
