@@ -72,6 +72,7 @@ The default Hermes smoke also runs the packaged Python regressions and remains
 an integration gate after W2/W3 are merged. `--skills-only` reports that gate as
 unrun. Native binary/schema/permission mode, live no-write correction, visual
 capabilities, pilot and independent review remain separate N5/N6/N7/N8 evidence.
-The product stays `3.0.0-rc.2` until the acceptance gates pass. Native kit `1.0.0`
-versions mark the breaking change to explicit selection and conflict-first install;
+The product is `3.0.0-rc.2`; the live rollout and Gateway canary acceptance are
+recorded in [the readiness receipt](docs/CENTURION_3_0_READINESS_2026-10-20.md).
+Native kit `1.0.0` versions mark the breaking change to explicit selection and conflict-first install;
 the canonical JSON contract version remains V1.
