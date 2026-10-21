@@ -1,4 +1,4 @@
-# CENTURION 3.0.0-rc.2
+# CENTURION 3.0.0-rc.3
 
 Release candidate for one team lead, bounded workers and independent findings.
 Implementation is not release or pilot acceptance. The lead completes approved
@@ -9,6 +9,14 @@ Read the [functional contract](skills/orchestrator/SKILL.md),
 [skills/tools decisions](docs/CENTURION_3_0_SKILLS_TOOLS_AUDIT_2026-10-16.md).
 Model and review policy has one runtime owner: controller routing. The plan section
 5 documents it; skills describe functions rather than repeating model policy.
+
+Task complexity and reasoning effort are separate fields. In policyVersion 3.0,
+Luna handles routine, mechanical, bounded low-complexity work with low risk and
+low ambiguity. Its `reasoningEffort` is `high` by default; only `high` and `xhigh`
+are permitted, even for trivial tasks. Those effort values describe reasoning
+depth, never a requirement for high task complexity. Engineering work that the
+controller assigns to Sol cannot use Luna by increasing effort. See the
+[explicit routing instructions and examples](CLAUDE.md).
 
 The existing [surface map](integrations/codex-legion-kit/scripts/lib/surface-config.mjs)
 is the single source for core, domain/on-demand, maintenance and excluded skills.
@@ -72,7 +80,12 @@ The default Hermes smoke also runs the packaged Python regressions and remains
 an integration gate after W2/W3 are merged. `--skills-only` reports that gate as
 unrun. Native binary/schema/permission mode, live no-write correction, visual
 capabilities, pilot and independent review remain separate N5/N6/N7/N8 evidence.
-The product is `3.0.0-rc.2`; the live rollout and Gateway canary acceptance are
-recorded in [the readiness receipt](docs/CENTURION_3_0_READINESS_2026-10-20.md).
+The source package is `3.0.0-rc.3`. The completed live rollout and Gateway canary
+acceptance in [the readiness receipt](docs/CENTURION_3_0_READINESS_2026-10-20.md)
+apply to `3.0.0-rc.2`. The rc.3 Hermes instruction update remains pending:
+the installer dry-run detected a modified installed
+`skills/autonomous-ai-agents/aquila-team-orchestration/SKILL.md` and refused to
+overwrite it. Preserve and reconcile that local change before installation;
+publishing this source package does not establish live rc.3 adoption.
 Native kit `1.0.0` versions mark the breaking change to explicit selection and conflict-first install;
 the canonical JSON contract version remains V1.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.0.0-rc.3 — 2026-10-21
+
+- Clarified the installed instruction template: Luna handles simple, routine, low-risk work; `high` and `xhigh` are reasoning effort settings, not task-complexity requirements. Increasing effort never permits Luna to take work reserved for Sol.
+- Corrected the routing reference example to use `complexity=low` with Luna and removed obsolete Luna `medium` effort guidance.
+- Synchronized product version metadata across the native kits and installer readback expectation; native kit API versions remain `1.0.0`.
+- Recorded that live acceptance remains on rc.2. The rc.3 Hermes update is pending reconciliation of an existing modified orchestration skill; the installer preserves that local change.
+
 ## 3.0.0-rc.2 — 2026-10-20
 
 - Fixed bounded Gateway stdout capture after an oversized frame: later chunks no longer grow the incomplete receipt beyond `MAX_FRAME_BYTES + 65536`.
