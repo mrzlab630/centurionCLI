@@ -92,7 +92,6 @@ const skillAliases = {
   architect: ['architecture', 'архитект', 'module boundary', 'adr', 'system design'],
   aedilis: ['ui', 'ux', 'дизайн', 'interface', 'layout', 'shadcn', 'radix', 'dashboard', 'форма', 'таблица'],
   pictor: ['frontend', 'react', 'vue', 'tailwind', 'css', 'web app', 'landing page', 'лендинг', 'html prototype'],
-  'open-design-producer': ['open design', 'open-design', 'landing page', 'лендинг', 'dashboard', 'прототип', 'screenshot', 'скриншот'],
   praeco: ['telegram api', 'bot api', 'mini apps sdk', 'grammy', 'callback_data', 'telegram payments'],
   ludifex: ['telegram mini app game', 'игра', 'game', 'core loop', 'screen map', 'reward model'],
   nomenclator: ['cta', 'microcopy', 'ux writing', 'ux-writing', 'empty state', 'error state', 'naming', 'назван', 'текст интерфейс'],
@@ -130,7 +129,7 @@ const routeRules = [
   ['ludifex', ['telegram mini app game', 'игра', 'game', 'core loop', 'screen map', 'экраны', 'reward model']],
   ['nomenclator', ['cta', 'microcopy', 'ux writing', 'ux-writing', 'empty state', 'error state', 'naming', 'назван', 'текст интерфейс']],
   ['glossator', ['i18n', 'localization', 'localisation', 'translation', 'translate', 'перевод', 'plural', 'rtl', 'locale']],
-  ['pictor', ['open design', 'open-design', 'landing page', 'лендинг', 'html prototype', 'create dashboard', 'revise dashboard', 'создать интерфейс', 'изменить интерфейс', 'реализовать интерфейс']],
+  ['pictor', ['landing page', 'лендинг', 'html prototype', 'create dashboard', 'revise dashboard', 'создать интерфейс', 'изменить интерфейс', 'реализовать интерфейс']],
   ['aedilis', ['ui', 'ux', 'interface', 'интерфейс', 'layout', 'shadcn', 'radix', 'dashboard', 'form', 'table']],
   ['praeco', ['telegram api', 'bot api', 'mini apps sdk', 'grammy', 'callback_data', 'telegram payments']],
   ['pontifex', ['docker', 'infrastructure', 'infra', 'deploy', 'ci', 'postgres', 'postgresql', 'database', 'db', 'база', 'базы', 'бд', 'миграци']],
@@ -162,11 +161,6 @@ function prioritize(items, owner) {
   return items.includes(owner) ? [owner, ...items.filter((item) => item !== owner)] : items;
 }
 
-const openDesignProductionIntent = [
-  'open design', 'open-design', 'landing page html', 'html prototype',
-  'создать лендинг', 'создать интерфейс', 'изменить интерфейс',
-  'реализовать интерфейс', 'revise dashboard', 'create dashboard'
-].some((term) => matchesTerm(lower, term));
 const uxArchitectureIntent = [
   'ux', 'visual review', 'design brief', 'дизайн бриф', 'спроектировать',
   'информационная архитектура', 'user flow'
@@ -175,8 +169,7 @@ const reviewIntent = ['review code', 'code review', 'review diff', 'review pr', 
   .some((term) => matchesTerm(lower, term));
 const testIntent = /(?<![\p{L}\p{N}_])(?:add|write|create|implement|добавить|написать|создать)\s+(?:(?:unit|integration|e2e|regression|модульные|интеграционные)\s+)?(?:tests?|тест[\p{L}]*)(?![\p{L}\p{N}_])/u.test(lower);
 
-if (openDesignProductionIntent) legionaries = prioritize(legionaries, 'pictor');
-else if (uxArchitectureIntent) legionaries = prioritize(legionaries, 'aedilis');
+if (uxArchitectureIntent) legionaries = prioritize(legionaries, 'aedilis');
 else if (reviewIntent) legionaries = prioritize(legionaries, 'reviewer');
 else if (testIntent) legionaries = prioritize(legionaries, 'tester');
 else if (legionaries.includes('pontifex')) legionaries = prioritize(legionaries, 'pontifex');
