@@ -7,7 +7,7 @@ This is the operational source for Aquila verification routing after the atomic 
 Every order created at or after the cutover contains exactly one compact `notesForExecutor` entry:
 
 ```text
-AQUILA_ROUTING_JSON_V1:{"objectiveId":"stable-id","attempt":1,"taskClass":"routine_implementation","complexity":"medium","risk":"low","ambiguity":"low","reversibility":"high","evidenceNeed":"high","executor":"codex","model":"gpt-6-luna","reasoningEffort":"high","executionProfile":"implementation","verificationProfile":"V2","reviewer":"claude-opus-5-5","confidence":"high","reasons":["independent review is required for this Codex implementation"]}
+AQUILA_ROUTING_JSON_V1:{"objectiveId":"stable-id","attempt":1,"taskClass":"routine_implementation","complexity":"low","risk":"low","ambiguity":"low","reversibility":"high","evidenceNeed":"high","executor":"codex","model":"gpt-6-luna","reasoningEffort":"high","executionProfile":"implementation","verificationProfile":"V2","reviewer":"claude-opus-5-5","confidence":"high","reasons":["independent review is required for this Codex implementation"]}
 ```
 
 The runner rejects missing, duplicate, malformed, non-compact, unknown, or semantically incompatible metadata before dispatch. Orders created before the cutover retain their original contract and do not require this entry.
@@ -47,9 +47,16 @@ closure`. Keep the stages distinct:
   manifest. Only that check closes the chain; prose `ACCEPT` or an advisory
   `reviewer:"none"` field does not.
 
-Routine bounded Codex implementation starts on Luna at `medium`; `none`/`low`
-requires exact mechanical low-complexity work. Use `high` for non-trivial
-implementation, review, or raised evidence/risk needs. Complex,
+Task complexity and reasoning effort are separate fields. Luna is for routine,
+mechanical, clearly bounded work with `complexity: low`, `risk: low`,
+`ambiguity: low`, `reversibility: high` and `confidence: high`. If any of those
+controller fields differs, route engineering work to Sol. Approved read-only
+analysis may use Astra only through its separate advisory route. For Luna,
+`reasoningEffort` is `high` by default, including trivial tasks; only `high` and
+`xhigh` are permitted. These effort values never mean high task complexity or
+authorize Luna to do work reserved for Sol. A low-complexity task with Luna/high
+is valid; a high-complexity task with Luna/xhigh is rejected. The word `high`
+in `reasoningEffort` does not change the `complexity` field. Complex,
 consequential, or long-horizon work requires Sol at least `high`; hard debugging,
 security, architecture, cross-service reasoning, or high ambiguity requires
 Sol at least `xhigh`. The launch must pin one matching model and effort and

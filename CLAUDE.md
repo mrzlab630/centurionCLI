@@ -1,4 +1,4 @@
-# CENTURION 3.0.0-rc.2
+# CENTURION 3.0.0-rc.3
 
 Read [the functional contract](skills/orchestrator/SKILL.md) once for this mission.
 It governs team lead, worker and reviewer behavior. The selected surface and
@@ -19,8 +19,32 @@ the installed orchestrator core and agent-contract-runner adapter where availabl
 load only selected domain recipes for the assigned task. Legacy chapters cannot
 restore a retired route, alternate dispatcher or another controller.
 
-Use the approved exact model/effort pair: gpt-6.1-sol for Sol work, gpt-6-luna
-only at high or xhigh, gpt-6-astra only for read-only advice, and claude-opus-5-5
+Select the model and its reasoning effort as two separate decisions:
+
+- Task suitability: use `gpt-6-luna` only for routine, mechanical, clearly bounded
+  work with `complexity=low`, `risk=low`, `ambiguity=low`, `reversibility=high`
+  and `confidence=high`. This includes simple read-only tasks and simple bounded
+  implementation. Reading alone does not make a complex analysis a Luna task.
+  If any of these controller fields falls outside those values, do not route the
+  implementation to Luna; use `gpt-6.1-sol`. This includes `complexity=medium`
+  as well as `complexity=high`, material uncertainty, consequential work,
+  architecture, security or hard debugging. Approved read-only analysis may use
+  Astra only through its separate advisory route.
+- Luna's reasoning effort: set `reasoningEffort=high` by default, even for trivial
+  tasks; `xhigh` is the only other permitted value. These values describe the
+  model's depth of reasoning, not the task's complexity. Raising Luna's effort
+  never makes it eligible for a task that requires Sol.
+- Example: `complexity=low` plus Luna plus `reasoningEffort=high` is valid for a
+  simple mechanical task. `complexity=high` plus Luna plus
+  `reasoningEffort=xhigh` is invalid; route engineering work to Sol. The word
+  `high` in the effort field does not change the complexity field.
+
+When explaining this policy, say "Luna handles routine, mechanical, low-risk
+tasks with reasoning effort high or xhigh." Never describe Luna as reserved
+for high- or very-high-complexity tasks. Historical Luna `medium` effort guidance
+above does not apply to policyVersion 3.0.
+
+Use `gpt-6-astra` only for read-only advice and `claude-opus-5-5`
 for its approved specialist/reviewer role. No unapproved alternate model,
 external delegation path or legacy model fallback in new 3.0 dispatch. The controller enforces independent review
 pairing and existing risk floors; no self-approval or recursive reviewer.

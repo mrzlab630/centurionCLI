@@ -1,4 +1,4 @@
-# Claude Legion Kit 1.0.0 — CENTURION 3.0.0-rc.2
+# Claude Legion Kit 1.0.0 — CENTURION 3.0.0-rc.3
 
 This native instruction adapter uses the [single functional contract](../../skills/orchestrator/SKILL.md)
 and [load map](../codex-legion-kit/scripts/lib/surface-config.mjs).

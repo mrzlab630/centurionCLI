@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
-export const PRODUCT_VERSION = '3.0.0-rc.2';
+export const PRODUCT_VERSION = '3.0.0-rc.3';
 export const LOAD_MAP = Object.freeze({
   core: ['orchestrator'],
   incorporated: ['planner', 'context-optimizer'],
