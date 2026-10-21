@@ -135,7 +135,8 @@ def open_destination_prefix(root_fd: int, prefix: str) -> int:
         raise
 
 
-def overlay_tree(source: Path, destination_fd: int, destination_prefix: str = '') -> dict[str, dict[str, object]]:
+def overlay_tree(source: Path, destination_fd: int, destination_prefix: str = '',
+                 protected_prefixes: tuple[str, ...] = ()) -> dict[str, dict[str, object]]:
     records: dict[str, dict[str, object]] = {}
 
     def recurse(source_dir: Path, destination_dir_fd: int, prefix: str) -> None:
@@ -143,6 +144,9 @@ def overlay_tree(source: Path, destination_fd: int, destination_prefix: str = ''
             if entry.name in {'node_modules', '__pycache__'} or entry.name.endswith('.pyc'):
                 continue
             relative = f'{prefix}/{entry.name}'.removeprefix('/')
+            if any(relative == protected or relative.startswith(protected + '/')
+                   for protected in protected_prefixes):
+                continue
             info = entry.stat(follow_symlinks=False)
             if stat.S_ISLNK(info.st_mode):
                 raise RuntimeError(f"repo overlay must not contain symlinks: {entry.path}")
@@ -205,8 +209,32 @@ def assert_binding(stage: Stage) -> None:
         os.close(current_fd)
 
 
+def remove_relative(root: Path, relative: str) -> None:
+    """Remove a known package-owned path from a private staging tree."""
+    parts = [part for part in relative.split('/') if part]
+    if not parts or any(part in {'.', '..'} for part in parts):
+        raise RuntimeError(f"invalid managed removal path: {relative}")
+    target = root.joinpath(*parts)
+    cursor = root
+    for part in parts[:-1]:
+        cursor = cursor / part
+        info = os.lstat(cursor)
+        if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+            raise RuntimeError(f"managed removal parent is not a real directory: {relative}")
+    try:
+        info = os.lstat(target)
+    except FileNotFoundError:
+        return
+    if stat.S_ISDIR(info.st_mode) and not stat.S_ISLNK(info.st_mode):
+        shutil.rmtree(target)
+    else:
+        target.unlink()
+
+
 def stage_surface(parent: Path, name: str, overlays: list[tuple[Path, str]], stamp: str,
-                  generated: dict[str, tuple[bytes, int]] | None = None) -> Stage:
+                  generated: dict[str, tuple[bytes, int]] | None = None,
+                  removals: list[str] | None = None,
+                  protected_prefixes: tuple[str, ...] = ()) -> Stage:
     parent_fd, live_fd = open_surface(parent, name)
     staging_name = f'.{name}.centurion-stage-{stamp}-{secrets.token_hex(4)}'
     backup_name = f'.{name}.centurion-backup-{stamp}'
@@ -217,15 +245,31 @@ def stage_surface(parent: Path, name: str, overlays: list[tuple[Path, str]], sta
         copy_tree(f'/proc/self/fd/{live_fd}', staging_fd, live_fd)
         incoming: dict[str, dict[str, object]] = {}
         for overlay, prefix in overlays:
-            incoming.update(overlay_tree(overlay, staging_fd, prefix))
+            incoming.update(overlay_tree(overlay, staging_fd, prefix, protected_prefixes))
         for relative, (content, mode) in (generated or {}).items():
             write_file_at(staging_fd, relative, content, mode)
             incoming[relative] = {"sha256": hashlib.sha256(content).hexdigest(), "mode": mode}
+        for relative in removals or []:
+            remove_relative(parent / staging_name, relative)
+            for incoming_relative in list(incoming):
+                if (incoming_relative == relative.rstrip('/') or
+                        incoming_relative.startswith(relative.rstrip('/') + '/')):
+                    del incoming[incoming_relative]
+            incoming[relative] = {"removed": True}
+        removed_prefixes = tuple(
+            relative.rstrip('/') + '/' for relative in (removals or [])
+        )
         staged = tree_manifest(staging_fd)
         for relative, expected in incoming.items():
-            if staged.get(relative) != expected:
+            if expected.get("removed"):
+                if relative in staged:
+                    raise RuntimeError(f"staged managed removal failed: {parent / name / relative}")
+            elif staged.get(relative) != expected:
                 raise RuntimeError(f"staged repo-wins verification failed: {parent / name / relative}")
         for relative, expected in before.items():
+            if any(relative == removed.rstrip('/') or relative.startswith(removed)
+                   for removed in removed_prefixes):
+                continue
             if relative not in incoming and staged.get(relative) != expected:
                 raise RuntimeError(f"staged local-only preservation failed: {parent / name / relative}")
         return Stage(parent, name, parent_fd, live_fd, staging_fd, staging_name, backup_name,
@@ -283,47 +327,119 @@ def close_stages(stages: list[Stage]) -> None:
                 pass
 
 
+def retire_known_file(home: Path, relative: str, stamp: str, apply: bool) -> str | None:
+    """Retire one explicitly managed artifact while keeping a rollback copy."""
+    target = home / relative
+    try:
+        info = os.lstat(target)
+    except FileNotFoundError:
+        return None
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+        raise RuntimeError(f"managed retirement target is not a regular file: {target}")
+    backup = target.with_name(f'.{target.name}.centurion-backup-{stamp}')
+    if backup.exists():
+        raise RuntimeError(f"managed retirement backup already exists: {backup}")
+    if apply:
+        os.rename(target, backup)
+        fd = os.open(target.parent, DIR_FLAGS)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        return str(backup)
+    return str(backup)
+
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('--repo', required=True)
     parser.add_argument('--hermes-home', required=True)
     parser.add_argument('--agents-home', required=True)
+    parser.add_argument('--claude-home')
     parser.add_argument('--apply', action='store_true')
+    open_design = parser.add_mutually_exclusive_group()
+    open_design.add_argument('--without-open-design', action='store_true')
+    open_design.add_argument('--with-open-design', action='store_true')
     args = parser.parse_args()
     repo = Path(args.repo).resolve()
     hermes = Path(args.hermes_home).resolve()
     agents = Path(args.agents_home).resolve()
+    claude = Path(args.claude_home).resolve() if args.claude_home else None
     stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
     cli_launcher = (
         '#!/bin/sh\n'
         f'exec node {json.dumps(str(repo / "integrations/open-design-bridge/bin/centurion-design.mjs"))} "$@"\n'
     ).encode()
-    definitions = [
-        (hermes, 'skills', [(repo / 'integrations/hermes-legion-kit/skills', ''), (repo / 'skills/open-design-producer', 'autonomous-ai-agents/open-design-producer')], {}),
-        (hermes, 'skill-bundles', [(repo / 'integrations/hermes-legion-kit/skill-bundles', '')], {}),
-        (hermes, 'bin', [(repo / 'integrations/hermes-legion-kit/runtime/bin', '')], {'centurion-open-design': (cli_launcher, 0o755)}),
-        (agents, 'skills', [(repo / 'skills', '')], {}),
+    hermes_overlays = [(repo / 'integrations/hermes-legion-kit/skills', '')]
+    hermes_removals: list[str] = []
+    agents_overlays = [(repo / 'skills', '')]
+    agents_removals: list[str] = [
+        'planner', 'context-optimizer', 'evocate-ad-opus', 'sicarius',
+        'researcher/scripts', 'researcher/test', 'researcher/reports',
+        'researcher/node_modules', 'researcher/package.json', 'researcher/package-lock.json',
     ]
+    generated_bin: dict[str, tuple[bytes, int]] = {}
+    claude_generated: dict[str, tuple[bytes, int]] = {}
+    claude_removals = [
+        'planner', 'context-optimizer', 'open-design-producer', 'evocate-ad-opus', 'sicarius',
+        'researcher/scripts', 'researcher/test', 'researcher/reports',
+        'researcher/node_modules', 'researcher/package.json', 'researcher/package-lock.json',
+    ]
+    without_open_design = not args.with_open_design
+    if not without_open_design:
+        hermes_overlays.append((repo / 'skills/open-design-producer', 'autonomous-ai-agents/open-design-producer'))
+        generated_bin['centurion-open-design'] = (cli_launcher, 0o755)
+    else:
+        hermes_removals.append('autonomous-ai-agents/open-design-producer')
+        agents_removals.append('open-design-producer')
+    if claude:
+        claude_overlays = [(repo / 'skills', ''),
+                           (repo / 'integrations/claude-legion-kit/plugin', 'centurion-legion')]
+        claude_removals.extend([
+            'centurion-legion/scripts/open-design-mcp.mjs',
+            'centurion-legion/scripts/claude-order-guard.mjs',
+            'centurion-legion/agents/evocate-ad-opus.md',
+            'centurion-legion/agents/sicarius.md',
+        ])
+        claude_generated['centurion-legion/.mcp.json'] = (b'{"mcpServers":{}}\n', 0o644)
+    definitions = [
+        (hermes, 'skills', hermes_overlays, {}, [*hermes_removals],
+         ('research', 'devops', 'software-development')),
+        (hermes, 'skill-bundles', [(repo / 'integrations/hermes-legion-kit/skill-bundles', '')], {},
+         ['aquila-design-production.yaml'] if without_open_design else [], ()),
+        (hermes, 'bin', [(repo / 'integrations/hermes-legion-kit/runtime/bin', '')], generated_bin,
+         ['centurion-open-design'] if without_open_design else [], ()),
+        (agents, 'skills', agents_overlays, {}, agents_removals, ()),
+    ]
+    if claude:
+        definitions.append((claude, 'skills', claude_overlays, claude_generated,
+                            claude_removals, ()))
     stages: list[Stage] = []
     try:
-        for parent, name, overlays, generated in definitions:
-            stages.append(stage_surface(parent, name, overlays, stamp, generated))
+        for parent, name, overlays, generated, removals, protected in definitions:
+            stages.append(stage_surface(parent, name, overlays, stamp, generated, removals, protected))
+        retired_config = None
+        if claude:
+            retired_config = retire_known_file(claude, 'centurion/open-design-bridge.json', stamp, False)
         report = {
             'schema': 'CENTURION_DEPLOYMENT_V2',
             'mode': 'apply' if args.apply else 'plan',
             'policy': 'repo-wins-preserve-complete-local-trees',
-            'openDesign': 'cli-only',
+            'openDesign': 'excluded' if without_open_design else 'cli-only',
             'surfaces': [{
                 'path': str(stage.parent / stage.name),
                 'incomingFiles': stage.incoming_count,
                 'protectedLocalFiles': stage.protected_count,
                 'backupPath': str(stage.parent / stage.backup_name) if args.apply else None,
             } for stage in stages],
+            'retiredManagedArtifacts': [retired_config] if retired_config else [],
             'untouchedSurfaces': ['config.yaml', 'SOUL.md', '.env', 'auth.json', 'plugins', 'hooks', 'mcp-servers', 'centurion-config'],
         }
         if args.apply:
             publish(stages)
+            if claude:
+                retire_known_file(claude, 'centurion/open-design-bridge.json', stamp, True)
             report['status'] = 'pass'
         print(json.dumps(report, indent=2))
         return 0
