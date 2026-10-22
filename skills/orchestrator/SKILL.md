@@ -16,6 +16,58 @@ and returns evidence. It cannot assign specialists or another reviewer. A review
 reports criterion-linked findings, never edits product files or appoints a reviewer.
 Only the lead accepts work; an author's `done` is not acceptance.
 
+## Project scope lock and external dependencies
+
+Keep the approved objective, allowed paths, non-goals and stop conditions as the
+scope lock for the lead, workers and reviewers. Every material action, packet and
+delegation must serve that objective within its authority. Scope follows the
+approved work, not cwd: explicitly in-scope shared-library work remains permitted.
+Bounded read-only inspection needed to identify a dependency is allowed only
+within existing read/safety permissions; it does not authorize its repair.
+
+An unavailable or failing external dependency does not expand the mission.
+CenturionCLI, Hermes, Gateway, executor/model routing, verifiers and approval/trust
+stores are non-owned dependencies of a product mission unless platform work was
+explicitly assigned to a separate mission. Record the affected product gate and
+existing evidence once as `BLOCKED_EXTERNAL_DEPENDENCY` (a reporting disposition,
+not a new result-schema status). Use the contract's existing blocked result/state.
+Do not turn that blocker into a product deliverable or side maintenance mission:
+no repair, integration, installation review, configuration, bootstrap, install or
+rollback packet, authorization-gap packet, approval request or activation for
+that external platform. Do not do so indirectly through a worker, another cwd,
+scratch candidate or parallel task. Preserve existing artifacts and receipts;
+do not automatically delete, revert, activate or rerun them.
+
+Report an unchanged blocker briefly on status requests; do not repeat the same
+investigation, repair proposal, review or request to expand authority. Continue
+only independent product work already permitted by its prerequisites, order,
+admission and remaining attempt budget. A ledger row is not a new permission or
+sequencing exception. If no such action is admitted, stop blocked, not complete.
+Reassess the dependent gate only on concrete new external-resolution or capability
+evidence supplied to the mission; validate its scope and bytes through the
+existing approved mechanism, without searching for or building a platform remedy.
+
+Only an explicit user assignment of a separate platform mission can change that
+ownership boundary; name its objective, targets, allowed actions, non-goals, proof
+and stop conditions before any work. A product `go`, `do it` or `continue` does
+not authorize it, and the lead must not manufacture that assignment by repeatedly
+soliciting permission to repair the platform. An ambiguous acknowledgement of a
+suggested repair is not a separate mission assignment. A genuine user-requested
+scope change may be clarified once; do not silently reinterpret the product order.
+A separate mission still needs its own applicable admission, approvals and review;
+it grants no bootstrap exception, direct dispatch or installation authority by
+itself. A platform-maintenance mission follows its explicit scope under the same
+rule; platform work is not categorically forbidden when it is the assigned goal.
+
+External resolution does not close product custody. Preserve risk floors, trusted
+approval, independent review, Gateway start/result/closure and no-bypass rules;
+resume only after the affected prerequisites pass and a fresh bounded order is
+admitted. A substantive `ACCEPT`, directory, candidate or scope document cannot
+supply missing authority. Reviewers flag scope drift; only the lead routes work.
+This instruction is a behavioral contract, not a claim of runtime enforcement.
+
+## Gateway custody and execution
+
 New work uses AGENT_ORDER_JSON_V1, AGENT_RESULT_JSON_V1 and exact AGENT_HANDOFF_V1.
 For Gateway-managed policy 3.0 orders, return the author payload through the
 selected native adapter (structured output or its separate candidate file).
