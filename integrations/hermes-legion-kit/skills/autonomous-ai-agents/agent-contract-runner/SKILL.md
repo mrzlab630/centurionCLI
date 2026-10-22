@@ -7,6 +7,27 @@ description: Canonical contract validation and Gateway adapter.
 
 New orders use AGENT_ORDER_JSON_V1 and exact AGENT_HANDOFF_V1; results use AGENT_RESULT_JSON_V1. For policyVersion 3.0, workers return the author payload through the selected native adapter; `outputContract.resultPath` is Gateway-exclusive and workers never write it or invoke a finalizer. Legacy file-output contracts remain validation-only compatibility for existing non-3.0 orders and are not new dispatch authority. Only scripts/result_gateway.py creates the 3.0 canonical result and controller receipts and launches new 3.0 children; scripts/agent_contract_runner.py is shared validation. Preserve raw/final bytes and verify identity, typed arrays, hashes, paths and proof. Progress or exit zero is not acceptance. Model/effort policy is owned by controller routing. Historical contracts are validation-only, never automatic new dispatch.
 
+## Reporting V3 admission blockers
+
+In the checked rc.3 runner, `V3_APPROVAL_UNAVAILABLE` and
+`V3 remains disabled without trusted approval verifier` report that no trusted
+V3 verifier is wired into dispatch. V3 is denied even when the order declares
+`specialistGate.approved=true`. Creating a directory, adding an approval-looking
+file, setting a path or restarting the same code cannot implement the verifier.
+
+This installed baseline defines no default `/etc/centurion/v3-approvals` store.
+A separately developed offline verifier candidate may declare such a directory;
+identify that candidate and its installation state instead of calling the path a
+missing CenturionCLI installation file. Verify the actual consuming code before
+claiming a later version uses any store. A candidate review, operator message or
+path existence does not itself satisfy trusted V3 admission.
+
+Report substantive review, formal Gateway custody, V3 admission and downstream
+project gates separately. Project gate labels are not standard CLI commands.
+Keep the V3 risk floor, mandatory custody and no-direct-CLI-bypass rule intact;
+verifier implementation, installation and operator approval require their own
+authorized scope. This explanatory text changes no admission or permission.
+
 Workers remain bounded; reviewers report findings and never edit product or assign
 another reviewer. Core authority and mission budgets override recipe examples.
 

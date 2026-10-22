@@ -35,6 +35,18 @@ another dispatch path. Read accepted state after restart before continuing; neve
 replay product actions to repair reporting. Report correction stays disabled
 without the required no-write capability receipt.
 
+Report V3 capability separately from approval and review custody. In the checked
+rc.3 baseline, no trusted V3 verifier is wired into dispatch, so V3 is denied;
+`V3_APPROVAL_UNAVAILABLE` is not an instruction to create a file. That baseline
+has no default `/etc/centurion/v3-approvals` store. A separate offline candidate
+may declare that directory, but its review does not install or activate it.
+Check the actual installed consumer and source identity before attributing a
+store requirement to any release. A directory, operator message, path setting
+or restart alone cannot supply the missing implementation or trusted admission.
+Substantive review, formal Gateway custody, V3 admission and project gate labels
+remain distinct; preserve risk floors, required custody and no-bypass rules.
+This clarification grants no new implementation, installation or live authority.
+
 For new policy 3.0 model work use `launch.timeoutSeconds: null` and mission
 `budget.deadlineAt: null` unless the owner explicitly requested a finite limit.
 Observe the existing Gateway process/events periodically (normally every 30 seconds).
