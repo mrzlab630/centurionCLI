@@ -86,7 +86,7 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
 ''')
         cli.chmod(0o755)
 
-        def stage(name: str, mode: str = "valid", *, profile="V0", original=None, capability=None, monitored=False) -> dict:
+        def stage(name: str, mode: str = "valid", *, profile="V0", original=None, capability=None, monitored=False, launch_budget=8) -> dict:
             paths = fixture.make_case("v3-" + name, "valid")
             order = fixture.read_json(Path(paths["order"]))
             if monitored:
@@ -130,7 +130,7 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
                     authority["reportCapabilityRef"] = capability
                 initialize_mission({"policyVersion":"3.0", "missionId":"mission-"+name, "workspace":str(fixture.ROOT), "strategyId":"initial",
                     "authority":authority,
-                    "budget":{"maxModelLaunches":8, **({} if monitored else {"deadlineAt":(datetime.now(timezone.utc)+timedelta(seconds=300)).isoformat()})},
+                    "budget":{"maxModelLaunches":launch_budget, **({} if monitored else {"deadlineAt":(datetime.now(timezone.utc)+timedelta(seconds=300)).isoformat()})},
                     "tasks":{"task":{"objective":order["objective"], "acceptanceCriteria":order["acceptanceCriteria"], "allowedPaths":[str(product)],
                         "productPaths":[str(product)], "dependencies":[], "maxProductAttempts":3, "verificationProfile":profile,
                         "requiredProof":order["proofCommands"], "expectedArtifacts":[]}}}, state_path)
@@ -455,7 +455,15 @@ result={"resultVersion":"AGENT_RESULT_JSON_V1","orderId":p["order"]["orderId"],"
 "remainingRisks":[],"questions":[],"errors":[],"stdoutSummary":"","stderrSummary":"","handoff":p["handoff"]}
 for artifact in result["artifacts"]:
  if artifact["path"].endswith(".txt"): artifact["mediaType"]="text/plain"
-print(json.dumps({"type":"result","subtype":"success","is_error":False,"permission_denials":[],"structured_output":result,"modelUsage":{"claude-opus-5-5":{}}}))
+scenario=Path(__file__).with_name("scenario.json")
+rule=json.loads(scenario.read_text()).get(p["order"]["orderId"],{}) if scenario.exists() else {}
+attempt_file=Path(__file__).with_name(p["order"]["orderId"]+".count")
+attempt=int(attempt_file.read_text())+1 if attempt_file.exists() else 1
+attempt_file.write_text(str(attempt))
+if attempt<=rule.get("invalidAttempts",0):
+ result.pop("proof")
+ result["summary"]="same invalid report" if rule.get("repeatInvalid") else "invalid report "+str(attempt)
+print(json.dumps({"type":"result","subtype":"success","is_error":False,"permission_denials":[],"structured_output":result,"modelUsage":{"claude-opus-5-5":{"outputTokens":attempt}}}))
 ''')
         report_cli.chmod(0o755)
         settings = root / "settings.json"
@@ -646,6 +654,165 @@ print(json.dumps({"type":"result","subtype":"success","is_error":False,"permissi
         else: raise AssertionError("recovery must retain original malformed raw binding")
         Path(recovery["candidate"]).write_bytes(raw)
         print("PASS report recovery before/after durable observation, canonical create-only/candidate equality, two launches/one product/one report, downstream binding and restricted synthetic secret marker")
+
+        def report_case(name, *, invalid=0, repeat=False, budget=8, capability=True, profile="V0"):
+            cap_ref = None
+            if capability:
+                fresh = root / name
+                fresh.mkdir()
+                fresh_scratch = fresh / "scratch"
+                fresh_scratch.mkdir()
+                fresh_cap = fresh / "capability.json"
+                fixture.write_json(fresh_cap, dict(fixture.read_json(cap_path), scratchDir=str(fresh_scratch)))
+                cap_ref = _mission_file_ref(fresh_cap)
+            case = stage(name, "malformed", capability=cap_ref, monitored=True, launch_budget=budget, profile=profile)
+            case_order = fixture.read_json(Path(case["order"]))
+            scenario_path = report_cli.with_name("scenario.json")
+            rules = fixture.read_json(scenario_path) if scenario_path.exists() else {}
+            rules[case_order["orderId"]] = {"invalidAttempts": invalid, "repeatInvalid": repeat}
+            fixture.write_json(scenario_path, rules)
+            initial = fixture.run_gateway(case)
+            assert initial.returncode != 0 and not Path(case["result"]).exists(), initial.stderr
+            return case
+
+        def recover(case, *extra):
+            return subprocess.run(fixture.gateway_command(case) + list(extra or ["--recover-report"]),
+                                  env=fixture.environment(), text=True, capture_output=True)
+
+        def state_for(case):
+            order = fixture.read_json(Path(case["order"]))
+            return order, Path(order["loopContract"]["statePath"]), fixture.read_json(Path(order["loopContract"]["statePath"]))
+
+        def continuation(case, **updates):
+            order, state_path, state = state_for(case)
+            decision = Path(case["result"]).parent / f"continuation-{len(state.get('continuations', [])) + 1}.json"
+            fixture.write_json(decision, {"version": "CENTURION_MISSION_CONTINUATION_V1", "missionId": state["missionId"],
+                "approvalRef": state["authority"]["approvalRef"], "stateSha256": _mission_file_ref(state_path)["sha256"],
+                "reason": "explicit fixture owner continuation", **updates})
+            result = subprocess.run([sys.executable, str(Path(agent_contract_runner.__file__)), "--order", str(case["order"]),
+                "--continue-mission", str(decision)], env=fixture.environment(), text=True, capture_output=True)
+            assert result.returncode == 0, result.stderr
+            return decision
+
+        def verify_downstream(case):
+            order = fixture.read_json(Path(case["order"]))
+            acceptance = Path(case["result"]).parent / "controller-acceptance.json"
+            return verify_input_results({"orderId": "consumer-" + order["orderId"], "inputResults": [{
+                "orderId": order["orderId"], "resultPath": str(case["result"]), "resultSha256": _mission_file_ref(Path(case["result"]))["sha256"],
+                "acceptancePath": str(acceptance), "acceptanceSha256": _mission_file_ref(acceptance)["sha256"],
+                "closurePath": str(case["closure"]), "artifacts": []}]}, fixture.ROOT)
+
+        fresh = stage("recovery-never-starts-product", "malformed", monitored=True)
+        denied = recover(fresh)
+        assert denied.returncode != 0 and "existing saved product" in denied.stderr, denied.stderr
+        assert state_for(fresh)[2]["budget"]["modelLaunchesUsed"] == 0
+        assert not (Path(fresh["result"]).parent / "launch-count").exists()
+
+        repeated = report_case("multiple-report-corrections", invalid=2)
+        corrected = recover(repeated)
+        assert corrected.returncode == 0, corrected.stderr
+        _, _, repeated_state = state_for(repeated)
+        assert repeated_state["budget"]["modelLaunchesUsed"] == 4
+        assert repeated_state["tasks"]["task"]["productAttemptsUsed"] == 1
+        assert repeated_state["intents"]["product-1"]["reportAttemptsUsed"] == 3
+        assert (Path(repeated["result"]).parent / "launch-count").read_text() == "launch\n"
+        assert len(verify_downstream(repeated)) == 1
+        assert recover(repeated).returncode == 0
+        assert state_for(repeated)[2]["budget"]["modelLaunchesUsed"] == 4
+        print("PASS three report attempts, one product effect, automatic corrections, restart idempotency and ordinal-bound downstream")
+
+        no_progress = report_case("report-no-progress", invalid=10, repeat=True)
+        rejected = recover(no_progress)
+        assert rejected.returncode != 0 and "no progress" in rejected.stderr, rejected.stderr
+        assert state_for(no_progress)[2]["budget"]["modelLaunchesUsed"] == 3
+        assert not Path(no_progress["result"]).exists()
+        assert recover(no_progress).returncode != 0
+        assert state_for(no_progress)[2]["budget"]["modelLaunchesUsed"] == 3
+        print("PASS identical invalid reports stop without product replay or consuming more launches on status retries")
+
+        exhausted = report_case("report-budget-continuation", invalid=2, budget=3)
+        blocked = recover(exhausted)
+        assert blocked.returncode != 0 and "budget exhausted" in blocked.stderr, blocked.stderr
+        _, _, exhausted_state = state_for(exhausted)
+        assert exhausted_state["status"] == "blocked" and exhausted_state["budget"]["modelLaunchesUsed"] == 3
+        decision = continuation(exhausted, maxModelLaunches=4)
+        replay = subprocess.run([sys.executable, str(Path(agent_contract_runner.__file__)), "--order", str(exhausted["order"]),
+            "--continue-mission", str(decision)], env=fixture.environment(), text=True, capture_output=True)
+        assert replay.returncode != 0 and "current mission" in replay.stderr
+        resumed = recover(exhausted)
+        assert resumed.returncode == 0, resumed.stderr
+        assert state_for(exhausted)[2]["budget"]["modelLaunchesUsed"] == 4
+        assert state_for(exhausted)[2]["tasks"]["task"]["productAttemptsUsed"] == 1
+        print("PASS recorded budget continuation preserves counters, rejects stale decision replay and finishes saved product")
+
+        try:
+            report_case("insufficient-recovery-budget", budget=1)
+        except RunnerError as error:
+            assert "report recovery reserve" in str(error), error
+        else:
+            raise AssertionError("enabled model recovery must reserve budget before product launch")
+
+        def manual_candidate(case):
+            order, _, saved = state_for(case)
+            policy = PathPolicy(fixture.ROOT, order["allowedPaths"], order["forbiddenPaths"], order["orderId"])
+            facts = result_gateway.report_projection(SimpleNamespace(order=order, intent=saved["intents"]["product-1"], policy=policy))
+            candidate = {"resultVersion": "AGENT_RESULT_JSON_V1", "orderId": order["orderId"], "executor": order["executor"],
+                "status": "done", "summary": "independently checked saved product", "filesChanged": facts["filesChanged"],
+                "artifacts": facts["artifacts"], "proof": facts["controllerProof"], "handoff": facts["handoff"],
+                "selfReview": {"performed": True, "findings": [], "fixesApplied": []}, "scopeDeviations": [],
+                "forbiddenPatternHits": [], "remainingRisks": [], "questions": [], "errors": [], "stdoutSummary": "", "stderrSummary": ""}
+            candidate_path = Path(case["result"]).parent / "manual-candidate.json"
+            review_path = candidate_path.with_name("manual-review.json")
+            fixture.write_json(candidate_path, candidate)
+            fixture.write_json(review_path, {"version": "CENTURION_MANUAL_PRODUCT_REVIEW_V1", "missionId": saved["missionId"],
+                "orderId": order["orderId"], "orderSha256": saved["intents"]["product-1"]["orderRef"]["sha256"],
+                "productSnapshotSha256": facts["productSnapshot"]["sha256"], "rawSha256": facts["rawSha256"],
+                "candidateRef": _mission_file_ref(candidate_path), "criteria": order["acceptanceCriteria"],
+                "reviewer": "fixture independent human reviewer", "verdict": "pass"})
+            return candidate_path, review_path
+
+        manual = report_case("manual-without-model-budget", budget=1, capability=False)
+        candidate_path, review_path = manual_candidate(manual)
+        denied = recover(manual, "--recover-report-from", str(candidate_path))
+        assert denied.returncode != 0 and not Path(manual["result"]).exists()
+        continuation(manual, manualReportReviewRef=_mission_file_ref(review_path))
+        accepted = recover(manual, "--recover-report-from", str(candidate_path))
+        assert accepted.returncode == 0, accepted.stderr
+        _, _, manual_state = state_for(manual)
+        assert manual_state["budget"]["modelLaunchesUsed"] == 1 and manual_state["tasks"]["task"]["productAttemptsUsed"] == 1
+        assert manual_state["intents"]["product-1:report:1"]["modelLaunch"] is False
+        assert len(verify_downstream(manual)) == 1
+        assert recover(manual, "--recover-report-from", str(candidate_path)).returncode == 0
+        review_bytes = review_path.read_bytes()
+        review_path.write_bytes(review_bytes + b" ")
+        try:
+            verify_downstream(manual)
+        except AcceptedInputError:
+            pass
+        else:
+            raise AssertionError("downstream must retain exact manual review bytes")
+        review_path.write_bytes(review_bytes)
+        assert len(verify_downstream(manual)) == 1
+        print("PASS authorized manual report without model capability or extra model budget, exact evidence and downstream custody")
+
+        legacy = report_case("legacy-budget-failure-continuation", budget=1, capability=False)
+        _, state_path, saved = state_for(legacy)
+        saved.update(status="failed", failure="mission model-launch budget exhausted")
+        fixture.write_json(state_path, saved)
+        candidate_path, review_path = manual_candidate(legacy)
+        continuation(legacy, manualReportReviewRef=_mission_file_ref(review_path))
+        assert recover(legacy, "--recover-report-from", str(candidate_path)).returncode == 0
+        assert state_for(legacy)[2]["budget"]["modelLaunchesUsed"] == 1
+        print("PASS explicit legacy budget-failure continuation restores reporting without reopening or replaying product")
+
+        needs_review = report_case("manual-keeps-review-floor", budget=2, capability=False, profile="V2")
+        candidate_path, review_path = manual_candidate(needs_review)
+        continuation(needs_review, manualReportReviewRef=_mission_file_ref(review_path))
+        waiting = recover(needs_review, "--recover-report-from", str(candidate_path))
+        assert waiting.returncode == 0 and '"status": "awaiting_review"' in waiting.stdout, waiting.stderr
+        assert not (Path(needs_review["result"]).parent / "controller-acceptance.json").exists()
+        print("PASS manual reporting preserves mandatory independent review instead of self-approving product")
+
         # Exercise actual filesystem denial without a provider or real profile.
         sandbox = shutil.which("bwrap")
         assert sandbox, "native-profile-readonly verification requires bwrap"

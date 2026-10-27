@@ -45,6 +45,7 @@ from agent_contract_runner import (
     _mission_time,
     mission_stop_deadline,
     mission_snapshot,
+    pending_review_launches,
     MissionReservation,
     run_proof_commands,
     verify_required_proof_checks,
@@ -58,7 +59,7 @@ from agent_result_builder import BuilderError, ProtocolFailure, _load_schema, _s
 from order_preflight import PreflightError, _option_values, controller_context, executor_environment, load_tunnel_order, validate_tunnel_launch, validate_claude_proxy_environment
 from review_ladder import RoutingError, validate_order_routing
 from response_envelope import MAX_CANDIDATE_BYTES, MAX_FRAME_BYTES, MAX_STDERR_BYTES, MAX_STDOUT_BYTES, ResponseEnvelopeError, parse_response_bytes, read_bounded_file, response_state_errors
-from accepted_inputs import AcceptedInputError, verify_input_results
+from accepted_inputs import AcceptedInputError, verify_input_results, verify_manual_report_review
 from strict_json import StrictJSONError, strict_json_load_bytes
 
 
@@ -71,6 +72,10 @@ SUPPORTED_EXECUTORS = {"codex", "claude"}
 
 class GatewayError(Exception):
     """Raised when the controller cannot safely close an executor attempt."""
+
+
+class ReportRetryable(GatewayError):
+    """A stopped, isolated report failed validation; the product remains saved."""
 
 
 def utc_now() -> str:
@@ -1249,7 +1254,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--events", type=Path)
     parser.add_argument("--schema", type=Path)
     parser.add_argument("--termination-grace-seconds", type=float, default=3.0)
-    parser.add_argument("--recover-report", action="store_true", help="Collect one Q6-authorized no-tools report turn; never rerun product")
+    recovery = parser.add_mutually_exclusive_group()
+    recovery.add_argument("--recover-report", action="store_true", help="Recover reports within the approved budget; never rerun product")
+    recovery.add_argument("--recover-report-from", type=Path, help="Collect a controller-authorized manually reviewed JSON report without a model")
     return parser
 
 
@@ -1262,7 +1269,8 @@ def _accepted_review(reservation: Any) -> str | None:
 def _report_capture_resumable(reservation: Any) -> bool:
     """Recognize only the post-observation, pre-verification report boundary."""
     intent = reservation.intent
-    report_id = reservation.meta["intentId"] + ":report:1"
+    ordinal = intent.get("reportAttemptsUsed", 0)
+    report_id = reservation.meta["intentId"] + f":report:{ordinal}"
     report = reservation.state["intents"].get(report_id)
     child = report.get("child") if isinstance(report, dict) else None
     return bool(
@@ -1270,7 +1278,7 @@ def _report_capture_resumable(reservation: Any) -> bool:
         and "verification" not in intent
         and "terminalTemplate" not in intent
         and intent.get("reportIntentId") == report_id
-        and intent.get("reportAttemptsUsed") == 1
+        and type(ordinal) is int and ordinal > 0
         and intent.get("processStopped") is True
         and "protocolRefs" in intent and "recoveryProof" in intent
         and isinstance(report, dict)
@@ -1347,7 +1355,7 @@ def report_capability(reservation: Any) -> tuple[dict[str, Any], dict[str, Any]]
             if path.is_file() and path.suffix == ".json":
                 # bwrap creates the empty mount target on the writable scratch
                 # filesystem; the native profile itself is mounted read-only.
-                if mode == "native-profile-readonly" and path == scratch_dir / ".claude.json":
+                if mode == "native-profile-readonly" and path.name == ".claude.json":
                     if path.stat().st_size != 0:
                         raise GatewayError("report native profile mount target was modified")
                     continue
@@ -1462,54 +1470,153 @@ def validate_report_facts(result: dict[str, Any], projection: dict[str, Any]) ->
         raise GatewayError("report artifacts differ from saved controller observations")
 
 
+def _reject_report(reservation: Any, report: dict[str, Any], namespace: Path,
+                   code: str, candidate: bytes, *, retryable: bool = True) -> None:
+    comparable = candidate
+    try:
+        value = strict_json_load_bytes(candidate, "invalid report fingerprint")
+        if isinstance(value, dict):
+            value = value.get("structured_output", value)
+        comparable = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    except StrictJSONError:
+        pass
+    fingerprint = sha256_bytes(code.encode() + b"\0" + comparable)
+    report.update(status="rejected", failureCode=code, failureFingerprint=fingerprint)
+    evidence = {"version": "CENTURION_REPORT_FAILURE_V1", "intentId": report["intentId"],
+        "failureCode": code, "candidateSha256": sha256_bytes(candidate), "fingerprint": fingerprint,
+        "processStopped": report.get("processStopped"), "productReplayed": False}
+    failure = namespace / "failure.json"
+    if not failure.exists():
+        atomic_create(failure, (json.dumps(evidence, sort_keys=True) + "\n").encode())
+    report["failureRef"] = _mission_file_ref(failure)
+    reservation.save()
+    error = ReportRetryable if retryable else GatewayError
+    raise error("report validation failed: " + code + "; saved product is unchanged")
+
+
+def recover_reports(reservation: Any, args: Any, paths: dict[str, Any], routing: Any) -> int:
+    """Retry changed report candidates, preserving budget, custody and product."""
+    while True:
+        try:
+            return recover_report(reservation, args, paths, routing)
+        except ReportRetryable:
+            if getattr(args, "recover_report_from", None) is not None:
+                raise
+            # recover_report checks identical failures, budget and stopped effects
+            # before reserving another ordinal. A restart collects the same turn.
+
+
 def recover_report(reservation: Any, args: Any, paths: dict[str, Any], routing: Any) -> int:
-    """One persisted report turn in the shared launch budget, never product replay."""
+    """Collect one durable reporting ordinal, never another product attempt."""
     intent = reservation.intent
     capture_resume = _report_capture_resumable(reservation)
     if intent["status"] not in {"reportable", "captured"} or (intent["status"] == "captured" and not capture_resume):
         raise GatewayError("report recovery requires a saved complete product protocol failure")
-    cap, cap_ref = report_capability(reservation)
     for ref in intent["protocolRefs"].values():
         if _mission_file_ref(Path(ref["path"])) != ref:
             raise GatewayError("original recovery custody changed")
     if workspace_snapshot(reservation.state) != intent["workspaceAfter"]:
         raise GatewayError("product changed before report recovery")
-    ordinal_key = reservation.meta["intentId"] + ":report:1"
-    namespace = reservation.policy.control_namespace / "report-1"
-    report = reservation.state["intents"].get(ordinal_key)
+    if not isinstance(intent.get("recoveryProof"), list):
+        raise GatewayError("report recovery requires saved successful controller proof")
+    verify_required_proof_checks(intent["recoveryProof"])
+    if "report" not in reservation.state["authority"]["allowedActions"]:
+        raise GatewayError("mission has no report recovery authority")
+    ordinal = intent["reportAttemptsUsed"]
+    ordinal_key = reservation.meta["intentId"] + f":report:{ordinal}"
+    report = reservation.state["intents"].get(ordinal_key) if ordinal else None
+    if ordinal and report is None:
+        raise GatewayError("saved report attempt is missing")
+    manual_source = getattr(args, "recover_report_from", None)
+    if report is not None and report["status"] == "rejected":
+        if not report.get("processStopped"):
+            raise GatewayError("report effect is unknown; reconcile it before any retry")
+        rejected = [row for row in reservation.state["intents"].values()
+                    if row.get("originalIntentId") == reservation.meta["intentId"] and row.get("failureFingerprint")]
+        if manual_source is None and len({row["failureFingerprint"] for row in rejected}) < len(rejected):
+            raise GatewayError("report recovery made no progress: identical invalid response repeated; manual review remains available")
+        previous = report
+        report = None
+    else:
+        previous = None
+    if report is None:
+        ordinal += 1
+        ordinal_key = reservation.meta["intentId"] + f":report:{ordinal}"
+    namespace = reservation.policy.control_namespace / f"report-{ordinal}"
+    mode = report.get("mode", "model") if report is not None else ("manual_review" if manual_source is not None else "model")
+    manual_fields = {}
+    if mode == "manual_review":
+        authority = reservation.state["authority"]
+        source = reservation.policy.control_path(manual_source or report["manualCandidateRef"]["path"], "manual report candidate")
+        source_ref = _mission_file_ref(source)
+        manual_fields = {"mode": mode, "manualReviewRef": authority.get("manualReportReviewRef"),
+                         "manualReportAuthorityRef": authority.get("manualReportAuthorityRef"), "manualCandidateRef": source_ref}
+        verify_manual_report_review(reservation.policy.repo_path, reservation.order["orderId"],
+            dict(manual_fields, originalRefs=intent["protocolRefs"], snapshot=intent["snapshot"], candidateRef=source_ref))
+        cap, cap_ref = None, None
+    else:
+        cap, cap_ref = report_capability(reservation)
     if report is None:
         if capture_resume:
             raise GatewayError("report capture custody is incomplete")
-        if any(Path(cap["scratchDir"]).iterdir()):
-            raise GatewayError("report first launch requires fresh runtime scratch")
         reservation.work_timeout(1)
-        if intent["reportAttemptsUsed"] or reservation.state["budget"]["modelLaunchesUsed"] >= reservation.state["budget"]["maxModelLaunches"]:
-            raise GatewayError("report launch budget exhausted")
-        namespace.mkdir(mode=0o700, exist_ok=False)
         from agent_result_builder import native_result_schema
         projection = report_projection(reservation)
+        if previous is not None:
+            projection["previousReportFailure"] = {"ordinal": ordinal - 1, "code": previous.get("failureCode", "report_process_failed"),
+                "instruction": "Correct this report validation failure using only the supplied observed facts and schema."}
         prompt = json.dumps(projection, sort_keys=True)
-        argv, env = report_launch(cap, native_result_schema(reservation.order, routing), prompt)
+        if mode == "model":
+            remaining = reservation.state["budget"]["maxModelLaunches"] - reservation.state["budget"]["modelLaunchesUsed"]
+            if remaining < 1 + pending_review_launches(reservation.state):
+                reservation.state.update(status="blocked", blocker={"decisionOwner": "customer", "reasonCode": "model_launch_budget",
+                    "reason": "report launch budget exhausted or reserved for mandatory review; saved product retained"})
+                reservation.save()
+                raise GatewayError("report launch budget exhausted or reserved for mandatory review")
+            scratch = Path(cap["scratchDir"])
+            if ordinal == 1:
+                if any(scratch.iterdir()):
+                    raise GatewayError("report first launch requires fresh runtime scratch")
+            else:
+                scratch = scratch / f"attempt-{ordinal}"
+                scratch.mkdir(mode=0o700, exist_ok=False)
+            argv, env = report_launch(dict(cap, scratchDir=str(scratch)), native_result_schema(reservation.order, routing), prompt)
+        else:
+            raw, complete = read_bounded_file(source, MAX_CANDIDATE_BYTES)
+            if not complete:
+                raise GatewayError("manual report candidate exceeds size limit")
+            candidate_value = strict_json_load_bytes(raw, "manually reviewed report")
+            _, validator = _load_schema(resolve_schema_path(args.schema))
+            if validate_candidate(candidate_value, reservation.order, validator):
+                raise GatewayError("manually reviewed report does not satisfy the original result contract")
+            validate_report_facts(candidate_value, projection)
+        namespace.mkdir(mode=0o700, exist_ok=False)
         report = {"intentId": ordinal_key, "taskId": reservation.meta["taskId"], "action": "report",
             "orderId": reservation.order["orderId"], "orderSha256": intent["orderSha256"], "executor": "claude",
             "status": "reserved", "effect": "not_started", "processStopped": False, "reportAttemptsUsed": 0,
             "idempotencyKey": [reservation.state["missionId"], reservation.meta["taskId"],
-                               reservation.state["tasks"][reservation.meta["taskId"]]["productAttemptsUsed"], 1],
+                               reservation.state["tasks"][reservation.meta["taskId"]]["productAttemptsUsed"], ordinal],
             "capabilityRef": cap_ref, "originalIntentId": reservation.meta["intentId"],
-            "snapshot": intent["snapshot"], "beforeSnapshot": intent["snapshot"], "projection": projection}
+            "snapshot": intent["snapshot"], "beforeSnapshot": intent["snapshot"], "projection": projection,
+            "mode": mode, "modelLaunch": mode == "model", **manual_fields}
         reservation.state["intents"][ordinal_key] = report
-        intent.update(reportAttemptsUsed=1, reportIntentId=ordinal_key)
-        reservation.state["budget"]["modelLaunchesUsed"] += 1
+        intent.update(reportAttemptsUsed=ordinal, reportIntentId=ordinal_key)
+        reservation.state["budget"]["modelLaunchesUsed"] += int(mode == "model")
         reservation.save()  # no refund after this point, including a spawn failure
         atomic_create(namespace / "start.json", (json.dumps({"version":"CENTURION_REPORT_START_V1", "orderId":reservation.order["orderId"],
             "originalRefs":intent["protocolRefs"], "capabilityRef":cap_ref, "snapshot":intent["snapshot"],
-            "idempotencyKey":report["idempotencyKey"], "projectionSha256":sha256_bytes(prompt.encode())})+"\n").encode())
+            "idempotencyKey":report["idempotencyKey"], "projectionSha256":sha256_bytes(prompt.encode()),
+            "mode": mode, **manual_fields})+"\n").encode())
         # The original command is never consulted for this report dispatch.
-        rr = MissionReservation(reservation.order, reservation.policy, reservation.state, reservation.path, reservation.lock, "launch")
-        rr.meta = dict(reservation.meta, intentId=ordinal_key, action="report")
-        rr.intent = report
-        child = run_child(argv, Path(cap["scratchDir"]), rr.work_timeout(None if reservation.order["launch"]["timeoutSeconds"] is None else 120), 10,
-                          environment=env, reservation=rr, detect_claude_tool_loop=True, events_path=paths.get("events"))
+        if mode == "model":
+            rr = MissionReservation(reservation.order, reservation.policy, reservation.state, reservation.path, reservation.lock, "launch")
+            rr.meta = dict(reservation.meta, intentId=ordinal_key, action="report")
+            rr.intent = report
+            child = run_child(argv, scratch, rr.work_timeout(None if reservation.order["launch"]["timeoutSeconds"] is None else 120), 10,
+                              environment=env, reservation=rr, detect_claude_tool_loop=True, events_path=paths.get("events"))
+        else:
+            child = {"stdout": raw, "stderr": b"", "exitCode": 0, "processStopped": True, "error": None}
+            report["status"] = "running"  # Controller collection, no model process.
         atomic_create(namespace / "stdout.bin", child["stdout"])
         atomic_create(namespace / "stderr.bin", child["stderr"])
         stopped = child.get("processStopped", False)
@@ -1520,10 +1627,12 @@ def recover_report(reservation: Any, args: Any, paths: dict[str, Any], routing: 
         if child["error"] or child["exitCode"] != 0 or not stopped:
             report["status"] = "rejected" if stopped else "unknown_effect"
             reservation.save()
-            raise GatewayError("report turn failed; no second report or product replay")
+            raise GatewayError("report turn failed; saved product retained, never replay it")
     else:
         if report.get("capabilityRef") != cap_ref:
             raise GatewayError("saved report capability binding changed")
+        if any(report.get(key) != value for key, value in manual_fields.items()):
+            raise GatewayError("saved manual review binding changed")
         if report["status"] in {"running", "dispatching"} and (namespace / "child.json").exists():
             saved = json.loads((namespace / "child.json").read_bytes())
             if report.get("process") and _mission_process_identity(report["process"]["pid"]) == report["process"]:
@@ -1533,18 +1642,29 @@ def recover_report(reservation: Any, args: Any, paths: dict[str, Any], routing: 
             raise GatewayError("report already reserved/open/failed; collect existing custody only, never relaunch")
     # Revalidate immutable inputs and reject configuration injected by the CLI
     # itself before accepting its output, as well as on restart collection.
-    report_capability(reservation)
+    if mode == "model":
+        report_capability(reservation)
     # Restart can collect these exact saved bytes, never create a second turn.
     stdout, complete = read_bounded_file(namespace / "stdout.bin", MAX_STDOUT_BYTES)
     if not complete:
         raise GatewayError("report raw capture incomplete")
     candidate_path = namespace / "candidate.json"
-    extracted, errors = extract_stdout_candidate(stdout, reservation.order, args.schema, dict(routing, model="claude-opus-5-5"), {}, native_override=True)
+    if mode == "manual_review":
+        if sha256_bytes(stdout) != report["manualCandidateRef"]["sha256"] or len(stdout) != report["manualCandidateRef"]["bytes"]:
+            raise GatewayError("saved manual report differs from the reviewed bytes")
+        extracted, errors = stdout, []
+    else:
+        extracted, errors = extract_stdout_candidate(stdout, reservation.order, args.schema, dict(routing, model="claude-opus-5-5"), {}, native_override=True)
     if errors or extracted is None:
-        report["status"] = "rejected"
-        reservation.save()
-        raise GatewayError("report response invalid; no second report")
-    validate_report_facts(strict_json_load_bytes(extracted, "report facts"), report["projection"])
+        if workspace_snapshot(reservation.state) != intent["workspaceAfter"]:
+            raise GatewayError("product changed during invalid report; no automatic retry")
+        _reject_report(reservation, report, namespace, "invalid_result_contract", stdout)
+    try:
+        validate_report_facts(strict_json_load_bytes(extracted, "report facts"), report["projection"])
+    except GatewayError:
+        if workspace_snapshot(reservation.state) != intent["workspaceAfter"]:
+            raise GatewayError("product changed during report; no automatic retry")
+        _reject_report(reservation, report, namespace, "report_facts_differ_from_observations", extracted)
     if not candidate_path.exists():
         if capture_resume:
             raise GatewayError("saved report candidate is missing")
@@ -1584,7 +1704,8 @@ def recover_report(reservation: Any, args: Any, paths: dict[str, Any], routing: 
         "originalRefs":intent["protocolRefs"], "capabilityRef":cap_ref, "snapshot":intent["snapshot"],
         "idempotencyKey":report["idempotencyKey"], "candidateRef":_mission_file_ref(candidate_path),
         "stdoutRef":_mission_file_ref(namespace/"stdout.bin"), "stderrRef":_mission_file_ref(namespace/"stderr.bin"),
-        "startRef":_mission_file_ref(namespace/"start.json"), "canonicalResultSha256":intent["resultRef"]["sha256"], "status":"passed"}
+        "startRef":_mission_file_ref(namespace/"start.json"), "canonicalResultSha256":intent["resultRef"]["sha256"], "status":"passed",
+        **({"mode": mode, **manual_fields} if "mode" in json.loads((namespace/"start.json").read_bytes()) else {})}
     reporting_path = namespace / "closure.json"
     if not reporting_path.exists():
         atomic_create(reporting_path, (json.dumps(reporting, sort_keys=True)+"\n").encode())
@@ -1705,7 +1826,7 @@ def main() -> int:
             _load_schema(resolve_schema_path(args.schema))
         except BuilderError as exc:
             raise GatewayError(str(exc)) from exc
-        reservation = reserve_mission_dispatch(order, policy)
+        reservation = reserve_mission_dispatch(order, policy, resume_only=args.recover_report or args.recover_report_from is not None)
         def cancel_handler(signum, frame):
             reservation.cancel(f"Gateway signal {signum}")
         for sig in (signal.SIGTERM, signal.SIGINT):
@@ -1714,8 +1835,8 @@ def main() -> int:
             print(json.dumps({"status": "accepted", "acceptance": reservation.intent["acceptanceRef"], "replayed": False}))
             return 0
         if reservation.disposition == "open":
-            if args.recover_report and (reservation.intent["status"] == "reportable" or _report_capture_resumable(reservation)):
-                return recover_report(reservation, args, {"result":result_path, "evidence":evidence_dir, "events":events_path,
+            if (args.recover_report or args.recover_report_from is not None) and (reservation.intent["status"] == "reportable" or _report_capture_resumable(reservation)):
+                return recover_reports(reservation, args, {"result":result_path, "evidence":evidence_dir, "events":events_path,
                     "start":start_receipt_path, "closure":closure_path}, routing)
             return _resume_captured(reservation, acceptance_path)
         if reservation.disposition != "launch":

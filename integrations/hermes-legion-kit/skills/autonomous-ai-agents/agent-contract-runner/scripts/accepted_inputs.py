@@ -411,6 +411,46 @@ def _verify_one(repo: Path, current_order_id: str, item: dict[str, Any], index: 
     }
 
 
+def verify_manual_report_review(repo: Path, order_id: str, report: dict[str, Any]) -> dict[str, Any]:
+    """Verify controller-pinned human reporting evidence, never a V2/V3 waiver."""
+    def load_ref(ref: Any, label: str) -> dict[str, Any]:
+        if not isinstance(ref, dict):
+            raise AcceptedInputError(label + " reference missing")
+        path = _control_path(repo, order_id, ref.get("path"), label)
+        raw, digest = _read_bytes(repo, path, label)
+        if digest != ref.get("sha256") or len(raw) != ref.get("bytes"):
+            raise AcceptedInputError(label + " reference changed")
+        value = strict_json_load_bytes(raw, label)
+        if not isinstance(value, dict):
+            raise AcceptedInputError(label + " must be an object")
+        return value
+
+    review = load_ref(report.get("manualReviewRef"), "manual product review")
+    decision = load_ref(report.get("manualReportAuthorityRef"), "manual reporting authority")
+    order = load_ref(report["originalRefs"]["order"], "manual review original order")
+    from order_preflight import controller_context
+    context = controller_context(order)
+    if (not context or decision.get("version") != "CENTURION_MISSION_CONTINUATION_V1"
+            or decision.get("missionId") != context["missionId"]
+            or decision.get("approvalRef") != context["approvalRef"]
+            or not isinstance(decision.get("reason"), str) or not decision["reason"].strip()
+            or decision.get("manualReportReviewRef") != report["manualReviewRef"]):
+        raise AcceptedInputError("manual report lacks matching recorded owner authority")
+    _digest(decision.get("stateSha256"), "manual reporting authority state digest")
+    expected = {"version": "CENTURION_MANUAL_PRODUCT_REVIEW_V1", "missionId": context["missionId"],
+        "orderId": order_id, "orderSha256": report["originalRefs"]["order"]["sha256"],
+        "productSnapshotSha256": report["snapshot"]["sha256"],
+        "rawSha256": report["originalRefs"]["candidate"]["sha256"],
+        "candidateRef": report["manualCandidateRef"], "criteria": order["acceptanceCriteria"], "verdict": "pass"}
+    if (any(review.get(key) != value for key, value in expected.items())
+            or not isinstance(review.get("reviewer"), str) or not review["reviewer"].strip()):
+        raise AcceptedInputError("manual review must bind exact product, report, criteria and reviewer")
+    load_ref(report["manualCandidateRef"], "manual report candidate")
+    if any(report["manualCandidateRef"][key] != report["candidateRef"][key] for key in ("sha256", "bytes")):
+        raise AcceptedInputError("manual report candidate differs from the reviewed bytes")
+    return review
+
+
 def _verify_reporting(repo: Path, order_id: str, acceptance: dict[str, Any], original: dict[str, Any],
                       result_digest: str, order_digest: str) -> dict[str, Any]:
     """Verify both immutable chains, then project the collected report closure.
@@ -438,12 +478,14 @@ def _verify_reporting(repo: Path, order_id: str, acceptance: dict[str, Any], ori
     if original.get("canonicalFinalized") is not False or original.get("childStarted") is not True or original.get("exitCode") != 0 or original.get("timedOut") or original.get("drainTimedOut"):
         raise AcceptedInputError("report recovery cannot cover an unknown product effect")
     report_start, _ = _json(repo, Path(report["startRef"]["path"]), "report start")
-    for key in ("originalRefs", "capabilityRef", "snapshot", "idempotencyKey"):
+    for key in ("originalRefs", "capabilityRef", "snapshot", "idempotencyKey", "mode", "manualReviewRef", "manualReportAuthorityRef", "manualCandidateRef"):
         if report_start.get(key) != report.get(key):
             raise AcceptedInputError("report start/closure binding mismatch")
     key = report.get("idempotencyKey")
-    if not isinstance(key, list) or len(key) != 4 or key[-1] != 1:
-        raise AcceptedInputError("report idempotency ordinal must be one")
+    if not isinstance(key, list) or len(key) != 4 or type(key[-1]) is not int or key[-1] < 1:
+        raise AcceptedInputError("report idempotency ordinal must be positive")
+    if path.parent.name != f"report-{key[-1]}":
+        raise AcceptedInputError("report namespace differs from its idempotency ordinal")
     captures = {}
     for label, name in (("candidate", "candidateRef"), ("stdout", "stdoutRef"), ("stderr", "stderrRef"), ("start", "startRef")):
         saved = report[name]
@@ -452,7 +494,30 @@ def _verify_reporting(repo: Path, order_id: str, acceptance: dict[str, Any], ori
         if digest != saved.get("sha256") or len(raw) != saved.get("bytes"):
             raise AcceptedInputError("report capture binding changed")
         captures[label] = dict(saved, complete=True)
-    cap_ref = report["capabilityRef"]
+    if report.get("mode") == "manual_review":
+        if report.get("capabilityRef") is not None:
+            raise AcceptedInputError("manual reporting must not claim a model capability")
+        verify_manual_report_review(repo, order_id, report)
+    elif report.get("mode", "model") == "model":
+        _verify_report_capability(report["capabilityRef"])
+    else:
+        raise AcceptedInputError("unsupported reporting mode")
+    for row in report["snapshot"]["files"]:
+        product = _lexical_path(repo, row["path"], "recovery product snapshot")
+        if row["sha256"] is None:
+            if product.exists():
+                raise AcceptedInputError("recovery deleted product reappeared")
+        else:
+            raw, digest = _read_bytes(repo, product, "recovery product")
+            if digest != row["sha256"] or len(raw) != row["bytes"]:
+                raise AcceptedInputError("recovery product snapshot changed")
+    projected = dict(original, canonicalResultSha256=result_digest, canonicalStatus="done", canonicalFinalized=True,
+                     controllerErrors=[], candidate=captures["candidate"], stdout=captures["stdout"], stderr=captures["stderr"])
+    projected.pop("protocolFailure", None)
+    return projected
+
+
+def _verify_report_capability(cap_ref: dict[str, Any]) -> None:
     # Capability receipts belong to the controller and may be shared across
     # workspaces. Only this exact ref, already bound by report start/closure,
     # may be external. Keep the descriptor-relative, no-symlink bounded reader;
@@ -475,19 +540,6 @@ def _verify_reporting(repo: Path, order_id: str, acceptance: dict[str, Any], ori
             or cap.get("probe") != {"status": "passed", "toolsDenied": True, "mcpDisabled": True,
                                     "hooksDisabled": True, "isolatedConfig": True, "productUnchanged": True}):
         raise AcceptedInputError("report capability binding invalid")
-    for row in report["snapshot"]["files"]:
-        product = _lexical_path(repo, row["path"], "recovery product snapshot")
-        if row["sha256"] is None:
-            if product.exists():
-                raise AcceptedInputError("recovery deleted product reappeared")
-        else:
-            raw, digest = _read_bytes(repo, product, "recovery product")
-            if digest != row["sha256"] or len(raw) != row["bytes"]:
-                raise AcceptedInputError("recovery product snapshot changed")
-    projected = dict(original, canonicalResultSha256=result_digest, canonicalStatus="done", canonicalFinalized=True,
-                     controllerErrors=[], candidate=captures["candidate"], stdout=captures["stdout"], stderr=captures["stderr"])
-    projected.pop("protocolFailure", None)
-    return projected
 
 
 def _verify_order_inputs(repo: Path, order: Mapping[str, Any], seen_orders: set[str], depth: int) -> list[dict[str, Any]]:

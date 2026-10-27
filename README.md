@@ -64,6 +64,10 @@ Changing any binding invalidates that adapter's receipt. Missing evidence exclud
 the adapter from dispatch readiness; it does not freeze the core package.
 No probe is run on every dispatch and nothing updates automatically.
 
+Malformed reporting can be recovered without rerunning product work. Gateway
+supports budgeted report corrections and controller-authorized manual review;
+see [report recovery and mission continuation](docs/REPORT_RECOVERY.md).
+
 Focused offline verification:
 
 ```bash

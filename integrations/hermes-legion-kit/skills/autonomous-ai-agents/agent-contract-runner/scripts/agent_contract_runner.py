@@ -1114,6 +1114,7 @@ def validate_mission_state(state: dict[str, Any], state_path: Path) -> None:
     deadline = _mission_time(budget["deadlineAt"]) if budget["deadlineAt"] is not None else None
     used = _mission_int(budget.get("modelLaunchesUsed"), "modelLaunchesUsed")
     maximum = _mission_int(budget.get("maxModelLaunches"), "maxModelLaunches", 1)
+    _mission_int(budget.get("reportLaunchReserve", 0), "reportLaunchReserve")
     if used > maximum or (deadline is not None and deadline <= started_at + timedelta(seconds=30)):
         raise RunnerError("invalid mission budget/deadline")
     if state.get("stopDeadlineAt") and deadline is not None and _mission_time(state["stopDeadlineAt"]) > deadline:
@@ -1131,7 +1132,7 @@ def validate_mission_state(state: dict[str, Any], state_path: Path) -> None:
     if completion_actions is not None and (not isinstance(completion_actions, dict) or set(completion_actions) != set(tasks)):
         raise RunnerError("task completion action coverage changed")
     require_list(state, "observations")
-    if used != len(intents):
+    if used != sum(intent.get("modelLaunch", True) is True for intent in intents.values()):
         raise RunnerError("launch counters disagree with persisted intents")
     covered: set[str] = set()
     for task_id, task in tasks.items():
@@ -1203,8 +1204,15 @@ def validate_mission_state(state: dict[str, Any], state_path: Path) -> None:
             raise RunnerError("invalid intent identity")
         if intent.get("action") not in {"product", "review", "advisory", "report"} or intent.get("status") not in {*MISSION_OPEN_INTENTS, "accepted", "rejected", "unknown_effect"}:
             raise RunnerError("invalid intent action/status")
-        if type(intent.get("reportAttemptsUsed")) is not int or intent["reportAttemptsUsed"] not in {0, 1}:
-            raise RunnerError("reportAttemptsUsed must be 0 or 1")
+        _mission_int(intent.get("reportAttemptsUsed"), "reportAttemptsUsed")
+        if type(intent.get("modelLaunch", True)) is not bool or (
+                intent.get("modelLaunch") is False and
+                (intent.get("action") != "report" or not intent.get("manualReviewRef"))):
+            raise RunnerError("only an authorized manual report may omit a model launch")
+        if intent["action"] == "product" and intent["reportAttemptsUsed"] != sum(
+                child.get("action") == "report" and child.get("originalIntentId") == intent_id
+                for child in intents.values()):
+            raise RunnerError("report attempt counter disagrees with persisted intents")
         if intent["status"] in {"captured", "accepted"}:
             if intent.get("processStopped") is not True or intent.get("effect") != "observed":
                 raise RunnerError("captured/accepted intent requires observed effect and stopped process")
@@ -1261,7 +1269,11 @@ def initialize_mission(spec: dict[str, Any], state_path: Path) -> dict[str, Any]
             raise RunnerError("task completion action binding changed")
         state["authority"]["taskCompletionActions"] = completion_actions
         state["authoritySha256"] = _mission_digest(state["authority"])
+        state["budget"].setdefault("reportLaunchReserve", 1 if state["authority"].get("reportCapabilityRef") else 0)
         validate_mission_state(state, state_path)
+        minimum = len(state["tasks"]) + pending_review_launches(state) + state["budget"]["reportLaunchReserve"]
+        if state["budget"]["maxModelLaunches"] < minimum:
+            raise RunnerError("mission budget cannot cover initial work, mandatory reviews and report recovery reserve")
         atomic_write_loop_state(state_path, state)
         return state
     finally:
@@ -1806,7 +1818,23 @@ class MissionReservation:
         return verdict
 
 
-def reserve_mission_dispatch(order: dict[str, Any], policy: PathPolicy) -> MissionReservation:
+def pending_review_launches(state: dict[str, Any], current_task: str | None = None) -> int:
+    """Keep a minimum launch for each still-required independent review."""
+    latest = {task_id: max((intent_id for intent_id, intent in state["intents"].items()
+                            if intent["taskId"] == task_id and intent["action"] == "product"),
+                           key=lambda intent_id: state["intents"][intent_id].get("reservedAt", ""), default=None)
+              for task_id in state["tasks"]}
+    return sum(
+        task_id != current_task and task["status"] != "accepted"
+        and task.get("completionAction", "product") == "product" and task["verificationProfile"] != "V0"
+        and not any(intent["taskId"] == task_id and intent["action"] == "review" and intent["status"] == "accepted"
+                    and intent.get("candidateIntentId") == latest[task_id]
+                    for intent in state["intents"].values())
+        for task_id, task in state["tasks"].items()
+    )
+
+
+def reserve_mission_dispatch(order: dict[str, Any], policy: PathPolicy, *, resume_only: bool = False) -> MissionReservation:
     meta = mission_context(order, required=True)
     contract = require_object(order.get("loopContract"), "mission loopContract")
     path = _mission_path({"workspace": str(policy.repo_path)}, contract.get("statePath", ""))
@@ -1824,6 +1852,8 @@ def reserve_mission_dispatch(order: dict[str, Any], policy: PathPolicy) -> Missi
                 if mission_snapshot(state, [meta["taskId"]]) != old["snapshot"]:
                     raise RunnerError("accepted intent product snapshot is stale; never replay")
             return MissionReservation(order, policy, state, path, lock, disposition)
+        if resume_only:
+            raise RunnerError("report recovery requires an existing saved product; never dispatch product")
         try:
             mission_work_timeout(state, order["launch"]["timeoutSeconds"])
         except RunnerError as exc:
@@ -1831,10 +1861,14 @@ def reserve_mission_dispatch(order: dict[str, Any], policy: PathPolicy) -> Missi
                 state.update(status="failed", failure="mission work cutoff reached; dispatch closed")
                 atomic_write_loop_state(path, state)
             raise exc
-        if state["budget"]["modelLaunchesUsed"] >= state["budget"]["maxModelLaunches"]:
-            state.update(status="failed", failure="mission model-launch budget exhausted")
+        report_reserve = max(0, state["budget"].get("reportLaunchReserve", 0) - sum(
+            intent["action"] == "report" and intent.get("modelLaunch", True) for intent in state["intents"].values()))
+        required = 1 + pending_review_launches(state, meta["taskId"] if meta["action"] == "review" else None) + report_reserve
+        if state["budget"]["maxModelLaunches"] - state["budget"]["modelLaunchesUsed"] < required:
+            state.update(status="blocked", blocker={"decisionOwner": "customer", "reasonCode": "model_launch_budget",
+                         "reason": "mission model-launch budget exhausted or reserved for review/report recovery"})
             atomic_write_loop_state(path, state)
-            raise RunnerError("mission model-launch budget exhausted")
+            raise RunnerError("mission model-launch budget exhausted or reserved for review/report recovery")
         if any(i["status"] in {"reserved", "dispatching", "running", "unknown_effect"} for i in state["intents"].values()):
             raise RunnerError("open or unknown effect requires reconciliation; never replay")
         if meta["action"] == "report":
@@ -2063,6 +2097,72 @@ def resume_mission(reservation: MissionReservation, owner_decision: dict[str, An
     mission_work_timeout(candidate, 1)
     state.update(status="running", ownerDecision=copy.deepcopy(owner_decision), blocker=None)
     reservation.save()
+
+
+def continue_mission(order: dict[str, Any], policy: PathPolicy, decision_path: Path) -> dict[str, Any]:
+    """Apply an explicit owner decision without resetting effects or counters."""
+    contract = require_object(order.get("loopContract"), "mission loopContract")
+    path = _mission_path({"workspace": str(policy.repo_path)}, contract.get("statePath", ""))
+    lock = LoopStateLock(loop_lock_path(path)).acquire()
+    try:
+        state, path = load_mission_state(order, policy)
+        decision_path = policy.control_path(decision_path, "mission continuation decision")
+        decision_ref = _mission_file_ref(decision_path)
+        if decision_ref["bytes"] > 1024 * 1024:
+            raise RunnerError("mission continuation decision exceeds size limit")
+        decision = require_object(load_json(decision_path), "mission continuation decision")
+        if (decision.get("version") != "CENTURION_MISSION_CONTINUATION_V1"
+                or decision.get("missionId") != state["missionId"]
+                or decision.get("approvalRef") != state["authority"]["approvalRef"]
+                or decision.get("stateSha256") != _mission_file_ref(path)["sha256"]
+                or not isinstance(decision.get("reason"), str) or not decision["reason"].strip()):
+            raise RunnerError("continuation must bind the current mission, owner authority, state bytes and reason")
+        legacy_budget_failure = state["status"] == "failed" and state.get("failure") == "mission model-launch budget exhausted"
+        if state["cancelled"] or state.get("stopDeadlineAt") or (state["status"] in MISSION_TERMINAL and not legacy_budget_failure):
+            raise RunnerError("continuation cannot reopen a cancelled, completed or failed product")
+        for intent in state["intents"].values():
+            if intent["status"] == "unknown_effect" or (
+                    intent["status"] in {"reserved", "dispatching", "running"} and not intent.get("processStopped")):
+                raise RunnerError("continuation requires reconciled, stopped effects")
+            processes = ([intent["process"]] if intent.get("process") else []) + intent.get("proofProcesses", [])
+            if any(_mission_process_identity(process["pid"]) == process for process in processes):
+                raise RunnerError("continuation cannot race a live owned process")
+            if intent["action"] == "product" and intent["status"] in {"reportable", "captured", "accepted"}:
+                if workspace_snapshot(state) != intent["workspaceAfter"] and intent["status"] != "accepted":
+                    raise RunnerError("product changed before continuation")
+                for ref in intent.get("protocolRefs", {}).values():
+                    if _mission_file_ref(Path(ref["path"])) != ref:
+                        raise RunnerError("original protocol evidence changed before continuation")
+        updated = copy.deepcopy(state)
+        if "maxModelLaunches" in decision:
+            maximum = _mission_int(decision["maxModelLaunches"], "continuation.maxModelLaunches", 1)
+            if maximum < state["budget"]["maxModelLaunches"]:
+                raise RunnerError("continuation cannot reduce or reset the approved launch budget")
+            updated["budget"]["maxModelLaunches"] = maximum
+        for key in ("reportCapabilityRef", "manualReportReviewRef"):
+            if key in decision:
+                if "report" not in state["authority"]["allowedActions"]:
+                    raise RunnerError("continuation cannot add report authority")
+                ref = require_object(decision[key], key)
+                ref_path = policy.control_path(ref.get("path"), key) if key == "manualReportReviewRef" else Path(ref["path"])
+                if _mission_file_ref(ref_path) != ref:
+                    raise RunnerError("continuation report evidence reference changed")
+                updated["authority"][key] = ref
+        if "manualReportReviewRef" in decision:
+            updated["authority"]["manualReportAuthorityRef"] = decision_ref
+        updated["authoritySha256"] = _mission_digest(updated["authority"])
+        updated.setdefault("continuations", []).append({"decisionRef": decision_ref,
+            "previousStateSha256": decision["stateSha256"], "previousBudget": state["budget"], "at": utc_now()})
+        updated.update(status="verifying" if any(i["status"] in {"reportable", "captured"} for i in updated["intents"].values()) else "running",
+                       blocker=None)
+        if legacy_budget_failure:
+            updated.pop("failure", None)
+        mission_work_timeout(updated, 1)  # Never extends an expired finite deadline.
+        validate_mission_state(updated, path)
+        atomic_write_loop_state(path, updated)
+        return updated
+    finally:
+        lock.release()
 
 
 def loop_result_metadata(result: dict[str, Any]) -> dict[str, Any]:
@@ -2642,6 +2742,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Validate and run AGENT_ORDER_JSON_V1 handoffs.")
     parser.add_argument("--order", type=Path, help="Path to AGENT_ORDER_JSON_V1 order JSON")
     parser.add_argument("--init-mission", type=Path, help="Explicit approved mission preparation spec")
+    parser.add_argument("--continue-mission", type=Path, help="Recorded owner decision bound to current state; no dispatch")
     parser.add_argument("--state", type=Path, help="State path for --init-mission")
     parser.add_argument("--complete-mission", type=Path, help="Controller final proof bound to integrated product bytes")
     parser.add_argument("--project-revision", help="Final accepted project revision")
@@ -2654,6 +2755,19 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
+    if args.continue_mission is not None:
+        if args.order is None or args.init_mission is not None or args.complete_mission is not None or args.mode != "dry-run" or args.validate_only:
+            print("error: --continue-mission requires --order without dispatch or other mission operations", file=sys.stderr)
+            return 2
+        try:
+            order = require_object(load_json(args.order), "order")
+            _, policy = validate_order(order)
+            state = continue_mission(order, policy, args.continue_mission)
+            print(json.dumps({"status": state["status"], "missionId": state["missionId"], "modelLaunchesUsed": state["budget"]["modelLaunchesUsed"]}))
+            return 0
+        except (RunnerError, OSError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
     if args.init_mission is not None:
         if args.order is not None or args.state is None or args.mode != "dry-run" or args.validate_only:
             print("error: --init-mission requires --state and cannot be combined with dispatch options", file=sys.stderr)

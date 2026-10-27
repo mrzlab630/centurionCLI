@@ -282,7 +282,7 @@ def stage_surface(parent: Path, name: str, overlays: list[tuple[Path, str]], sta
         raise
 
 
-def publish(stages: list[Stage]) -> None:
+def publish(stages: list[Stage], retirement: tuple[Path, str, str] | None = None) -> None:
     published: list[Stage] = []
     try:
         for stage in stages:
@@ -304,6 +304,8 @@ def publish(stages: list[Stage]) -> None:
                     raise RuntimeError(f"published tree verification failed: {stage.parent / stage.name}")
             finally:
                 os.close(current_fd)
+        if retirement is not None:
+            retire_known_file(*retirement, apply=True)
     except Exception:
         for stage in reversed(published):
             failed = f'.{stage.name}.centurion-failed-{secrets.token_hex(4)}'
@@ -330,24 +332,36 @@ def close_stages(stages: list[Stage]) -> None:
 def retire_known_file(home: Path, relative: str, stamp: str, apply: bool) -> str | None:
     """Retire one explicitly managed artifact while keeping a rollback copy."""
     target = home / relative
+    backup = target.with_name(f'.{target.name}.centurion-backup-{stamp}')
     try:
-        info = os.lstat(target)
+        fd = os.open(target.parent, DIR_FLAGS)
     except FileNotFoundError:
         return None
-    if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
-        raise RuntimeError(f"managed retirement target is not a regular file: {target}")
-    backup = target.with_name(f'.{target.name}.centurion-backup-{stamp}')
-    if backup.exists():
-        raise RuntimeError(f"managed retirement backup already exists: {backup}")
-    if apply:
-        os.rename(target, backup)
-        fd = os.open(target.parent, DIR_FLAGS)
+    try:
+        try:
+            info = os.stat(target.name, dir_fd=fd, follow_symlinks=False)
+        except FileNotFoundError:
+            return None
+        if not stat.S_ISREG(info.st_mode):
+            raise RuntimeError(f"managed retirement target is not a regular file: {target}")
+        try:
+            os.stat(backup.name, dir_fd=fd, follow_symlinks=False)
+        except FileNotFoundError:
+            pass
+        else:
+            raise RuntimeError(f"managed retirement backup already exists: {backup}")
+        if not apply:
+            return str(backup)
+        rename_noreplace(fd, target.name, backup.name)
         try:
             os.fsync(fd)
-        finally:
-            os.close(fd)
+        except OSError:
+            rename_noreplace(fd, backup.name, target.name)
+            os.fsync(fd)
+            raise
         return str(backup)
-    return str(backup)
+    finally:
+        os.close(fd)
 
 
 
@@ -437,9 +451,8 @@ def main() -> int:
             'untouchedSurfaces': ['config.yaml', 'SOUL.md', '.env', 'auth.json', 'plugins', 'hooks', 'mcp-servers', 'centurion-config'],
         }
         if args.apply:
-            publish(stages)
-            if claude:
-                retire_known_file(claude, 'centurion/open-design-bridge.json', stamp, True)
+            retirement = (claude, 'centurion/open-design-bridge.json', stamp) if claude else None
+            publish(stages, retirement)
             report['status'] = 'pass'
         print(json.dumps(report, indent=2))
         return 0

@@ -38,6 +38,15 @@ authorized scope. This explanatory text changes no admission or permission.
 Workers remain bounded; reviewers report findings and never edit product or assign
 another reviewer. Core authority and mission budgets override recipe examples.
 
+Apply the core's "Report recovery and verification of saved work": malformed
+reporting alone never justifies a product rerun. `--recover-report` collects
+successive isolated reporting ordinals within the approved shared budget and
+stops on identical invalid responses. `--recover-report-from` collects exact
+controller-authorized manual-review bytes without a model launch. Required
+product proof and independent review still apply. Use the runner's
+`--continue-mission` with a state-bound owner decision to register manual review
+or extend budget; preserve all spent counters, raw output and finalized results.
+
 New policy 3.0 model launches use `launch.timeoutSeconds: null` with mission
 `budget.deadlineAt: null` for monitored execution without a lifetime cutoff.
 Finite values are honored only when explicitly selected; existing missions and

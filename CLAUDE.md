@@ -57,6 +57,12 @@ authority. Gateway process/events observation replaces legacy heartbeat-helper
 launch obligations for these children. Missing result formatting never permits
 replaying completed product work.
 
+Malformed reporting alone is not a failed product. Follow the functional
+contract's report-recovery section: use successive report-only attempts within
+the approved budget or collect an explicitly authorized manual-review report.
+Every attempt preserves the original evidence and product snapshot. Reporting
+does not consume a product correction attempt; mandatory review still applies.
+
 New model work has launch.timeoutSeconds=null and mission budget.deadlineAt=null
 unless the owner explicitly requests a finite limit. Observe the owning process
 about every 30 seconds; silence or elapsed time does not authorize termination,

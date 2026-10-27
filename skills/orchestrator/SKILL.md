@@ -84,8 +84,38 @@ Review orders also return executorExtensions.review with
 verdict, findings, reviewedOrderId, reviewedResultSha256 and productSnapshotSha256.
 Only result_gateway.py launches new 3.0 children. The runner validates; it is not
 another dispatch path. Read accepted state after restart before continuing; never
-replay product actions to repair reporting. Report correction stays disabled
+replay product actions to repair reporting. Model-based report correction stays disabled
 without the required no-write capability receipt.
+
+## Report recovery and verification of saved work
+
+An invalid report is a protocol failure, not proof that the product is defective.
+Preserve raw output, product files and controller proof. Normalize a valid
+transport deterministically first. Request product correction only for a proven
+product defect; never replay finished work to repair its report.
+
+Report formatting has no fixed one-attempt ceiling. Gateway may collect further
+isolated reporting ordinals within the approved model-launch budget while the
+product snapshot stays unchanged. Reserve budget for recovery and mandatory
+review before dispatch. Preserve every failed response; stop automatic retries
+when the same invalid response repeats, effects are unknown, isolation fails,
+the owner cancels or the approved budget is unavailable. A report attempt does
+not consume a product attempt. Status checks and restart collection never create
+another model launch.
+
+Alternatively, a controller-pinned manual product review may authorize collection
+of an exact replacement JSON report without any model launch. Bind the reviewer,
+criteria, original order/raw, saved product snapshot and candidate bytes through
+the recorded mission continuation. This restores reporting evidence; it cannot
+waive mandatory independent review, trusted V3 admission or controller acceptance.
+Neither reporting path may invent proof, conceal a failed check or overwrite a
+finalized canonical result. Use the supported continuation command for a budget
+decision or manual-review reference; never edit state or reset spent counters.
+Continue routine recovery within existing authority without repeatedly asking
+the owner. Request a decision only for a real authority or budget change.
+
+See docs/REPORT_RECOVERY.md in the source repository for the controller commands
+and evidence formats; it is maintenance documentation, not a runtime dependency.
 
 Report V3 capability separately from approval and review custody. In the checked
 rc.3 baseline, no trusted V3 verifier is wired into dispatch, so V3 is denied;
