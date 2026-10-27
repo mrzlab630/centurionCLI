@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 3.0.0-rc.4 — 2026-10-28
 
 - Archived Open Design as a historical stage; removed it from active skill
   selection, bundles, installers, MCP projections and runtime routing while
@@ -9,6 +9,8 @@
 - Add state-bound mission continuation and collection of manually reviewed reports without another model launch; retain required product proof and independent review.
 - Reserve model budget for required review and enabled report recovery before dispatch.
 - Roll back deployed skill trees when final configuration retirement fails, including a failure after the retirement rename.
+- Integrated the project scope-lock and V3 blocker clarifications. Source publication
+  does not imply installation into existing client homes or live mission recovery.
 
 ## 3.0.0-rc.3 — 2026-10-21
 

@@ -1,4 +1,4 @@
-# CENTURION 3.0.0-rc.3
+# CENTURION 3.0.0-rc.4
 
 Release candidate for one team lead, bounded workers and independent findings.
 Implementation is not release or pilot acceptance. The lead completes approved
@@ -85,12 +85,15 @@ The default Hermes smoke also runs the packaged Python regressions and remains
 an integration gate after W2/W3 are merged. `--skills-only` reports that gate as
 unrun. Native binary/schema/permission mode, live no-write correction, visual
 capabilities, pilot and independent review remain separate N5/N6/N7/N8 evidence.
-The source package is `3.0.0-rc.3`. The completed live rollout and Gateway canary
+The source package is `3.0.0-rc.4`. It includes budgeted report recovery,
+authorized manual report collection, mission continuation and the Open Design
+archive. The completed live rollout and Gateway canary
 acceptance in [the readiness receipt](docs/CENTURION_3_0_READINESS_2026-10-20.md)
-apply to `3.0.0-rc.2`. The rc.3 Hermes instruction update remains pending:
+apply to `3.0.0-rc.2`. Live adoption of rc.4 is not established by this source release.
+The preceding rc.3 Hermes instruction update was blocked:
 the installer dry-run detected a modified installed
 `skills/autonomous-ai-agents/aquila-team-orchestration/SKILL.md` and refused to
 overwrite it. Preserve and reconcile that local change before installation;
-publishing this source package does not establish live rc.3 adoption.
+publishing this source package does not establish live rc.4 adoption.
 Native kit `1.0.0` versions mark the breaking change to explicit selection and conflict-first install;
 the canonical JSON contract version remains V1.
