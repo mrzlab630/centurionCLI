@@ -9,7 +9,7 @@ export const LOAD_MAP = Object.freeze({
   incorporated: ['planner', 'context-optimizer'],
   domain: ['aedilis','aleator','architect','augur','capabilities','censor','coder',
     'documenter','error-handler','git-master','glossator','haruspex','indagator',
-    'ludifex','mercator','nomenclator','open-design-producer','orator','pictor',
+    'ludifex','mercator','nomenclator','orator','pictor',
     'pontifex','praeco','praemonitor','prompt-engineer','quaestor','refactorer',
     'researcher','reviewer','security','tabularius','tester','velites'],
   maintenance: ['artifex','skill-quartermaster'],
@@ -27,7 +27,6 @@ export const INTEGRATION_MAP = Object.freeze({
 });
 export const BUNDLE_MAP = Object.freeze({
   'aquila-delivery.yaml': ['aquila-team-orchestration','agent-contract-runner'],
-  'aquila-design-production.yaml': ['open-design-producer','aquila-team-orchestration'],
   'aquila-executor-eval.yaml': ['aquila-executor-eval','aquila-team-orchestration','agent-contract-runner'],
   'aquila-harness-audit.yaml': ['aquila-harness-audit','aquila-self-debug']
 });
@@ -38,13 +37,19 @@ export const COMPATIBILITY = Object.freeze({
   adapterVersion: 'centurion-native-v3',
   capabilityBinding: ['binarySha256','binaryVersion','configSha256','routeSha256','adapterSha256'],
   onChange: 'invalidate receipt; maintenance-only capability validation, never dispatch probes or auto-update',
-  optional: ['camofox','open-design','markitdown'],
+  optional: ['camofox','markitdown'],
+  archived: ['open-design'],
   excluded: ['deep-search.js','browse.js','Perplexity','Memoria','sequential-thinking','pal',
     'mission_control.py','evocate.sh','delegate_task','agy','kanban']
 });
 export const EXPECTED_SKILLS = Object.freeze(Object.values(LOAD_MAP).flat().sort());
 export const EXPECTED_SKILL_COUNT = EXPECTED_SKILLS.length;
 export const SHARED_CAPABILITIES = Object.freeze([]);
+// Historical owned files remain recognizable for safe retirement, never selection.
+export const ARCHIVED_SKILLS = Object.freeze({
+  'open-design-producer': path.join(REPO_ROOT, 'archive/open-design/skills/open-design-producer')
+});
+export const ARCHIVED_BUNDLES = Object.freeze(['aquila-design-production.yaml']);
 export function selectSkills(profile, requested = [], client = 'codex') {
   if (!['core','domain','maintenance'].includes(profile)) throw new Error('Explicit --profile core|domain|maintenance required');
   const available = profile === 'core' ? [] : [...LOAD_MAP[profile],

@@ -218,7 +218,10 @@ def remove_relative(root: Path, relative: str) -> None:
     cursor = root
     for part in parts[:-1]:
         cursor = cursor / part
-        info = os.lstat(cursor)
+        try:
+            info = os.lstat(cursor)
+        except FileNotFoundError:
+            return
         if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
             raise RuntimeError(f"managed removal parent is not a real directory: {relative}")
     try:
@@ -372,41 +375,27 @@ def main() -> int:
     parser.add_argument('--agents-home', required=True)
     parser.add_argument('--claude-home')
     parser.add_argument('--apply', action='store_true')
-    open_design = parser.add_mutually_exclusive_group()
-    open_design.add_argument('--without-open-design', action='store_true')
-    open_design.add_argument('--with-open-design', action='store_true')
     args = parser.parse_args()
     repo = Path(args.repo).resolve()
     hermes = Path(args.hermes_home).resolve()
     agents = Path(args.agents_home).resolve()
     claude = Path(args.claude_home).resolve() if args.claude_home else None
     stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
-    cli_launcher = (
-        '#!/bin/sh\n'
-        f'exec node {json.dumps(str(repo / "integrations/open-design-bridge/bin/centurion-design.mjs"))} "$@"\n'
-    ).encode()
     hermes_overlays = [(repo / 'integrations/hermes-legion-kit/skills', '')]
-    hermes_removals: list[str] = []
+    hermes_removals: list[str] = ['autonomous-ai-agents/open-design-producer']
     agents_overlays = [(repo / 'skills', '')]
     agents_removals: list[str] = [
         'planner', 'context-optimizer', 'evocate-ad-opus', 'sicarius',
         'researcher/scripts', 'researcher/test', 'researcher/reports',
         'researcher/node_modules', 'researcher/package.json', 'researcher/package-lock.json',
     ]
-    generated_bin: dict[str, tuple[bytes, int]] = {}
     claude_generated: dict[str, tuple[bytes, int]] = {}
     claude_removals = [
         'planner', 'context-optimizer', 'open-design-producer', 'evocate-ad-opus', 'sicarius',
         'researcher/scripts', 'researcher/test', 'researcher/reports',
         'researcher/node_modules', 'researcher/package.json', 'researcher/package-lock.json',
     ]
-    without_open_design = not args.with_open_design
-    if not without_open_design:
-        hermes_overlays.append((repo / 'skills/open-design-producer', 'autonomous-ai-agents/open-design-producer'))
-        generated_bin['centurion-open-design'] = (cli_launcher, 0o755)
-    else:
-        hermes_removals.append('autonomous-ai-agents/open-design-producer')
-        agents_removals.append('open-design-producer')
+    agents_removals.append('open-design-producer')
     if claude:
         claude_overlays = [(repo / 'skills', ''),
                            (repo / 'integrations/claude-legion-kit/plugin', 'centurion-legion')]
@@ -421,9 +410,9 @@ def main() -> int:
         (hermes, 'skills', hermes_overlays, {}, [*hermes_removals],
          ('research', 'devops', 'software-development')),
         (hermes, 'skill-bundles', [(repo / 'integrations/hermes-legion-kit/skill-bundles', '')], {},
-         ['aquila-design-production.yaml'] if without_open_design else [], ()),
-        (hermes, 'bin', [(repo / 'integrations/hermes-legion-kit/runtime/bin', '')], generated_bin,
-         ['centurion-open-design'] if without_open_design else [], ()),
+         ['aquila-design-production.yaml'], ()),
+        (hermes, 'bin', [(repo / 'integrations/hermes-legion-kit/runtime/bin', '')], {},
+         ['centurion-open-design'], ()),
         (agents, 'skills', agents_overlays, {}, agents_removals, ()),
     ]
     if claude:
@@ -440,7 +429,7 @@ def main() -> int:
             'schema': 'CENTURION_DEPLOYMENT_V2',
             'mode': 'apply' if args.apply else 'plan',
             'policy': 'repo-wins-preserve-complete-local-trees',
-            'openDesign': 'excluded' if without_open_design else 'cli-only',
+            'openDesign': 'archived',
             'surfaces': [{
                 'path': str(stage.parent / stage.name),
                 'incomingFiles': stage.incoming_count,

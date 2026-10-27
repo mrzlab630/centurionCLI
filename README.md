@@ -40,11 +40,13 @@ node integrations/claude-legion-kit/installer/install.mjs --profile domain --ski
 
 Use `--dry-run` for read-only planning. `--profile maintenance --skill artifex`
 selects maintenance instructions only; it does not authorize global skill creation.
-Optional Open Design requires explicit `--profile domain --skill open-design-producer`.
-Its bridge configuration is recorded, but MCP activation and provider capability
-remain separately authorized and proven. Camofox, MarkItDown and other optional
-adapters stay excluded without requested task and capability evidence. Broken
-research CLI adapters, upstream delegation skills and legacy control paths are
+Open Design is archived and is not an active installable or routable capability.
+The active package retains `aedilis`, `pictor`, `nomenclator`, `tabularius` and
+related design and web-development skills. Media generation uses the consumer's
+available tools under the approved task; it does not depend on Open Design.
+See the [historical archive](archive/open-design/README.md). Camofox, MarkItDown and other
+optional adapters stay excluded without requested task and capability evidence.
+Broken research CLI adapters, upstream delegation skills and legacy control paths are
 not installed. Native/Brave/Context7/Playwright research follows the bounded
 [research recipe](skills/researcher/SKILL.md).
 
@@ -77,7 +79,6 @@ node skills/context-optimizer/scripts/skill-drift-report.mjs --consumer-root /tm
 node integrations/codex-legion-kit/scripts/smoke.mjs
 node integrations/claude-legion-kit/scripts/smoke.mjs
 node integrations/hermes-legion-kit/scripts/smoke.mjs --skills-only
-node --test integrations/open-design-bridge/tests/*.test.mjs
 ```
 
 The default Hermes smoke also runs the packaged Python regressions and remains

@@ -8,6 +8,12 @@ using the affected adapter. Never resolve a conflict by silently editing setting
 
 Use [proportional proof](PROBATIO.md) for acceptance evidence.
 
+Open Design is archived, not an active route, installable skill or runtime
+dependency. Keep general UI/UX and web work with the selected domain skills;
+media generation uses available native tools within the approved task. Do not
+invoke or reinstall the archived Open Design adapter. Historical evidence is
+retained under archive/open-design in the source repository.
+
 ## CENTURION policyVersion 3.0 scope
 
 For an explicitly activated CENTURION policyVersion 3.0 mission only, the

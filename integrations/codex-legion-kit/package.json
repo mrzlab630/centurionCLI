@@ -6,8 +6,6 @@
   "type": "module",
   "scripts": {
     "audit:surface": "node ./scripts/codex-surface-audit.mjs",
-    "install:open-design": "node ./installer/install-open-design.mjs",
-    "install:open-design:dry-run": "node ./installer/install-open-design.mjs --dry-run",
     "smoke": "node ./scripts/smoke.mjs",
     "sync:agents": "node ./scripts/sync-agents.mjs"
   },

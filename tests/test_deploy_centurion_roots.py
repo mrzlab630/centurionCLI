@@ -17,6 +17,45 @@ SPEC.loader.exec_module(deploy)
 
 
 class DeploymentTransactionTests(unittest.TestCase):
+    def test_missing_retired_parent_is_a_noop(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            deploy.remove_relative(root, "centurion-legion/scripts/open-design-mcp.mjs")
+            self.assertEqual(list(root.iterdir()), [])
+
+    def test_archived_feature_cannot_be_enabled_by_old_flag(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            result = subprocess.run([sys.executable, "-B", str(ROOT / "scripts/deploy_centurion_roots.py"),
+                "--repo", str(ROOT), "--hermes-home", str(Path(temporary) / "hermes"),
+                "--agents-home", str(Path(temporary) / "agents"), "--with-open-design"], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("unrecognized arguments: --with-open-design", result.stderr)
+            self.assertEqual(list(Path(temporary).iterdir()), [])
+
+    def test_cli_deploys_design_skills_without_archived_surfaces(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for relative in ["hermes/skills", "hermes/skill-bundles", "hermes/bin", "agents/skills", "claude/skills"]:
+                (root / relative).mkdir(parents=True)
+            for relative in ["hermes/skills/autonomous-ai-agents/open-design-producer/SKILL.md",
+                    "agents/skills/open-design-producer/SKILL.md", "claude/skills/open-design-producer/SKILL.md",
+                    "hermes/skill-bundles/aquila-design-production.yaml", "hermes/bin/centurion-open-design"]:
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("historical managed artifact")
+            result = subprocess.run([sys.executable, "-B", str(ROOT / "scripts/deploy_centurion_roots.py"),
+                "--repo", str(ROOT), "--hermes-home", str(root / "hermes"), "--agents-home", str(root / "agents"),
+                "--claude-home", str(root / "claude"), "--apply"], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            import json
+            self.assertEqual(json.loads(result.stdout)["openDesign"], "archived")
+            for relative in ["hermes/skills/autonomous-ai-agents/open-design-producer", "agents/skills/open-design-producer",
+                    "claude/skills/open-design-producer", "hermes/skill-bundles/aquila-design-production.yaml", "hermes/bin/centurion-open-design"]:
+                self.assertFalse((root / relative).exists(), relative)
+            for home in ["agents", "claude"]:
+                for name in ["aedilis", "pictor", "nomenclator", "orator", "tabularius"]:
+                    self.assertEqual((root / home / "skills" / name / "SKILL.md").read_bytes(), (ROOT / "skills" / name / "SKILL.md").read_bytes())
+
     def test_failed_retirement_rolls_back_published_trees_and_retired_file(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

@@ -67,7 +67,9 @@ client CLI, update, dependency sync, external model or automatic MCP registratio
 New dispatch remains Gateway-only; native agents are bounded projections. No
 copied upstream delegation skills or alternate queues are part of the bundle.
 
-Optional Open Design is explicitly selected as a domain capability and configured
-for the requested isolated target. Camofox and document conversion require their
+Open Design is archived and excluded from active selection, installation and
+runtime routing. General UI/UX and web-development skills remain available through
+explicit domain selection; media generation uses the consumer's available tools.
+Camofox and document conversion require their
 own requested task and proven adapter; they are not automatic MCP installs.
 See the [root README](../../README.md) for proof commands and N5/N6 limitations.

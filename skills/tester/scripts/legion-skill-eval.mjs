@@ -7,14 +7,16 @@ import { REPO_ROOT,LOAD_MAP,EXPECTED_SKILLS,selectSkills } from '../../../integr
 const audit=auditSurface();
 const checks=[];
 function check(name,fn) {try{fn();checks.push({name,status:'pass'});}catch(e){checks.push({name,status:'fail',summary:e.message});}}
-check('all 38 root entrypoints have exactly one load classification',()=>{
+check('all 37 root entrypoints have exactly one load classification',()=>{
  const actual=fs.readdirSync(path.join(REPO_ROOT,'skills')).filter(n=>fs.existsSync(path.join(REPO_ROOT,'skills',n,'SKILL.md'))).sort();
- assert.equal(EXPECTED_SKILLS.length,38); assert.equal(new Set(EXPECTED_SKILLS).size,38);assert.deepEqual(actual,EXPECTED_SKILLS);
+ assert.equal(EXPECTED_SKILLS.length,37); assert.equal(new Set(EXPECTED_SKILLS).size,37);assert.deepEqual(actual,EXPECTED_SKILLS);
 });
 check('one core entrypoint incorporates planning/context; excluded skills cannot install',()=>{
  assert.deepEqual(selectSkills('core'),['orchestrator']);
  for(const n of [...LOAD_MAP.excluded,...LOAD_MAP.incorporated]) assert.throws(()=>selectSkills('domain',[n]));
  assert.throws(()=>selectSkills('domain'));assert.throws(()=>selectSkills(undefined));
+ assert.throws(()=>selectSkills('domain',['open-design-producer']));
+ for(const name of ['aedilis','pictor','nomenclator','orator','tabularius']) assert(selectSkills('domain',[name]).includes(name));
 });
 check('active roots, references and bundle dependencies are coherent',()=>{
  assert.deepEqual(audit.violations,[]);assert.deepEqual(audit.brokenReferences,[]);assert.deepEqual(audit.bundleErrors,[]);

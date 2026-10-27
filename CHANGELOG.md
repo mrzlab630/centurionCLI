@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Archived Open Design as a historical stage; removed it from active skill
+  selection, bundles, installers, MCP projections and runtime routing while
+  retaining general design, web-development and media skills.
 - Separate malformed reporting from product defects; allow successive isolated report corrections within the approved budget with preserved evidence and duplicate-response detection.
 - Add state-bound mission continuation and collection of manually reviewed reports without another model launch; retain required product proof and independent review.
 - Reserve model budget for required review and enabled report recovery before dispatch.

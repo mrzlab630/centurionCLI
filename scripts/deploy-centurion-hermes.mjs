@@ -10,9 +10,7 @@ const hermesHome = path.resolve(process.env.HERMES_HOME || path.join(os.homedir(
 const agentsHome = path.resolve(process.env.AGENTS_HOME || path.join(os.homedir(), '.agents'));
 const claudeHome = path.resolve(process.env.CLAUDE_HOME || path.join(os.homedir(), '.claude'));
 const apply = process.argv.includes('--apply');
-const withOpenDesign = process.argv.includes('--with-open-design');
-const withoutOpenDesign = !withOpenDesign;
-const unknown = process.argv.slice(2).filter((arg) => !['--apply', '--without-open-design', '--with-open-design'].includes(arg));
+const unknown = process.argv.slice(2).filter((arg) => arg !== '--apply');
 if (unknown.length) throw new Error(`Unknown argument(s): ${unknown.join(', ')}`);
 
 const result = spawnSync('python3', [
@@ -21,7 +19,6 @@ const result = spawnSync('python3', [
   '--hermes-home', hermesHome,
   '--agents-home', agentsHome,
   '--claude-home', claudeHome,
-  ...(withoutOpenDesign ? ['--without-open-design'] : ['--with-open-design']),
   ...(apply ? ['--apply'] : [])
 ], { encoding: 'utf8' });
 if (result.error) throw result.error;

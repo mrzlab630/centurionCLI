@@ -5,7 +5,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-import { selectSkills, LOAD_MAP, INTEGRATION_MAP, BUNDLE_MAP, COMPATIBILITY, PRODUCT_VERSION, isIgnoredGeneratedDir, walkFiles } from '../integrations/codex-legion-kit/scripts/lib/surface-config.mjs';
+import { selectSkills, LOAD_MAP, INTEGRATION_MAP, BUNDLE_MAP, COMPATIBILITY, PRODUCT_VERSION, ARCHIVED_SKILLS, ARCHIVED_BUNDLES, isIgnoredGeneratedDir, walkFiles } from '../integrations/codex-legion-kit/scripts/lib/surface-config.mjs';
 
 const SOURCE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const INSTRUCTION_START = '\n\n<!-- CENTURION_MANAGED_V3_START -->\n';
@@ -131,8 +131,7 @@ function listOperations(options) {
   for (const name of options.selected) {
     if (!Object.values(LOAD_MAP).flat().includes(name)) continue;
     const sourceDir = path.join(SOURCE_ROOT, 'skills', name);
-    const targetDir = options.client === 'hermes' && name === 'open-design-producer'
-      ? path.join(skillsTarget, 'autonomous-ai-agents', name) : path.join(skillsTarget, name);
+    const targetDir = path.join(skillsTarget, name);
     add(sourceDir, targetDir);
   }
   add(path.join(SOURCE_ROOT, 'CLAUDE.md'), path.join(home, options.client === 'claude' ? 'CLAUDE.md' : options.client === 'hermes' ? 'SOUL.md' : 'AGENTS.md'));
@@ -154,9 +153,6 @@ function listOperations(options) {
     for (const name of ['AQUILA_SOUL_OVERRIDES','SOUL_CLAUDE_ROLE_RULE','SOUL_RUNTIME_MODEL_RULE','ADAPTIVE_MODEL_ROUTING_POLICY']) {
       add(path.join(kit,'overrides',name+'.md'),path.join(home,'centurion','overrides',name+'.md'));
     }
-  }
-  if (options.selected.includes('open-design-producer')) {
-    options.openDesignConfig = path.join(home,'centurion','open-design-bridge.json');
   }
   if (options.client === 'claude') {
     options.pluginSource = path.join(SOURCE_ROOT, 'integrations/claude-legion-kit/plugin');
@@ -197,8 +193,11 @@ export function managedFileCatalogue(o) {
     else names.add(target);
   };
   for (const name of Object.values(LOAD_MAP).flat()) {
-    const rel = o.client === 'hermes' && name === 'open-design-producer' ? 'autonomous-ai-agents/'+name : name;
-    add(path.join(SOURCE_ROOT,'skills',name),path.join(o.skillHome,'skills',rel));
+    add(path.join(SOURCE_ROOT,'skills',name),path.join(o.skillHome,'skills',name));
+  }
+  for (const [name, source] of Object.entries(ARCHIVED_SKILLS)) {
+    const rel = o.client === 'hermes' ? 'autonomous-ai-agents/' + name : name;
+    add(source, path.join(o.skillHome, 'skills', rel));
   }
   for (const name of ['AGENTS.md','CLAUDE.md','SOUL.md'].filter(n=>n===({codex:'AGENTS.md',claude:'CLAUDE.md',hermes:'SOUL.md'}[o.client]))) names.add(path.join(o.nativeHome,name));
   for (const rel of ['PROBATIO.md','centurion/installed-chain.json','centurion/open-design-bridge.json','centurion/surface-config.mjs']) names.add(path.join(o.nativeHome,rel));
@@ -209,10 +208,12 @@ export function managedFileCatalogue(o) {
   for (const name of fs.readdirSync(path.join(SOURCE_ROOT,'libs')).filter(n=>n.endsWith('.py'))) names.add(path.join(o.skillHome,'libs',name));
   if (o.client === 'claude') add(path.join(SOURCE_ROOT,'integrations/claude-legion-kit/plugin'),path.join(o.skillHome,'skills/centurion-legion'));
   if (o.client === 'claude') for (const rel of ['lib/claude-result-validator.mjs','scripts/claude-order-guard.mjs']) names.add(path.join(o.skillHome,'skills/centurion-legion',rel));
+  if (o.client === 'claude') names.add(path.join(o.skillHome,'skills/centurion-legion/scripts/open-design-mcp.mjs'));
   if (o.client === 'hermes') {
     const kit=path.join(SOURCE_ROOT,'integrations/hermes-legion-kit');
     for (const rel of [...INTEGRATION_MAP.core,...INTEGRATION_MAP.domain,...INTEGRATION_MAP.maintenance]) add(path.join(kit,'skills',rel),path.join(o.skillHome,'skills',rel));
     for (const file of Object.keys(BUNDLE_MAP)) names.add(path.join(o.nativeHome,'skill-bundles',file));
+    for (const file of ARCHIVED_BUNDLES) names.add(path.join(o.nativeHome,'skill-bundles',file));
     for (const file of ['AQUILA_SOUL_OVERRIDES','SOUL_CLAUDE_ROLE_RULE','SOUL_RUNTIME_MODEL_RULE','ADAPTIVE_MODEL_ROUTING_POLICY']) names.add(path.join(o.nativeHome,'centurion/overrides',file+'.md'));
   }
   return names;
@@ -451,16 +452,6 @@ function main() {
     fs.rmSync(path.join(plugin,'scripts'),{recursive:true,force:true});
     operations.push({ source:plugin,target:options.pluginTarget });
   }
-  if(options.client==='hermes' && options.selected.includes('open-design-producer')) {
-    const op=operations.find(o=>o.target.endsWith('/autonomous-ai-agents/open-design-producer'));
-    const projected=path.join(scratch,'open-design-producer');
-    copyExact(op.source,projected);
-    const entry=path.join(projected,'SKILL.md');
-    fs.writeFileSync(entry,fs.readFileSync(entry,'utf8').replace('../orchestrator/SKILL.md','../../orchestrator/SKILL.md'));
-    options.projectedSources=[...walkFiles(op.source)];
-    op.source=projected;
-  }
-  if (options.openDesignConfig) generated('open-design.json',JSON.stringify({configVersion:'CENTURION_OPEN_DESIGN_CONFIG_V1',bridgeRoot:path.join(SOURCE_ROOT,'integrations/open-design-bridge')})+'\n',options.openDesignConfig);
   // A legacy custom instruction is never overwritten. The explicit migration
   // action appends one managed block and records the untouched original bytes.
   const instructionPath=path.join(options.nativeHome,{codex:'AGENTS.md',claude:'CLAUDE.md',hermes:'SOUL.md'}[options.client]);

@@ -1,5 +1,9 @@
 # CENTURION 3.0 — аудит skills и tools
 
+Исторический аудит на дату ниже. По решению владельца 2026-10-28 Open Design
+перенесён в [архив](../archive/open-design/README.md); рекомендации включить его
+в активную поставку больше не действуют. Остальные предметные навыки сохранены.
+
 Дата: 2026-10-16. Этот документ является evidence-пакетом для единого плана
 [CENTURION_3_0_IMPLEMENTATION_PLAN.md](CENTURION_3_0_IMPLEMENTATION_PLAN.md).
 Он описывает поверхность, которую нужно включить в 3.0, но не устанавливает
@@ -269,7 +273,7 @@ Playwright; health check не доказывает browser retrieval.
 [browse.js](../skills/researcher/scripts/browse.js),
 [surface audit](../skills/context-optimizer/scripts/skill-surface-audit.mjs),
 [installer](../install.sh),
-[Open Design fixtures](../integrations/open-design-bridge/tests/references.test.mjs).
+[Open Design fixtures](../archive/open-design/integrations/open-design-bridge/tests/references.test.mjs).
 Остальные пути в таблицах указаны относительно корня репозитория. Полное тело каждого
 domain reference и каждой внешней зависимости не проверялось построчно;
 охват — все entrypoints и группы executable surfaces, с подробным чтением

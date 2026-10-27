@@ -101,6 +101,52 @@ for(const client of clients) test(`${client}: selected cold/upgrade install, cha
  }finally{fs.rmSync(temp,{recursive:true,force:true});}
 });
 
+for(const client of clients) test(`${client}: archived Open Design retires owned files and preserves general design skills`,()=>{
+ const temp=fs.mkdtempSync(path.join(os.tmpdir(),'centurion-archive-install-'));
+ const native=path.join(temp,client),agents=client==='codex'?path.join(temp,'agents'):native;
+ const targetArgs=client==='codex'?['--agents-home',agents,'--codex-home',native]:[`--${client}-home`,native];
+ const design=['aedilis','pictor','nomenclator','orator','tabularius'];
+ const selection=['--profile','domain',...design.flatMap(name=>['--skill',name])];
+ const run=args=>spawnSync(process.execPath,[installer,'--client',client,...targetArgs,...args],{cwd:temp,encoding:'utf8'});
+ const receiptPath=path.join(native,'centurion/installed-chain.json');
+ try {
+  const installed=run(selection);assert.equal(installed.status,0,installed.stderr);
+  for(const name of design)assert.equal(fs.readFileSync(path.join(agents,'skills',name,'SKILL.md'),'utf8'),fs.readFileSync(path.join(ROOT,'skills',name,'SKILL.md'),'utf8'));
+  let receipt=JSON.parse(fs.readFileSync(receiptPath,'utf8'));
+  assert(!receipt.files.some(row=>row.sourcePath?.includes('/archive/')||row.installedPath.includes('open-design')));
+  const before=snapshot(temp);
+  const rejected=run(['--profile','domain','--skill','open-design-producer']);
+  assert.notEqual(rejected.status,0);assert.match(rejected.stderr,/allowlist/);assert.deepEqual(snapshot(temp),before);
+  // Reconstruct previously owned Open Design rows, not arbitrary home files.
+  const archived=path.join(ROOT,'archive/open-design');
+  const legacySkill=path.join(agents,'skills',client==='hermes'?'autonomous-ai-agents/open-design-producer':'open-design-producer');
+  const priorFiles=walkFiles(path.join(archived,'skills/open-design-producer')).map(source=>({source,target:path.join(legacySkill,path.relative(path.join(archived,'skills/open-design-producer'),source))}));
+  const config=path.join(native,'centurion/open-design-bridge.json');
+  priorFiles.push({content:'{"configVersion":"CENTURION_OPEN_DESIGN_CONFIG_V1","bridgeRoot":"/historical/source"}\n',target:config});
+  if(client==='hermes')priorFiles.push({source:path.join(archived,'integrations/hermes-legion-kit/skill-bundles/aquila-design-production.yaml'),target:path.join(native,'skill-bundles/aquila-design-production.yaml')});
+  if(client==='claude')priorFiles.push({source:path.join(archived,'integrations/claude-legion-kit/plugin/scripts/open-design-mcp.mjs'),target:path.join(agents,'skills/centurion-legion/scripts/open-design-mcp.mjs')});
+  for(const row of priorFiles){
+   fs.mkdirSync(path.dirname(row.target),{recursive:true});fs.writeFileSync(row.target,row.source?fs.readFileSync(row.source):row.content);
+   receipt.files.push({installedPath:row.target,installedSha256:hash(fs.readFileSync(row.target)),installedMode:fs.statSync(row.target).mode&0o777});
+  }
+  receipt.selected.push('open-design-producer');fs.writeFileSync(receiptPath,JSON.stringify(receipt));
+  const local=path.join(legacySkill,'node_modules/local-user-data.txt');
+  fs.mkdirSync(path.dirname(local),{recursive:true});fs.writeFileSync(local,'keep local data');
+  const entry=path.join(legacySkill,'SKILL.md'),original=fs.readFileSync(entry);
+  fs.appendFileSync(entry,'local modification\n');const dirty=snapshot(temp);
+  const conflict=run(selection);assert.notEqual(conflict.status,0);assert.match(conflict.stderr,/preimage changed/);assert.deepEqual(snapshot(temp),dirty);
+  fs.writeFileSync(entry,original);
+  const upgraded=run(selection);assert.equal(upgraded.status,0,upgraded.stderr);
+  for(const row of priorFiles)assert(!fs.existsSync(row.target),`retired file remains: ${row.target}`);
+  assert.equal(fs.readFileSync(local,'utf8'),'keep local data');
+  receipt=JSON.parse(fs.readFileSync(receiptPath,'utf8'));
+  assert(!receipt.selected.includes('open-design-producer'));
+  assert(!receipt.files.some(row=>row.sourcePath?.includes('/archive/')||row.installedPath.includes('open-design')));
+  for(const name of design)assert(fs.existsSync(path.join(agents,'skills',name,'SKILL.md')));
+  assert.equal(auditClient(client,targetArgs).ok,true);
+ }finally{fs.rmSync(temp,{recursive:true,force:true});}
+});
+
 for(const client of clients) test(`${client}: explicit legacy preimages preserve custom instructions and runtime state`,()=>{
  const temp=fs.mkdtempSync(path.join(os.tmpdir(),'centurion-legacy-migration-'));
  const native=path.join(temp,client),agents=client==='codex'?path.join(temp,'agents'):native;
