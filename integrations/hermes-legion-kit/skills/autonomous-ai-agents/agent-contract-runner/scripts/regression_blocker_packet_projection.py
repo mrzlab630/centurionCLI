@@ -107,17 +107,24 @@ def main() -> int:
     check(completed_unknown["requiresOwnerDecision"] is False, "unknown evidence requires internal reconciliation")
     check(completed_unknown["risk"] == "high", "unknown evidence cannot be a high-risk false-negative")
 
-    # V3 has no implicit approval path.
-    v3 = dict(base_order, verificationProfile="V3")
-    authority = build_blocker_packet(v3, result())
+    # Retired V3/verifier metadata and worker prose cannot invent a veto.
+    for legacy in ({"verificationProfile": "V3"}, {"trustedApproval": False},
+                   {"specialistApproval": False}, {"objective": "remove trusted approval verifier"}):
+        packet = build_blocker_packet(dict(base_order, **legacy), result())
+        assert_packet(packet, "unknown")
+        check(packet["requiresOwnerDecision"] is False, "retired gates must not request approval")
+    quoted = dict(result(), remainingRisks=["v3 approval unavailable"], authorityAvailable=False)
+    assert_packet(build_blocker_packet(base_order, quoted), "unknown")
+    authority = build_blocker_packet(base_order, result(), closure={"authorityAvailable": False})
     assert_packet(authority, "security_authority")
     check(authority["requiresOwnerDecision"] is True, "missing external authority needs customer")
 
-    # A blocked loop stops autonomous progress.
-    assert_packet(
-        build_blocker_packet(base_order, result(), loop_state={"status": "blocked", "noProgress": True}),
-        "loop_no_progress",
-    )
+    # Historical no-progress state recommends a strategy; it grants no veto.
+    loop_packet = build_blocker_packet(base_order, result(), loop_state={"status": "blocked", "noProgress": True})
+    assert_packet(loop_packet, "loop_no_progress")
+    check(loop_packet["requiresOwnerDecision"] is False, "progress advice must not request repeated approval")
+    check(loop_packet["recoveryCandidates"] == ["warn_about_progress_and_recommend_strategy_within_authorized_budget"],
+          "progress projection recommends, never orders termination")
 
     # Contradictory product evidence is unknown, not guessed into a recovery.
     conflicting = result("failed")

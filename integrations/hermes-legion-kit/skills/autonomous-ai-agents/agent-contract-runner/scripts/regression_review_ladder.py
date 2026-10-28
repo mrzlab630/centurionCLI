@@ -360,6 +360,10 @@ def main() -> int:
     selected_advisory = select_review_route(advisory)
     assert selected_advisory["route"] == "astra_advisory" and selected_advisory["reviewer"] == "none"
     assert selected_advisory["verificationProfile"] == "V2"
+    for selected in ("V0", "V1", "V2", "V3"):
+        chosen = dict(advisory, verificationProfile=selected)
+        validate_order_routing(order_for(chosen))
+        assert select_review_route(chosen)["verificationProfile"] == selected
     for bad, expected in (
         (dict(advisory, reasoningEffort="none"), "must be one of high, xhigh"),
         (dict(advisory, reasoningEffort="medium"), "must be one of high, xhigh"),
@@ -368,7 +372,6 @@ def main() -> int:
         (dict(advisory, model="gpt-6-sol"), "routing.model is not an allowed model"),
         (dict(advisory, terminalGate=True), "cannot be a terminal review"),
         (dict(advisory, reasons=["routine work"]), "explicit architectural trigger"),
-        (dict(advisory, verificationProfile="V1"), "records V2/V3"),
     ):
         expect_error(order_for(bad), expected)
     wrong_role = order_for(advisory)
@@ -383,7 +386,7 @@ def main() -> int:
     no_gate = dict(high_advisory)
     no_gate.pop("specialistGate")
     validate_order_routing(order_for(no_gate))
-    print("PASS explicit Astra advice is V2/V3 read-only non-review routing and cannot waive floors or impersonate roles")
+    print("PASS Astra advice preserves user-selected V0-V3 verification without impersonating review or implementation")
 
     medium_escape = [ledger_row("escape-medium", failureClass="escaped_defect", severity="medium")]
     floor, _ = task_class_promotion(medium_escape, "routine_implementation")

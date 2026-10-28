@@ -22,6 +22,16 @@ review semantics. No extra approval service or filesystem store is required.
 Historical CENTURION risk/review/V3 floors cannot override this owner policy.
 Actual host/runtime permissions and higher-priority requirements still apply.
 
+Progress heuristics are warnings too. Repeated reads, repeated findings, absent
+new proof or reduced reported coverage do not cancel a worker, reject otherwise
+proven work or require another approval. Report the observation once, recommend
+a different approach if useful, and continue within existing authority. There
+is no fixed one-switch strategy ceiling. Preserve the history and cumulative
+attempt counts; only the user can extend an approved budget. Scope changes,
+conflicting evidence and failed required checks remain facts to resolve, never
+facts to conceal. A denied tool request in the history is not by itself failure
+of the final product; inspect the outcome and selected checks.
+
 A worker performs only its assigned bounded order, preserves existing changes,
 and returns evidence. It cannot assign specialists or another reviewer. A reviewer
 reports criterion-linked findings, never edits product files or appoints a reviewer.
@@ -120,8 +130,9 @@ criteria, original order/raw, saved product snapshot and candidate bytes through
 the recorded mission continuation. This restores reporting evidence; it cannot
 waive user-selected checks or controller acceptance.
 Neither reporting path may invent proof, conceal a failed check or overwrite a
-finalized canonical result. Use the supported continuation command for a budget
-decision or manual-review reference; never edit state or reset spent counters.
+finalized canonical result. Use the supported continuation command for a launch
+or product budget decision or manual-review reference; never edit state or reset
+spent counters.
 Continue routine recovery within existing authority without repeatedly asking
 the owner. Request a decision only for a real authority or budget change.
 

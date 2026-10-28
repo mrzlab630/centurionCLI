@@ -57,7 +57,7 @@ def main() -> int:
 
     repeated_attempts = [attempt("order-a"), attempt("order-b")]
     repeated = evaluate_progress(base, repeated_attempts)
-    check(repeated["decision"] == "escalate", "repeated signatures escalate")
+    check(repeated["decision"] == "allow" and repeated["warnings"], "repeated signatures warn without a veto")
     check("repeated_signatures" in repeated["reasonCodes"], "repeated signature reason")
     check(len(repeated["repeatedSignatures"]) >= 4, "blocker/finding/patch/result signatures are retained")
     check(repeated["progressSignals"][1]["orderIdChanged"] is True, "order rename is visible")
@@ -67,7 +67,7 @@ def main() -> int:
         attempt("fresh-child-1", blockerHash="same-blocker", status="blocked"),
         attempt("fresh-child-2", blockerHash="same-blocker", status="blocked"),
     ])
-    check(renamed_no_progress["decision"] == "escalate", "changed order IDs do not reset the loop")
+    check(renamed_no_progress["decision"] == "allow" and renamed_no_progress["warnings"], "changed order IDs retain the warning")
 
     progressing = evaluate_progress(base, [
         attempt("progress-1", blockerHash="blocker-1", findingHash="finding-1", patchHash="patch-1", resultHash="result-1", status="done", proofCoverage=["proof-1"], acceptanceCoverage=["parser-proof"]),
@@ -115,7 +115,7 @@ def main() -> int:
         attempt("acceptance-1", status="done", acceptanceCoverage=["parser-proof", "regression-proof"], proofCoverage=["proof-1"]),
         attempt("acceptance-2", status="done", acceptanceCoverage=["parser-proof"], proofCoverage=["proof-1", "proof-2"]),
     ])
-    check(acceptance_regression["decision"] == "block", "acceptance reduction blocks")
+    check(acceptance_regression["decision"] == "allow" and acceptance_regression["warnings"], "coverage regression warns; real checks still decide acceptance")
     check("acceptance_coverage_regressed" in acceptance_regression["reasonCodes"], "acceptance regression reason")
 
     conflicting = evaluate_progress(base, [attempt("conflict-1", conflictingEvidence=True)])
@@ -145,8 +145,8 @@ def main() -> int:
         attempt("blocked-1", blockerHash="new", proofCoverage=["verified-result"], acceptanceCoverage=["parser-proof"]),
         attempt("blocked-2", blockerHash="new", proofCoverage=["verified-result"], acceptanceCoverage=["parser-proof"]),
     ])
-    check(after_success["decision"] == "escalate" and "no_progress" in after_success["reasonCodes"], "two blockers after success stop old strategy")
-    check(after_success["requiresOwnerDecision"] is False, "one bounded strategy choice belongs to controller")
+    check(after_success["decision"] == "allow" and "no_progress" in after_success["reasonCodes"], "two blockers after success warn without stopping work")
+    check(after_success["requiresOwnerDecision"] is False, "existing authority needs no repeated approval")
     report_hashes = evaluate_progress(base, [attempt("raw-1", controllerVerified=False, proofCoverage=["hash-a"]), attempt("raw-2", controllerVerified=False, proofCoverage=["hash-b"])])
     check("no_progress" in report_hashes["reasonCodes"], "unverified new hashes are not progress")
 

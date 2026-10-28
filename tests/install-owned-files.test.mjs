@@ -38,7 +38,7 @@ for(const client of clients) test(`${client}: selected cold/upgrade install, cha
    const dry=run(['--profile','core','--dry-run']);assert.equal(dry.status,0,dry.stderr);assert.deepEqual(snapshot(temp),before);
    assert.notEqual(run([]).status,0,'implicit selection accepted');
    const cold=run(['--profile','core']);assert.equal(cold.status,0,cold.stderr);
-   let receipt=read();assert.equal(receipt.productVersion,'3.0.0-rc.4');assert.deepEqual(receipt.selected,['orchestrator']);
+   let receipt=read();assert.equal(receipt.productVersion,'3.0.0-rc.5');assert.deepEqual(receipt.selected,['orchestrator']);
    assert.equal(receipt.capability.status,'excluded');assert.equal(receipt.liveLoadedChainProven,false);
    for(const file of receipt.files){
     assert.equal(hash(fs.readFileSync(file.installedPath)),file.installedSha256);

@@ -4,7 +4,7 @@ Open Design was archived by the owner on 2026-10-28. Its bridge, producer,
 client wrappers, bundle and fixtures are preserved in `archive/open-design`;
 the historical Open Design checks below are not active installation or release gates.
 
-Product: `3.0.0-rc.4`. Canonical load map:
+Product: `3.0.0-rc.5`. Canonical load map:
 `integrations/codex-legion-kit/scripts/lib/surface-config.mjs`.
 The existing installers share staged owned-file installation. Core selects one
 functional entrypoint; planner/context abilities are incorporated. Domain and

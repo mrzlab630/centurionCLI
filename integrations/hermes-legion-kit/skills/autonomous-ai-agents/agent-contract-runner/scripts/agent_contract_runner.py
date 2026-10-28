@@ -1124,8 +1124,6 @@ def validate_mission_state(state: dict[str, Any], state_path: Path) -> None:
     if state["cancelled"] and state["status"] != "stopped":
         raise RunnerError("cancelled mission must remain stopped")
     _mission_int(state.get("strategySwitchesUsed"), "strategySwitchesUsed")
-    if state["strategySwitchesUsed"] > 1:
-        raise RunnerError("only one strategy switch is allowed")
     tasks = require_object(state.get("tasks"), "mission tasks")
     intents = require_object(state.get("intents"), "mission intents")
     completion_actions = authority.get("taskCompletionActions")
@@ -1448,10 +1446,10 @@ def _validate_mission_scope(order: dict[str, Any], policy: PathPolicy, state: di
     if route is None:
         raise RunnerError("policy 3.0 requires canonical routing without legacy fallback")
     expected_profile = {"product": "implementation", "review": "terminal_review", "advisory": "advisory", "report": "implementation"}[meta["action"]]
-    if route["executionProfile"] != expected_profile or PROFILE_RANK[route["verificationProfile"]] < PROFILE_RANK[task["verificationProfile"]]:
+    selected_profile = "V2" if task["verificationProfile"] == "V3" else task["verificationProfile"]
+    routed_profile = "V2" if route["verificationProfile"] == "V3" else route["verificationProfile"]
+    if route["executionProfile"] != expected_profile or routed_profile != selected_profile:
         raise RunnerError("mission action/verification profile does not match approved task")
-    if task["verificationProfile"] == "V0" and route["verificationProfile"] != "V0" and meta["action"] == "product":
-        raise RunnerError("higher verification floor requires explicit task preparation; no V0 acceptance bypass")
     if meta["action"] not in authority["allowedActions"]:
         raise RunnerError("requested action lacks mission authority")
     if meta["action"] == "product" and task.get("completionAction", "product") != "product":
@@ -2025,29 +2023,35 @@ def record_mission_observation(reservation: MissionReservation, observation: dic
         progress_budgets = {key: value for key, value in declared.items()
                             if key not in {"maxWallSeconds", "wallTimeSeconds", "wallSeconds"}} if isinstance(declared, dict) else {}
     advisory = evaluate_progress(state["authority"], state["observations"][start:], budgets=progress_budgets)
+    previous_warnings = (state.get("progressDecision") or {}).get("warnings", [])
     state["progressDecision"] = advisory
     if advisory["decision"] != "allow":
         state.update(status="blocked", blocker={"decisionOwner": "customer" if advisory["requiresOwnerDecision"] else "controller",
                                                "reason": advisory["reasonCodes"]})
         state["blockerPacket"] = build_blocker_packet(reservation.order, None, loop_state=advisory)
     reservation.save()
+    if advisory.get("warnings") != previous_warnings:
+        for warning in advisory.get("warnings", []):
+            print(f"WARNING {warning['code']}: {warning['message']}", file=sys.stderr)
     return advisory
 
 
 def switch_mission_strategy(reservation: MissionReservation, strategy_id: str, reason: str) -> None:
     state = reservation.state
-    if state["status"] != "blocked" or (state.get("blocker") or {}).get("decisionOwner") != "controller":
-        raise RunnerError("strategy switch requires an internal controller blocker")
-    if state["strategySwitchesUsed"] or not strategy_id or strategy_id == state["strategyId"] or not reason:
-        raise RunnerError("only one explicit strategy switch is allowed")
+    if state["status"] not in {"running", "verifying", "blocked"} or (state.get("blocker") or {}).get("decisionOwner") == "customer":
+        raise RunnerError("strategy switch requires active work or an internal controller blocker")
+    if not strategy_id or strategy_id == state["strategyId"] or not reason:
+        raise RunnerError("strategy switch requires a new strategy and explicit reason")
     candidate = dict(state, status="running")
     mission_work_timeout(candidate, 1)
     if state["budget"]["modelLaunchesUsed"] >= state["budget"]["maxModelLaunches"]:
         raise RunnerError("strategy switch cannot replenish budget")
     if any(i["status"] in {"reserved", "dispatching", "running", "unknown_effect"} for i in state["intents"].values()):
         raise RunnerError("strategy switch cannot replay open/unknown effect")
-    state.update(status="running", strategyId=strategy_id, strategySwitchesUsed=1,
-                 strategySwitch={"reason": reason, "at": utc_now()}, blocker=None,
+    change = {"from": state["strategyId"], "to": strategy_id, "reason": reason, "at": utc_now()}
+    state.setdefault("strategySwitches", []).append(change)
+    state.update(status="running", strategyId=strategy_id, strategySwitchesUsed=state["strategySwitchesUsed"] + 1,
+                 strategySwitch=change, blocker=None, progressDecision=None,
                  strategyObservationStart=len(state["observations"]))
     reservation.save()
 
@@ -2058,8 +2062,8 @@ def prepare_mission_correction(reservation: MissionReservation, criterion: str, 
     state = reservation.state
     if state["status"] not in {"running", "verifying", "blocked"} or (state.get("blocker") or {}).get("decisionOwner") == "customer":
         raise RunnerError("correction cannot reactivate terminal/external blocked mission")
-    if state.get("progressDecision", {}).get("decision") in {"escalate", "replan", "block"}:
-        raise RunnerError("stopped strategy requires the one bounded strategy switch")
+    # Historical advice cannot override a recorded continuation. Current
+    # authority, criterion, effect state and remaining budgets govern correction.
     task_id = reservation.meta["taskId"]
     task = state["tasks"][task_id]
     if criterion not in task["acceptanceCriteria"] or not reason or not expected_evidence:
@@ -2137,6 +2141,17 @@ def continue_mission(order: dict[str, Any], policy: PathPolicy, decision_path: P
             if maximum < state["budget"]["maxModelLaunches"]:
                 raise RunnerError("continuation cannot reduce or reset the approved launch budget")
             updated["budget"]["maxModelLaunches"] = maximum
+        task_limits = require_object(decision.get("maxProductAttempts", {}), "continuation.maxProductAttempts")
+        previous_task_limits = {}
+        for task_id, value in task_limits.items():
+            if task_id not in state["tasks"] or state["tasks"][task_id]["status"] == "accepted":
+                raise RunnerError("continuation product budget requires an existing unfinished task")
+            maximum = _mission_int(value, "continuation.maxProductAttempts value", 1)
+            previous = state["tasks"][task_id]["maxProductAttempts"]
+            if maximum < previous:
+                raise RunnerError("continuation cannot reduce or reset the approved product budget")
+            previous_task_limits[task_id] = previous
+            updated["tasks"][task_id]["maxProductAttempts"] = maximum
         for key in ("reportCapabilityRef", "manualReportReviewRef"):
             if key in decision:
                 if "report" not in state["authority"]["allowedActions"]:
@@ -2150,7 +2165,9 @@ def continue_mission(order: dict[str, Any], policy: PathPolicy, decision_path: P
             updated["authority"]["manualReportAuthorityRef"] = decision_ref
         updated["authoritySha256"] = _mission_digest(updated["authority"])
         updated.setdefault("continuations", []).append({"decisionRef": decision_ref,
-            "previousStateSha256": decision["stateSha256"], "previousBudget": state["budget"], "at": utc_now()})
+            "previousStateSha256": decision["stateSha256"], "previousBudget": state["budget"],
+            "previousTaskLimits": previous_task_limits,
+            "previousProgressDecision": updated.pop("progressDecision", None), "at": utc_now()})
         updated.update(status="verifying" if any(i["status"] in {"reportable", "captured"} for i in updated["intents"].values()) else "running",
                        blocker=None)
         if legacy_budget_failure:

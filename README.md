@@ -1,4 +1,4 @@
-# CENTURION 3.0.0-rc.4
+# CENTURION 3.0.0-rc.5
 
 Release candidate for one team lead, bounded workers and independent findings.
 Implementation is not release or pilot acceptance. The lead completes approved
@@ -7,8 +7,9 @@ work autonomously within mission state, scope, budget and authority.
 Read the [functional contract](skills/orchestrator/SKILL.md),
 [implementation plan](docs/CENTURION_3_0_IMPLEMENTATION_PLAN.md) and
 [skills/tools decisions](docs/CENTURION_3_0_SKILLS_TOOLS_AUDIT_2026-10-16.md).
-Model and review policy has one runtime owner: controller routing. The plan section
-5 documents it; skills describe functions rather than repeating model policy.
+Controller routing owns model selection; the user's approved mission selects
+verification. The current [user-authority policy](docs/USER_AUTHORITY.md) supersedes
+historical review floors in the implementation plan.
 
 Task complexity and reasoning effort are separate fields. In policyVersion 3.0,
 Luna handles routine, mechanical, bounded low-complexity work with low risk and
@@ -75,6 +76,10 @@ explains risk and recommends checks; risk labels and defect history cannot veto
 the approved verification choice. The automatic V3 verifier/specialist gate is
 retired. Historical V3 records remain readable with V2 review semantics. See
 [user authority and risk warnings](docs/USER_AUTHORITY.md).
+Repeated Claude reads, historical tool denials and no-progress heuristics also
+warn without cancelling authorized work or rejecting proven output. Strategy
+changes have no fixed one-switch ceiling; recorded owner continuation can extend
+launch and per-task product budgets while preserving spent counters and evidence.
 
 Focused offline verification:
 
@@ -91,15 +96,14 @@ The default Hermes smoke also runs the packaged Python regressions and remains
 an integration gate after W2/W3 are merged. `--skills-only` reports that gate as
 unrun. Native binary/schema/permission mode, live no-write correction, visual
 capabilities, pilot and independent review remain separate N5/N6/N7/N8 evidence.
-The source package is `3.0.0-rc.4`. It includes budgeted report recovery,
-authorized manual report collection, mission continuation and the Open Design
-archive. The completed live rollout and Gateway canary
+The source package is `3.0.0-rc.5`. It includes user-selected verification,
+advisory progress warnings, budgeted report recovery, authorized manual report
+collection, mission continuation and the Open Design archive. The live rollout
+and Gateway canary
 acceptance in [the readiness receipt](docs/CENTURION_3_0_READINESS_2026-10-20.md)
-apply to `3.0.0-rc.2`. Live adoption of rc.4 is not established by this source release.
-The preceding rc.3 Hermes instruction update was blocked:
-the installer dry-run detected a modified installed
-`skills/autonomous-ai-agents/aquila-team-orchestration/SKILL.md` and refused to
-overwrite it. Preserve and reconcile that local change before installation;
-publishing this source package does not establish live rc.4 adoption.
+apply to `3.0.0-rc.2`, not this release. The rc.5 regression suite exercises local
+fixture executors and isolated package installation. Publishing this source
+package does not update existing client homes or prove a new live provider run.
+Preserve and reconcile locally modified instructions during any later rollout.
 Native kit `1.0.0` versions mark the breaking change to explicit selection and conflict-first install;
 the canonical JSON contract version remains V1.

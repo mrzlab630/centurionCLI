@@ -383,7 +383,7 @@ def plan_command(order: dict[str, Any]) -> list[str]:
     return argv
 
 
-# Three identical Read no-progress results are treated as a fail-closed loop.
+# Three identical Read results warrant a warning, not process cancellation.
 CLAUDE_NO_PROGRESS_LIMIT = 3
 CHILD_OBSERVATION_SECONDS = 30.0
 
@@ -443,8 +443,9 @@ def _observe_claude_tool_event(event: Any, state: dict[str, Any]) -> str | None:
             state["noProgress"] += 1
             if state["noProgress"] >= CLAUDE_NO_PROGRESS_LIMIT:
                 return (
-                    "Claude tool loop detected after "
-                    f"{CLAUDE_NO_PROGRESS_LIMIT} repeated identical tool calls returned no-progress results"
+                    "Possible Claude tool loop: "
+                    f"{CLAUDE_NO_PROGRESS_LIMIT} repeated identical reads returned no new data; "
+                    "continuing within existing authority. The user decides whether to stop."
                 )
         else:
             state["signature"] = signature
@@ -452,13 +453,24 @@ def _observe_claude_tool_event(event: Any, state: dict[str, Any]) -> str | None:
     return None
 
 
-def _claude_tool_history_error(events: list[dict[str, Any]]) -> str | None:
+def _claude_tool_history_warning(events: list[dict[str, Any]]) -> str | None:
     state = _claude_tool_event_state()
     for event in events:
-        error = _observe_claude_tool_event(event, state)
-        if error is not None:
-            return error
+        warning = _observe_claude_tool_event(event, state)
+        if warning is not None:
+            return warning
     return None
+
+
+def runtime_warning(code: str, message: str) -> dict[str, str]:
+    return {"code": code, "severity": "warning", "message": message}
+
+
+def emit_runtime_warning(warning: dict[str, str], events_path: Path | None, reservation: Any) -> None:
+    append_event_best_effort(events_path, "runtime_warning",
+        approvalRef=reservation.state.get("authority", {}).get("approvalRef") if reservation is not None else None,
+        **warning)
+    print(f"WARNING {warning['code']}: {warning['message']}", file=sys.stderr)
 
 
 def _run_child_streaming(
@@ -473,6 +485,7 @@ def _run_child_streaming(
     reservation: Any = None,
     owned_identity: dict[str, Any] | None = None,
     events_path: Path | None = None,
+    warnings: list[dict[str, str]] | None = None,
 ) -> tuple[bytes, bytes, bool, bool, str | None, str | None, bool]:
     selector = selectors.DefaultSelector()
     streams: dict[int, str] = {}
@@ -480,6 +493,7 @@ def _run_child_streaming(
     line_buffers: dict[str, bytes] = {"stdout": b"", "stderr": b""}
     tool_state = _claude_tool_event_state()
     tool_loop_error: str | None = None
+    loop_warned = False
     timed_out = False
     drain_timed_out = False
     termination_signal = None
@@ -509,8 +523,6 @@ def _run_child_streaming(
         nonlocal termination_signal, timed_out, tool_loop_error, cleanup_deadline, drain_deadline
         if timeout_stop:
             timed_out = True
-        if reason.startswith("Claude tool loop"):
-            tool_loop_error = reason
         if termination_signal is None:
             termination_signal = "SIGTERM"
             if reservation is not None:
@@ -668,12 +680,13 @@ def _run_child_streaming(
                     event = strict_json_load_bytes(line, "Claude stream event")
                 except StrictJSONError:
                     continue
-                if process.poll() is not None:
-                    continue
-                loop_error = _observe_claude_tool_event(event, tool_state)
-                if loop_error is not None:
-                    request_stop(loop_error)
-                    break
+                loop_warning = _observe_claude_tool_event(event, tool_state)
+                if loop_warning is not None and not loop_warned:
+                    warning = runtime_warning("CLAUDE_TOOL_PROGRESS", loop_warning)
+                    if warnings is not None:
+                        warnings.append(warning)
+                    emit_runtime_warning(warning, events_path, reservation)
+                    loop_warned = True
             if len(line_buffers[label]) > max_frame:
                 capture_limited = True
                 frame_limited = True
@@ -791,6 +804,7 @@ def run_child(
     capture_error = None
     capture_limited = False
     tool_loop_error = None
+    warnings: list[dict[str, str]] = []
     stdout = b""
     stderr = b""
 
@@ -808,7 +822,8 @@ def run_child(
             tool_loop_error, capture_limited,
         ) = _run_child_streaming(process, timeout, grace_seconds, signal_group,
                                  detect_claude_tool_loop=detect_claude_tool_loop,
-                                 reservation=reservation, owned_identity=identity, events_path=events_path)
+                                 reservation=reservation, owned_identity=identity, events_path=events_path,
+                                 warnings=warnings)
     except BaseException as exc:
         capture_error = f"executor stream capture failed: {exc}"
         termination_signal = "SIGKILL"
@@ -850,6 +865,7 @@ def run_child(
         "error": "; ".join(errors) if errors else None,
         "captureLimited": capture_limited,
         "processStopped": process.poll() is not None,
+        "warnings": warnings,
     }
 
 
@@ -975,9 +991,9 @@ def extract_stdout_candidate(
     else:
         return None, ["Claude stdout transport must be a canonical result object, event object, event array, or JSONL"]
 
-    history_error = _claude_tool_history_error(events)
-    if history_error is not None:
-        return None, [history_error]
+    history_warning = _claude_tool_history_warning(events)
+    if history_warning is not None and extraction is not None:
+        extraction.setdefault("warnings", []).append(runtime_warning("CLAUDE_TOOL_PROGRESS", history_warning))
 
     terminal_indexes = [index for index, event in enumerate(events) if event.get("type") == "result"]
     if len(terminal_indexes) != 1:
@@ -998,8 +1014,10 @@ def extract_stdout_candidate(
     permission_denials = terminal.get("permission_denials")
     if not isinstance(permission_denials, list):
         transport_errors.append("Claude terminal permission_denials must be an array")
-    elif permission_denials:
-        transport_errors.append("Claude terminal permission_denials must be empty")
+    elif permission_denials and extraction is not None:
+        extraction.setdefault("warnings", []).append(runtime_warning("CLAUDE_PERMISSION_DENIALS",
+            f"Claude recorded {len(permission_denials)} denied tool requests; inspect their impact on "
+            "the requested outcome. Historical denials alone do not invalidate a completed result."))
     structured = terminal.get("structured_output")
     text_result = terminal.get("result")
     native = bool(_option_values(shlex.split(order.get("launch", {}).get("command", "")), {"--json-schema"})) if native_override is None else native_override
@@ -1944,6 +1962,9 @@ def main() -> int:
         extraction = {"version": "CLAUDE_OUTPUT_V1", "rawSha256": stdout_record["sha256"]}
         if args.candidate_source == "stdout" and not controller_errors:
             extracted_candidate, stdout_errors = extract_stdout_candidate(child["stdout"], order, args.schema, routing, extraction)
+            for warning in extraction.get("warnings", []):
+                if warning not in child.get("warnings", []):
+                    emit_runtime_warning(warning, events_path, reservation)
             if stdout_errors:
                 controller_errors.extend(stdout_errors)
             else:

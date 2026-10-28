@@ -265,7 +265,7 @@ def _severity(row: dict[str, Any]) -> str:
 
 
 def task_class_promotion(history: Iterable[dict[str, Any]], task_class: str) -> tuple[str | None, list[str]]:
-    """Return an active task-class floor from escaped V0 defects or Sol misses."""
+    """Recommend verification from escaped defects; never change user authority."""
     rows = [row for row in history if row.get("taskClass") == task_class]
     reasons: list[str] = []
 
@@ -440,8 +440,8 @@ def validate_routing_metadata(
             raise RoutingError("Astra advisory requires executor=codex")
         if order.get("roleForTask") != "ARCHITECTUS":
             raise RoutingError("Astra advisory requires roleForTask=ARCHITECTUS")
-        if profile not in {"V2", "V3"} or metadata["reviewer"] != "none":
-            raise RoutingError("Astra advisory records V2/V3 downstream floor with reviewer=none")
+        if metadata["reviewer"] != "none":
+            raise RoutingError("Astra advisory requires reviewer=none; the user selects downstream verification")
         if "terminalGate" in metadata:
             raise RoutingError("Astra advisory cannot be a terminal review")
         if not any(reason in ASTRA_ADVISORY_TRIGGERS for reason in reasons):
@@ -472,7 +472,7 @@ def validate_routing_metadata(
 
     if "trustPredicates" in metadata and not _trust_predicates_have_legacy_shape(metadata):
         raise RoutingError("routing.trustPredicates must retain the canonical boolean shape")
-    if profile == "V0":
+    if profile == "V0" and execution_profile == "implementation":
         proofs = order.get("proofCommands")
         has_required_proof = isinstance(proofs, list) and any(
             isinstance(proof, dict)

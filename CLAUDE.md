@@ -1,4 +1,4 @@
-# CENTURION 3.0.0-rc.4
+# CENTURION 3.0.0-rc.5
 
 Read [the functional contract](skills/orchestrator/SKILL.md) once for this mission.
 It governs team lead, worker and reviewer behavior. The selected surface and
@@ -61,6 +61,12 @@ An independent review, when selected, must actually be independent. Explain
 concrete risks and recommended checks once before an unresolved user decision;
 continue within an existing approval without asking again for the same action.
 This replaces historical CENTURION V3, specialist and risk-based review floors.
+Progress heuristics also warn: repeated reads or lack of new proof cannot kill
+an authorized worker or reject otherwise proven work. There is no one-switch
+strategy ceiling. Astra advice imposes no verification floor. A historical tool
+denial does not establish final product failure; report it and check the outcome.
+Only the user extends approved launch/product budgets through recorded continuation;
+spent counters, explicit cancellation and actual host permissions remain effective.
 
 Gateway alone launches new 3.0 children and creates outputContract.resultPath
 and controller receipts. Workers return the native payload through the selected

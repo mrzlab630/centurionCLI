@@ -411,9 +411,9 @@ def evaluate_progress(
 ) -> dict[str, Any]:
     """Return a reproducible controller advisory without changing any input.
 
-    Repeated caller-supplied signatures and no material proof/acceptance
-    improvement escalate.  Scope additions/changes and acceptance regressions
-    block before mutation.  Explicit or contradictory evidence blocks.  A
+    Repeated signatures, absent progress and coverage regressions warn without
+    closing authorized work. Scope changes, exhausted approved budgets and
+    contradictory evidence still need resolution before mutation. A
     first/empty attempt is allowed unless its own evidence is contradictory or
     its scope already drifts.  ``orderId`` is reported only as a change signal;
     it never resets history.
@@ -570,17 +570,21 @@ def evaluate_progress(
     drift = {"detected": bool(findings), "beforeMutation": True, "findings": findings[:MAX_FINDINGS]}
     if explicit_conflict or signature_conflict:
         decision, owner = "block", False
-    elif coverage_regressed:
-        decision, owner = "block", False
     elif findings:
         # Scope drift is recoverable only through a fresh controller/owner
         # decision; it must not authorize the currently observed mutation.
         decision, owner = "replan", True
-    elif budget_state["exhausted"] or consecutive_blocker or tail_no_progress:
-        decision, owner = "escalate", bool(budget_state["exhausted"])
+    elif budget_state["exhausted"]:
+        decision, owner = "escalate", True
     else:
         decision, owner = "allow", False
     result = _decision_template(decision, reasons, repeated, progress_signals, drift, budget_state, owner)
+    result["warnings"] = ([{
+        "code": "PROGRESS_WARNING", "severity": "warning",
+        "message": "Repeated work or reduced proof coverage may waste the approved budget; "
+                   "consider another strategy. This observation does not cancel authorized work "
+                   "or establish product failure; the user decides whether to continue.",
+    }] if tail_no_progress or consecutive_blocker or coverage_regressed else [])
     # Ensure the public artifact is JSON-safe even if a future field is added.
     json.dumps(result, allow_nan=False, separators=(",", ":"))
     return result

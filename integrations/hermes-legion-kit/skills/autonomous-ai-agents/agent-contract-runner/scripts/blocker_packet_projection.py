@@ -484,37 +484,10 @@ def _evidence_conflicts(
     )
 
 
-def _v3_unavailable(order: Any, result: Any, closure: Any, proof: Any) -> bool:
-    objects = _objects(order, result, closure, proof)
-    route_text = _text(order)
-    v3 = any(
-        item.get("verificationProfile") == "V3"
-        or item.get("verificationProfile") == "v3"
-        or item.get("requiredVerification") == "V3"
-        for item in objects
-    )
-    text = _text((order, result, closure, proof))
-    indicator = any(
-        marker in text
-        for marker in (
-            "v3 approval unavailable",
-            "approval unavailable",
-            "trusted approval verifier",
-            "specialist approval unavailable",
-            "break glass required",
-        )
-    )
-    explicit_unavailable = any(
-        item.get(key) is False
-        for item in objects
-        for key in ("approvalAvailable", "approvalVerified", "trustedApproval", "specialistApproval", "authorityAvailable")
-    )
-    has_approval = any(
-        item.get(key) is True
-        for item in objects
-        for key in ("approvalAvailable", "approvalVerified", "trustedApproval", "specialistApproval", "authorityReceipt")
-    )
-    return indicator or explicit_unavailable or (v3 and not has_approval) or ("v3" in route_text and not has_approval)
+def _authority_unavailable(order: Any, closure: Any) -> bool:
+    # Only explicit controller observations can identify missing user authority.
+    # Retired verifier flags, V3 labels and quoted worker prose are not vetoes.
+    return any(item.get("authorityAvailable") is False for item in _objects(order, closure))
 
 
 def _loop_blocked(loop_state: Any) -> bool:
@@ -554,7 +527,7 @@ def classify_blocker(
     """Classify supplied evidence using a fixed, fail-closed precedence order."""
     if _evidence_conflicts(order, result, closure, proof, loop_state, raw_evidence):
         return "unknown"
-    if _v3_unavailable(order, result, closure, proof):
+    if _authority_unavailable(order, closure):
         return "security_authority"
     if _loop_blocked(loop_state):
         return "loop_no_progress"
@@ -615,8 +588,8 @@ def _recovery_candidates(category: str, *, side_effect: bool | None) -> list[str
         "proof": ["collect_or_rerun_required_proof_without_widening_scope"],
         "product_in_scope": ["review_existing_side_effect_before_any_retry"],
         "strategy_scope": ["request_owner_scope_or_strategy_decision"],
-        "security_authority": ["obtain_independent_trusted_authority_evidence"],
-        "loop_no_progress": ["stop_loop_and_request_bounded_replan"],
+        "security_authority": ["record_user_scope_decision"],
+        "loop_no_progress": ["warn_about_progress_and_recommend_strategy_within_authorized_budget"],
         "external_prerequisite": ["resolve_prerequisite_outside_executor_scope"],
         "unknown": ["reconcile_conflicting_evidence_before_action"],
     }[category]
@@ -664,7 +637,7 @@ def build_blocker_packet(
             "proof": "Required proof evidence did not pass.",
             "product_in_scope": "A product-side effect is observed and must not be replayed implicitly.",
             "strategy_scope": "Observed evidence is outside the frozen strategy or scope.",
-            "security_authority": "Required security or authority evidence is unavailable.",
+            "security_authority": "The controller reports that required user authority is unavailable.",
             "loop_no_progress": "The bounded control loop is blocked or reports no progress.",
             "external_prerequisite": "An external prerequisite is unavailable.",
             "unknown": "Evidence is insufficient or conflicting; the controller must reconcile it.",

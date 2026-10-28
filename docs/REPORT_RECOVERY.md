@@ -49,7 +49,8 @@ python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contrac
   "approvalRef": "original-owner-approval-reference",
   "stateSha256": "sha256-of-current-state-bytes",
   "reason": "Recorded owner decision to extend the reporting budget",
-  "maxModelLaunches": 6
+  "maxModelLaunches": 6,
+  "maxProductAttempts": {"original-task-id": 4}
 }
 ```
 
@@ -57,6 +58,13 @@ python3 integrations/hermes-legion-kit/skills/autonomous-ai-agents/agent-contrac
 предел. Решение привязано к точным текущим bytes state; повторное применение
 устаревшего решения отклоняется. В state добавляется история continuation с hash
 решения и прежним бюджетом. Счётчики, raw, canonical results и deadline не сбрасываются.
+`maxProductAttempts` тоже необязателен: это отображение ID существующих
+незавершённых задач в новые пределы продуктовых попыток. Предел можно сохранить
+или увеличить; прежние значения записываются в `previousTaskLimits`. Увеличение
+не запускает работу и не разрешает повтор готового продукта: следующая коррекция
+по-прежнему связывается с доказанным дефектом согласованного критерия.
+Прежняя рекомендация о прогрессе сохраняется в `previousProgressDecision`
+истории continuation и не блокирует новое решение владельца.
 Живые/неизвестные эффекты сначала нужно reconcile. Завершённые, отменённые миссии
 и реальные terminal product failures не открываются. Узкая совместимость допускает
 старый `failed` с точной причиной `mission model-launch budget exhausted` при

@@ -82,8 +82,20 @@ else: raw = json.dumps(payload).encode()
 if mode == "canonical-collision":
     Path(order["outputContract"]["resultPath"]).write_bytes(raw)
 if order["executor"] == "claude":
-    print(json.dumps({"type":"result","subtype":"success","is_error":False,"permission_denials":[],
-        "structured_output":payload,"result":"Native textual companion is not a candidate", "modelUsage":{"claude-opus-5-5":{"inputTokens":1}}}))
+    terminal = {"type":"result","subtype":"success","is_error":False,"permission_denials":[],
+        "structured_output":payload,"result":"Native textual companion is not a candidate", "modelUsage":{"claude-opus-5-5":{"inputTokens":1}}}
+    events = []
+    if "tool-warnings" in mode:
+        terminal["permission_denials"] = [{"tool_name":"Read","tool_input":{"file_path":"denied-fixture.txt"}}]
+        for index in range(4):
+            events.extend([
+                {"message":{"content":[{"type":"tool_use","name":"Read","id":str(index),"input":{"path":"same.txt"}}]}},
+                {"message":{"content":[{"type":"tool_result","tool_use_id":str(index),"content":"Wasted call: file unchanged since your last read"}]},"tool_use_result":{"type":"file_unchanged"}}])
+    if mode == "buffered-tool-warnings": print(json.dumps(events + [terminal]))
+    else:
+        for event in events: print(json.dumps(event), flush=True)
+        if events: time.sleep(.15)
+        print(json.dumps(terminal))
 else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
 ''')
         cli.chmod(0o755)
@@ -409,6 +421,32 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
         claude = root / "claude"
         claude.write_bytes(cli.read_bytes())
         claude.chmod(0o755)
+        for mode in ("tool-warnings", "buffered-tool-warnings"):
+            paths = stage(mode, mode, monitored=True)
+            order = fixture.read_json(Path(paths["order"]))
+            order["executor"] = "claude"
+            route = fixture.routing_metadata(order["orderId"], "claude", verificationProfile="V0",
+                reviewer="none", reasoningEffort="high")
+            fixture.set_routing(order, route)
+            order["launch"]["command"] = shlex.join([str(claude), "-p", "--model", "claude-opus-5-5",
+                "--effort", "high", "--json-schema", json.dumps(native_result_schema(order, route)),
+                "--output-format", "stream-json" if mode == "tool-warnings" else "json", str(paths["order"])])
+            paths["candidate_source"] = "stdout"
+            fixture.write_json(Path(paths["order"]), order)
+            completed = fixture.run_gateway(paths)
+            assert completed.returncode == 0, completed.stderr + completed.stdout
+            assert (Path(paths["result"]).parent / "controller-acceptance.json").exists()
+            events_before = Path(paths["events"]).read_bytes()
+            warnings = [json.loads(line) for line in events_before.splitlines() if b'"runtime_warning"' in line or b'.runtime_warning"' in line]
+            assert {row["code"] for row in warnings} == {"CLAUDE_TOOL_PROGRESS", "CLAUDE_PERMISSION_DENIALS"}
+            assert len(warnings) == 2 and all(row["approvalRef"] == "fixture-approved" for row in warnings)
+            assert completed.stderr.count("WARNING CLAUDE_TOOL_PROGRESS:") == 1
+            replay = fixture.run_gateway(paths)
+            assert replay.returncode == 0 and "WARNING" not in replay.stderr
+            assert Path(paths["events"]).read_bytes() == events_before
+            assert (Path(paths["result"]).parent / "launch-count").read_text() == "launch\n"
+        print("PASS streamed/buffered repeated reads and historical denied requests warn once, accept proven work and never replay")
+
         for verdict in ("pass", "fail", "blocked", "missing", "stale", "mutation"):
             original = stage("candidate-"+verdict, profile="V2")
             pending = fixture.run_gateway(original)
@@ -1191,14 +1229,19 @@ time.sleep(20)
                           detect_claude_tool_loop=True)
         assert child["captureLimited"] is True and len(child["stdout"]) <= MAX_FRAME_BYTES + 65536
         loop_code = '''import json,time
-for index in range(3):
+for index in range(4):
     print(json.dumps({"message":{"content":[{"type":"tool_use","name":"Read","id":str(index),"input":{"path":"same.txt"}}]}}),flush=True)
     print(json.dumps({"message":{"content":[{"type":"tool_result","tool_use_id":str(index),"content":"Wasted call: file unchanged since your last read"}]},"tool_use_result":{"type":"file_unchanged"}}),flush=True)
-time.sleep(5)
+time.sleep(.15)
+print("finished after warning", flush=True)
 '''
-        child = run_child([sys.executable, "-c", loop_code], root, None, .1, detect_claude_tool_loop=True)
-        assert "Claude tool loop" in child["error"] and child["processStopped"] is True and child["timedOut"] is False
-        print("PASS monitored streaming byte/frame caps and real repeated tool no-progress still terminate without a task timeout")
+        loop_events = root / "tool-warning-events.jsonl"
+        child = run_child([sys.executable, "-c", loop_code], root, None, .1,
+                          detect_claude_tool_loop=True, events_path=loop_events)
+        assert child["error"] is None and child["exitCode"] == 0 and child["terminationSignal"] is None
+        assert b"finished after warning" in child["stdout"] and len(child["warnings"]) == 1
+        assert sum(json.loads(line)["event"].endswith(".runtime_warning") for line in loop_events.read_text().splitlines()) == 1
+        print("PASS bounded capture remains enforced; repeated tool reads warn once without cancelling a living child")
     return 0
 
 

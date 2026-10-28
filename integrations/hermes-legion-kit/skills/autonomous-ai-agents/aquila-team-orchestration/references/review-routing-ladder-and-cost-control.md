@@ -1,24 +1,24 @@
 # Review routing ladder and cost control
 
-This is the operational source for Aquila verification routing after the atomic cutover at `2026-08-03T11:00:42Z`. Route from consequence, proof strength, ambiguity, executor independence, and active task-class promotions. Model identity alone does not select the reviewer.
+This is the operational source for Aquila verification routing after the atomic cutover at `2026-08-03T11:00:42Z`. The user's approved mission selects verification. Consequence, proof gaps, ambiguity and task-class history inform warnings and recommendations; they never override that choice. Model identity alone does not select the reviewer.
 
 ## Required order metadata
 
 Every order created at or after the cutover contains exactly one compact `notesForExecutor` entry:
 
 ```text
-AQUILA_ROUTING_JSON_V1:{"objectiveId":"stable-id","attempt":1,"taskClass":"routine_implementation","complexity":"low","risk":"low","ambiguity":"low","reversibility":"high","evidenceNeed":"high","executor":"codex","model":"gpt-6-luna","reasoningEffort":"high","executionProfile":"implementation","verificationProfile":"V2","reviewer":"claude-opus-5-5","confidence":"high","reasons":["independent review is required for this Codex implementation"]}
+AQUILA_ROUTING_JSON_V1:{"objectiveId":"stable-id","attempt":1,"taskClass":"routine_implementation","complexity":"low","risk":"low","ambiguity":"low","reversibility":"high","evidenceNeed":"high","executor":"codex","model":"gpt-6-luna","reasoningEffort":"high","executionProfile":"implementation","verificationProfile":"V2","reviewer":"claude-opus-5-5","confidence":"high","reasons":["user selected independent review for this implementation"]}
 ```
 
 The runner rejects missing, duplicate, malformed, non-compact, unknown, or semantically incompatible metadata before dispatch. Orders created before the cutover retain their original contract and do not require this entry.
 
 Only a named ARCHITECTUS architecture trigger may use the existing
 `executionProfile:"advisory"` route with GPT-6 Astra. The order records the
-unchanged V2/V3 downstream floor; `reviewer:"none"` means this consultation
-is not terminal review. The runner binds xhigh or higher effort and a read-only
+user-selected verification profile; `reviewer:"none"` means this consultation
+is not terminal review. The runner binds high/xhigh effort and a read-only
 Codex launch. Result artifacts stay in the control namespace and
-`filesChanged` stays empty. Opus 5 and the V3 specialist/Boss gate remain
-required for the associated implementation.
+`filesChanged` stays empty. Advice does not impose review or a specialist gate
+on the associated implementation.
 
 ## Advisory lineage and closure
 
@@ -29,11 +29,11 @@ must be bound by the controller. Loop V1 separately binds the candidate result
 JSON digest and assigned review route; it cannot be combined with lineage.
 
 ARCHITECTUS advice is one stage in the ordered lifecycle
-`advisory -> implementation -> independent terminal review -> controller
+`advisory -> implementation -> user-selected verification -> controller
 closure`. Keep the stages distinct:
 
-- **Advisory:** a read-only consultation. Its `verificationProfile: V2` or
-  `V3` is a downstream floor only; it is not a completed review, approval, or
+- **Advisory:** a read-only consultation. Its `verificationProfile` preserves
+  the user's choice (V0-V3); it is not a completed review, approval, or
   closure. `reviewer:"none"` on this order means that no reviewer ran.
 - **Implementation:** a fresh implementation order names the exact advisory
   `orderId` and the SHA-256 of its candidate or result in the controller-owned
@@ -88,8 +88,8 @@ gate are retired. A terminal reviewer order uses `executionProfile:"terminal_rev
 | Profile | Selected terminal route | Recommended use; the user chooses |
 |---|---|---|
 | V0 | Deterministic controller proof only; no reviewer process | Low risk; local/narrow blast radius; cheap reversal; exact visible failure oracle; no security, data, schema, dependency, deploy/runtime, public, or external side effect; all required artifacts/proofs pass; no uncertainty, scope deviation, forbidden hit, or unverified assumption |
-| V1 | `gpt-6.1-sol` | Recoverable work where deterministic proof leaves a meaningful behavior gap; `gpt-6-sol` is fallback-only after verified pre-side-effect unavailability and starts a fresh route |
-| V2 | `claude-opus-5-5` with explicit `claude-opus-5` fallback | Medium consequence, material ambiguity, shared contract, architecture, difficult diagnosis, cross-service decision, or material hidden failure mode |
+| V1 | `gpt-6.1-sol` | Recoverable work where deterministic proof leaves a meaningful behavior gap; independent pairing for a Claude author |
+| V2 | `claude-opus-5-5` | Medium consequence, material ambiguity, shared contract, architecture, difficult diagnosis, cross-service decision, or material hidden failure mode |
 | V3 | Historical spelling with V2 review semantics; no external verifier or specialist gate | Readable for existing missions; not automatically selected for new work |
 
 The table describes recommended use, not mandatory risk floors. The user may
@@ -109,7 +109,7 @@ Contract-only result normalization with unchanged product hashes may use V0 dete
 ## Terminal-gate rule
 
 - V0 controller proof is terminal.
-- V1 Sol review is terminal unless a deterministic escalation trigger raises the profile.
+- V1 Sol review is terminal; an escalation recommendation does not change the selected profile.
 - V2/V3 Claude review is the terminal model gate.
 - A reviewer result is evidence about the frozen implementation candidate, not a new implementation candidate.
 - After the terminal model gate, Aquila performs deterministic schema, identity, hash, path, artifact, and proof checks only.
@@ -137,13 +137,20 @@ or authenticate against a malicious process with the controller's UID.
 
 ## Escalation and correction
 
-Escalate V1 to Claude when risk becomes high; security/auth/secrets/payments/dependency/migration/public/infra/production enters scope; architecture/data/API/cross-service judgment is required; required proof fails or cannot run; scope or forbidden-path drift occurs; Sol reports uncertainty, incomplete context, a medium/high finding, or `REQUEST_CHANGES`; or two attempts fail with the same failure class.
+Recommend a stronger check when new consequences, uncertainty or repeated defects
+justify it. Explain the finding and consequences once; the user chooses any
+change to verification or authority. Failed selected checks still need truthful
+resolution. Do not silently raise the profile or appoint another reviewer.
+Repeated observations and reduced reported coverage produce warnings, not a
+new permission gate. Strategy changes have no fixed one-switch limit within
+the approved scope and remaining budgets. Use recorded continuation for a
+user-approved budget extension; preserve all spent attempts and evidence.
 
 Task-class review recommendations are deterministic and advisory:
 
-1. One medium/high escaped V0 defect promotes that task class to V2.
-2. Two low escaped V0 defects within ten completed objectives promote the class one level for the next five objectives.
-3. One high Sol miss or two consecutive medium Sol misses promotes that task class to Claude.
+1. One medium/high escaped V0 defect recommends V2 for that task class.
+2. Two low escaped V0 defects within ten completed objectives recommend stronger review for the next five objectives.
+3. One high Sol miss or two consecutive medium Sol misses recommends Claude for that task class.
 4. Record the defect or miss, severity, correction order, and promotion in the append-only attempt ledger.
 5. Re-evaluate the affected routing rule on demand; do not launch retrospective reviews for unrelated clean objectives.
 
@@ -178,9 +185,9 @@ Use current provider pricing and live usage semantics. Per-run averages do not p
 
 ## Pitfalls
 
-- Adding Sol on top of the required Claude gate instead of selecting one terminal route.
+- Adding Sol on top of the user-selected Claude review.
 - Sending V0 work to a reviewer after complete deterministic proof.
-- Letting Sol replace Claude for a V2/V3 floor because it is cheaper.
+- Silently replacing the user's selected reviewer because another route is cheaper.
 - Creating review-of-review recursion.
 - Using an LLM to repair enum, path, or result-object shape defects.
 - Counting safe fail-closed stops as implementation errors.

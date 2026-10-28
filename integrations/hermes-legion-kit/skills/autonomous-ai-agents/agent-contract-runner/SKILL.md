@@ -25,6 +25,15 @@ V3's unavailable verifier and automatic specialist gate are retired. Historical
 V3 metadata remains readable with V2 review semantics and no separate approval
 store. Keep the exact authorized scope, real evidence and Gateway custody.
 
+Astra advice preserves the user's verification choice and imposes no downstream
+V2/V3 floor. Repeated tool reads or absent progress produce warnings, never an
+automatic kill or rejection of proven output. Historical permission denials are
+reported separately from final product checks. Strategy changes have no fixed
+one-switch ceiling within approved scope and remaining budgets. The owner may
+extend per-task `maxProductAttempts` through state-bound `--continue-mission`;
+spent attempts and original evidence remain intact. Explicit cancellation,
+actual scope/permission limits and failed required checks still apply.
+
 Workers remain bounded; reviewers report findings and never edit product or assign
 another reviewer. Core authority and mission budgets override recipe examples.
 

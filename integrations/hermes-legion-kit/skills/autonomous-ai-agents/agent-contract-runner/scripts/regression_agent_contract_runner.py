@@ -473,6 +473,8 @@ def mission_regressions() -> None:
         reservation.observe_result(value, result_path, process_stopped=True)
         proof = {}
         runner.run_verification_gate(reservation.order, result_path, None, reservation.policy, "fixture-proof", evidence=proof, reservation=reservation)
+        reservation.intent["workspaceAfter"] = runner.workspace_snapshot(reservation.state)
+        reservation.save()
         acceptance = reservation.policy.control_namespace / "controller-acceptance.json"
         write_json(acceptance, {"status": "passed", "orderId": reservation.order["orderId"], "canonicalResultSha256": runner.result_digest(result_path)})
         return proof, acceptance
@@ -590,7 +592,7 @@ def mission_regressions() -> None:
         order["notesForExecutor"] = [ROUTING_PREFIX + json.dumps(route, separators=(",", ":"))]
         return runner.PathPolicy(policy.repo_path, order["allowedPaths"], [], order["orderId"])
 
-    order, policy, path, target, result, _, _ = fixture("advisory", profile="V2")
+    order, policy, path, target, result, _, _ = fixture("advisory", profile="V0")
     prior_state = json.loads(path.read_text())
     assert_case(prior_state["tasks"]["task"]["completionAction"] == "product", "completion action defaults to product")
     del prior_state["tasks"]["task"]["completionAction"]
@@ -607,6 +609,21 @@ def mission_regressions() -> None:
     advisory.close()
     rejected(lambda: runner.complete_mission(order, policy, proof, "advisory-is-not-product"), "unaccepted tasks")
     print("PASS 3.0 advisory shares mission launch budget without product attempt authority")
+
+    order, policy, path, _, _, _, _ = fixture("v3-alias", profile="V3")
+    route = json.loads(order["notesForExecutor"][0][len(ROUTING_PREFIX):])
+    route["verificationProfile"] = "V2"
+    order["notesForExecutor"] = [ROUTING_PREFIX + json.dumps(route, separators=(",", ":"))]
+    reservation = runner.reserve_mission_dispatch(order, policy)
+    reservation.fail("known fixture stop before spawn", process_stopped=True)
+    reservation.close()
+    order, policy, path, _, _, _, _ = fixture("no-review-upgrade")
+    route = json.loads(order["notesForExecutor"][0][len(ROUTING_PREFIX):])
+    route.update(verificationProfile="V2", reviewer="claude-opus-5-5")
+    order["notesForExecutor"] = [ROUTING_PREFIX + json.dumps(route, separators=(",", ":"))]
+    rejected(lambda: runner.reserve_mission_dispatch(order, policy), "does not match approved task")
+    assert_case(json.loads(path.read_text())["budget"]["modelLaunchesUsed"] == 0, "review upgrade needs an actual user-selected task profile")
+    print("PASS historical V3 task admits V2 semantics; dispatch cannot silently change user-selected verification")
 
     rejected(lambda: fixture("invalid-completion-action", completion_action="review"), "completionAction")
     order, policy, path, target, result, _, _ = fixture("advisory-completion", profile="V2", completion_action="advisory")
@@ -817,8 +834,49 @@ def mission_regressions() -> None:
         capture(product, target, correction_ns / "result.json")
     assert_case(product.state["budget"]["modelLaunchesUsed"] == 3 and product.state["tasks"]["task"]["productAttemptsUsed"] == 3, "new orders preserve both cumulative attempt counters")
     rejected(lambda: runner.prepare_mission_correction(product, "bounded criterion", evidence, "again", "new proof"), "exhausted product")
+    product.state["progressDecision"] = {"decision": "escalate", "requiresOwnerDecision": True,
+                                         "reasonCodes": ["attempt_budget_exhausted"]}
+    product.save()
     product.close()
-    print("PASS 3.0 criterion-bound correction, new order accounting, product attempt exhaustion and unintegrated Gateway denial")
+    # An explicit user decision can raise both budgets without losing evidence.
+    before = json.loads(path.read_text())
+    decision_path = policy.control_namespace / "continue.json"
+    decision = {"version": "CENTURION_MISSION_CONTINUATION_V1", "missionId": before["missionId"],
+                "approvalRef": before["authority"]["approvalRef"], "stateSha256": runner._mission_file_ref(path)["sha256"],
+                "reason": "User approved another criterion-bound correction", "maxModelLaunches": 9,
+                "maxProductAttempts": {"task": 4}}
+    write_json(decision_path, dict(decision, maxProductAttempts={"missing-task": 4}))
+    rejected(lambda: runner.continue_mission(order, policy, decision_path), "existing unfinished task")
+    write_json(decision_path, dict(decision, maxProductAttempts={"task": 2}))
+    rejected(lambda: runner.continue_mission(order, policy, decision_path), "reduce or reset")
+    assert_case(json.loads(path.read_text()) == before, "invalid extensions preserve mission bytes and counters")
+    write_json(decision_path, decision)
+    extended = runner.continue_mission(order, policy, decision_path)
+    assert_case(extended["tasks"]["task"]["maxProductAttempts"] == 4 and extended["tasks"]["task"]["productAttemptsUsed"] == 3,
+                "owner extends product budget without resetting spent attempts")
+    assert_case(extended["intents"] == before["intents"] and extended["continuations"][-1]["previousTaskLimits"] == {"task": 3},
+                "extension preserves captured evidence and journals the old task limit")
+    assert_case("progressDecision" not in extended and extended["continuations"][-1]["previousProgressDecision"] == before["progressDecision"],
+                "owner continuation archives stale advice instead of letting it veto the user's decision")
+    rejected(lambda: runner.continue_mission(order, policy, decision_path), "current mission")
+    product = runner.reserve_mission_dispatch(correction, correction_policy)
+    runner.prepare_mission_correction(product, "bounded criterion", evidence, "user-approved fourth correction", "passing bounded oracle")
+    product.close()
+    correction = copy.deepcopy(order)
+    correction["context"][0].update(intentId="product-4", retryReason="criterion defect", expectedEvidence="passing bounded oracle")
+    correction["orderId"] = "correction-4"
+    correction_ns = artifact_namespace(policy.repo_path, correction["orderId"])
+    correction_ns.mkdir(parents=True)
+    correction["allowedPaths"] = [str(target.parent / "**"), str(correction_ns / "**")]
+    correction["launch"]["resultJsonPath"] = correction["outputContract"]["resultPath"] = str(correction_ns / "result.json")
+    correction_policy = runner.PathPolicy(policy.repo_path, correction["allowedPaths"], [], correction["orderId"])
+    product = runner.reserve_mission_dispatch(correction, correction_policy)
+    proof, acceptance = capture(product, target, correction_ns / "result.json")
+    product.accept(proof, acceptance)
+    assert_case(product.state["tasks"]["task"]["productAttemptsUsed"] == 4 and product.state["budget"]["modelLaunchesUsed"] == 4,
+                "fourth user-authorized correction completes with cumulative counters")
+    product.close()
+    print("PASS criterion corrections and owner-authorized product budget extension preserve evidence and spent counters")
 
     order, policy, path, target, result, _, _ = fixture("dependencies")
     state = json.loads(path.read_text())
@@ -869,13 +927,21 @@ def mission_regressions() -> None:
     runner.record_mission_observation(reservation, {"status": "done", "controllerVerified": True, "acceptanceCoverage": ["bounded criterion"]})
     for _ in range(2):
         decision = runner.record_mission_observation(reservation, {"status": "blocked", "controllerVerified": True, "acceptanceCoverage": ["bounded criterion"], "blockerHash": "same"})
-    assert_case(decision["decision"] == "escalate" and not decision["requiresOwnerDecision"], "no-progress after success stops strategy internally")
+    assert_case(decision["decision"] == "allow" and decision["warnings"] and not decision["requiresOwnerDecision"], "no-progress warns without adding authority requirements")
     runner.switch_mission_strategy(reservation, "alternate", "new evidence method")
-    reservation.state.update(status="blocked", blocker={"decisionOwner": "controller"})
-    reservation.save()
-    rejected(lambda: runner.switch_mission_strategy(reservation, "third", "again"), "one explicit")
+    runner.switch_mission_strategy(reservation, "third", "another in-scope method")
+    assert_case(reservation.state["strategySwitchesUsed"] == 2 and len(reservation.state["strategySwitches"]) == 2,
+                "strategy changes are journaled without an arbitrary one-switch ceiling")
+    assert_case(reservation.state["budget"]["modelLaunchesUsed"] == 1 and reservation.state["tasks"]["task"]["productAttemptsUsed"] == 1,
+                "strategy changes do not refund launch or product attempts")
+    for _ in range(2):
+        runner.record_mission_observation(reservation, {"controllerVerified": True, "blockerHash": "same"})
+    assert_case(reservation.state["status"] == "running", "progress heuristic cannot close authorized running work")
+    finding = path.parent / "finding.txt"
+    finding.write_text("observed criterion failure\n")
+    runner.prepare_mission_correction(reservation, "bounded criterion", finding, "observed failure", "passing proof")
     reservation.close()
-    print("PASS 3.0 consumed budget, no-progress after success and one bounded strategy switch")
+    print("PASS approved budgets, progress warnings, repeated strategy changes and subsequent correction")
 
     for name, mutation, marker in (("cutoff", lambda s: s["budget"].update(deadlineAt=(datetime.now(timezone.utc) + timedelta(seconds=20)).isoformat(), startedAt=(datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()), "cutoff"),
             ("stopped", lambda s: s.update(status="stopped"), "closed"), ("failed", lambda s: s.update(status="failed"), "closed")):

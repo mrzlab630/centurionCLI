@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.0.0-rc.5 — 2026-10-28
+
+- Make user authority decisive: risk, defect history and review advice do not veto
+  the approved verification profile; retire V3's verifier and specialist gate.
+- Remove Astra's residual downstream review floor and false V3 authority blockers;
+  bind dispatch to the user's selected profile with V2/V3 compatibility.
+- Warn about repeated Claude reads and historical tool denials without killing
+  the worker or rejecting otherwise proven output; preserve warnings in Gateway
+  evidence and avoid repeating them when collecting accepted results.
+- Make no-progress and coverage-regression heuristics advisory. Remove the fixed
+  one-switch strategy limit while preserving scope and cumulative attempt budgets.
+- Let recorded owner continuation extend unfinished tasks' product-attempt budgets
+  without resetting counters, rewriting evidence or replaying completed work.
+- Align active instructions and routing documentation with the user-authority
+  doctrine. Keep required-check outcomes, cancellation, custody and actual host
+  permissions explicit; preserve Open Design as an archive.
+- Verify local Gateway/lifecycle regressions and isolated native-kit installation;
+  source publication does not imply rc.5 deployment or a fresh provider inference.
+
 ## 3.0.0-rc.4 — 2026-10-28
 
 - Archived Open Design as a historical stage; removed it from active skill
