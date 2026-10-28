@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.0.0-rc.6 — 2026-10-28
+
+- Prepare the local Codex, Claude and Hermes rollout of the rc.5 user-authority
+  policy. Runtime behavior is unchanged from rc.5; synchronize product metadata
+  while keeping native kit API versions at `1.0.0`.
+- Preserve local instruction additions and selected design/web/media skills;
+  Open Design stays archived. Rollout evidence is recorded after installed
+  readback and Gateway verification.
+
 ## 3.0.0-rc.5 — 2026-10-28
 
 - Make user authority decisive: risk, defect history and review advice do not veto

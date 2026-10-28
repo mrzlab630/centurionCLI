@@ -1,4 +1,4 @@
-# CENTURION 3.0.0-rc.5
+# CENTURION 3.0.0-rc.6
 
 Release candidate for one team lead, bounded workers and independent findings.
 Implementation is not release or pilot acceptance. The lead completes approved
@@ -96,7 +96,7 @@ The default Hermes smoke also runs the packaged Python regressions and remains
 an integration gate after W2/W3 are merged. `--skills-only` reports that gate as
 unrun. Native binary/schema/permission mode, live no-write correction, visual
 capabilities, pilot and independent review remain separate N5/N6/N7/N8 evidence.
-The source package is `3.0.0-rc.5`. It includes user-selected verification,
+The source package is `3.0.0-rc.6`. It includes user-selected verification,
 advisory progress warnings, budgeted report recovery, authorized manual report
 collection, mission continuation and the Open Design archive. The live rollout
 and Gateway canary
