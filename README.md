@@ -98,12 +98,11 @@ unrun. Native binary/schema/permission mode, live no-write correction, visual
 capabilities, pilot and independent review remain separate N5/N6/N7/N8 evidence.
 The source package is `3.0.0-rc.6`. It includes user-selected verification,
 advisory progress warnings, budgeted report recovery, authorized manual report
-collection, mission continuation and the Open Design archive. The live rollout
-and Gateway canary
-acceptance in [the readiness receipt](docs/CENTURION_3_0_READINESS_2026-10-20.md)
-apply to `3.0.0-rc.2`, not this release. The rc.5 regression suite exercises local
-fixture executors and isolated package installation. Publishing this source
-package does not update existing client homes or prove a new live provider run.
-Preserve and reconcile locally modified instructions during any later rollout.
+collection, mission continuation and the Open Design archive. The
+[local rc.6 rollout receipt](docs/CENTURION_LOCAL_ROLLOUT_RC6.md) records installation
+into the owner's Codex, Claude and Hermes homes, preserved local instructions,
+Gateway restart and regression proof through the installed runtime.
+The earlier provider canary in [the rc.2 receipt](docs/CENTURION_3_0_READINESS_2026-10-20.md)
+remains historical evidence; this rollout did not run a fresh remote-model inference.
 Native kit `1.0.0` versions mark the breaking change to explicit selection and conflict-first install;
 the canonical JSON contract version remains V1.

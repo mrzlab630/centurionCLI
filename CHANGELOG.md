@@ -2,12 +2,16 @@
 
 ## 3.0.0-rc.6 — 2026-10-28
 
-- Prepare the local Codex, Claude and Hermes rollout of the rc.5 user-authority
-  policy. Runtime behavior is unchanged from rc.5; synchronize product metadata
-  while keeping native kit API versions at `1.0.0`.
+- Deploy the rc.5 user-authority policy into local Codex, Claude and Hermes homes
+  with 26 guarded file replacements and verified backups. Runtime behavior is
+  unchanged from rc.5; native kit API versions remain `1.0.0`.
 - Preserve local instruction additions and selected design/web/media skills;
-  Open Design stays archived. Rollout evidence is recorded after installed
-  readback and Gateway verification.
+  Open Design stays archived. Drain and restart Hermes Gateway, then restore
+  normal admission with fresh service/platform readback.
+- Verify all 323 selected installed files, 13 installer tests, 32 installed
+  Gateway regression groups, 15 mission lifecycle groups and rollback of all
+  26 preimages. See the [local rollout receipt](docs/CENTURION_LOCAL_ROLLOUT_RC6.md)
+  for evidence paths and the remote-inference proof boundary.
 
 ## 3.0.0-rc.5 — 2026-10-28
 
