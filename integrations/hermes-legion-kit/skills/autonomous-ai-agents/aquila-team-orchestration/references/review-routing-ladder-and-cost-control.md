@@ -40,8 +40,8 @@ closure`. Keep the stages distinct:
   frozen manifest. Advice does not satisfy implementation proof.
 - **Independent terminal review:** a fresh terminal-review order names the
   exact implementation `orderId` and reviewed-candidate SHA-256 in that
-  manifest. Opus 5, plus the V3 specialist/Boss gate when applicable, remains
-  required; advisory cannot replace it.
+  manifest. The user's selected independent review remains required;
+  advisory cannot replace it and V3 adds no specialist/verifier gate.
 - **Controller closure:** the controller checks the order IDs, executor and
   reviewer ownership, hashes, paths, artifacts, and proof against the frozen
   manifest. Only that check closes the chain; prose `ACCEPT` or an advisory
@@ -75,20 +75,34 @@ Canonical results, candidates, receipts, streams, events, and evidence must be
 under that directory. Declared product/application artifacts remain in their
 own allowed paths; root-noise cleanup is a separate operation.
 
-V0 additionally carries all canonical `trustPredicates` as exact `true` booleans. V3 additionally carries `specialistGate:{"required":true,"approved":true,"approver":"..."}`. A terminal reviewer order uses `executionProfile:"terminal_review"`, `terminalGate:true`, and `reviewer:"none"`; it cannot appoint another reviewer.
+The user's approved mission selects verification. Risk and task-class history
+provide recommendations, not permission gates. Explain consequences and checks;
+the user decides and an existing approval is not requested again. Canonical
+`trustPredicates`, when present, remain truthful booleans; false risk predicates
+do not override the user's chosen profile. V3's external verifier and specialist
+gate are retired. A terminal reviewer order uses `executionProfile:"terminal_review"`,
+`terminalGate:true`, and `reviewer:"none"`; it cannot appoint another reviewer.
 
 ## V0-V3 matrix
 
-| Profile | Terminal route | Required conditions |
+| Profile | Selected terminal route | Recommended use; the user chooses |
 |---|---|---|
 | V0 | Deterministic controller proof only; no reviewer process | Low risk; local/narrow blast radius; cheap reversal; exact visible failure oracle; no security, data, schema, dependency, deploy/runtime, public, or external side effect; all required artifacts/proofs pass; no uncertainty, scope deviation, forbidden hit, or unverified assumption |
 | V1 | `gpt-6.1-sol` | Recoverable work where deterministic proof leaves a meaningful behavior gap; `gpt-6-sol` is fallback-only after verified pre-side-effect unavailability and starts a fresh route |
 | V2 | `claude-opus-5-5` with explicit `claude-opus-5` fallback | Medium consequence, material ambiguity, shared contract, architecture, difficult diagnosis, cross-service decision, or material hidden failure mode |
-| V3 | Currently blocked by the runner pending a trusted approval verifier; intended route is `claude-opus-5-5` with explicit `claude-opus-5` fallback plus specialist/Boss gate | Security, auth, secrets, money, payments, wallets, KYC, data loss, migration, production, dependency/supply-chain, public endpoint, or infrastructure change |
+| V3 | Historical spelling with V2 review semantics; no external verifier or specialist gate | Readable for existing missions; not automatically selected for new work |
 
-Evaluate V3 triggers first. V2 and V3 are hard floors and can never route to `none` or Sol. V0 is legal only when every trust predicate is true. Any Codex implementation with a proof gap requires V2/Claude, regardless of whether Luna or Sol executed it; the loop contract forbids Codex reviewing Codex. A fully proved low-risk Codex implementation may still qualify for V0.
+The table describes recommended use, not mandatory risk floors. The user may
+choose V0 after a risk warning, including consequential work, and keeps control
+of the requested checks. Once independent review is selected, its identity and
+candidate bindings remain real: self-review cannot masquerade as independence.
 
-Claude-owned V2/V3 implementation has no independent reviewer under this matrix and must fail routing validation before launch. Claude-owned V1 implementation may use Sol review when its hard floor permits V1. Codex-owned V2/V3 implementation retains the independent Opus 5 route; Astra advisory is not a reviewer. For terminal review closure, the controller must compare the implementation order ID and actual executor with the reviewer order and executor against the fresh frozen manifest; `reviewer:"none"` in terminal metadata does not prove different ownership or unchanged reviewed bytes.
+When the user selects V2/V3, Claude-owned implementation has no independent
+reviewer under this pairing; do not mislabel self-review as independence. The
+user may instead select V0 without a reviewer or the existing V1/Sol pairing.
+Codex-owned selected V2/V3 review uses independent Opus. Astra advice is not a
+reviewer. For terminal review closure, compare the original author, order and
+candidate hashes with the reviewer; `reviewer:"none"` does not prove independence.
 
 Contract-only result normalization with unchanged product hashes may use V0 deterministic closure. A normalizer must preserve original bytes and identity history and cannot invent proof, change semantic status, or author a success summary.
 
@@ -125,7 +139,7 @@ or authenticate against a malicious process with the controller's UID.
 
 Escalate V1 to Claude when risk becomes high; security/auth/secrets/payments/dependency/migration/public/infra/production enters scope; architecture/data/API/cross-service judgment is required; required proof fails or cannot run; scope or forbidden-path drift occurs; Sol reports uncertainty, incomplete context, a medium/high finding, or `REQUEST_CHANGES`; or two attempts fail with the same failure class.
 
-Task-class trust revocation is deterministic:
+Task-class review recommendations are deterministic and advisory:
 
 1. One medium/high escaped V0 defect promotes that task class to V2.
 2. Two low escaped V0 defects within ten completed objectives promote the class one level for the next five objectives.

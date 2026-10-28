@@ -115,7 +115,7 @@ def validate_claude_proxy_environment(environment: dict[str, str]) -> None:
 
 
 def validate_tunnel_launch(order: dict[str, Any], policy: Any, candidate: Path, source: str,
-                           schema_path: Path | None, routing: dict[str, Any] | None) -> None:
+                           schema_path: Path | None, routing: dict[str, Any] | None) -> list[dict[str, str]]:
     """3.0 admission only. Mission authority/reservation is checked by W3."""
     controller_context(order, required=True)
     if not isinstance(routing, dict):
@@ -165,6 +165,7 @@ def validate_tunnel_launch(order: dict[str, Any], policy: Any, candidate: Path, 
             raise PreflightError("Claude native schema is not the canonical order projection")
         if schemas and source != "stdout":
             raise PreflightError("Claude structured_output requires stdout candidate source")
+    return [item for item in plan["diagnostics"] if item["severity"] == "warning"]
 
 
 def _diagnostic(code: str, severity: str, path: str, message: str) -> dict[str, str]:
@@ -347,6 +348,11 @@ def plan_order(order: dict[str, Any], policy: Any, *, check_fresh_outputs: bool 
     planner reuses canonical repo resolution and exact/recursive path rules.
     """
     diagnostics: list[dict[str, str]] = []
+    if order.get("riskLevel") in {"medium", "high"}:
+        diagnostics.append(_diagnostic("USER_RISK_DECISION", "warning", "riskLevel",
+            f"{order['riskLevel']} risk: explain the concrete consequences and recommended checks to the user; "
+            "the recorded user authorization decides whether to proceed. Risk classification is not a veto "
+            "and does not require a V3 verifier or repeated approval for the same authorized action."))
     if order.get("orderVersion") != "AGENT_ORDER_JSON_V1":
         diagnostics.append(_diagnostic("ORDER_VERSION_UNSUPPORTED", "error", "orderVersion",
             "new tunnel ingress requires AGENT_ORDER_JSON_V1"))

@@ -1873,8 +1873,6 @@ def reserve_mission_dispatch(order: dict[str, Any], policy: PathPolicy, *, resum
             raise RunnerError("open or unknown effect requires reconciliation; never replay")
         if meta["action"] == "report":
             raise RunnerError("report-only dispatch disabled: no trusted no-write capability verifier")
-        if task["verificationProfile"] == "V3":
-            raise RunnerError("V3 remains disabled without trusted approval verifier")
         if meta["action"] == "advisory" and task.get("completionAction", "product") == "advisory" and task["status"] == "accepted":
             raise RunnerError("accepted advisory task must not restart consultation")
         if meta["action"] == "product":
@@ -2679,7 +2677,9 @@ def run_verification_gate(
         evidence["inputResults"] = checked_inputs
     routing = validate_order_routing(order)
     if routing is not None and routing["verificationProfile"] == "V0":
-        unresolved = [field for field in ("remainingRisks", "questions", "errors") if result[field]]
+        # Honest risk disclosure is evidence for the owner, not an automatic
+        # veto on the owner's selected deterministic verification profile.
+        unresolved = [field for field in ("questions", "errors") if result[field]]
         if unresolved:
             raise RunnerError("V0 result has unresolved " + ", ".join(unresolved))
     if result_digest(result_path) != result_sha256:

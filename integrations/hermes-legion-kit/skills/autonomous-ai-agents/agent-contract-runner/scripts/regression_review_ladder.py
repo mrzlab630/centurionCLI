@@ -20,7 +20,6 @@ from review_ladder import (
     MODEL_REASONING_EFFORTS,
     REVIEWER_FALLBACK_BY_PROFILE,
     SOL_PRIMARY_MODEL,
-    V3_APPROVAL_UNAVAILABLE,
     minimum_profile,
     select_review_route,
     task_class_promotion,
@@ -163,14 +162,14 @@ def main() -> int:
 
     forged_v3 = metadata("V3")
     selected_forged_v3 = select_review_route(forged_v3)
-    assert selected_forged_v3["specialistGateRequired"]
-    assert selected_forged_v3["specialistGateSatisfied"] is False
+    assert selected_forged_v3["specialistGateRequired"] is False
+    assert selected_forged_v3["specialistGateSatisfied"] is True
     effective_v3 = metadata("V2", risk="high", verificationProfile="V2")
     selected_effective_v3 = select_review_route(effective_v3)
-    assert selected_effective_v3["verificationProfile"] == "V3"
-    assert selected_effective_v3["specialistGateSatisfied"] is False
-    expect_error(order_for(forged_v3), V3_APPROVAL_UNAVAILABLE)
-    print("PASS explicit and effective V3 routes fail closed without trusted approval evidence")
+    assert selected_effective_v3["verificationProfile"] == "V2"
+    assert selected_effective_v3["specialistGateRequired"] is False
+    validate_order_routing(order_for(forged_v3))
+    print("PASS legacy V3 is readable without a verifier; risk never automatically selects V3")
 
     for profile in ("V2", "V3"):
         claude_implementation = metadata(profile, executor="claude", model="claude-opus-5-5")
@@ -243,12 +242,12 @@ def main() -> int:
     expect_error(order_for(dict(ambiguous_work, reasoningEffort="high")), "requires at least xhigh")
     validate_order_routing(order_for(dict(ambiguous_work, reasoningEffort="xhigh")))
     print("PASS model-specific effort sets enforce Luna high/xhigh and preserve Sol evidence floors")
-    expect_error(order_for(metadata("V1", executor="codex", model="gpt-6-luna")), "hard floor V2")
+    validate_order_routing(order_for(metadata("V1", executor="codex", model="gpt-6-luna", complexity="low")))
     expect_error(order_for(metadata("V2", model="gpt-6-luna", complexity="high")), f"requires {SOL_PRIMARY_MODEL}")
     expect_error(order_for(metadata("V2", model="gpt-6-luna")), f"requires {SOL_PRIMARY_MODEL}")
     expect_error(order_for(metadata("V2", model="gpt-6-luna", confidence="low")), f"requires {SOL_PRIMARY_MODEL}")
-    sol_with_gap = metadata("V1", executor="codex", model=SOL_PRIMARY_MODEL, reasoningEffort="medium")
-    expect_error(order_for(sol_with_gap), "hard floor V2")
+    sol_with_gap = metadata("V1", executor="codex", model=SOL_PRIMARY_MODEL, reasoningEffort="high")
+    expect_error(order_for(sol_with_gap), "own independent reviewer")
     validate_order_routing(order_for(metadata("V2", model=SOL_PRIMARY_MODEL, risk="low", ambiguity="low", reasons=["Sol executor with a proof gap"])))
     old_routine = metadata("V1", executor="codex", model="gpt-5.6-terra")
     expect_error(order_for(old_routine), "routing.model is not an allowed model")
@@ -261,7 +260,7 @@ def main() -> int:
     long_horizon = metadata("V2", model=SOL_PRIMARY_MODEL, risk="low", ambiguity="low", taskClass="long_horizon")
     expect_error(order_for(dict(long_horizon, reasoningEffort="medium")), "requires at least high")
     validate_order_routing(order_for(long_horizon))
-    print("PASS Luna is limited to clear, bounded work; Sol with a proof gap requires independent Claude review")
+    print("PASS existing model routes remain valid and a selected independent review rejects same-model authorship")
 
     post_claims = metadata("V0", model="gpt-6-luna", complexity="low")
     assert "deterministicFailureOracle" not in POST_EXECUTION_PREDICATES
@@ -280,27 +279,31 @@ def main() -> int:
     expect_error(optional_only, "requires at least one required proofCommand")
     print("PASS V0 separates pre-execution trust from controller-owned post-execution proof")
     medium_v1 = metadata("V1", risk="medium")
-    expect_error(order_for(medium_v1), "hard floor V2")
+    validate_order_routing(order_for(medium_v1))
     irreversible_v1 = metadata("V1", reversibility="low")
-    expect_error(order_for(irreversible_v1), "hard floor V2")
+    validate_order_routing(order_for(irreversible_v1))
     security_v0 = metadata("V0", taskClass="security_boundary")
-    expect_error(order_for(security_v0), "hard floor V3")
+    validate_order_routing(order_for(dict(security_v0, reasoningEffort="xhigh")))
     v3_no_gate = metadata("V3")
     v3_no_gate.pop("specialistGate")
-    expect_error(order_for(v3_no_gate), "specialistGate")
-    print("PASS V0 trust predicates and V2/V3 hard floors cannot be weakened")
+    validate_order_routing(order_for(v3_no_gate))
+    high_risk_v0 = metadata("V0", taskClass="production_change", risk="high", reasoningEffort="xhigh")
+    high_risk_v0["trustPredicates"] = dict.fromkeys(TRUST, False)
+    validate_order_routing(order_for(high_risk_v0))
+    assert select_review_route(high_risk_v0)["verificationProfile"] == "V0"
+    print("PASS owner-selected verification remains valid for high risk and truthful false trust predicates")
 
     for reason in ("no production changes", "no dependency changes", "no security impact", "production change", "architecture discussion"):
         safe = metadata("V0", reasons=[reason])
         assert minimum_profile(safe) == "V0"
         validate_order_routing(order_for(safe))
         dangerous = dict(safe, taskClass="production_change")
-        assert minimum_profile(dangerous) == "V3"
-        expect_error(order_for(dangerous), "hard floor V3")
-        assert minimum_profile(dict(safe, risk="high")) == "V3"
+        assert minimum_profile(dangerous) == "V2"
+        validate_order_routing(order_for(dangerous))
+        assert minimum_profile(dict(safe, risk="high")) == "V2"
         assert minimum_profile(dict(safe, risk="medium")) == "V2"
     assert minimum_profile(metadata("V0", taskClass="product_title")) == "V0"
-    print("PASS free-form reasons cannot raise or suppress controller-declared effect/risk floors")
+    print("PASS risk recommendations are independent of explanations and never veto the approved profile")
 
     terminal = metadata(
         "V1",
@@ -324,9 +327,9 @@ def main() -> int:
     assert primary_route["fallbackReviewer"] is None
     print("PASS gpt-6.1-sol is the only active Sol route and provider failure cannot authorize legacy fallback")
     medium_terminal = dict(terminal, risk="medium")
-    expect_error(order_for(medium_terminal), "hard floor V2")
+    validate_order_routing(order_for(medium_terminal))
     high_terminal = dict(terminal, risk="high")
-    expect_error(order_for(high_terminal), "hard floor V3")
+    validate_order_routing(order_for(high_terminal))
     v3_terminal = metadata(
         "V3",
         executor="claude",
@@ -337,14 +340,14 @@ def main() -> int:
     )
     v3_terminal_no_gate = dict(v3_terminal)
     v3_terminal_no_gate.pop("specialistGate")
-    expect_error(order_for(v3_terminal_no_gate), "specialistGate")
-    expect_error(order_for(v3_terminal), V3_APPROVAL_UNAVAILABLE)
+    validate_order_routing(order_for(v3_terminal_no_gate))
+    validate_order_routing(order_for(v3_terminal))
     v2_terminal = dict(v3_terminal, risk="medium", verificationProfile="V2")
     v2_terminal.pop("specialistGate")
     validate_order_routing(order_for(v2_terminal))
     recursive_v3 = dict(v3_terminal, reviewer="claude-opus-5-5")
     expect_error(order_for(recursive_v3), "cannot select another reviewer")
-    print("PASS terminal reviewer orders enforce V2/V3 floors, V3 gate, and no recursive reviewer")
+    print("PASS selected review semantics and no recursive reviewer remain independent of risk and retired V3 gates")
 
     advisory = metadata(
         "V2", executor="codex", model="gpt-6-astra", executionProfile="advisory",
@@ -365,7 +368,7 @@ def main() -> int:
         (dict(advisory, model="gpt-6-sol"), "routing.model is not an allowed model"),
         (dict(advisory, terminalGate=True), "cannot be a terminal review"),
         (dict(advisory, reasons=["routine work"]), "explicit architectural trigger"),
-        (dict(advisory, verificationProfile="V1"), "hard floor V2"),
+        (dict(advisory, verificationProfile="V1"), "records V2/V3"),
     ):
         expect_error(order_for(bad), expected)
     wrong_role = order_for(advisory)
@@ -376,10 +379,10 @@ def main() -> int:
     high_advisory = dict(advisory, risk="high", verificationProfile="V3", specialistGate={"required": True, "approved": True, "approver": "Boss"})
     expect_error(order_for(high_advisory), "requires at least xhigh")
     high_advisory["reasoningEffort"] = "xhigh"
-    expect_error(order_for(high_advisory), V3_APPROVAL_UNAVAILABLE)
+    validate_order_routing(order_for(high_advisory))
     no_gate = dict(high_advisory)
     no_gate.pop("specialistGate")
-    expect_error(order_for(no_gate), "specialistGate")
+    validate_order_routing(order_for(no_gate))
     print("PASS explicit Astra advice is V2/V3 read-only non-review routing and cannot waive floors or impersonate roles")
 
     medium_escape = [ledger_row("escape-medium", failureClass="escaped_defect", severity="medium")]
@@ -394,7 +397,7 @@ def main() -> int:
     assert floor == "V1"
     promoted_codex = metadata("V0")
     selected_codex = select_review_route(promoted_codex, low_history)
-    assert selected_codex["verificationProfile"] == "V2" and selected_codex["reviewer"] == "claude-opus-5-5"
+    assert selected_codex["verificationProfile"] == "V0" and selected_codex["reviewer"] == "none"
     expect_error(
         order_for(
             dict(
@@ -404,7 +407,7 @@ def main() -> int:
                 reasons=selected_codex["reasons"],
             )
         ),
-        "hard floor V2",
+        "own independent reviewer",
         low_history,
     )
     validate_order_routing(order_for(dict(promoted_codex, verificationProfile="V2", reviewer="claude-opus-5-5", reasons=selected_codex["reasons"])), low_history)
@@ -421,10 +424,10 @@ def main() -> int:
     ]
     assert task_class_promotion(medium_sol, "routine_implementation")[0] == "V2"
     promoted_v0 = metadata("V0")
-    expect_error(order_for(promoted_v0), "hard floor V2", medium_escape)
+    validate_order_routing(order_for(promoted_v0), medium_escape)
     selected_promotion = select_review_route(promoted_v0, medium_escape)
-    assert selected_promotion["verificationProfile"] == "V2"
-    assert selected_promotion["reviewer"] == "claude-opus-5-5"
+    assert selected_promotion["verificationProfile"] == "V0"
+    assert selected_promotion["reviewer"] == "none"
     assert any(reason.startswith("promotion:") for reason in selected_promotion["reasons"])
     declared_promotion = dict(
         promoted_v0,
@@ -437,7 +440,7 @@ def main() -> int:
     ignored_promotion = select_review_route(base_v2, low_history[:3])
     assert ignored_promotion["verificationProfile"] == "V2"
     assert not any(reason.startswith("promotion:") for reason in ignored_promotion["reasons"])
-    print("PASS escaped V0 and Sol-miss promotions enforce production floors with canonical reasons")
+    print("PASS escaped-defect history informs recommendations without overriding owner-selected review")
 
     ledger = ROOT / "attempts.jsonl"
     first = append_attempt(ledger, ledger_row("ledger-1"))

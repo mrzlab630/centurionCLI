@@ -70,6 +70,12 @@ Malformed reporting can be recovered without rerunning product work. Gateway
 supports budgeted report corrections and controller-authorized manual review;
 see [report recovery and mission continuation](docs/REPORT_RECOVERY.md).
 
+The user decides which actions and verification are authorized. The system
+explains risk and recommends checks; risk labels and defect history cannot veto
+the approved verification choice. The automatic V3 verifier/specialist gate is
+retired. Historical V3 records remain readable with V2 review semantics. See
+[user authority and risk warnings](docs/USER_AUTHORITY.md).
+
 Focused offline verification:
 
 ```bash

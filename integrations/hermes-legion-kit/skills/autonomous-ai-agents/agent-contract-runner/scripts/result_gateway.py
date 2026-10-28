@@ -1819,7 +1819,7 @@ def main() -> int:
         argv = plan_command(order)
         if is_v3:
             policy.control_cli_path(args.order, "3.0 original order")
-            validate_tunnel_launch(order, policy, candidate_path, args.candidate_source, args.schema, routing)
+            preflight_warnings = validate_tunnel_launch(order, policy, candidate_path, args.candidate_source, args.schema, routing)
             if order["executor"] == "claude":
                 validate_claude_proxy_environment(dict(os.environ))
         try:
@@ -1842,6 +1842,10 @@ def main() -> int:
         if reservation.disposition != "launch":
             print(json.dumps({"status": reservation.intent["status"], "replayAllowed": False}))
             return 1
+        for warning in preflight_warnings:
+            append_event_best_effort(events_path, "risk_warning", orderId=order["orderId"],
+                approvalRef=reservation.state["authority"]["approvalRef"], **warning)
+            print(f"WARNING {warning['code']}: {warning['message']}", file=sys.stderr)
         try:
             lineage_config = preflight_lineage(order, policy.repo_path)
         except LineageError as exc:

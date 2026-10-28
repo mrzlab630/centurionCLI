@@ -59,6 +59,14 @@ def main() -> int:
         assert_case(planned["diagnostics"] == sorted(planned["diagnostics"], key=lambda item: (item["severity"], item["code"], item["path"], item["message"])), "diagnostics must be deterministically ordered")
         print("PASS deterministic positive plan preserves compatible candidate surface")
 
+        for risk in ("medium", "high"):
+            risky = dict(order, riskLevel=risk)
+            risk_plan = plan_order(risky, policy)
+            warning = [d for d in risk_plan["diagnostics"] if d["code"] == "USER_RISK_DECISION"]
+            assert_case(risk_plan["valid"] and len(warning) == 1 and warning[0]["severity"] == "warning",
+                        "risk must produce an owner-facing warning without denying dispatch")
+        print("PASS medium/high risk is a visible warning and never an automatic permission veto")
+
         alias = json.loads(json.dumps(order))
         alias["launch"]["candidateJsonPath"] = alias["outputContract"]["resultPath"]
         alias_policy = PathPolicy(repo, alias["allowedPaths"], alias["forbiddenPaths"], alias["orderId"])

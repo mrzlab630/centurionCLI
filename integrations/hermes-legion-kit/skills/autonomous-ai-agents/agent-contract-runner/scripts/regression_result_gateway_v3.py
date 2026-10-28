@@ -59,6 +59,8 @@ payload = {
 "selfReview":{"performed":True,"findings":[],"fixesApplied":[]},"scopeDeviations":[],"forbiddenPatternHits":[],
 "remainingRisks":[],"questions":[],"errors":[],"stdoutSummary":"","stderrSummary":"",
 "handoff":order["outputContract"]["handoff"]}
+if mode == "disclosed-risk":
+    payload["remainingRisks"] = ["User accepted the declared local fixture risk"]
 if review:
     payload["filesChanged"] = []
     captured_product = Path(order["context"][0]["productPath"])
@@ -86,9 +88,10 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
 ''')
         cli.chmod(0o755)
 
-        def stage(name: str, mode: str = "valid", *, profile="V0", original=None, capability=None, monitored=False, launch_budget=8) -> dict:
+        def stage(name: str, mode: str = "valid", *, profile="V0", original=None, capability=None, monitored=False, launch_budget=8, risk="low") -> dict:
             paths = fixture.make_case("v3-" + name, "valid")
             order = fixture.read_json(Path(paths["order"]))
+            order["riskLevel"] = risk
             if monitored:
                 order["launch"]["timeoutSeconds"] = None
             Path(paths["order"]).unlink()  # controller-owned order belongs in custody, not product workspace
@@ -105,9 +108,13 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
             proof = [sys.executable, "-c", "from pathlib import Path; assert Path(" + repr(str(product)) + ").is_file()"]
             order["proofCommands"] = [{"command": shlex.join(proof), "argv": proof, "cwd": str(fixture.ROOT), "required": True}]
             route = fixture.routing_metadata(order["orderId"], "codex", verificationProfile=profile,
+                risk=risk, model="gpt-6.1-sol" if risk == "high" else "gpt-6-luna",
+                reasoningEffort="xhigh" if risk == "high" else "high",
                 reviewer="none" if profile == "V0" else "claude-opus-5-5",
                 reasons=["exact bounded oracle"] if profile == "V0" else ["promotion: independent verification required"],
                 trustPredicates={key: True for key in ("localNarrowBlastRadius", "cheapReversal", "deterministicFailureOracle", "noSensitiveOrExternalSideEffects", "requiredArtifactsPass", "requiredProofsPass", "noUncertainty", "noScopeOrAssumptionIssues")})
+            if risk == "high":
+                route["trustPredicates"] = dict.fromkeys(route["trustPredicates"], False)
             fixture.set_routing(order, route)
             if original is not None:
                 prior = fixture.read_json(Path(original["order"]))
@@ -135,8 +142,8 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
                         "productPaths":[str(product)], "dependencies":[], "maxProductAttempts":3, "verificationProfile":profile,
                         "requiredProof":order["proofCommands"], "expectedArtifacts":[]}}}, state_path)
             order["launch"]["candidateJsonPath"] = str(paths["candidate"])
-            order["launch"]["command"] = shlex.join([str(cli), "exec", "--model", "gpt-6-luna", "-c",
-                "model_reasoning_effort=high", "--output-last-message", str(paths["candidate"]), str(paths["order"])])
+            order["launch"]["command"] = shlex.join([str(cli), "exec", "--model", route["model"], "-c",
+                "model_reasoning_effort=" + route["reasoningEffort"], "--output-last-message", str(paths["candidate"]), str(paths["order"])])
             order["outputContract"]["handoff"] = {"version": "AGENT_HANDOFF_V1", "schemaId": "AGENT_RESULT_JSON_V1",
                 "inReplyTo": order["orderId"], "senderRole": order["roleForTask"], "recipientRole": "Aquila"}
             fixture.write_json(Path(paths["order"]), order)
@@ -181,6 +188,37 @@ else: Path(order["launch"]["candidateJsonPath"]).write_bytes(raw)
         derived_events = Path(paths["result"]).parent / "events.jsonl"
         assert any(json.loads(line)["event"].endswith(".process_observed") for line in derived_events.read_text().splitlines())
         print("PASS monitored Gateway derives existing controller events surface when --events is omitted")
+
+        owner_selected = stage("owner-selected-risk", "disclosed-risk", monitored=True, risk="high")
+        completed = fixture.run_gateway(owner_selected)
+        assert completed.returncode == 0, completed.stderr + completed.stdout
+        owner_order = fixture.read_json(Path(owner_selected["order"]))
+        owner_state = fixture.read_json(Path(owner_order["loopContract"]["statePath"]))
+        assert owner_state["intents"]["product-1"]["status"] == "accepted"
+        assert fixture.read_json(Path(owner_selected["result"]))["remainingRisks"]
+        assert "USER_RISK_DECISION" in completed.stderr
+        warnings = [json.loads(row) for row in Path(owner_selected["events"]).read_text().splitlines()
+                    if json.loads(row)["event"].endswith(".risk_warning")]
+        assert len(warnings) == 1 and warnings[0]["severity"] == "warning"
+        assert fixture.run_gateway(owner_selected).returncode == 0
+        assert sum(json.loads(row)["event"].endswith(".risk_warning")
+                   for row in Path(owner_selected["events"]).read_text().splitlines()) == 1
+        assert (Path(owner_selected["result"]).parent / "launch-count").read_text() == "launch\n"
+        # Even for a high-risk label, authorization must remain the exact user's
+        # mission authority; a worker cannot expand that authority itself.
+        unauthorized = stage("owner-authority-mismatch", monitored=True, risk="high")
+        denied_order = fixture.read_json(Path(unauthorized["order"]))
+        denied_order["context"][0]["approvalRef"] = "different-owner-decision"
+        fixture.write_json(Path(unauthorized["order"]), denied_order)
+        rejected = fixture.run_gateway(unauthorized)
+        assert rejected.returncode != 0
+        assert not (Path(unauthorized["result"]).parent / "launch-count").exists()
+        # Compatibility: old V3 tasks reach normal capture/review, rather than
+        # failing because an unavailable approval-verifier service is absent.
+        legacy_v3 = stage("owner-legacy-v3", profile="V3", monitored=True, risk="high")
+        captured = fixture.run_gateway(legacy_v3)
+        assert captured.returncode == 0 and '"status": "awaiting_review"' in captured.stdout, captured.stderr + captured.stdout
+        print("PASS user-selected high-risk V0 accepts truthful risk disclosure; mismatched authority denies before launch; historical V3 reaches selected review")
 
         for stop_signal in (signal.SIGTERM, signal.SIGINT):
             paths = stage("monitored-cancel-" + stop_signal.name, "cancel-silent", monitored=True)

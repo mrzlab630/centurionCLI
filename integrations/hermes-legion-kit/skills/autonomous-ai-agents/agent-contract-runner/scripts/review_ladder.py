@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic Aquila V0-V3 routing and post-cutover order validation."""
+"""Owner-selected verification, advisory risk routing and order validation."""
 
 from __future__ import annotations
 
@@ -43,7 +43,6 @@ ASTRA_ADVISORY_TRIGGERS = {
     "astra advisory: cross-system tradeoffs",
     "astra advisory: difficult diagnosis",
 }
-V3_APPROVAL_UNAVAILABLE = "V3 requires independently verified approval evidence; no trusted verification source configured"
 EFFORT_RANK = {effort: rank for rank, effort in enumerate(("none", "low", "medium", "high", "xhigh", "max"))}
 LEVELS = {"low", "medium", "high"}
 TRUST_PREDICATES = (
@@ -232,10 +231,14 @@ def _minimum_codex_effort(metadata: dict[str, Any]) -> str:
 
 
 def minimum_profile(metadata: dict[str, Any]) -> str:
-    """Return the non-negotiable verification floor for an implementation decision."""
+    """Return a review recommendation, never an additional source of authority.
+
+    The historical function name is retained for callers. V3 is retired as a
+    recommendation; explicit historical V3 records retain V2 review semantics.
+    """
     decision_text = _normalized_decision_text(metadata)
     if metadata.get("risk") == "high" or _contains_marker(decision_text, HARD_RISK_MARKERS):
-        return "V3"
+        return "V2"
     if (
         metadata.get("risk") == "medium"
         or metadata.get("ambiguity") in {"medium", "high"}
@@ -304,39 +307,37 @@ def task_class_promotion(history: Iterable[dict[str, Any]], task_class: str) -> 
 
 
 def select_review_route(metadata: dict[str, Any], history: Iterable[dict[str, Any]] = ()) -> dict[str, Any]:
-    """Select V0-V3 and the terminal reviewer without launching any process."""
+    """Read the approved verification choice and report separate recommendations."""
     profile, reasons = _effective_profile(metadata, history)
     advisory = metadata.get("executionProfile") == "advisory"
     terminal = metadata.get("executionProfile") == "terminal_review"
     reviewer = "none" if advisory or terminal else REVIEWER_BY_PROFILE[profile]
-    gate_satisfied = profile != "V3"
     return {
         "verificationProfile": profile,
         "route": "astra_advisory" if advisory else ("terminal_closure" if terminal else ("deterministic_only" if profile == "V0" else ("sol" if profile == "V1" else "claude-opus-5-5"))),
         "reviewer": reviewer,
         "fallbackReviewer": None,
-        "specialistGateRequired": profile == "V3",
-        "specialistGateSatisfied": gate_satisfied,
+        "specialistGateRequired": False,
+        "specialistGateSatisfied": True,
         "reasons": reasons,
     }
 
 
 def _effective_profile(metadata: dict[str, Any], history: Iterable[dict[str, Any]]) -> tuple[str, list[str]]:
-    profile = minimum_profile(metadata)
-    reasons = [f"base routing floor {profile}"]
+    recommended = minimum_profile(metadata)
+    reasons = [f"recommended verification profile {recommended}"]
     promotion, promotion_reasons = task_class_promotion(history, str(metadata.get("taskClass", "")))
-    if promotion is not None and PROFILE_RANK[promotion] > PROFILE_RANK[profile]:
-        profile = promotion
+    if promotion is not None and PROFILE_RANK[promotion] > PROFILE_RANK[recommended]:
+        recommended = promotion
         reasons.extend(promotion_reasons)
     declared = metadata.get("verificationProfile")
-    if declared in PROFILE_RANK and PROFILE_RANK[declared] > PROFILE_RANK[profile]:
-        profile = declared
-        reasons.append("preserve declared verification profile")
-    if profile == "V1" and metadata.get("executionProfile") == "implementation" and not (
+    if recommended == "V1" and metadata.get("executionProfile") == "implementation" and not (
         metadata.get("executor") == "claude" and metadata.get("model") == "claude-opus-5-5"
     ):
-        profile = "V2"
-        reasons.append("promotion: V1 Sol review is limited to canonical Claude Opus authors")
+        recommended = "V2"
+        reasons.append("recommendation: independent Opus review for a Codex author")
+    profile = declared if declared in PROFILE_RANK else recommended
+    reasons.append("preserve owner-approved verification profile")
     return profile, reasons
 
 
@@ -427,10 +428,6 @@ def validate_routing_metadata(
     if (model == "gpt-6-astra") != (execution_profile == "advisory"):
         raise RoutingError("gpt-6-astra is limited to the advisory execution profile")
     profile = metadata["verificationProfile"]
-    base_floor = minimum_profile(metadata)
-    floor, _ = _effective_profile(metadata, history)
-    if PROFILE_RANK[profile] < PROFILE_RANK[floor]:
-        raise RoutingError(f"routing profile {profile} violates hard floor {floor}")
     if executor == "codex" and model == "gpt-6-luna" and _requires_sol(metadata):
         raise RoutingError(f"codex routing.model requires {SOL_PRIMARY_MODEL} for complex, uncertain, or consequential work")
     if executor == "codex":
@@ -465,10 +462,6 @@ def validate_routing_metadata(
     elif execution_profile == "implementation":
         if profile in {"V2", "V3"} and executor == "claude":
             raise RoutingError("independent reviewer unavailable under current V2/V3 policy")
-        if PROFILE_RANK[profile] > PROFILE_RANK[base_floor] and not any(
-            reason.casefold().startswith(("promotion:", "escalation:")) for reason in reasons
-        ):
-            raise RoutingError("routing above the deterministic floor requires a promotion: or escalation: reason")
         expected_reviewer = REVIEWER_BY_PROFILE[profile]
         if model == expected_reviewer:
             raise RoutingError("implementation model cannot act as its own independent reviewer")
@@ -477,8 +470,8 @@ def validate_routing_metadata(
     else:
         raise RoutingError("routing.executionProfile must be implementation, advisory, or terminal_review")
 
-    if profile == "V0" and not _all_pre_execution_predicates(metadata):
-        raise RoutingError("V0 requires every pre-execution trust predicate to be true")
+    if "trustPredicates" in metadata and not _trust_predicates_have_legacy_shape(metadata):
+        raise RoutingError("routing.trustPredicates must retain the canonical boolean shape")
     if profile == "V0":
         proofs = order.get("proofCommands")
         has_required_proof = isinstance(proofs, list) and any(
@@ -490,15 +483,8 @@ def validate_routing_metadata(
         )
         if not has_required_proof:
             raise RoutingError("V0 requires at least one required proofCommand before dispatch")
-    if profile == "V3":
-        gate = metadata.get("specialistGate")
-        if not isinstance(gate, dict) or set(gate) != {"required", "approved", "approver"}:
-            raise RoutingError("V3 requires explicit specialistGate required/approved/approver fields")
-        if gate.get("required") is not True or gate.get("approved") is not True:
-            raise RoutingError("V3 specialist/Boss gate is not approved")
-        if not isinstance(gate.get("approver"), str) or not gate["approver"].strip():
-            raise RoutingError("V3 specialistGate.approver must be non-empty")
-        raise RoutingError(V3_APPROVAL_UNAVAILABLE)
+    # Historical V3/specialistGate metadata is readable, but grants no authority
+    # and adds no admission gate. Mission authority is the recorded user order.
 
 
 def validate_terminal_review_result(routing: dict[str, Any] | None, result: dict[str, Any]) -> None:

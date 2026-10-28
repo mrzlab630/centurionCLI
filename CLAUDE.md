@@ -52,8 +52,15 @@ above does not apply to policyVersion 3.0.
 
 Use `gpt-6-astra` only for read-only advice and `claude-opus-5-5`
 for its approved specialist/reviewer role. No unapproved alternate model,
-external delegation path or legacy model fallback in new 3.0 dispatch. The controller enforces independent review
-pairing and existing risk floors; no self-approval or recursive reviewer.
+external delegation path or legacy model fallback in new 3.0 dispatch.
+The user is the sole source of action authority and chooses the verification
+required for the mission. Risk labels and review recommendations do not add a
+permission gate. V3's unavailable verifier and automatic specialist gate are
+retired; the historical V3 spelling remains readable with V2 review semantics.
+An independent review, when selected, must actually be independent. Explain
+concrete risks and recommended checks once before an unresolved user decision;
+continue within an existing approval without asking again for the same action.
+This replaces historical CENTURION V3, specialist and risk-based review floors.
 
 Gateway alone launches new 3.0 children and creates outputContract.resultPath
 and controller receipts. Workers return the native payload through the selected
@@ -67,7 +74,7 @@ Malformed reporting alone is not a failed product. Follow the functional
 contract's report-recovery section: use successive report-only attempts within
 the approved budget or collect an explicitly authorized manual-review report.
 Every attempt preserves the original evidence and product snapshot. Reporting
-does not consume a product correction attempt; mandatory review still applies.
+does not consume a product correction attempt; user-selected review still applies.
 
 New model work has launch.timeoutSeconds=null and mission budget.deadlineAt=null
 unless the owner explicitly requests a finite limit. Observe the owning process
@@ -79,5 +86,6 @@ the approved route; ANTHROPIC_DEFAULT_OPUS_MODEL is not the order's authority.
 
 All independent user authority, scope, safety, identity, proof, approval and
 no-secret/no-hidden-change requirements remain effective. This clause grants no
-new permissions, cannot waive V3 or specialist gates, and does not activate a
-3.0 mission by itself. Current explicit user and higher-priority instructions win.
+new permissions or authority outside the user's order and does not activate a
+3.0 mission by itself. Host/runtime permissions remain actual technical limits;
+current explicit user and higher-priority instructions win.
